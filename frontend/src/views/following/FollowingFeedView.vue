@@ -1,0 +1,93 @@
+<template>
+  <section class="page">
+    <div class="hero">
+      <div>
+        <h1>关注流</h1>
+        <p>查看你已关注用户最近发布的内容。</p>
+      </div>
+      <el-button type="primary" @click="loadFeed">刷新关注流</el-button>
+    </div>
+
+    <div class="cards">
+      <article v-for="card in cards" :key="card.id" class="card">
+        <img :src="card.coverUrl" :alt="card.title" class="cover" />
+        <div class="card-body">
+          <h3>{{ card.title }}</h3>
+          <p>{{ card.description }}</p>
+          <span class="meta">发布者：{{ card.creator?.nickname ?? card.creatorId }}</span>
+          <RouterLink :to="`/video/${card.id}`" class="enter-link">查看详情</RouterLink>
+        </div>
+      </article>
+      <el-empty v-if="cards.length === 0" description="你还没有关注任何用户，或关注用户尚未发布内容" />
+    </div>
+  </section>
+</template>
+
+<script setup lang="ts">
+import { onMounted, ref } from 'vue';
+import { ElMessage } from 'element-plus';
+
+import { fetchFollowingFeed } from '@/api/platform';
+import type { VideoCard } from '@/types/api';
+
+const cards = ref<VideoCard[]>([]);
+
+async function loadFeed() {
+  try {
+    cards.value = await fetchFollowingFeed();
+  } catch {
+    ElMessage.warning('请先登录后查看关注流');
+  }
+}
+
+onMounted(() => {
+  void loadFeed();
+});
+</script>
+
+<style scoped>
+.page {
+  display: grid;
+  gap: 20px;
+}
+
+.hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  overflow: hidden;
+  border-radius: 16px;
+  background: rgba(30, 41, 59, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.cover {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+}
+
+.card-body {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+}
+
+.meta {
+  color: #94a3b8;
+}
+
+.enter-link {
+  color: #60a5fa;
+}
+</style>

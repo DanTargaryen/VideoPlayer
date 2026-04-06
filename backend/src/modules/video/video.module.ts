@@ -1,0 +1,14 @@
+import { Module } from '@nestjs/common';
+
+import { AuthModule } from '../auth/auth.module';
+import { FollowModule } from '../follow/follow.module';
+import { VideoController } from './video.controller';
+import { VideoService } from './video.service';
+
+@Module({
+  imports: [AuthModule, FollowModule],
+  controllers: [VideoController],
+  providers: [VideoService],
+  exports: [VideoService],
+})
+export class VideoModule {}
