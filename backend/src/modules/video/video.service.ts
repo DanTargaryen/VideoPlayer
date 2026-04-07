@@ -1,33 +1,110 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import type { Express } from 'express';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { FollowService } from '../follow/follow.service';
+import { MediaService } from './media.service';
+import { MinioService } from '../storage/minio.service';
 
 @Injectable()
 export class VideoService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly followService: FollowService,
+    private readonly mediaService: MediaService,
+    private readonly minioService: MinioService,
   ) {}
+
+  async uploadFile(file: Express.Multer.File, assetType: 'ORIGINAL' | 'COVER' = 'ORIGINAL') {
+    const datePrefix = new Date().toISOString().slice(0, 10).replace(/-/g, '/');
+    const folder = assetType === 'COVER' ? 'videos/covers' : 'videos/original';
+    const objectKey = `${folder}/${datePrefix}/${Date.now()}-${file.originalname}`;
+    const uploaded = await this.minioService.uploadObject({
+      objectKey,
+      buffer: file.buffer,
+      size: file.size,
+      mimeType: file.mimetype,
+      originalName: file.originalname,
+    });
+
+    const asset = await this.prisma.videoAsset.create({
+      data: {
+        assetType,
+        objectKey: uploaded.objectKey,
+        bucket: uploaded.bucket,
+        mimeType: file.mimetype,
+        originalName: file.originalname,
+        fileSize: file.size,
+        url: uploaded.url,
+      },
+    });
+
+    return {
+      assetId: asset.id,
+      uploadToken: asset.objectKey,
+      url: asset.url,
+      objectKey: asset.objectKey,
+      assetType,
+    };
+  }
 
   async createVideo(
     user: { id: number },
-    payload: { uploadToken: string; title: string; description?: string; categoryId: number; coverUrl?: string },
+    payload: {
+      assetId: number;
+      title: string;
+      description?: string;
+      categoryId: number;
+      coverUrl?: string;
+      coverAssetId?: number;
+    },
   ) {
-    return this.prisma.video.create({
+    const asset = await this.prisma.videoAsset.findUnique({ where: { id: payload.assetId } });
+
+    if (!asset) {
+      throw new NotFoundException('Uploaded asset not found');
+    }
+
+    let coverUrl =
+      payload.coverUrl ??
+      'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80';
+
+    if (payload.coverAssetId) {
+      const coverAsset = await this.prisma.videoAsset.findUnique({ where: { id: payload.coverAssetId } });
+      if (!coverAsset) {
+        throw new NotFoundException('Uploaded cover asset not found');
+      }
+      coverUrl = coverAsset.url;
+    }
+
+    const video = await this.prisma.video.create({
       data: {
         creatorId: user.id,
         title: payload.title,
         description: payload.description ?? '',
         categoryId: payload.categoryId,
-        coverUrl:
-          payload.coverUrl ??
-          'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80',
-        playUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+        coverUrl,
+        playUrl: asset.url,
         status: 'DRAFT',
-        uploadToken: payload.uploadToken,
+        uploadToken: asset.objectKey,
       },
     });
+
+    await this.prisma.videoAsset.update({
+      where: { id: asset.id },
+      data: { videoId: video.id },
+    });
+
+    if (payload.coverAssetId) {
+      await this.prisma.videoAsset.update({
+        where: { id: payload.coverAssetId },
+        data: { videoId: video.id },
+      });
+    }
+
+    await this.mediaService.processVideo(video.id, asset.id, payload.coverAssetId ?? null);
+
+    return this.prisma.video.findUnique({ where: { id: video.id } });
   }
 
   async getVideoDetail(id: number, currentUserId?: number) {
@@ -161,13 +238,6 @@ export class VideoService {
       where: { creatorId: user.id },
       orderBy: { id: 'desc' },
     });
-  }
-
-  upload() {
-    return {
-      uploadToken: `mock-upload-${Date.now()}`,
-      url: 'https://example.com/source.mp4',
-    };
   }
 
   async countVideosByStatus(creatorId: number) {

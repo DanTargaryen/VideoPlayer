@@ -15,7 +15,7 @@ import type {
   VideoDetail,
 } from '@/types/api';
 
-export async function login(payload: { account: string; password: string }) {
+export async function login(payload: { account: string; password: string; adminSecret?: string }) {
   const { data } = await http.post<ApiResponse<LoginResponse>>('/auth/login', payload);
   return data.data;
 }
@@ -52,17 +52,29 @@ export async function fetchUserHomepage(id: number) {
   return data.data;
 }
 
-export async function uploadVideo() {
-  const { data } = await http.post<ApiResponse<{ uploadToken: string; url: string }>>('/videos/upload');
+export async function uploadVideo(file: File, assetType: 'ORIGINAL' | 'COVER' = 'ORIGINAL') {
+  const formData = new FormData();
+  formData.append('file', file);
+  const { data } = await http.post<ApiResponse<{ assetId: number; uploadToken: string; url: string; objectKey: string; assetType: string }>>(
+    '/videos/upload',
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      params: { assetType },
+    },
+  );
   return data.data;
 }
 
 export async function createVideo(payload: {
-  uploadToken: string;
+  assetId: number;
   title: string;
   description: string;
   categoryId: number;
   coverUrl?: string;
+  coverAssetId?: number;
 }) {
   const { data } = await http.post<ApiResponse<CreatorVideo>>('/videos', payload);
   return data.data;

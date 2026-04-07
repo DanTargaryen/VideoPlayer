@@ -9,12 +9,24 @@ export const useAppStore = defineStore('app', () => {
   const userId = ref(Number(localStorage.getItem('vp_user_id') ?? 0));
   const role = ref<FrontendRole>((localStorage.getItem('vp_role') as FrontendRole) || 'guest');
   const nickname = ref(localStorage.getItem('vp_nickname') ?? '游客');
+  const adminAccessGranted = ref(localStorage.getItem('vp_admin_access') === 'true');
 
   const isLoggedIn = computed(() => Boolean(token.value));
+  const isAdmin = computed(() => role.value === 'admin');
 
   function normalizeRole(input: 'USER' | 'ADMIN'): FrontendRole {
     if (input === 'ADMIN') return 'admin';
     return 'user';
+  }
+
+  function grantAdminAccess() {
+    adminAccessGranted.value = true;
+    localStorage.setItem('vp_admin_access', 'true');
+  }
+
+  function revokeAdminAccess() {
+    adminAccessGranted.value = false;
+    localStorage.removeItem('vp_admin_access');
   }
 
   function setAuth(payload: {
@@ -39,6 +51,7 @@ export const useAppStore = defineStore('app', () => {
     userId.value = 0;
     role.value = 'guest';
     nickname.value = '游客';
+    revokeAdminAccess();
 
     localStorage.removeItem('vp_token');
     localStorage.removeItem('vp_user_id');
@@ -52,8 +65,12 @@ export const useAppStore = defineStore('app', () => {
     userId,
     role,
     nickname,
+    adminAccessGranted,
     isLoggedIn,
+    isAdmin,
     setAuth,
     logout,
+    grantAdminAccess,
+    revokeAdminAccess,
   };
 });

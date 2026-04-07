@@ -26,6 +26,10 @@ class LoginDto {
 
   @IsString()
   password!: string;
+
+  @IsOptional()
+  @IsString()
+  adminSecret?: string;
 }
 
 @Controller('auth')
@@ -39,7 +43,7 @@ export class AuthController {
 
   @Post('login')
   async login(@Body() dto: LoginDto) {
-    return ok(await this.authService.login(dto.account, dto.password));
+    return ok(await this.authService.login(dto.account, dto.password, dto.adminSecret));
   }
 
   @Get('me')

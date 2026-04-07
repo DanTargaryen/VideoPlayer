@@ -59,6 +59,39 @@ npm --workspace backend run db:seed
 
 如果本机没有 MySQL 服务，后端将无法连接数据库，需先补齐运行环境。
 
+
+## 登录说明
+
+- 普通用户直接在登录页使用用户账号登录。
+- 管理员不在常规入口直接暴露。需要先点击登录页中的“管理入口”，输入密钥 `Administer`，再使用管理员账号登录。
+- 非管理员角色和游客在主站头部不会看到“审核后台”入口。
+
+演示账号：
+
+- 用户：`demo_user / user123`
+- 管理员：`demo_admin / admin123`
+
+## MinIO 上传说明
+
+当前项目已经接入本地 MinIO 与真实文件上传链路。
+
+- 视频原文件会上传到 MinIO 的 `video-player` bucket
+- 封面图片支持本地上传
+- 视频创建后会执行基础媒体处理：
+  - 时长解析
+  - 自动转码到 MP4
+  - 若未手动上传封面，则自动抽帧生成封面
+
+对象路径示例：
+
+```text
+videos/original/YYYY/MM/DD/<timestamp>-sample.mp4
+videos/covers/YYYY/MM/DD/<timestamp>-cover.jpg
+videos/transcoded/YYYY/MM/DD/<timestamp>-sample.mp4
+```
+
+MinIO 默认访问地址：`http://127.0.0.1:9000`
+
 ## 协作注意事项
 
 - 提交代码前先同步远端，减少冲突。
