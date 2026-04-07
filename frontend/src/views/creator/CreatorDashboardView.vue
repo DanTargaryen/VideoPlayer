@@ -3,13 +3,13 @@
     <div class="hero">
       <div>
         <h1>用户中心</h1>
-        <p>这里已经串起“上传占位 -> 创建稿件 -> 提交审核”的第一条闭环。</p>
+        <p>这里已经串起“真实文件上传 -> 创建稿件 -> 提交审核”的第一条完整链路。</p>
       </div>
       <el-button type="primary" @click="refreshAll">刷新数据</el-button>
     </div>
 
     <el-alert
-      title="请先用用户账号登录，再创建一个新稿件并提交审核。随后切换管理员账号到审核后台处理。"
+      title="请先用用户账号登录，再选择本地视频文件与封面上传并创建稿件。随后切换管理员账号到审核后台处理。"
       type="warning"
       :closable="false"
     />
@@ -34,8 +34,16 @@
           <el-form-item label="分区 ID">
             <el-input-number v-model="form.categoryId" :min="1" />
           </el-form-item>
-          <el-form-item label="封面地址">
+          <el-form-item label="封面地址（可选）">
             <el-input v-model="form.coverUrl" />
+          </el-form-item>
+          <el-form-item label="视频文件">
+            <input type="file" accept="video/*" @change="handleVideoFileChange" />
+            <span v-if="selectedVideoFile" class="hint">已选择：{{ selectedVideoFile.name }}</span>
+          </el-form-item>
+          <el-form-item label="封面图片（可选）">
+            <input type="file" accept="image/*" @change="handleCoverFileChange" />
+            <span v-if="selectedCoverFile" class="hint">已选择：{{ selectedCoverFile.name }}</span>
           </el-form-item>
           <div class="panel-actions">
             <el-button :loading="creating" @click="handleCreateDraft">创建稿件</el-button>
@@ -51,6 +59,7 @@
               <h3>{{ item.title }}</h3>
               <p>{{ item.description }}</p>
               <span class="status">状态：{{ item.status }}</span>
+              <span class="reason">时长：{{ item.durationSeconds ?? 0 }} 秒</span>
               <span v-if="item.rejectReason" class="reason">驳回原因：{{ item.rejectReason }}</span>
             </div>
             <el-button
@@ -83,12 +92,13 @@ import {
 const creating = ref(false);
 const dashboard = ref<Record<string, number | string>>({});
 const videos = ref<import('@/types/api').CreatorVideo[]>([]);
+const selectedVideoFile = ref<File | null>(null);
+const selectedCoverFile = ref<File | null>(null);
 const form = reactive({
   title: '新的演示投稿',
-  description: '这是通过用户中心创建并提交审核的演示稿件。',
+  description: '这是通过用户中心上传真实文件后创建并提交审核的演示稿件。',
   categoryId: 1,
-  coverUrl:
-    'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=800&q=80',
+  coverUrl: '',
 });
 
 const statCards = computed(() => [
@@ -98,26 +108,52 @@ const statCards = computed(() => [
   { label: '已驳回', value: dashboard.value.rejectedVideos ?? 0 },
 ]);
 
+function handleVideoFileChange(event: Event) {
+  const input = event.target as HTMLInputElement;
+  selectedVideoFile.value = input.files?.[0] ?? null;
+}
+
+function handleCoverFileChange(event: Event) {
+  const input = event.target as HTMLInputElement;
+  selectedCoverFile.value = input.files?.[0] ?? null;
+}
+
 async function refreshAll() {
   dashboard.value = await fetchCreatorDashboard();
   videos.value = await fetchCreatorVideos();
 }
 
 async function handleCreateDraft() {
+  if (!selectedVideoFile.value) {
+    ElMessage.warning('请先选择视频文件');
+    return;
+  }
+
   creating.value = true;
   try {
-    const upload = await uploadVideo();
+    const upload = await uploadVideo(selectedVideoFile.value, 'ORIGINAL');
+    let coverAssetId: number | undefined;
+
+    if (selectedCoverFile.value) {
+      const coverUpload = await uploadVideo(selectedCoverFile.value, 'COVER');
+      coverAssetId = coverUpload.assetId;
+    }
+
     await createVideo({
-      uploadToken: upload.uploadToken,
+      assetId: upload.assetId,
       title: form.title,
       description: form.description,
       categoryId: form.categoryId,
-      coverUrl: form.coverUrl,
+      coverUrl: form.coverUrl || undefined,
+      coverAssetId,
     });
+
+    selectedVideoFile.value = null;
+    selectedCoverFile.value = null;
     ElMessage.success('稿件创建成功');
     await refreshAll();
-  } catch (error) {
-    ElMessage.error('创建稿件失败，请确认已使用用户账号登录');
+  } catch {
+    ElMessage.error('创建稿件失败，请确认 MinIO 服务已启动且已使用用户账号登录');
   } finally {
     creating.value = false;
   }
@@ -128,7 +164,7 @@ async function handleSubmitReview(videoId: number) {
     await submitReview(videoId);
     ElMessage.success('已提交审核');
     await refreshAll();
-  } catch (error) {
+  } catch {
     ElMessage.error('提交审核失败');
   }
 }
@@ -136,7 +172,7 @@ async function handleSubmitReview(videoId: number) {
 onMounted(async () => {
   try {
     await refreshAll();
-  } catch (error) {
+  } catch {
     ElMessage.warning('请先登录用户账号查看此页面');
   }
 });
@@ -207,7 +243,8 @@ onMounted(async () => {
 }
 
 .status,
-.reason {
+.reason,
+.hint {
   display: block;
   margin-top: 8px;
   color: #94a3b8;

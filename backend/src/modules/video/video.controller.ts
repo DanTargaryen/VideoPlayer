@@ -1,4 +1,18 @@
-import { Body, Controller, Get, Headers, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Headers,
+  Param,
+  ParseIntPipe,
+  Post,
+  Query,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Express } from 'express';
 import { IsArray, IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 
 import { ok } from '../../common/dto/api-response.dto';
@@ -6,8 +20,8 @@ import { AuthService } from '../auth/auth.service';
 import { VideoService } from './video.service';
 
 class CreateVideoDto {
-  @IsString()
-  uploadToken!: string;
+  @IsInt()
+  assetId!: number;
 
   @IsString()
   title!: string;
@@ -26,6 +40,10 @@ class CreateVideoDto {
   @IsOptional()
   @IsString()
   coverUrl?: string;
+
+  @IsOptional()
+  @IsInt()
+  coverAssetId?: number;
 }
 
 class CreateDanmakuDto {
@@ -56,9 +74,17 @@ export class VideoController {
   }
 
   @Post('upload')
-  async upload(@Headers('authorization') authorization: string | undefined) {
+  @UseInterceptors(FileInterceptor('file'))
+  async upload(
+    @Headers('authorization') authorization: string | undefined,
+    @UploadedFile() file?: Express.Multer.File,
+    @Query('assetType') assetType?: 'ORIGINAL' | 'COVER',
+  ) {
     await this.authService.requireUser(authorization);
-    return ok(this.videoService.upload());
+    if (!file) {
+      throw new BadRequestException('Upload file is required');
+    }
+    return ok(await this.videoService.uploadFile(file, assetType ?? 'ORIGINAL'));
   }
 
   @Get(':id')

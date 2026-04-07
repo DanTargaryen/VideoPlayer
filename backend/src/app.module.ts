@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
 import { PrismaModule } from './modules/prisma/prisma.module';
+import { StorageModule } from './modules/storage/storage.module';
 import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
@@ -24,6 +25,7 @@ import { AgentModule } from './modules/agent/agent.module';
       envFilePath: ['backend/.env', '.env'],
     }),
     PrismaModule,
+    StorageModule,
     HealthModule,
     AuthModule,
     UserModule,

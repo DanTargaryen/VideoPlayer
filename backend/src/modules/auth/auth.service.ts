@@ -2,6 +2,8 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
 
+const ADMIN_SECRET = 'Administer';
+
 @Injectable()
 export class AuthService {
   constructor(private readonly prisma: PrismaService) {}
@@ -36,7 +38,7 @@ export class AuthService {
     };
   }
 
-  async login(account: string, password: string) {
+  async login(account: string, password: string, adminSecret?: string) {
     const user = await this.prisma.user.findFirst({
       where: {
         OR: [{ username: account }, { email: account }],
@@ -45,6 +47,10 @@ export class AuthService {
 
     if (!user || user.password !== password) {
       throw new UnauthorizedException('Invalid username/email or password');
+    }
+
+    if (user.role === 'ADMIN' && adminSecret !== ADMIN_SECRET) {
+      throw new UnauthorizedException('Admin secret is required');
     }
 
     return {

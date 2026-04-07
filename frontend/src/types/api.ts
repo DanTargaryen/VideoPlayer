@@ -35,6 +35,7 @@ export interface CreatorVideo extends VideoCard {
   rejectReason?: string | null;
   submittedAt?: string | null;
   publishedAt?: string | null;
+  durationSeconds?: number;
 }
 
 export interface ReviewQueueItem {

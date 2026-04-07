@@ -29,7 +29,7 @@
         <span v-if="unreadCount > 0" class="badge">{{ unreadCount }}</span>
       </RouterLink>
       <RouterLink to="/user/dashboard" class="action-link">用户中心</RouterLink>
-      <RouterLink to="/admin/dashboard" class="action-link">审核后台</RouterLink>
+      <RouterLink v-if="isAdmin" to="/admin/dashboard" class="action-link">审核后台</RouterLink>
       <RouterLink v-if="!isLoggedIn" to="/login" class="action-link">登录</RouterLink>
       <button v-else class="ghost-btn" @click="logout">退出</button>
     </div>
@@ -48,7 +48,7 @@ import { primaryNavItems as navItems } from '@/utils/navigation';
 const store = useAppStore();
 const router = useRouter();
 const route = useRoute();
-const { siteName, nickname, isLoggedIn, token } = storeToRefs(store);
+const { siteName, nickname, isLoggedIn, isAdmin, token } = storeToRefs(store);
 const unreadCount = ref(0);
 const searchKeyword = ref(String(route.query.keyword ?? ''));
 

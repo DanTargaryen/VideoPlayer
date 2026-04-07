@@ -53,6 +53,13 @@ enum ReportTargetType {
   VIDEO_DANMAKU
 }
 
+enum VideoAssetType {
+  ORIGINAL
+  COVER
+  TRANSCODED
+  RECORDING
+}
+
 model User {
   id                    Int              @id @default(autoincrement())
   username              String           @unique @db.VarChar(64)
@@ -93,6 +100,7 @@ model Video {
   likeCount     Int           @default(0)
   favoriteCount Int           @default(0)
   commentCount  Int           @default(0)
+  durationSeconds Int         @default(0)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
   reviews       VideoReview[]
@@ -101,8 +109,26 @@ model Video {
   favorites     Favorite[]
   danmakus      VideoDanmaku[]
   reports       ReportRecord[]
+  assets        VideoAsset[]
 
   @@index([creatorId, status])
+}
+
+model VideoAsset {
+  id          Int            @id @default(autoincrement())
+  videoId      Int?
+  video        Video?         @relation(fields: [videoId], references: [id])
+  assetType    VideoAssetType
+  objectKey    String         @unique @db.VarChar(255)
+  bucket       String         @db.VarChar(64)
+  mimeType     String         @db.VarChar(128)
+  originalName String?        @db.VarChar(255)
+  fileSize     Int            @default(0)
+  url          String         @db.VarChar(255)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([videoId, assetType])
 }
 
 model VideoReview {
@@ -169,24 +195,24 @@ model Notification {
 }
 
 model VideoLike {
-  id        Int      @id @default(autoincrement())
-  videoId   Int
-  video     Video    @relation(fields: [videoId], references: [id])
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id])
-  createdAt DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  videoId    Int
+  video      Video    @relation(fields: [videoId], references: [id])
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id])
+  createdAt  DateTime @default(now())
 
   @@unique([videoId, userId])
   @@index([userId, createdAt])
 }
 
 model Favorite {
-  id        Int      @id @default(autoincrement())
-  videoId   Int
-  video     Video    @relation(fields: [videoId], references: [id])
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id])
-  createdAt DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  videoId    Int
+  video      Video    @relation(fields: [videoId], references: [id])
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id])
+  createdAt  DateTime @default(now())
 
   @@unique([videoId, userId])
   @@index([userId, createdAt])
