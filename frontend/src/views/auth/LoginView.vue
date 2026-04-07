@@ -86,7 +86,10 @@ function exitAdminMode() {
 async function handleLogin() {
   loading.value = true;
   try {
-    const result = await login(form);
+    const result = await login({
+      ...form,
+      ...(adminMode.value ? { adminSecret: ADMIN_SECRET } : {}),
+    });
 
     if (result.role === 'ADMIN' && !adminMode.value) {
       ElMessage.error('请先通过管理入口验证密钥');
