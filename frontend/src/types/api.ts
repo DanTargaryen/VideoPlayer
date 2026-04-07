@@ -36,6 +36,7 @@ export interface CreatorVideo extends VideoCard {
   submittedAt?: string | null;
   publishedAt?: string | null;
   durationSeconds?: number;
+  updatedAt?: string;
 }
 
 export interface ReviewQueueItem {
@@ -44,6 +45,19 @@ export interface ReviewQueueItem {
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   reason?: string | null;
   video: CreatorVideo | null;
+}
+
+export interface ReviewHistoryItem {
+  id: number;
+  videoId: number;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  reason?: string | null;
+  createdAt: string;
+  reviewedAt?: string | null;
+  reviewer?: {
+    id: number;
+    nickname: string;
+  } | null;
 }
 
 export interface VideoDetail extends CreatorVideo {
@@ -119,6 +133,8 @@ export interface DanmakuItem {
 export interface UserHomepage {
   id: number;
   nickname: string;
+  avatarUrl?: string | null;
+  bio?: string | null;
   followers: number;
   following: number;
   videos: number;
@@ -146,4 +162,35 @@ export interface ReportItem {
   video?: { id: number; title: string } | null;
   comment?: { id: number; content: string; status: string } | null;
   danmaku?: { id: number; content: string; status: string } | null;
+}
+
+export interface SearchResultResponse {
+  keyword: string;
+  tab: 'video' | 'live' | 'user';
+  sortBy: 'hot' | 'latest';
+  categoryCode: string;
+  page: number;
+  pageSize: number;
+  video: VideoCard[];
+  live: never[];
+  user: Array<{ id: number; nickname: string }>;
+}
+
+export interface CreatorDashboardData {
+  nickname: string;
+  role: 'USER' | 'ADMIN';
+  totalVideos: number;
+  pendingReviews: number;
+  publishedVideos: number;
+  rejectedVideos: number;
+  followerCount: number;
+  totalLikes: number;
+  totalFavorites: number;
+  totalComments: number;
+  recentRejectedVideos: Array<{
+    id: number;
+    title: string;
+    rejectReason?: string | null;
+    updatedAt: string;
+  }>;
 }

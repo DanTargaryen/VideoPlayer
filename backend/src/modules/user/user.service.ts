@@ -32,6 +32,8 @@ export class UserService {
     return {
       id: user.id,
       nickname: user.nickname,
+      avatarUrl: user.avatarUrl,
+      bio: user.bio,
       followers,
       following: followingCount,
       videos: videoCount,
@@ -40,7 +42,27 @@ export class UserService {
     };
   }
 
-  updateProfile(payload: { nickname?: string; avatarUrl?: string; bio?: string }) {
-    return payload;
+  async updateProfile(
+    userId: number,
+    payload: { nickname?: string; avatarUrl?: string; bio?: string },
+  ) {
+    const data = Object.fromEntries(
+      Object.entries(payload).filter(([, value]) => value !== undefined),
+    );
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data,
+    });
+
+    return {
+      id: updated.id,
+      username: updated.username,
+      email: updated.email,
+      nickname: updated.nickname,
+      avatarUrl: updated.avatarUrl,
+      bio: updated.bio,
+      role: updated.role,
+    };
   }
 }

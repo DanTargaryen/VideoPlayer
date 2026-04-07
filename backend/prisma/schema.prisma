@@ -67,6 +67,8 @@ model User {
   password              String           @db.VarChar(255)
   role                  UserRole
   nickname              String           @db.VarChar(64)
+  avatarUrl             String?          @db.VarChar(255)
+  bio                   String?          @db.VarChar(255)
   createdAt             DateTime         @default(now())
   updatedAt             DateTime         @updatedAt
   createdVideos         Video[]          @relation("CreatedVideos")
@@ -84,49 +86,49 @@ model User {
 }
 
 model Video {
-  id            Int           @id @default(autoincrement())
-  creatorId     Int
-  creator       User          @relation("CreatedVideos", fields: [creatorId], references: [id])
-  title         String        @db.VarChar(128)
-  description   String        @db.Text
-  categoryId    Int           @default(1)
-  coverUrl      String        @db.VarChar(255)
-  playUrl       String        @db.VarChar(255)
-  status        VideoStatus   @default(DRAFT)
-  uploadToken   String        @db.VarChar(255)
-  rejectReason  String?       @db.VarChar(255)
-  submittedAt   DateTime?
-  publishedAt   DateTime?
-  likeCount     Int           @default(0)
-  favoriteCount Int           @default(0)
-  commentCount  Int           @default(0)
-  durationSeconds Int         @default(0)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  reviews       VideoReview[]
-  comments      Comment[]
-  likes         VideoLike[]
-  favorites     Favorite[]
-  danmakus      VideoDanmaku[]
-  reports       ReportRecord[]
-  assets        VideoAsset[]
+  id              Int           @id @default(autoincrement())
+  creatorId       Int
+  creator         User          @relation("CreatedVideos", fields: [creatorId], references: [id])
+  title           String        @db.VarChar(128)
+  description     String        @db.Text
+  categoryId      Int           @default(1)
+  coverUrl        String        @db.VarChar(255)
+  playUrl         String        @db.VarChar(255)
+  status          VideoStatus   @default(DRAFT)
+  uploadToken     String        @db.VarChar(255)
+  rejectReason    String?       @db.VarChar(255)
+  submittedAt     DateTime?
+  publishedAt     DateTime?
+  likeCount       Int           @default(0)
+  favoriteCount   Int           @default(0)
+  commentCount    Int           @default(0)
+  durationSeconds Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  reviews         VideoReview[]
+  comments        Comment[]
+  likes           VideoLike[]
+  favorites       Favorite[]
+  danmakus        VideoDanmaku[]
+  reports         ReportRecord[]
+  assets          VideoAsset[]
 
   @@index([creatorId, status])
 }
 
 model VideoAsset {
-  id          Int            @id @default(autoincrement())
-  videoId      Int?
-  video        Video?         @relation(fields: [videoId], references: [id])
-  assetType    VideoAssetType
-  objectKey    String         @unique @db.VarChar(255)
-  bucket       String         @db.VarChar(64)
-  mimeType     String         @db.VarChar(128)
-  originalName String?        @db.VarChar(255)
-  fileSize     Int            @default(0)
-  url          String         @db.VarChar(255)
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  id           Int            @id @default(autoincrement())
+  videoId       Int?
+  video         Video?         @relation(fields: [videoId], references: [id])
+  assetType     VideoAssetType
+  objectKey     String         @unique @db.VarChar(255)
+  bucket        String         @db.VarChar(64)
+  mimeType      String         @db.VarChar(128)
+  originalName  String?        @db.VarChar(255)
+  fileSize      Int            @default(0)
+  url           String         @db.VarChar(255)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   @@index([videoId, assetType])
 }

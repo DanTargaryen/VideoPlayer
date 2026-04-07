@@ -1,10 +1,18 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Express } from 'express';
 
+import { resolveCategoryId } from '../../common/constants/categories';
 import { PrismaService } from '../prisma/prisma.service';
 import { FollowService } from '../follow/follow.service';
 import { MediaService } from './media.service';
 import { MinioService } from '../storage/minio.service';
+
+interface VideoListOptions {
+  categoryCode?: string;
+  sortBy?: 'hot' | 'latest';
+  page?: number;
+  pageSize?: number;
+}
 
 @Injectable()
 export class VideoService {
@@ -51,16 +59,17 @@ export class VideoService {
   async createVideo(
     user: { id: number },
     payload: {
-      assetId: number;
+      assetId?: number;
+      uploadToken?: string;
       title: string;
       description?: string;
       categoryId: number;
       coverUrl?: string;
       coverAssetId?: number;
+      coverUploadToken?: string;
     },
   ) {
-    const asset = await this.prisma.videoAsset.findUnique({ where: { id: payload.assetId } });
-
+    const asset = await this.resolveAsset(payload.assetId, payload.uploadToken, 'Uploaded asset not found');
     if (!asset) {
       throw new NotFoundException('Uploaded asset not found');
     }
@@ -68,12 +77,9 @@ export class VideoService {
     let coverUrl =
       payload.coverUrl ??
       'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80';
+    const coverAsset = await this.resolveAsset(payload.coverAssetId, payload.coverUploadToken);
 
-    if (payload.coverAssetId) {
-      const coverAsset = await this.prisma.videoAsset.findUnique({ where: { id: payload.coverAssetId } });
-      if (!coverAsset) {
-        throw new NotFoundException('Uploaded cover asset not found');
-      }
+    if (coverAsset) {
       coverUrl = coverAsset.url;
     }
 
@@ -95,16 +101,72 @@ export class VideoService {
       data: { videoId: video.id },
     });
 
-    if (payload.coverAssetId) {
+    if (coverAsset) {
       await this.prisma.videoAsset.update({
-        where: { id: payload.coverAssetId },
+        where: { id: coverAsset.id },
         data: { videoId: video.id },
       });
     }
 
-    await this.mediaService.processVideo(video.id, asset.id, payload.coverAssetId ?? null);
+    await this.mediaService.processVideo(video.id, asset.id, coverAsset?.id ?? null);
 
     return this.prisma.video.findUnique({ where: { id: video.id } });
+  }
+
+  async updateDraft(
+    videoId: number,
+    user: { id: number; role: 'USER' | 'ADMIN' },
+    payload: { title?: string; description?: string; categoryId?: number; coverUrl?: string },
+  ) {
+    const video = await this.prisma.video.findUnique({ where: { id: videoId } });
+
+    if (!video) {
+      throw new NotFoundException('Video not found');
+    }
+
+    if (video.creatorId !== user.id && user.role !== 'ADMIN') {
+      throw new ForbiddenException('Cannot update others videos');
+    }
+
+    if (!['DRAFT', 'REJECTED'].includes(video.status)) {
+      throw new ForbiddenException('Only draft or rejected videos can be edited');
+    }
+
+    return this.prisma.video.update({
+      where: { id: videoId },
+      data: {
+        ...(payload.title !== undefined ? { title: payload.title } : {}),
+        ...(payload.description !== undefined ? { description: payload.description } : {}),
+        ...(payload.categoryId !== undefined ? { categoryId: payload.categoryId } : {}),
+        ...(payload.coverUrl !== undefined ? { coverUrl: payload.coverUrl } : {}),
+        submittedAt: null,
+      },
+    });
+  }
+
+  async getReviewHistory(videoId: number, user: { id: number; role: 'USER' | 'ADMIN' }) {
+    const video = await this.prisma.video.findUnique({ where: { id: videoId } });
+
+    if (!video) {
+      throw new NotFoundException('Video not found');
+    }
+
+    if (video.creatorId !== user.id && user.role !== 'ADMIN') {
+      throw new ForbiddenException('Cannot view others videos');
+    }
+
+    return this.prisma.videoReview.findMany({
+      where: { videoId },
+      include: {
+        reviewer: {
+          select: {
+            id: true,
+            nickname: true,
+          },
+        },
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    });
   }
 
   async getVideoDetail(id: number, currentUserId?: number) {
@@ -236,7 +298,7 @@ export class VideoService {
   async getCreatorVideos(user: { id: number }) {
     return this.prisma.video.findMany({
       where: { creatorId: user.id },
-      orderBy: { id: 'desc' },
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
     });
   }
 
@@ -262,9 +324,16 @@ export class VideoService {
     };
   }
 
-  async getRecommendFeed() {
+  async getRecommendFeed(options: VideoListOptions = {}) {
+    const page = this.normalizePage(options.page);
+    const pageSize = this.normalizePageSize(options.pageSize);
+    const categoryId = resolveCategoryId(options.categoryCode);
+
     return this.prisma.video.findMany({
-      where: { status: 'PUBLISHED' },
+      where: {
+        status: 'PUBLISHED',
+        ...(categoryId ? { categoryId } : {}),
+      },
       include: {
         creator: {
           select: {
@@ -273,20 +342,35 @@ export class VideoService {
           },
         },
       },
-      orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }],
-      take: 20,
+      orderBy: this.buildVideoOrderBy(options.sortBy),
+      skip: (page - 1) * pageSize,
+      take: pageSize,
     });
   }
 
-  async searchPublishedVideos(keyword: string) {
+  async searchPublishedVideos(keyword: string, options: VideoListOptions = {}) {
+    const page = this.normalizePage(options.page);
+    const pageSize = this.normalizePageSize(options.pageSize);
+    const categoryId = resolveCategoryId(options.categoryCode);
+
     return this.prisma.video.findMany({
       where: {
         status: 'PUBLISHED',
+        ...(categoryId ? { categoryId } : {}),
         ...(keyword
           ? {
-              title: {
-                contains: keyword,
-              },
+              OR: [
+                {
+                  title: {
+                    contains: keyword,
+                  },
+                },
+                {
+                  description: {
+                    contains: keyword,
+                  },
+                },
+              ],
             }
           : {}),
       },
@@ -298,98 +382,114 @@ export class VideoService {
           },
         },
       },
-      orderBy: { id: 'desc' },
+      orderBy: this.buildVideoOrderBy(options.sortBy),
+      skip: (page - 1) * pageSize,
+      take: pageSize,
     });
   }
 
-  async toggleLike(videoId: number, user: { id: number; nickname: string }) {
-    const video = await this.prisma.video.findUnique({ where: { id: videoId } });
-
-    if (!video || video.status !== 'PUBLISHED') {
-      throw new NotFoundException('Video not found');
-    }
-
+  async likeVideo(videoId: number, user: { id: number; nickname: string }) {
+    const video = await this.requirePublishedVideo(videoId);
     const existing = await this.prisma.videoLike.findUnique({
       where: { videoId_userId: { videoId, userId: user.id } },
     });
 
-    if (existing) {
-      await this.prisma.videoLike.delete({ where: { id: existing.id } });
+    if (!existing) {
+      await this.prisma.videoLike.create({
+        data: { videoId, userId: user.id },
+      });
       await this.prisma.video.update({
         where: { id: videoId },
-        data: { likeCount: { decrement: 1 } },
+        data: { likeCount: { increment: 1 } },
       });
-      return { liked: false };
-    }
 
-    await this.prisma.videoLike.create({
-      data: { videoId, userId: user.id },
-    });
-    await this.prisma.video.update({
-      where: { id: videoId },
-      data: { likeCount: { increment: 1 } },
-    });
-
-    if (video.creatorId !== user.id) {
-      await this.prisma.notification.create({
-        data: {
-          recipientId: video.creatorId,
-          actorId: user.id,
-          type: 'LIKE',
-          title: '收到新的点赞',
-          content: `${user.nickname} 点赞了你的视频`,
-          relatedType: 'VIDEO',
-          relatedId: videoId,
-        },
-      });
+      if (video.creatorId !== user.id) {
+        await this.prisma.notification.create({
+          data: {
+            recipientId: video.creatorId,
+            actorId: user.id,
+            type: 'LIKE',
+            title: '收到新的点赞',
+            content: `${user.nickname} 点赞了你的视频`,
+            relatedType: 'VIDEO',
+            relatedId: videoId,
+          },
+        });
+      }
     }
 
     return { liked: true };
   }
 
-  async toggleFavorite(videoId: number, user: { id: number; nickname: string }) {
-    const video = await this.prisma.video.findUnique({ where: { id: videoId } });
+  async unlikeVideo(videoId: number, user: { id: number }) {
+    await this.requirePublishedVideo(videoId);
+    const existing = await this.prisma.videoLike.findUnique({
+      where: { videoId_userId: { videoId, userId: user.id } },
+    });
 
-    if (!video || video.status !== 'PUBLISHED') {
-      throw new NotFoundException('Video not found');
+    if (!existing) {
+      return { liked: false };
     }
 
+    await this.prisma.videoLike.delete({ where: { id: existing.id } });
+    await this.prisma.video.update({
+      where: { id: videoId },
+      data: { likeCount: { decrement: 1 } },
+    });
+
+    return { liked: false };
+  }
+
+  async favoriteVideo(videoId: number, user: { id: number; nickname: string }) {
+    const video = await this.requirePublishedVideo(videoId);
     const existing = await this.prisma.favorite.findUnique({
       where: { videoId_userId: { videoId, userId: user.id } },
     });
 
-    if (existing) {
-      await this.prisma.favorite.delete({ where: { id: existing.id } });
+    if (!existing) {
+      await this.prisma.favorite.create({
+        data: { videoId, userId: user.id },
+      });
       await this.prisma.video.update({
         where: { id: videoId },
-        data: { favoriteCount: { decrement: 1 } },
+        data: { favoriteCount: { increment: 1 } },
       });
-      return { favorited: false };
-    }
 
-    await this.prisma.favorite.create({
-      data: { videoId, userId: user.id },
-    });
-    await this.prisma.video.update({
-      where: { id: videoId },
-      data: { favoriteCount: { increment: 1 } },
-    });
-
-    if (video.creatorId !== user.id) {
-      await this.prisma.notification.create({
-        data: {
-          recipientId: video.creatorId,
-          actorId: user.id,
-          type: 'FAVORITE',
-          title: '收到新的收藏',
-          content: `${user.nickname} 收藏了你的视频`,
-          relatedType: 'VIDEO',
-          relatedId: videoId,
-        },
-      });
+      if (video.creatorId !== user.id) {
+        await this.prisma.notification.create({
+          data: {
+            recipientId: video.creatorId,
+            actorId: user.id,
+            type: 'FAVORITE',
+            title: '收到新的收藏',
+            content: `${user.nickname} 收藏了你的视频`,
+            relatedType: 'VIDEO',
+            relatedId: videoId,
+          },
+        });
+      }
     }
 
     return { favorited: true };
+  }
+
+  async unfavoriteVideo(videoId: number, user: { id: number }) {
+    await this.requirePublishedVideo(videoId);
+    const existing = await this.prisma.favorite.findUnique({
+      where: { videoId_userId: { videoId, userId: user.id } },
+    });
+
+    if (!existing) {
+      return { favorited: false };
+    }
+
+    await this.prisma.favorite.delete({ where: { id: existing.id } });
+    await this.prisma.video.update({
+      where: { id: videoId },
+      data: { favoriteCount: { decrement: 1 } },
+    });
+
+    return { favorited: false };
   }
 
   async listDanmakus(videoId: number, fromMs?: number, toMs?: number) {
@@ -420,11 +520,7 @@ export class VideoService {
     user: { id: number },
     payload: { content: string; timeOffsetMs: number; color?: string },
   ) {
-    const video = await this.prisma.video.findUnique({ where: { id: videoId } });
-
-    if (!video || video.status !== 'PUBLISHED') {
-      throw new NotFoundException('Video not found');
-    }
+    await this.requirePublishedVideo(videoId);
 
     return this.prisma.videoDanmaku.create({
       data: {
@@ -441,5 +537,69 @@ export class VideoService {
         },
       },
     });
+  }
+
+  private async requirePublishedVideo(videoId: number) {
+    const video = await this.prisma.video.findUnique({ where: { id: videoId } });
+
+    if (!video || video.status !== 'PUBLISHED') {
+      throw new NotFoundException('Video not found');
+    }
+
+    return video;
+  }
+
+  private async resolveAsset(assetId?: number, uploadToken?: string, errorMessage = 'Uploaded asset not found') {
+    if (assetId !== undefined) {
+      const asset = await this.prisma.videoAsset.findUnique({ where: { id: assetId } });
+      if (!asset) {
+        throw new NotFoundException(errorMessage);
+      }
+      return asset;
+    }
+
+    if (uploadToken) {
+      const asset = await this.prisma.videoAsset.findUnique({ where: { objectKey: uploadToken } });
+      if (!asset) {
+        throw new NotFoundException(errorMessage);
+      }
+      return asset;
+    }
+
+    if (errorMessage !== 'Uploaded asset not found') {
+      return null;
+    }
+
+    throw new NotFoundException(errorMessage);
+  }
+
+  private buildVideoOrderBy(sortBy?: 'hot' | 'latest') {
+    if (sortBy === 'hot') {
+      return [
+        { likeCount: 'desc' as const },
+        { favoriteCount: 'desc' as const },
+        { commentCount: 'desc' as const },
+        { publishedAt: 'desc' as const },
+        { id: 'desc' as const },
+      ];
+    }
+
+    return [{ publishedAt: 'desc' as const }, { id: 'desc' as const }];
+  }
+
+  private normalizePage(page?: number) {
+    if (!page || !Number.isFinite(page) || page < 1) {
+      return 1;
+    }
+
+    return Math.floor(page);
+  }
+
+  private normalizePageSize(pageSize?: number) {
+    if (!pageSize || !Number.isFinite(pageSize) || pageSize < 1) {
+      return 20;
+    }
+
+    return Math.min(50, Math.floor(pageSize));
   }
 }
