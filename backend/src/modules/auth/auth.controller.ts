@@ -56,6 +56,8 @@ export class AuthController {
       role: user.role,
       nickname: user.nickname,
       email: user.email,
+      avatarUrl: user.avatarUrl,
+      bio: user.bio,
     });
   }
 }

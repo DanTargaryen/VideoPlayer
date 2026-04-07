@@ -3,12 +3,15 @@ import type {
   ApiResponse,
   CommentListResponse,
   CommentReply,
+  CreatorDashboardData,
   CreatorVideo,
   DanmakuItem,
   LoginResponse,
   NotificationItem,
   ReportItem,
+  ReviewHistoryItem,
   ReviewQueueItem,
+  SearchResultResponse,
   TextReviewItem,
   UserHomepage,
   VideoCard,
@@ -20,8 +23,10 @@ export async function login(payload: { account: string; password: string; adminS
   return data.data;
 }
 
-export async function fetchRecommendFeed() {
-  const { data } = await http.get<ApiResponse<VideoCard[]>>('/feeds/recommend');
+export async function fetchRecommendFeed(params?: { categoryCode?: string; page?: number; pageSize?: number }) {
+  const { data } = await http.get<ApiResponse<VideoCard[]>>('/feeds/recommend', {
+    params,
+  });
   return data.data;
 }
 
@@ -30,9 +35,16 @@ export async function fetchFollowingFeed() {
   return data.data;
 }
 
-export async function searchAll(keyword: string) {
-  const { data } = await http.get<ApiResponse<{ keyword: string; video: VideoCard[]; live: never[]; user: Array<{ id: number; nickname: string }> }>>('/search/all', {
-    params: { keyword },
+export async function searchAll(payload: {
+  keyword: string;
+  tab?: 'video' | 'live' | 'user';
+  sortBy?: 'hot' | 'latest';
+  category?: string;
+  page?: number;
+  pageSize?: number;
+}) {
+  const { data } = await http.get<ApiResponse<SearchResultResponse>>('/search/all', {
+    params: payload,
   });
   return data.data;
 }
@@ -55,33 +67,46 @@ export async function fetchUserHomepage(id: number) {
 export async function uploadVideo(file: File, assetType: 'ORIGINAL' | 'COVER' = 'ORIGINAL') {
   const formData = new FormData();
   formData.append('file', file);
-  const { data } = await http.post<ApiResponse<{ assetId: number; uploadToken: string; url: string; objectKey: string; assetType: string }>>(
-    '/videos/upload',
-    formData,
-    {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-      params: { assetType },
+  const { data } = await http.post<
+    ApiResponse<{ assetId: number; uploadToken: string; url: string; objectKey: string; assetType: string }>
+  >('/videos/upload', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
     },
-  );
+    params: { assetType },
+  });
   return data.data;
 }
 
 export async function createVideo(payload: {
-  assetId: number;
+  assetId?: number;
+  uploadToken?: string;
   title: string;
   description: string;
   categoryId: number;
   coverUrl?: string;
   coverAssetId?: number;
+  coverUploadToken?: string;
 }) {
   const { data } = await http.post<ApiResponse<CreatorVideo>>('/videos', payload);
   return data.data;
 }
 
+export async function updateVideoDraft(
+  videoId: number,
+  payload: { title?: string; description?: string; categoryId?: number; coverUrl?: string },
+) {
+  const { data } = await http.put<ApiResponse<CreatorVideo>>(`/videos/${videoId}`, payload);
+  return data.data;
+}
+
+export async function fetchVideoReviews(videoId: number) {
+  const { data } = await http.get<ApiResponse<ReviewHistoryItem[]>>(`/videos/${videoId}/reviews`);
+  return data.data;
+}
+
 export async function fetchCreatorDashboard() {
-  const { data } = await http.get<ApiResponse<Record<string, number | string>>>('/creator/dashboard');
+  const { data } = await http.get<ApiResponse<CreatorDashboardData>>('/creator/dashboard');
   return data.data;
 }
 
@@ -193,13 +218,23 @@ export async function readAllNotifications() {
   return data.data;
 }
 
-export async function toggleVideoLike(videoId: number) {
+export async function likeVideo(videoId: number) {
   const { data } = await http.post<ApiResponse<{ liked: boolean }>>(`/videos/${videoId}/like`);
   return data.data;
 }
 
-export async function toggleVideoFavorite(videoId: number) {
+export async function unlikeVideo(videoId: number) {
+  const { data } = await http.delete<ApiResponse<{ liked: boolean }>>(`/videos/${videoId}/like`);
+  return data.data;
+}
+
+export async function favoriteVideo(videoId: number) {
   const { data } = await http.post<ApiResponse<{ favorited: boolean }>>(`/videos/${videoId}/favorite`);
+  return data.data;
+}
+
+export async function unfavoriteVideo(videoId: number) {
+  const { data } = await http.delete<ApiResponse<{ favorited: boolean }>>(`/videos/${videoId}/favorite`);
   return data.data;
 }
 

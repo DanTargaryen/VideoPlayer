@@ -138,22 +138,24 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 
 import {
   createComment,
   createDanmaku,
+  favoriteVideo,
   fetchComments,
   fetchDanmakus,
   fetchRelatedVideos,
   fetchVideoDetail,
   followUser,
+  likeVideo,
   reportContent,
-  toggleVideoFavorite,
-  toggleVideoLike,
+  unfavoriteVideo,
   unfollowUser,
+  unlikeVideo,
 } from '@/api/platform';
 import { useAppStore } from '@/stores/app';
 import type { CommentItem, DanmakuItem, VideoCard, VideoDetail } from '@/types/api';
@@ -284,7 +286,9 @@ async function toggleLikeAction() {
   }
 
   try {
-    const result = await toggleVideoLike(video.value.id);
+    const result = video.value.isLiked
+      ? await unlikeVideo(video.value.id)
+      : await likeVideo(video.value.id);
     ElMessage.success(result.liked ? '点赞成功' : '已取消点赞');
     await loadDetail();
   } catch {
@@ -298,7 +302,9 @@ async function toggleFavoriteAction() {
   }
 
   try {
-    const result = await toggleVideoFavorite(video.value.id);
+    const result = video.value.isFavorited
+      ? await unfavoriteVideo(video.value.id)
+      : await favoriteVideo(video.value.id);
     ElMessage.success(result.favorited ? '收藏成功' : '已取消收藏');
     await loadDetail();
   } catch {
@@ -351,9 +357,13 @@ async function submitDanmaku() {
   }
 }
 
-onMounted(async () => {
-  await Promise.all([loadDetail(), loadRecommendations(), loadComments(), loadDanmakus()]);
-});
+watch(
+  () => route.params.id,
+  async () => {
+    await Promise.all([loadDetail(), loadRecommendations(), loadComments(), loadDanmakus()]);
+  },
+  { immediate: true },
+);
 </script>
 
 <style scoped>

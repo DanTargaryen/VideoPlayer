@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Headers, Param, ParseIntPipe, Put } from '@nestjs/common';
-import { IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
 
 import { ok } from '../../common/dto/api-response.dto';
 import { AuthService } from '../auth/auth.service';
@@ -8,14 +8,17 @@ import { UserService } from './user.service';
 class UpdateProfileDto {
   @IsOptional()
   @IsString()
+  @MaxLength(64)
   nickname?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(255)
   avatarUrl?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(255)
   bio?: string;
 }
 
@@ -27,8 +30,12 @@ export class UserController {
   ) {}
 
   @Put('profile')
-  updateProfile(@Body() dto: UpdateProfileDto) {
-    return ok(this.userService.updateProfile(dto));
+  async updateProfile(
+    @Headers('authorization') authorization: string | undefined,
+    @Body() dto: UpdateProfileDto,
+  ) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.userService.updateProfile(user.id, dto));
   }
 
   @Get(':id/homepage')

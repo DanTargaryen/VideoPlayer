@@ -1,9 +1,13 @@
 <template>
   <section class="page" v-loading="loading">
     <div class="hero" v-if="homepage">
-      <div>
-        <h1>{{ homepage.nickname }} 的主页</h1>
-        <p>粉丝 {{ homepage.followers }} · 关注 {{ homepage.following }} · 视频 {{ homepage.videos }}</p>
+      <div class="profile-head">
+        <img :src="homepage.avatarUrl || fallbackAvatar" :alt="homepage.nickname" class="avatar" />
+        <div>
+          <h1>{{ homepage.nickname }} 的主页</h1>
+          <p>{{ homepage.bio || '这个用户还没有填写简介。' }}</p>
+          <span class="meta">粉丝 {{ homepage.followers }} · 关注 {{ homepage.following }} · 视频 {{ homepage.videos }}</span>
+        </div>
       </div>
       <el-button
         v-if="canFollow"
@@ -29,7 +33,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 
@@ -37,6 +41,7 @@ import { fetchUserHomepage, followUser, unfollowUser } from '@/api/platform';
 import { useAppStore } from '@/stores/app';
 import type { UserHomepage } from '@/types/api';
 
+const fallbackAvatar = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=320&q=80';
 const route = useRoute();
 const store = useAppStore();
 const loading = ref(false);
@@ -76,9 +81,13 @@ async function toggleFollow() {
   }
 }
 
-onMounted(() => {
-  void loadHomepage();
-});
+watch(
+  () => route.params.id,
+  () => {
+    void loadHomepage();
+  },
+  { immediate: true },
+);
 </script>
 
 <style scoped>
@@ -96,6 +105,25 @@ onMounted(() => {
   border-radius: 16px;
   background: rgba(30, 41, 59, 0.9);
   border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.profile-head {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.avatar {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.meta {
+  display: inline-block;
+  margin-top: 8px;
+  color: #94a3b8;
 }
 
 .cards {
