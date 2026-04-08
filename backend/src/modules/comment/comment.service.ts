@@ -20,14 +20,14 @@ export class CommentService {
       orderBy: [{ createdAt: 'asc' }],
     });
 
-    const topLevel = comments.filter((item) => item.parentId === null);
-    const replies = comments.filter((item) => item.parentId !== null);
+    const topLevel = comments.filter((item: (typeof comments)[number]) => item.parentId === null);
+    const replies = comments.filter((item: (typeof comments)[number]) => item.parentId !== null);
 
     return {
       videoId,
-      items: topLevel.map((item) => ({
+      items: topLevel.map((item: (typeof topLevel)[number]) => ({
         ...item,
-        replies: replies.filter((reply) => reply.rootId === item.id),
+        replies: replies.filter((reply: (typeof replies)[number]) => reply.rootId === item.id),
       })),
     };
   }

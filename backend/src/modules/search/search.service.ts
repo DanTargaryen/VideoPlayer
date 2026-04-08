@@ -110,7 +110,7 @@ export class SearchService {
       take: 5,
     });
 
-    const titles = videos.map((item) => item.title).filter(Boolean);
+    const titles = videos.map((item: (typeof videos)[number]) => item.title).filter(Boolean);
     const defaults = ['观澜推荐', '视频弹幕', '投稿审核', '直播互动'];
     return Array.from(new Set([...titles, ...defaults])).slice(0, 8);
   }
