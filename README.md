@@ -73,7 +73,7 @@ npm --workspace backend run db:seed
 
 ## MinIO 上传说明
 
-当前项目已经接入本地 MinIO 与真实文件上传链路。
+当前项目默认使用 MinIO 作为对象存储，并接入真实文件上传链路。
 
 - 视频原文件会上传到 MinIO 的 `video-player` bucket
 - 封面图片支持本地上传
@@ -81,6 +81,7 @@ npm --workspace backend run db:seed
   - 时长解析
   - 自动转码到 MP4
   - 若未手动上传封面，则自动抽帧生成封面
+- 后端会自动创建 bucket，并配置匿名只读策略，返回的资源 URL 可直接在前端访问
 
 对象路径示例：
 
@@ -91,6 +92,9 @@ videos/transcoded/YYYY/MM/DD/<timestamp>-sample.mp4
 ```
 
 MinIO 默认访问地址：`http://127.0.0.1:9000`
+MinIO 控制台默认访问地址：`http://127.0.0.1:9001`
+
+如需本地启动 MinIO，可在 `deploy/` 目录使用 Docker Compose 启动 `minio` 服务；若确实需要退回本地磁盘存储，可显式设置 `STORAGE_BACKEND=local`。
 
 ## 协作注意事项
 

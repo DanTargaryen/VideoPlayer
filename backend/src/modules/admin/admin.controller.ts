@@ -140,7 +140,7 @@ export class AdminController {
         });
 
     const items = [
-      ...commentRows.map((item) => ({
+      ...commentRows.map((item: (typeof commentRows)[number]) => ({
         id: item.id,
         targetType: 'COMMENT',
         status: item.status,
@@ -149,7 +149,7 @@ export class AdminController {
         video: { id: item.video.id, title: item.video.title },
         createdAt: item.createdAt,
       })),
-      ...danmakuRows.map((item) => ({
+      ...danmakuRows.map((item: (typeof danmakuRows)[number]) => ({
         id: item.id,
         targetType: 'VIDEO_DANMAKU',
         status: item.status,
