@@ -172,8 +172,20 @@ export interface SearchResultResponse {
   page: number;
   pageSize: number;
   video: VideoCard[];
-  live: never[];
+  live: LiveRoomInfo[];
   user: Array<{ id: number; nickname: string }>;
+}
+
+export interface LiveMessage {
+  id: number;
+  roomId: number;
+  kind: 'CHAT' | 'SYSTEM';
+  content: string;
+  createdAt: string;
+  sender: {
+    id: number | null;
+    nickname: string;
+  };
 }
 
 export interface CreatorDashboardData {
@@ -193,4 +205,71 @@ export interface CreatorDashboardData {
     rejectReason?: string | null;
     updatedAt: string;
   }>;
+}
+
+export interface LiveRoomInfo {
+  id: number;
+  sessionId?: number;
+  title: string;
+  categoryId: number;
+  coverUrl?: string;
+  sourceMode?: 'camera' | 'screen' | string;
+  streamKey: string;
+  rtmpUrl: string;
+  playUrl: string;
+  viewerCount?: number;
+  status?: 'IDLE' | 'LIVING' | 'ENDED' | string;
+  createdAt?: string | null;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  broadcaster?: {
+    id: number;
+    nickname: string;
+  };
+}
+
+export interface LiveStartResponse {
+  roomId: number;
+  sessionId: number;
+  status: 'LIVING' | string;
+}
+
+export interface LiveSessionInfo {
+  id: number;
+  roomId: number;
+  title: string;
+  status: 'IDLE' | 'LIVING' | 'ENDED' | string;
+  playUrl?: string;
+  coverUrl?: string;
+  sourceMode?: 'camera' | 'screen' | string;
+  viewerCount?: number;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  broadcaster?: {
+    id: number;
+    nickname: string;
+  };
+}
+
+export interface SessionDescriptionPayload {
+  type: 'offer' | 'answer';
+  sdp: string;
+}
+
+export interface LiveViewerTicket {
+  roomId: number;
+  viewerId: number;
+  status: 'LIVING' | string;
+}
+
+export interface PendingLiveViewer {
+  viewerId: number;
+  offer: SessionDescriptionPayload;
+  updatedAt: string;
+}
+
+export interface LiveViewerAnswerResponse {
+  ready: boolean;
+  answer: SessionDescriptionPayload | null;
+  updatedAt: string;
 }

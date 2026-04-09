@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { resolveCategoryId } from '../../common/constants/categories';
+import { LiveService } from '../live/live.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { VideoService } from '../video/video.service';
 
@@ -21,6 +22,7 @@ export class SearchService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly videoService: VideoService,
+    private readonly liveService: LiveService,
   ) {}
 
   async getRecommendFeed(options: ListOptions = {}) {
@@ -33,7 +35,10 @@ export class SearchService {
 
   async getHotFeed(targetType: string) {
     if (targetType === 'LIVE') {
-      return [];
+      return this.liveService.listRooms({
+        status: 'LIVING',
+        limit: 10,
+      });
     }
 
     return this.videoService.getRecommendFeed({
@@ -51,42 +56,40 @@ export class SearchService {
     const skip = (page - 1) * pageSize;
     const categoryId = resolveCategoryId(options.categoryCode);
 
-    const video =
-      normalizedTab === 'user'
-        ? []
-        : await this.videoService.searchPublishedVideos(normalizedKeyword, {
-            categoryCode: options.categoryCode,
-            sortBy: options.sortBy,
-            page,
-            pageSize,
-          });
+    const video = await this.videoService.searchPublishedVideos(normalizedKeyword, {
+      categoryCode: options.categoryCode,
+      sortBy: options.sortBy,
+      page,
+      pageSize,
+    });
 
-    const user =
-      normalizedTab === 'video'
-        ? []
-        : await this.prisma.user.findMany({
-            where: normalizedKeyword
-              ? {
-                  OR: [
-                    {
-                      nickname: {
-                        contains: normalizedKeyword,
-                      },
-                    },
-                    {
-                      username: {
-                        contains: normalizedKeyword,
-                      },
-                    },
-                  ],
-                }
-              : {},
-            orderBy: { id: 'desc' },
-            skip,
-            take: pageSize,
-          });
+    const user = await this.prisma.user.findMany({
+      where: normalizedKeyword
+        ? {
+            OR: [
+              {
+                nickname: {
+                  contains: normalizedKeyword,
+                },
+              },
+              {
+                username: {
+                  contains: normalizedKeyword,
+                },
+              },
+            ],
+          }
+        : {},
+      orderBy: { id: 'desc' },
+      skip,
+      take: pageSize,
+    });
 
-    const live = normalizedTab === 'user' ? [] : [];
+    const live = this.liveService.listRooms({
+      keyword: normalizedKeyword,
+      categoryId: categoryId ?? undefined,
+      limit: pageSize,
+    });
 
     return {
       keyword: normalizedKeyword,
