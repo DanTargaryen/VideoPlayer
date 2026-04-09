@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 const props = defineProps();
 const broadcasterLabel = computed(() => props.item.broadcaster?.nickname ?? `用户 #${props.item.broadcaster?.id ?? '-'}`);
+const broadcasterInitial = computed(() => broadcasterLabel.value.slice(0, 1));
 const sourceModeLabel = computed(() => (props.item.sourceMode === 'screen' ? '屏幕共享' : '摄像头直播'));
 const statusLabel = computed(() => {
     if (props.item.status === 'LIVING') {
@@ -22,25 +23,19 @@ const statusClass = computed(() => {
     return 'status-idle';
 });
 const timeLabel = computed(() => {
-    const startedAt = props.item.startedAt ? new Date(props.item.startedAt).toLocaleString('zh-CN') : '';
-    if (props.item.status === 'LIVING' && startedAt) {
-        return `开播时间 ${startedAt}`;
-    }
-    const endedAt = props.item.endedAt ? new Date(props.item.endedAt).toLocaleString('zh-CN') : '';
-    if (props.item.status === 'ENDED' && endedAt) {
-        return `结束时间 ${endedAt}`;
-    }
-    const createdAt = props.item.createdAt ? new Date(props.item.createdAt).toLocaleString('zh-CN') : '';
-    return createdAt ? `创建时间 ${createdAt}` : '等待主播开始推流';
+    const value = props.item.status === 'LIVING' ? props.item.startedAt : props.item.createdAt;
+    return value ? new Date(value).toLocaleString('zh-CN') : '刚刚创建';
 });
 debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};
 let __VLS_components;
 let __VLS_directives;
-/** @type {__VLS_StyleScopedClasses['title-block']} */ ;
-/** @type {__VLS_StyleScopedClasses['title-block']} */ ;
-/** @type {__VLS_StyleScopedClasses['title-block']} */ ;
-/** @type {__VLS_StyleScopedClasses['meta-chip']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['viewer-pill']} */ ;
+/** @type {__VLS_StyleScopedClasses['content-block']} */ ;
+/** @type {__VLS_StyleScopedClasses['content-block']} */ ;
+/** @type {__VLS_StyleScopedClasses['broadcaster']} */ ;
+/** @type {__VLS_StyleScopedClasses['meta-row']} */ ;
 // CSS variable injection 
 // CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.article, __VLS_intrinsicElements.article)({
@@ -72,76 +67,59 @@ else {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
     (__VLS_ctx.sourceModeLabel);
 }
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "cover-overlay" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: (['status-badge', __VLS_ctx.statusClass]) },
+});
+(__VLS_ctx.statusLabel);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "viewer-pill" },
+});
+(__VLS_ctx.item.viewerCount ?? 0);
 var __VLS_3;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "card-body" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "title-row" },
+    ...{ class: "avatar-chip" },
 });
+(__VLS_ctx.broadcasterInitial);
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "title-block" },
+    ...{ class: "content-block" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.h3, __VLS_intrinsicElements.h3)({});
 (__VLS_ctx.item.title);
-__VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-(__VLS_ctx.broadcasterLabel);
-__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-    ...{ class: (['status-badge', __VLS_ctx.statusClass]) },
+__VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+    ...{ class: "broadcaster" },
 });
-(__VLS_ctx.statusLabel);
+(__VLS_ctx.broadcasterLabel);
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "meta-row" },
 });
-__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-    ...{ class: "meta-chip" },
-});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
 (__VLS_ctx.sourceModeLabel);
-__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-    ...{ class: "meta-chip" },
-});
-(__VLS_ctx.item.viewerCount ?? 0);
-__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-    ...{ class: "meta-chip" },
-});
-(__VLS_ctx.item.id);
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "time-text" },
-});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
 (__VLS_ctx.timeLabel);
-const __VLS_4 = {}.RouterLink;
-/** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.RouterLink, ]} */ ;
-// @ts-ignore
-const __VLS_5 = __VLS_asFunctionalComponent(__VLS_4, new __VLS_4({
-    to: (`/live/${__VLS_ctx.item.id}`),
-    ...{ class: "primary-link" },
-}));
-const __VLS_6 = __VLS_5({
-    to: (`/live/${__VLS_ctx.item.id}`),
-    ...{ class: "primary-link" },
-}, ...__VLS_functionalComponentArgsRest(__VLS_5));
-__VLS_7.slots.default;
-(__VLS_ctx.item.status === 'LIVING' ? '进入直播间' : '查看房间');
-var __VLS_7;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['cover-link']} */ ;
 /** @type {__VLS_StyleScopedClasses['cover']} */ ;
 /** @type {__VLS_StyleScopedClasses['cover']} */ ;
 /** @type {__VLS_StyleScopedClasses['cover-fallback']} */ ;
+/** @type {__VLS_StyleScopedClasses['cover-overlay']} */ ;
+/** @type {__VLS_StyleScopedClasses['viewer-pill']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
-/** @type {__VLS_StyleScopedClasses['title-row']} */ ;
-/** @type {__VLS_StyleScopedClasses['title-block']} */ ;
+/** @type {__VLS_StyleScopedClasses['avatar-chip']} */ ;
+/** @type {__VLS_StyleScopedClasses['content-block']} */ ;
+/** @type {__VLS_StyleScopedClasses['broadcaster']} */ ;
 /** @type {__VLS_StyleScopedClasses['meta-row']} */ ;
-/** @type {__VLS_StyleScopedClasses['meta-chip']} */ ;
-/** @type {__VLS_StyleScopedClasses['meta-chip']} */ ;
-/** @type {__VLS_StyleScopedClasses['meta-chip']} */ ;
-/** @type {__VLS_StyleScopedClasses['time-text']} */ ;
-/** @type {__VLS_StyleScopedClasses['primary-link']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
             broadcasterLabel: broadcasterLabel,
+            broadcasterInitial: broadcasterInitial,
             sourceModeLabel: sourceModeLabel,
             statusLabel: statusLabel,
             statusClass: statusClass,

@@ -1,5 +1,8 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+﻿import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Response } from 'express';
+
+import { PrismaService } from '../prisma/prisma.service';
+import { VideoService } from '../video/video.service';
 
 type SessionDescriptionPayload = {
   type: 'offer' | 'answer';
@@ -54,6 +57,9 @@ type LiveRoomState = {
   createdAt: string;
   startedAt?: string;
   endedAt?: string;
+  replayUrl?: string;
+  replayAssetId?: number;
+  replayVideoId?: number;
   viewers: Map<number, ViewerSignalState>;
   nextViewerId: number;
   messages: LiveMessage[];
@@ -68,7 +74,12 @@ export class LiveService {
   private nextMessageId = 1;
   private readonly rooms = new Map<number, LiveRoomState>();
 
-  createRoom(user: AuthUser, payload: { title: string; categoryId: number; coverUrl?: string; sourceMode?: LiveSourceMode }) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly videoService: VideoService,
+  ) {}
+
+  createRoom(user: AuthUser, payload: { title: string; categoryId?: number; coverUrl?: string; sourceMode?: LiveSourceMode }) {
     const roomId = this.nextRoomId++;
     const createdAt = new Date().toISOString();
     const streamKey = `room-${roomId}-${Date.now()}`;
@@ -76,7 +87,7 @@ export class LiveService {
       id: roomId,
       sessionId: roomId,
       title: payload.title,
-      categoryId: payload.categoryId,
+      categoryId: payload.categoryId ?? 5,
       coverUrl: payload.coverUrl,
       sourceMode: payload.sourceMode ?? 'camera',
       streamKey,
@@ -86,6 +97,9 @@ export class LiveService {
       broadcasterNickname: user.nickname,
       status: 'IDLE',
       createdAt,
+      replayUrl: undefined,
+      replayAssetId: undefined,
+      replayVideoId: undefined,
       viewers: new Map<number, ViewerSignalState>(),
       nextViewerId: 1,
       messages: [],
@@ -214,13 +228,11 @@ export class LiveService {
     viewer.answer = null;
     viewer.updatedAt = new Date().toISOString();
 
-    const payload = {
+    this.emitPublisherSignal(room, 'viewer-offer', {
       viewerId,
       offer,
       updatedAt: viewer.updatedAt,
-    };
-
-    this.emitPublisherSignal(room, 'viewer-offer', payload);
+    });
 
     return {
       roomId,
@@ -236,7 +248,7 @@ export class LiveService {
       .filter((viewer) => viewer.offer && !viewer.answer)
       .map((viewer) => ({
         viewerId: viewer.id,
-        offer: viewer.offer,
+        offer: viewer.offer!,
         updatedAt: viewer.updatedAt,
       }));
   }
@@ -281,6 +293,8 @@ export class LiveService {
       playUrl: room.playUrl,
       coverUrl: room.coverUrl,
       sourceMode: room.sourceMode,
+      replayUrl: room.replayUrl ?? null,
+      replayVideoId: room.replayVideoId ?? null,
       broadcaster: {
         id: room.broadcasterId,
         nickname: room.broadcasterNickname,
@@ -288,6 +302,59 @@ export class LiveService {
       viewerCount: room.viewers.size,
       startedAt: room.startedAt ?? null,
       endedAt: room.endedAt ?? null,
+    };
+  }
+
+  async saveReplay(
+    roomId: number,
+    user: AuthUser,
+    payload: {
+      saveMode: 'REPLAY' | 'UPLOAD';
+      assetId?: number;
+      uploadToken?: string;
+      title?: string;
+      description?: string;
+      categoryId?: number;
+      coverUrl?: string;
+      coverAssetId?: number;
+      coverUploadToken?: string;
+    },
+  ) {
+    const room = this.requireOwnedRoom(roomId, user.id);
+    const asset = await this.resolveAsset(payload.assetId, payload.uploadToken);
+
+    room.replayAssetId = asset.id;
+    room.replayUrl = asset.url;
+
+    let videoId: number | null = null;
+
+    if (payload.saveMode === 'UPLOAD') {
+      const video = await this.videoService.createVideo(user, {
+        assetId: asset.id,
+        uploadToken: asset.objectKey,
+        title: payload.title?.trim() || `${room.title} 回放`,
+        description: payload.description?.trim() || `直播回放：${room.title}`,
+        categoryId: payload.categoryId ?? room.categoryId,
+        coverUrl: payload.coverUrl ?? room.coverUrl,
+        coverAssetId: payload.coverAssetId,
+        coverUploadToken: payload.coverUploadToken,
+      });
+
+      videoId = video?.id ?? null;
+      room.replayVideoId = videoId ?? undefined;
+    }
+
+    this.addSystemMessage(
+      room,
+      payload.saveMode === 'UPLOAD' ? '直播回放已保存为视频稿件' : '直播回放已保存，可在房间内播放',
+    );
+    this.emitSessionUpdate(room);
+
+    return {
+      roomId: room.id,
+      replayUrl: room.replayUrl,
+      replayVideoId: room.replayVideoId ?? null,
+      saveMode: payload.saveMode,
     };
   }
 
@@ -414,11 +481,33 @@ export class LiveService {
       createdAt: room.createdAt,
       startedAt: room.startedAt ?? null,
       endedAt: room.endedAt ?? null,
+      replayUrl: room.replayUrl ?? null,
+      replayVideoId: room.replayVideoId ?? null,
       broadcaster: {
         id: room.broadcasterId,
         nickname: room.broadcasterNickname,
       },
     };
+  }
+
+  private async resolveAsset(assetId?: number, uploadToken?: string) {
+    if (assetId !== undefined) {
+      const asset = await this.prisma.videoAsset.findUnique({ where: { id: assetId } });
+      if (!asset) {
+        throw new NotFoundException('Recording asset not found');
+      }
+      return asset;
+    }
+
+    if (uploadToken) {
+      const asset = await this.prisma.videoAsset.findUnique({ where: { objectKey: uploadToken } });
+      if (!asset) {
+        throw new NotFoundException('Recording asset not found');
+      }
+      return asset;
+    }
+
+    throw new BadRequestException('Recording asset is required');
   }
 
   private normalizeLimit(limit?: number) {

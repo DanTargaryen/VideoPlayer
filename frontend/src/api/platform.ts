@@ -1,4 +1,4 @@
-import http from './http';
+﻿import http from './http';
 import type {
   ApiResponse,
   CommentListResponse,
@@ -8,6 +8,7 @@ import type {
   DanmakuItem,
   LiveRoomInfo,
   LiveMessage,
+  LiveReplaySaveResponse,
   LiveSessionInfo,
   LiveStartResponse,
   LiveViewerAnswerResponse,
@@ -40,7 +41,7 @@ export async function fetchRecommendFeed(params?: { categoryCode?: string; page?
 
 export async function createLiveRoom(payload: {
   title: string;
-  categoryId: number;
+  categoryId?: number;
   coverUrl?: string;
   sourceMode?: 'camera' | 'screen';
 }) {
@@ -165,7 +166,7 @@ export async function fetchUserHomepage(id: number) {
   return data.data;
 }
 
-export async function uploadVideo(file: File, assetType: 'ORIGINAL' | 'COVER' = 'ORIGINAL') {
+export async function uploadVideo(file: File, assetType: 'ORIGINAL' | 'COVER' | 'RECORDING' = 'ORIGINAL') {
   const formData = new FormData();
   formData.append('file', file);
   const { data } = await http.post<
@@ -176,6 +177,24 @@ export async function uploadVideo(file: File, assetType: 'ORIGINAL' | 'COVER' = 
     },
     params: { assetType },
   });
+  return data.data;
+}
+
+export async function saveLiveReplay(
+  roomId: number,
+  payload: {
+    saveMode: 'REPLAY' | 'UPLOAD';
+    assetId?: number;
+    uploadToken?: string;
+    title?: string;
+    description?: string;
+    categoryId?: number;
+    coverUrl?: string;
+    coverAssetId?: number;
+    coverUploadToken?: string;
+  },
+) {
+  const { data } = await http.post<ApiResponse<LiveReplaySaveResponse>>(`/lives/rooms/${roomId}/replay`, payload);
   return data.data;
 }
 
@@ -353,3 +372,6 @@ export async function createDanmaku(
   const { data } = await http.post<ApiResponse<DanmakuItem>>(`/videos/${videoId}/danmaku`, payload);
   return data.data;
 }
+
+
+

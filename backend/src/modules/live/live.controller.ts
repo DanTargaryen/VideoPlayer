@@ -10,8 +10,9 @@ class CreateRoomDto {
   @IsString()
   title!: string;
 
+  @IsOptional()
   @IsInt()
-  categoryId!: number;
+  categoryId?: number;
 
   @IsOptional()
   @IsString()
@@ -34,6 +35,43 @@ class SessionDescriptionDto {
 class LiveMessageDto {
   @IsString()
   content!: string;
+}
+
+class SaveReplayDto {
+  @IsIn(['REPLAY', 'UPLOAD'])
+  saveMode!: 'REPLAY' | 'UPLOAD';
+
+  @IsOptional()
+  @IsInt()
+  assetId?: number;
+
+  @IsOptional()
+  @IsString()
+  uploadToken?: string;
+
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsInt()
+  categoryId?: number;
+
+  @IsOptional()
+  @IsString()
+  coverUrl?: string;
+
+  @IsOptional()
+  @IsInt()
+  coverAssetId?: number;
+
+  @IsOptional()
+  @IsString()
+  coverUploadToken?: string;
 }
 
 @Controller('lives')
@@ -154,6 +192,16 @@ export class LiveController {
   ) {
     const user = await this.authService.requireUser(authorization);
     return ok(this.liveService.createMessage(id, user, dto));
+  }
+
+  @Post('rooms/:id/replay')
+  async saveReplay(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: SaveReplayDto,
+  ) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.liveService.saveReplay(id, user, dto));
   }
 
   @Get('rooms/:id/events')

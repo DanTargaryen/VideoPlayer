@@ -9,25 +9,25 @@ const router = useRouter();
 const appStore = useAppStore();
 const loading = ref(false);
 const form = reactive({
-    account: 'demo_user',
-    password: 'user123',
+    account: 'live_user_1',
+    password: 'live123456',
 });
 const adminMode = computed(() => appStore.adminAccessGranted);
 async function enterAdminMode() {
     try {
-        const result = await ElMessageBox.prompt('请输入管理密钥', '管理入口', {
+        const result = await ElMessageBox.prompt('请输入管理员密钥', '管理员入口', {
             confirmButtonText: '确认',
             cancelButtonText: '取消',
             inputType: 'password',
         });
         if (result.value !== ADMIN_SECRET) {
-            ElMessage.error('管理密钥错误');
+            ElMessage.error('管理员密钥错误');
             return;
         }
         appStore.grantAdminAccess();
         form.account = 'demo_admin';
         form.password = 'admin123';
-        ElMessage.success('管理入口已开启');
+        ElMessage.success('管理员模式已开启');
     }
     catch {
         return;
@@ -35,8 +35,8 @@ async function enterAdminMode() {
 }
 function exitAdminMode() {
     appStore.revokeAdminAccess();
-    form.account = 'demo_user';
-    form.password = 'user123';
+    form.account = 'live_user_1';
+    form.password = 'live123456';
 }
 async function handleLogin() {
     loading.value = true;
@@ -46,12 +46,12 @@ async function handleLogin() {
             ...(adminMode.value ? { adminSecret: ADMIN_SECRET } : {}),
         });
         if (result.role === 'ADMIN' && !adminMode.value) {
-            ElMessage.error('请先通过管理入口验证密钥');
+            ElMessage.error('请先通过管理员入口验证密钥');
             loading.value = false;
             return;
         }
         if (result.role === 'USER' && adminMode.value) {
-            ElMessage.error('当前处于管理员登录模式，请退出后再登录用户账号');
+            ElMessage.error('当前处于管理员登录模式，请退出后再登录普通用户');
             loading.value = false;
             return;
         }
@@ -61,10 +61,10 @@ async function handleLogin() {
             router.push('/admin/dashboard');
             return;
         }
-        router.push('/user/dashboard');
+        router.push('/live');
     }
     catch {
-        ElMessage.error('登录失败，请检查账号密码');
+        ElMessage.error('登录失败，请检查账号和密码');
     }
     finally {
         loading.value = false;
@@ -74,6 +74,10 @@ debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};
 let __VLS_components;
 let __VLS_directives;
+/** @type {__VLS_StyleScopedClasses['intro']} */ ;
+/** @type {__VLS_StyleScopedClasses['intro']} */ ;
+/** @type {__VLS_StyleScopedClasses['accounts']} */ ;
+/** @type {__VLS_StyleScopedClasses['accounts']} */ ;
 // CSS variable injection 
 // CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.section, __VLS_intrinsicElements.section)({
@@ -81,6 +85,12 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.section, __VLS_intrinsicElemen
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "card" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "intro" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "eyebrow" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.h1, __VLS_intrinsicElements.h1)({});
 (__VLS_ctx.adminMode ? '管理员登录' : '用户登录');
@@ -210,9 +220,15 @@ if (!__VLS_ctx.adminMode) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
 }
 else {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
 }
@@ -242,6 +258,8 @@ if (!__VLS_ctx.adminMode) {
 }
 /** @type {__VLS_StyleScopedClasses['page']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['intro']} */ ;
+/** @type {__VLS_StyleScopedClasses['eyebrow']} */ ;
 /** @type {__VLS_StyleScopedClasses['actions']} */ ;
 /** @type {__VLS_StyleScopedClasses['accounts']} */ ;
 /** @type {__VLS_StyleScopedClasses['admin-entry']} */ ;
