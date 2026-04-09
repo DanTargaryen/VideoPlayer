@@ -262,6 +262,18 @@ export interface LiveReplaySaveResponse {
   saveMode: 'REPLAY' | 'UPLOAD';
 }
 
+export interface LiveRtcExchangeResponse {
+  type: 'answer';
+  sdp: string;
+  sessionId: string | null;
+  server: string | null;
+}
+
+export interface LiveFrameResponse {
+  image: string | null;
+  updatedAt: string | null;
+}
+
 export interface SessionDescriptionPayload {
   type: 'offer' | 'answer';
   sdp: string;

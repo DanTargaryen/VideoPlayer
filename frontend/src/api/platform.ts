@@ -6,8 +6,10 @@ import type {
   CreatorDashboardData,
   CreatorVideo,
   DanmakuItem,
+  LiveFrameResponse,
   LiveRoomInfo,
   LiveMessage,
+  LiveRtcExchangeResponse,
   LiveReplaySaveResponse,
   LiveSessionInfo,
   LiveStartResponse,
@@ -64,6 +66,26 @@ export async function fetchLiveRooms(params?: {
 
 export async function fetchLiveRoom(roomId: number) {
   const { data } = await http.get<ApiResponse<LiveRoomInfo>>(`/lives/rooms/${roomId}`);
+  return data.data;
+}
+
+export async function publishLiveRoom(roomId: number, payload: SessionDescriptionPayload) {
+  const { data } = await http.post<ApiResponse<LiveRtcExchangeResponse>>(`/lives/rooms/${roomId}/publish`, payload);
+  return data.data;
+}
+
+export async function playLiveRoom(roomId: number, payload: SessionDescriptionPayload) {
+  const { data } = await http.post<ApiResponse<LiveRtcExchangeResponse>>(`/lives/rooms/${roomId}/play`, payload);
+  return data.data;
+}
+
+export async function fetchLiveFrame(roomId: number) {
+  const { data } = await http.get<ApiResponse<LiveFrameResponse>>(`/lives/rooms/${roomId}/frame`);
+  return data.data;
+}
+
+export async function updateLiveFrame(roomId: number, payload: { image: string }) {
+  const { data } = await http.post<ApiResponse<LiveFrameResponse>>(`/lives/rooms/${roomId}/frame`, payload);
   return data.data;
 }
 
