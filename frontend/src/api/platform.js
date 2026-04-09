@@ -100,6 +100,10 @@ export async function uploadVideo(file, assetType = 'ORIGINAL') {
     });
     return data.data;
 }
+export async function saveLiveReplay(roomId, payload) {
+    const { data } = await http.post(`/lives/rooms/${roomId}/replay`, payload);
+    return data.data;
+}
 export async function createVideo(payload) {
     const { data } = await http.post('/videos', payload);
     return data.data;

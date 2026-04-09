@@ -222,6 +222,8 @@ export interface LiveRoomInfo {
   createdAt?: string | null;
   startedAt?: string | null;
   endedAt?: string | null;
+  replayUrl?: string | null;
+  replayVideoId?: number | null;
   broadcaster?: {
     id: number;
     nickname: string;
@@ -245,10 +247,19 @@ export interface LiveSessionInfo {
   viewerCount?: number;
   startedAt?: string | null;
   endedAt?: string | null;
+  replayUrl?: string | null;
+  replayVideoId?: number | null;
   broadcaster?: {
     id: number;
     nickname: string;
   };
+}
+
+export interface LiveReplaySaveResponse {
+  roomId: number;
+  replayUrl: string;
+  replayVideoId: number | null;
+  saveMode: 'REPLAY' | 'UPLOAD';
 }
 
 export interface SessionDescriptionPayload {

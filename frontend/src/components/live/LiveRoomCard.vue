@@ -1,32 +1,26 @@
-<template>
+﻿<template>
   <article class="card">
     <RouterLink :to="`/live/${item.id}`" class="cover-link">
       <img v-if="item.coverUrl" :src="item.coverUrl" :alt="item.title" class="cover" />
       <div v-else class="cover cover-fallback">
         <span>{{ sourceModeLabel }}</span>
       </div>
+      <div class="cover-overlay">
+        <span :class="['status-badge', statusClass]">{{ statusLabel }}</span>
+        <span class="viewer-pill">{{ item.viewerCount ?? 0 }} 人观看</span>
+      </div>
     </RouterLink>
 
     <div class="card-body">
-      <div class="title-row">
-        <div class="title-block">
-          <h3>{{ item.title }}</h3>
-          <p>{{ broadcasterLabel }}</p>
+      <div class="avatar-chip">{{ broadcasterInitial }}</div>
+      <div class="content-block">
+        <h3>{{ item.title }}</h3>
+        <p class="broadcaster">{{ broadcasterLabel }}</p>
+        <div class="meta-row">
+          <span>{{ sourceModeLabel }}</span>
+          <span>{{ timeLabel }}</span>
         </div>
-        <span :class="['status-badge', statusClass]">{{ statusLabel }}</span>
       </div>
-
-      <div class="meta-row">
-        <span class="meta-chip">{{ sourceModeLabel }}</span>
-        <span class="meta-chip">观众 {{ item.viewerCount ?? 0 }}</span>
-        <span class="meta-chip">房间 #{{ item.id }}</span>
-      </div>
-
-      <div class="time-text">{{ timeLabel }}</div>
-
-      <RouterLink :to="`/live/${item.id}`" class="primary-link">
-        {{ item.status === 'LIVING' ? '进入直播间' : '查看房间' }}
-      </RouterLink>
     </div>
   </article>
 </template>
@@ -41,6 +35,7 @@ const props = defineProps<{
 }>();
 
 const broadcasterLabel = computed(() => props.item.broadcaster?.nickname ?? `用户 #${props.item.broadcaster?.id ?? '-'}`);
+const broadcasterInitial = computed(() => broadcasterLabel.value.slice(0, 1));
 const sourceModeLabel = computed(() => (props.item.sourceMode === 'screen' ? '屏幕共享' : '摄像头直播'));
 const statusLabel = computed(() => {
   if (props.item.status === 'LIVING') {
@@ -61,115 +56,127 @@ const statusClass = computed(() => {
   return 'status-idle';
 });
 const timeLabel = computed(() => {
-  const startedAt = props.item.startedAt ? new Date(props.item.startedAt).toLocaleString('zh-CN') : '';
-  if (props.item.status === 'LIVING' && startedAt) {
-    return `开播时间 ${startedAt}`;
-  }
-
-  const endedAt = props.item.endedAt ? new Date(props.item.endedAt).toLocaleString('zh-CN') : '';
-  if (props.item.status === 'ENDED' && endedAt) {
-    return `结束时间 ${endedAt}`;
-  }
-
-  const createdAt = props.item.createdAt ? new Date(props.item.createdAt).toLocaleString('zh-CN') : '';
-  return createdAt ? `创建时间 ${createdAt}` : '等待主播开始推流';
+  const value = props.item.status === 'LIVING' ? props.item.startedAt : props.item.createdAt;
+  return value ? new Date(value).toLocaleString('zh-CN') : '刚刚创建';
 });
 </script>
 
 <style scoped>
 .card {
   overflow: hidden;
-  border-radius: 20px;
-  background: linear-gradient(180deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.98));
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  box-shadow: 0 12px 32px rgba(2, 6, 23, 0.25);
+  border-radius: 22px;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 22px 48px rgba(15, 23, 42, 0.12);
 }
 
 .cover-link {
+  position: relative;
   display: block;
 }
 
 .cover {
   width: 100%;
-  height: 196px;
+  height: 210px;
   object-fit: cover;
-  background: #020617;
+  background: #111827;
 }
 
 .cover-fallback {
   display: grid;
   place-items: center;
-  color: #e2e8f0;
-  font-size: 16px;
-  letter-spacing: 0.08em;
+  color: #fff;
   background:
-    radial-gradient(circle at top left, rgba(56, 189, 248, 0.28), transparent 35%),
-    linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.94));
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.18), transparent 36%),
+    linear-gradient(135deg, #fb7185, #f97316 55%, #111827);
+}
+
+.cover-overlay {
+  position: absolute;
+  inset: auto 14px 14px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-badge,
+.viewer-pill {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: #fff;
+  backdrop-filter: blur(8px);
+}
+
+.status-live {
+  background: rgba(239, 68, 68, 0.92);
+}
+
+.status-ended {
+  background: rgba(75, 85, 99, 0.85);
+}
+
+.status-idle {
+  background: rgba(59, 130, 246, 0.85);
+}
+
+.viewer-pill {
+  background: rgba(17, 24, 39, 0.68);
 }
 
 .card-body {
   display: grid;
+  grid-template-columns: auto 1fr;
   gap: 14px;
   padding: 18px;
 }
 
-.title-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
+.avatar-chip {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #fde68a, #fb7185);
+  color: #7c2d12;
+  font-size: 18px;
+  font-weight: 800;
 }
 
-.title-block {
+.content-block {
   display: grid;
   gap: 8px;
 }
 
-.title-block h3,
-.title-block p {
+.content-block h3,
+.broadcaster,
+.meta-row {
   margin: 0;
 }
 
-.title-block p,
-.time-text {
-  color: #cbd5e1;
+.content-block h3 {
+  color: #111827;
+  font-size: 17px;
+  line-height: 1.4;
+}
+
+.broadcaster {
+  color: #4b5563;
+  font-size: 14px;
 }
 
 .meta-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.meta-chip,
-.status-badge {
-  padding: 4px 10px;
-  border-radius: 999px;
+  justify-content: space-between;
+  gap: 12px;
+  color: #6b7280;
   font-size: 12px;
-}
-
-.meta-chip {
-  background: rgba(59, 130, 246, 0.12);
-  color: #bfdbfe;
-}
-
-.status-live {
-  background: rgba(239, 68, 68, 0.16);
-  color: #fca5a5;
-}
-
-.status-ended {
-  background: rgba(148, 163, 184, 0.16);
-  color: #cbd5e1;
-}
-
-.status-idle {
-  background: rgba(34, 197, 94, 0.16);
-  color: #86efac;
-}
-
-.primary-link {
-  color: #60a5fa;
-  font-size: 14px;
 }
 </style>

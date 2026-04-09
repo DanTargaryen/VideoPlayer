@@ -23,9 +23,10 @@ export class VideoService {
     private readonly minioService: MinioService,
   ) {}
 
-  async uploadFile(file: Express.Multer.File, assetType: 'ORIGINAL' | 'COVER' = 'ORIGINAL') {
+  async uploadFile(file: Express.Multer.File, assetType: 'ORIGINAL' | 'COVER' | 'RECORDING' = 'ORIGINAL') {
     const datePrefix = new Date().toISOString().slice(0, 10).replace(/-/g, '/');
-    const folder = assetType === 'COVER' ? 'videos/covers' : 'videos/original';
+    const folder =
+      assetType === 'COVER' ? 'videos/covers' : assetType === 'RECORDING' ? 'videos/recordings' : 'videos/original';
     const objectKey = `${folder}/${datePrefix}/${this.buildStorageFileName(file.originalname)}`;
     const uploaded = await this.minioService.uploadObject({
       objectKey,

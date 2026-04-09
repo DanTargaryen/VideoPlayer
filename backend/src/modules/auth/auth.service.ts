@@ -1,8 +1,22 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+﻿import { Injectable, UnauthorizedException } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
 
 const ADMIN_SECRET = 'Administer';
+const BUILTIN_USERS = [
+  {
+    username: 'live_user_1',
+    email: 'live_user_1@guanlan.dev',
+    password: 'live123456',
+    nickname: 'LiveTester1',
+  },
+  {
+    username: 'live_user_2',
+    email: 'live_user_2@guanlan.dev',
+    password: 'live123456',
+    nickname: 'LiveTester2',
+  },
+] as const;
 
 @Injectable()
 export class AuthService {
@@ -39,11 +53,16 @@ export class AuthService {
   }
 
   async login(account: string, password: string, adminSecret?: string) {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        OR: [{ username: account }, { email: account }],
-      },
-    });
+    const builtin = BUILTIN_USERS.find(
+      (item) => (item.username === account || item.email === account) && item.password === password,
+    );
+    const user =
+      (builtin ? await this.ensureBuiltinUser(builtin) : null) ??
+      (await this.prisma.user.findFirst({
+        where: {
+          OR: [{ username: account }, { email: account }],
+        },
+      }));
 
     if (!user || user.password !== password) {
       throw new UnauthorizedException('Invalid username/email or password');
@@ -59,6 +78,37 @@ export class AuthService {
       role: user.role,
       nickname: user.nickname,
     };
+  }
+
+  private async ensureBuiltinUser(payload: (typeof BUILTIN_USERS)[number]) {
+    const existing = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ username: payload.username }, { email: payload.email }],
+      },
+    });
+
+    if (existing) {
+      return this.prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          username: payload.username,
+          email: payload.email,
+          password: payload.password,
+          role: 'USER',
+          nickname: payload.nickname,
+        },
+      });
+    }
+
+    return this.prisma.user.create({
+      data: {
+        username: payload.username,
+        email: payload.email,
+        password: payload.password,
+        role: 'USER',
+        nickname: payload.nickname,
+      },
+    });
   }
 
   async getCurrentUser(authHeader?: string) {
