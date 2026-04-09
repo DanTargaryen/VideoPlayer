@@ -23,6 +23,22 @@ export async function fetchLiveRoom(roomId) {
     const { data } = await http.get(`/lives/rooms/${roomId}`);
     return data.data;
 }
+export async function publishLiveRoom(roomId, payload) {
+    const { data } = await http.post(`/lives/rooms/${roomId}/publish`, payload);
+    return data.data;
+}
+export async function playLiveRoom(roomId, payload) {
+    const { data } = await http.post(`/lives/rooms/${roomId}/play`, payload);
+    return data.data;
+}
+export async function fetchLiveFrame(roomId) {
+    const { data } = await http.get(`/lives/rooms/${roomId}/frame`);
+    return data.data;
+}
+export async function updateLiveFrame(roomId, payload) {
+    const { data } = await http.post(`/lives/rooms/${roomId}/frame`, payload);
+    return data.data;
+}
 export async function startLiveRoom(roomId) {
     const { data } = await http.post(`/lives/rooms/${roomId}/start`);
     return data.data;

@@ -9,6 +9,13 @@ type SessionDescriptionPayload = {
   sdp: string;
 };
 
+type SrsRtcApiResponse = {
+  code?: number;
+  sdp?: string;
+  sessionid?: string;
+  server?: string;
+};
+
 type AuthUser = {
   id: number;
   nickname: string;
@@ -60,6 +67,8 @@ type LiveRoomState = {
   replayUrl?: string;
   replayAssetId?: number;
   replayVideoId?: number;
+  latestFrame?: string;
+  latestFrameAt?: string;
   viewers: Map<number, ViewerSignalState>;
   nextViewerId: number;
   messages: LiveMessage[];
@@ -83,6 +92,8 @@ export class LiveService {
     const roomId = this.nextRoomId++;
     const createdAt = new Date().toISOString();
     const streamKey = `room-${roomId}-${Date.now()}`;
+    const rtmpBase = this.getSrsRtmpBase();
+    const playBase = this.getSrsPlayBase();
     const room: LiveRoomState = {
       id: roomId,
       sessionId: roomId,
@@ -91,8 +102,8 @@ export class LiveService {
       coverUrl: payload.coverUrl,
       sourceMode: payload.sourceMode ?? 'camera',
       streamKey,
-      rtmpUrl: `webrtc://127.0.0.1/live/${streamKey}`,
-      playUrl: `http://127.0.0.1:5173/live/${roomId}`,
+      rtmpUrl: `${rtmpBase}/${streamKey}`,
+      playUrl: `${playBase}/${streamKey}.flv`,
       broadcasterId: user.id,
       broadcasterNickname: user.nickname,
       status: 'IDLE',
@@ -100,6 +111,8 @@ export class LiveService {
       replayUrl: undefined,
       replayAssetId: undefined,
       replayVideoId: undefined,
+      latestFrame: undefined,
+      latestFrameAt: undefined,
       viewers: new Map<number, ViewerSignalState>(),
       nextViewerId: 1,
       messages: [],
@@ -149,6 +162,8 @@ export class LiveService {
     room.status = 'LIVING';
     room.startedAt = new Date().toISOString();
     room.endedAt = undefined;
+    room.latestFrame = undefined;
+    room.latestFrameAt = undefined;
     this.addSystemMessage(room, '直播已开始');
     this.emitSessionUpdate(room);
 
@@ -280,6 +295,37 @@ export class LiveService {
       answer: viewer.answer,
       updatedAt: viewer.updatedAt,
     };
+  }
+
+  async publishToSrs(roomId: number, user: AuthUser, offer: SessionDescriptionPayload) {
+    const room = this.requireOwnedRoom(roomId, user.id);
+    return this.exchangeRtcSdp('publish', room, offer);
+  }
+
+  async playFromSrs(roomId: number, offer: SessionDescriptionPayload) {
+    const room = this.requireLiveRoom(roomId);
+    return this.exchangeRtcSdp('play', room, offer);
+  }
+
+  getFrame(roomId: number) {
+    const room = this.requireRoom(roomId);
+    return {
+      image: room.latestFrame ?? null,
+      updatedAt: room.latestFrameAt ?? null,
+    };
+  }
+
+  updateFrame(roomId: number, user: AuthUser, payload: { image: string }) {
+    const room = this.requireOwnedRoom(roomId, user.id);
+    if (room.status !== 'LIVING') {
+      throw new ForbiddenException('Live room is not active');
+    }
+
+    room.latestFrame = payload.image;
+    room.latestFrameAt = new Date().toISOString();
+
+    this.emitRoomFeed(room, 'frame', this.getFrame(roomId));
+    return this.getFrame(roomId);
   }
 
   getSession(id: number) {
@@ -508,6 +554,65 @@ export class LiveService {
     }
 
     throw new BadRequestException('Recording asset is required');
+  }
+
+  private getSrsRtmpBase() {
+    return (process.env.SRS_RTMP_BASE ?? 'rtmp://127.0.0.1/live').replace(/\/$/, '');
+  }
+
+  private getSrsPlayBase() {
+    return (process.env.SRS_PLAY_BASE ?? 'http://127.0.0.1:8080/live').replace(/\/$/, '');
+  }
+
+  private getSrsWebRtcBase() {
+    return (process.env.SRS_WEBRTC_BASE ?? 'webrtc://127.0.0.1/live').replace(/\/$/, '');
+  }
+
+  private getSrsApiBase() {
+    return (process.env.SRS_API_BASE ?? 'http://127.0.0.1:1985').replace(/\/$/, '');
+  }
+
+  private async exchangeRtcSdp(
+    action: 'publish' | 'play',
+    room: LiveRoomState,
+    offer: SessionDescriptionPayload,
+  ) {
+    const api = `${this.getSrsApiBase()}/rtc/v1/${action}/`;
+    const streamurl = `${this.getSrsWebRtcBase()}/${room.streamKey}`;
+
+    let response: globalThis.Response;
+    try {
+      response = await fetch(api, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          api,
+          streamurl,
+          clientip: null,
+          sdp: offer.sdp,
+        }),
+      });
+    } catch {
+      throw new BadRequestException('SRS service is unavailable');
+    }
+
+    if (!response.ok) {
+      throw new BadRequestException(`SRS request failed with status ${response.status}`);
+    }
+
+    const payload = (await response.json()) as SrsRtcApiResponse;
+    if (payload.code !== 0 || !payload.sdp) {
+      throw new BadRequestException('SRS SDP exchange failed');
+    }
+
+    return {
+      type: 'answer' as const,
+      sdp: payload.sdp,
+      sessionId: payload.sessionid ?? null,
+      server: payload.server ?? null,
+    };
   }
 
   private normalizeLimit(limit?: number) {

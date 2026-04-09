@@ -74,6 +74,20 @@ class SaveReplayDto {
   coverUploadToken?: string;
 }
 
+class LiveRtcExchangeDto {
+  @IsString()
+  @IsIn(['offer', 'answer'])
+  type!: 'offer' | 'answer';
+
+  @IsString()
+  sdp!: string;
+}
+
+class LiveFrameDto {
+  @IsString()
+  image!: string;
+}
+
 @Controller('lives')
 export class LiveController {
   constructor(
@@ -109,6 +123,41 @@ export class LiveController {
   @Get('rooms/:id')
   getRoom(@Param('id', ParseIntPipe) id: number) {
     return ok(this.liveService.getRoom(id));
+  }
+
+  @Post('rooms/:id/publish')
+  async publishToSrs(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: LiveRtcExchangeDto,
+  ) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.liveService.publishToSrs(id, user, dto));
+  }
+
+  @Post('rooms/:id/play')
+  async playFromSrs(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: LiveRtcExchangeDto,
+  ) {
+    await this.authService.requireUser(authorization);
+    return ok(await this.liveService.playFromSrs(id, dto));
+  }
+
+  @Get('rooms/:id/frame')
+  getFrame(@Param('id', ParseIntPipe) id: number) {
+    return ok(this.liveService.getFrame(id));
+  }
+
+  @Post('rooms/:id/frame')
+  async updateFrame(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: LiveFrameDto,
+  ) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(this.liveService.updateFrame(id, user, dto));
   }
 
   @Post('rooms/:id/start')

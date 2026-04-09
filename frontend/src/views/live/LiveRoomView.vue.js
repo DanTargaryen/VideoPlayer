@@ -3,21 +3,22 @@ import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from
 import { ElMessage } from 'element-plus';
 import { storeToRefs } from 'pinia';
 import { useRoute, useRouter } from 'vue-router';
-import { createLiveMessage, createLiveRoom, createLiveViewer, fetchLiveViewerAnswer, fetchLiveMessages, fetchPendingLiveViewers, fetchLiveRoom, fetchLiveRooms, fetchLiveSession, leaveLiveViewer, saveLiveReplay, startLiveRoom, stopLiveRoom, submitLiveViewerAnswer, submitLiveViewerOffer, uploadVideo, } from '@/api/platform';
+import { createLiveMessage, createLiveRoom, createLiveViewer, fetchLiveFrame, fetchLiveMessages, fetchLiveRoom, fetchLiveRooms, fetchLiveSession, leaveLiveViewer, playLiveRoom, publishLiveRoom, saveLiveReplay, startLiveRoom, stopLiveRoom, updateLiveFrame, uploadVideo, } from '@/api/platform';
 import LiveRoomCard from '@/components/live/LiveRoomCard.vue';
 import { useAppStore } from '@/stores/app';
 const WEBRTC_CONFIG = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 const route = useRoute();
 const router = useRouter();
 const appStore = useAppStore();
-const { isLoggedIn, nickname, token, userId } = storeToRefs(appStore);
+const { isLoggedIn, nickname, userId } = storeToRefs(appStore);
 const studioVisible = ref(false), saveReplayVisible = ref(false), preparing = ref(false), starting = ref(false), joining = ref(false), stopping = ref(false), sendingMessage = ref(false), savingReplay = ref(false), uploadingStudioCover = ref(false), uploadingReplayCover = ref(false);
 const previewRef = ref(null), viewerRef = ref(null), studioCoverInputRef = ref(null), replayCoverInputRef = ref(null);
-const previewStream = ref(null), remoteStream = ref(null), mediaRecorder = ref(null), recordedBlob = ref(null), recordingPreviewUrl = ref('');
+const previewStream = ref(null), remoteStream = ref(null), mediaRecorder = ref(null), recordedBlob = ref(null), recordingPreviewUrl = ref(''), liveFrameUrl = ref(''), liveFrameUpdatedAt = ref(null);
 const activeRoom = ref(null), liveSession = ref(null), fetchedSession = ref(null), hubRooms = ref([]), liveMessages = ref([]), activeDanmaku = ref([]), chatDraft = ref('');
 const viewerPeer = ref(null), viewerRoomId = ref(null), viewerId = ref(null);
 const publisherPeers = new Map(), displayedDanmakuIds = new Set(), danmakuTimers = new Map();
-let nextDanmakuUid = 1, nextDanmakuTrack = 0, danmakuRoomId = null, hubPollTimer = null, publisherPollTimer = null, viewerAnswerPollTimer = null, roomEventSource = null, publisherEventSource = null, viewerEventSource = null, recordedChunks = [];
+let nextDanmakuUid = 1, nextDanmakuTrack = 0, danmakuRoomId = null, hubPollTimer = null, publisherPollTimer = null, viewerAnswerPollTimer = null, framePublishTimer = null, framePollTimer = null, roomEventSource = null, publisherEventSource = null, viewerEventSource = null, recordedChunks = [];
+let frameCanvas = null, frameUploading = false, viewerCompatNotifiedRoomId = null;
 const studioForm = reactive({ title: '一起聊聊今天的内容', coverUrl: '', mode: 'camera' });
 const replayForm = reactive({ title: '', description: '', coverUrl: '' });
 const routeRoomId = computed(() => { const id = Number(route.params.id); return Number.isFinite(id) && id > 0 ? id : null; });
@@ -26,11 +27,13 @@ const currentRoomId = computed(() => routeRoomId.value ?? activeRoom.value?.id ?
 const isCurrentHostRoom = computed(() => Boolean(activeRoom.value && routeRoomId.value === activeRoom.value.id));
 const isViewerMode = computed(() => Boolean(routeRoomId.value && !isCurrentHostRoom.value));
 const hasPreview = computed(() => Boolean(previewStream.value));
-const hasRemotePlayback = computed(() => Boolean(remoteStream.value));
+const hasRemotePlayback = computed(() => Boolean(remoteStream.value && remoteStream.value.getTracks().length > 0));
+const hasFramePlayback = computed(() => Boolean(liveFrameUrl.value));
 const displayedReplayUrl = computed(() => recordingPreviewUrl.value || activeRoom.value?.replayUrl || displayedSession.value?.replayUrl || '');
 const hasReplayPlayback = computed(() => Boolean(displayedReplayUrl.value));
 const isLive = computed(() => displayedSession.value?.status === 'LIVING');
 const canJoinAsViewer = computed(() => isViewerMode.value && displayedSession.value?.status === 'LIVING');
+const canLeaveViewer = computed(() => Boolean(isViewerMode.value && (viewerRoomId.value || hasRemotePlayback.value || hasFramePlayback.value)));
 const canSendMessage = computed(() => Boolean(routeRoomId.value && isLoggedIn.value && displayedSession.value?.status === 'LIVING'));
 const canOpenReplaySaver = computed(() => Boolean(activeRoom.value && recordedBlob.value && displayedSession.value?.status !== 'LIVING'));
 const activeSourceMode = computed(() => activeRoom.value?.sourceMode ?? displayedSession.value?.sourceMode ?? studioForm.mode);
@@ -39,11 +42,12 @@ const shareLink = computed(() => currentRoomId.value && typeof window !== 'undef
 const plazaRooms = computed(() => hubRooms.value.filter((room) => room.id !== routeRoomId.value));
 const broadcasterName = computed(() => activeRoom.value?.broadcaster?.nickname ?? displayedSession.value?.broadcaster?.nickname ?? nickname.value);
 const roomTitle = computed(() => displayedSession.value?.title ?? activeRoom.value?.title ?? '直播间');
-const roomSubtitle = computed(() => isViewerMode.value ? (isLive.value ? '正在接收主播画面与实时弹幕。' : '当前直播未开始或已经结束。') : (isLive.value ? '你的直播正在推流，广场里的用户已经可以进入观看。' : '这是你的开播控制台。'));
+const roomSubtitle = computed(() => isViewerMode.value ? (hasRemotePlayback.value ? '正在接收主播画面与实时弹幕。' : hasFramePlayback.value ? '当前处于兼容模式观看，画面会以高频截图方式持续更新。' : isLive.value ? '正在尝试接入主播画面。' : '当前直播未开始或已经结束。') : (isLive.value ? '你的直播已经对外展示，观众端会优先使用 RTC，失败时自动切换兼容模式。' : '这是你的开播控制台。'));
 const statusText = computed(() => displayedSession.value?.status === 'LIVING' ? '直播中' : displayedSession.value?.status === 'ENDED' ? '已结束' : '待开播');
 const placeholderTitle = computed(() => isViewerMode.value ? (displayedSession.value?.status === 'LIVING' ? '正在等待主播画面接入' : '当前直播未开播') : '请先准备直播预览');
-const placeholderDescription = computed(() => isViewerMode.value ? (displayedSession.value?.status === 'LIVING' ? '如果未自动接入，可以点击“进入观看”重新连接。' : '主播结束后，你仍然可以在右侧查看弹幕记录。') : '完成摄像头或屏幕共享预览后，即可开始直播。');
+const placeholderDescription = computed(() => isViewerMode.value ? (displayedSession.value?.status === 'LIVING' ? '页面会先尝试 RTC，若失败将自动切换为兼容画面模式。' : '主播结束后，你仍然可以在右侧查看弹幕记录。') : '完成摄像头或屏幕共享预览后，即可开始直播。');
 const showQuickSaveActions = computed(() => Boolean(isCurrentHostRoom.value && recordedBlob.value && displayedSession.value?.status === 'ENDED'));
+const viewerActionText = computed(() => hasRemotePlayback.value ? '重新连接 RTC' : hasFramePlayback.value ? '刷新连接' : '进入观看');
 const openStudio = () => { if (!isLoggedIn.value) {
     ElMessage.warning('请先登录用户账号');
     router.push('/login');
@@ -76,6 +80,43 @@ const stopViewerAnswerPolling = () => { if (viewerAnswerPollTimer) {
     clearInterval(viewerAnswerPollTimer);
     viewerAnswerPollTimer = null;
 } };
+const stopFramePublishing = () => { if (framePublishTimer) {
+    clearInterval(framePublishTimer);
+    framePublishTimer = null;
+} frameUploading = false; };
+const stopFramePolling = (clearFrame = false) => { if (framePollTimer) {
+    clearInterval(framePollTimer);
+    framePollTimer = null;
+} if (clearFrame) {
+    liveFrameUrl.value = '';
+    liveFrameUpdatedAt.value = null;
+} };
+function applyLiveFrame(image, updatedAt) { if (!image)
+    return; if (liveFrameUpdatedAt.value === updatedAt && liveFrameUrl.value === image)
+    return; liveFrameUrl.value = image; liveFrameUpdatedAt.value = updatedAt; }
+function ensureFrameCanvas() { if (!frameCanvas)
+    frameCanvas = document.createElement('canvas'); return frameCanvas; }
+function capturePreviewFrame() { const video = previewRef.value; if (!video || !previewStream.value || video.readyState < 2 || !video.videoWidth || !video.videoHeight)
+    return null; const canvas = ensureFrameCanvas(); const targetWidth = Math.min(720, video.videoWidth); const scale = targetWidth / video.videoWidth; const width = Math.max(1, Math.round(video.videoWidth * scale)); const height = Math.max(1, Math.round(video.videoHeight * scale)); canvas.width = width; canvas.height = height; const context = canvas.getContext('2d'); if (!context)
+    return null; context.drawImage(video, 0, 0, width, height); return canvas.toDataURL('image/jpeg', 0.58); }
+async function publishCurrentFrame(roomId) { if (frameUploading || !isLive.value || activeRoom.value?.id !== roomId)
+    return; const image = capturePreviewFrame(); if (!image)
+    return; frameUploading = true; try {
+    const frame = await updateLiveFrame(roomId, { image });
+    applyLiveFrame(frame.image, frame.updatedAt);
+}
+catch { }
+finally {
+    frameUploading = false;
+} }
+function startFramePublishing(roomId) { stopFramePublishing(); void publishCurrentFrame(roomId); framePublishTimer = setInterval(() => { void publishCurrentFrame(roomId); }, 700); }
+async function pullLatestFrame(roomId) { try {
+    const frame = await fetchLiveFrame(roomId);
+    applyLiveFrame(frame.image, frame.updatedAt);
+}
+catch { } }
+function startFramePolling(roomId) { stopFramePolling(true); void pullLatestFrame(roomId); framePollTimer = setInterval(() => { if (routeRoomId.value === roomId && displayedSession.value?.status === 'LIVING')
+    void pullLatestFrame(roomId); }, 800); }
 async function attachPreviewStream() { await nextTick(); if (!previewRef.value)
     return; previewRef.value.srcObject = previewStream.value; if (previewStream.value)
     await previewRef.value.play().catch(() => undefined); }
@@ -118,21 +159,24 @@ function applySessionUpdate(session) { if (activeRoom.value?.id === session.room
 }
 else {
     fetchedSession.value = session;
-} if (session.status !== 'LIVING' && viewerRoomId.value === session.roomId)
-    cleanupViewerPeer(false); }
+} if (session.status === 'LIVING' && routeRoomId.value === session.roomId && activeRoom.value?.id !== session.roomId) {
+    startFramePolling(session.roomId);
+    void ensureViewerConnection(session.roomId, true);
+    return;
+} if (session.status !== 'LIVING') {
+    if (viewerRoomId.value === session.roomId)
+        cleanupViewerPeer(false);
+    if (routeRoomId.value === session.roomId && activeRoom.value?.id !== session.roomId)
+        stopFramePolling(true);
+} }
 function openRoomEventSourceFor(roomId) { closeRoomEventSource(); roomEventSource = new EventSource(buildApiUrl(`/lives/rooms/${roomId}/events`)); roomEventSource.addEventListener('snapshot', (event) => { const payload = parseSse(event); applySessionUpdate(payload.session); liveMessages.value = payload.messages.slice(-80); if (danmakuRoomId !== roomId)
     resetDanmaku(roomId); seedDanmaku(payload.messages); }); roomEventSource.addEventListener('session', (event) => applySessionUpdate(parseSse(event))); roomEventSource.addEventListener('chat-message', (event) => appendLiveMessage(parseSse(event))); roomEventSource.addEventListener('system-message', (event) => appendLiveMessage(parseSse(event))); }
-function handleViewerSignal(peer, payload) { if (!payload.answer || viewerPeer.value !== peer || peer.currentRemoteDescription)
-    return; void peer.setRemoteDescription(new RTCSessionDescription(payload.answer)).catch(() => undefined); }
-function openViewerEventSourceFor(roomId, currentViewerId, peer) { closeViewerEventSource(); viewerEventSource = new EventSource(buildApiUrl(`/lives/rooms/${roomId}/viewers/${currentViewerId}/events`)); viewerEventSource.addEventListener('snapshot', (event) => handleViewerSignal(peer, parseSse(event))); viewerEventSource.addEventListener('viewer-answer', (event) => handleViewerSignal(peer, parseSse(event))); viewerEventSource.addEventListener('room-ended', () => cleanupViewerPeer(false)); }
-function openPublisherEventSourceFor(roomId) { closePublisherEventSource(); if (!token.value)
-    return; publisherEventSource = new EventSource(buildApiUrl(`/lives/rooms/${roomId}/publisher/events`, { token: token.value })); publisherEventSource.addEventListener('snapshot', (event) => { const payload = parseSse(event); payload.pendingViewers.forEach((viewer) => { void answerViewer(roomId, viewer); }); }); publisherEventSource.addEventListener('viewer-offer', (event) => { const payload = parseSse(event); void answerViewer(roomId, payload); }); }
-function startPublisherPolling(roomId) { stopPublisherPolling(); publisherPollTimer = setInterval(() => { void fetchPendingLiveViewers(roomId).then((items) => { items.forEach((viewer) => { void answerViewer(roomId, viewer); }); }).catch(() => undefined); }, 1200); }
-function startViewerAnswerPolling(roomId, currentViewerId, peer) { stopViewerAnswerPolling(); viewerAnswerPollTimer = setInterval(() => { if (viewerPeer.value !== peer || peer.currentRemoteDescription) {
-    stopViewerAnswerPolling();
-    return;
-} void fetchLiveViewerAnswer(roomId, currentViewerId).then((payload) => { if (payload.ready)
-    handleViewerSignal(peer, { roomId, viewerId: currentViewerId, answer: payload.answer ?? null, updatedAt: payload.updatedAt }); }).catch(() => undefined); }, 1200); }
+async function startPublisherTransport(roomId) { if (!previewStream.value)
+    throw new Error('预览流不存在'); const peer = createPeerConnection(); publisherPeers.set(0, peer); previewStream.value.getTracks().forEach((track) => peer.addTrack(track, previewStream.value)); peer.addEventListener('connectionstatechange', () => { if (['closed', 'failed', 'disconnected'].includes(peer.connectionState)) {
+    publisherPeers.delete(0);
+    peer.close();
+} }); const offer = await peer.createOffer(); await peer.setLocalDescription(offer); await waitForIceGatheringComplete(peer); if (!peer.localDescription)
+    throw new Error('主播 offer 生成失败'); const answer = await publishLiveRoom(roomId, { type: 'offer', sdp: peer.localDescription.sdp ?? '' }); await peer.setRemoteDescription(new RTCSessionDescription(answer)); }
 async function handlePreparePreview() { if (!isLoggedIn.value) {
     ElMessage.warning('请先登录用户账号');
     return;
@@ -152,47 +196,39 @@ catch (error) {
 finally {
     preparing.value = false;
 } }
-async function answerViewer(roomId, viewer) { if (!previewStream.value || publisherPeers.has(viewer.viewerId))
-    return; const peer = createPeerConnection(); publisherPeers.set(viewer.viewerId, peer); previewStream.value.getTracks().forEach((track) => peer.addTrack(track, previewStream.value)); peer.addEventListener('connectionstatechange', () => { if (['closed', 'failed', 'disconnected'].includes(peer.connectionState)) {
-    publisherPeers.delete(viewer.viewerId);
-    peer.close();
-} }); try {
-    await peer.setRemoteDescription(new RTCSessionDescription(viewer.offer));
-    const answer = await peer.createAnswer();
-    await peer.setLocalDescription(answer);
-    await waitForIceGatheringComplete(peer);
-    if (!peer.localDescription)
-        throw new Error('主播应答生成失败');
-    await submitLiveViewerAnswer(roomId, viewer.viewerId, { type: 'answer', sdp: peer.localDescription.sdp ?? '' });
-}
-catch (error) {
-    publisherPeers.delete(viewer.viewerId);
-    peer.close();
-    throw error;
-} }
 async function handleStartLive() { if (!previewStream.value) {
     ElMessage.warning('请先准备预览画面');
     return;
 } starting.value = true; try {
     cleanupPublisherPeers();
+    stopFramePublishing();
     resetRecordedContent();
     saveReplayVisible.value = false;
     const room = await createLiveRoom({ title: studioForm.title, coverUrl: studioForm.coverUrl || undefined, sourceMode: studioForm.mode });
     const session = await startLiveRoom(room.id);
+    let rtcReady = true;
+    try {
+        await startPublisherTransport(room.id);
+    }
+    catch {
+        rtcReady = false;
+        cleanupPublisherPeers();
+    }
     activeRoom.value = room;
     liveSession.value = { id: session.sessionId, roomId: room.id, title: room.title, status: session.status, playUrl: room.playUrl, coverUrl: room.coverUrl, sourceMode: room.sourceMode, broadcaster: room.broadcaster, viewerCount: 0, startedAt: new Date().toISOString(), endedAt: null };
     fetchedSession.value = null;
     liveMessages.value = [];
     resetDanmaku(room.id);
     await router.replace(`/live/${room.id}`);
-    openPublisherEventSourceFor(room.id);
-    startPublisherPolling(room.id);
     startLocalRecording();
+    startFramePublishing(room.id);
     await loadHubRooms();
-    ElMessage.success('直播已开始，其他用户现在可以在直播广场看到你');
+    ElMessage[rtcReady ? 'success' : 'warning'](rtcReady ? '直播已开始，观众已可进入观看。' : '直播已开始，RTC 未连通，已自动切换为兼容模式直播。');
 }
-catch {
-    ElMessage.error('开启直播失败，请稍后重试');
+catch (error) {
+    cleanupPublisherPeers();
+    stopFramePublishing();
+    ElMessage.error(error instanceof Error ? error.message : '开启直播失败');
 }
 finally {
     starting.value = false;
@@ -207,6 +243,7 @@ catch {
 }
 finally {
     cleanupPublisherPeers();
+    stopFramePublishing();
     stopPreviewStream();
     if (liveSession.value)
         liveSession.value = { ...liveSession.value, status: 'ENDED', endedAt: new Date().toISOString() };
@@ -218,35 +255,47 @@ finally {
     }
     ElMessage.success('直播已结束');
 } }
-async function ensureViewerConnection(roomId) { if (joining.value || (viewerPeer.value && viewerRoomId.value === roomId))
-    return; joining.value = true; cleanupViewerPeer(); try {
+async function ensureViewerConnection(roomId, silentFallback = false) { if (joining.value || (viewerRoomId.value === roomId && (viewerPeer.value || viewerId.value)))
+    return; joining.value = true; cleanupViewerPeer(); startFramePolling(roomId); try {
     const ticket = await createLiveViewer(roomId);
     const peer = createPeerConnection();
+    const inboundStream = new MediaStream();
     viewerPeer.value = peer;
     viewerRoomId.value = roomId;
     viewerId.value = ticket.viewerId;
-    openViewerEventSourceFor(roomId, ticket.viewerId, peer);
-    startViewerAnswerPolling(roomId, ticket.viewerId, peer);
-    peer.addEventListener('track', (event) => { remoteStream.value = event.streams[0]; stopViewerAnswerPolling(); void attachViewerStream(); });
-    peer.addEventListener('connectionstatechange', () => { if (['closed', 'failed', 'disconnected'].includes(peer.connectionState) && viewerPeer.value === peer)
-        cleanupViewerPeer(); });
-    const offer = await peer.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
+    peer.addTransceiver('video', { direction: 'recvonly' });
+    peer.addTransceiver('audio', { direction: 'recvonly' });
+    peer.addEventListener('track', (event) => { const incomingTrack = event.track; if (!inboundStream.getTracks().some((track) => track.id === incomingTrack.id))
+        inboundStream.addTrack(incomingTrack); remoteStream.value = inboundStream; void attachViewerStream(); });
+    peer.addEventListener('connectionstatechange', () => { if (['closed', 'failed', 'disconnected'].includes(peer.connectionState) && viewerPeer.value === peer) {
+        viewerPeer.value = null;
+        clearRemoteStream();
+    } });
+    const offer = await peer.createOffer();
     await peer.setLocalDescription(offer);
     await waitForIceGatheringComplete(peer);
     if (!peer.localDescription)
         throw new Error('观众 offer 生成失败');
-    await submitLiveViewerOffer(roomId, ticket.viewerId, { type: 'offer', sdp: peer.localDescription.sdp ?? '' });
+    const answer = await playLiveRoom(roomId, { type: 'offer', sdp: peer.localDescription.sdp ?? '' });
+    await peer.setRemoteDescription(new RTCSessionDescription(answer));
 }
 catch {
-    cleanupViewerPeer();
-    ElMessage.error('加入直播失败');
+    viewerPeer.value?.close();
+    viewerPeer.value = null;
+    clearRemoteStream();
+    if (!silentFallback && viewerCompatNotifiedRoomId !== roomId) {
+        viewerCompatNotifiedRoomId = roomId;
+        ElMessage.warning('RTC 观看链路未连通，已自动切换为兼容模式画面。');
+    }
 }
 finally {
     joining.value = false;
 } }
-const handleJoinViewer = async () => { if (routeRoomId.value)
-    await ensureViewerConnection(routeRoomId.value); };
-const handleLeaveViewer = () => { cleanupViewerPeer(); ElMessage.success('已离开直播'); };
+const handleJoinViewer = async () => { if (routeRoomId.value) {
+    viewerCompatNotifiedRoomId = null;
+    await ensureViewerConnection(routeRoomId.value);
+} };
+const handleLeaveViewer = () => { cleanupViewerPeer(); stopFramePolling(true); ElMessage.success('已离开直播'); };
 function prepareReplayForm() { replayForm.title = `${activeRoom.value?.title ?? '直播内容'} 回放`; replayForm.description = activeRoom.value ? `直播回放：${activeRoom.value.title}` : '直播回放'; replayForm.coverUrl = activeRoom.value?.coverUrl ?? studioForm.coverUrl ?? ''; }
 const openReplaySaver = () => { if (canOpenReplaySaver.value) {
     prepareReplayForm();
@@ -320,33 +369,34 @@ async function syncRouteSession() { const roomId = routeRoomId.value; if (!roomI
     liveMessages.value = [];
     closeRoomEventSource();
     cleanupViewerPeer();
+    stopFramePolling(true);
     resetDanmaku(null);
     return;
 } try {
     const session = await fetchLiveSession(roomId);
     applySessionUpdate(session);
-    if (session.broadcaster?.id === userId.value) {
+    if (session.broadcaster?.id === userId.value)
         activeRoom.value = await fetchLiveRoom(roomId);
-        if (session.status === 'LIVING' && previewStream.value) {
-            openPublisherEventSourceFor(roomId);
-            startPublisherPolling(roomId);
-        }
-    }
     const messages = await fetchLiveMessages(roomId);
     liveMessages.value = messages;
     resetDanmaku(roomId);
     seedDanmaku(messages);
     openRoomEventSourceFor(roomId);
-    if (session.status === 'LIVING' && activeRoom.value?.id !== roomId)
-        await ensureViewerConnection(roomId);
-    if (session.status !== 'LIVING' && activeRoom.value?.id !== roomId)
+    if (session.status === 'LIVING' && activeRoom.value?.id !== roomId) {
+        startFramePolling(roomId);
+        await ensureViewerConnection(roomId, true);
+    }
+    if (session.status !== 'LIVING' && activeRoom.value?.id !== roomId) {
         cleanupViewerPeer(false);
+        stopFramePolling(true);
+    }
 }
 catch {
     fetchedSession.value = null;
     liveMessages.value = [];
     closeRoomEventSource();
     cleanupViewerPeer(false);
+    stopFramePolling(true);
     resetDanmaku(null);
 } }
 async function loadHubRooms() { try {
@@ -360,13 +410,9 @@ watch(previewRef, () => { void attachPreviewStream(); });
 watch(viewerRef, () => { void attachViewerStream(); });
 watch(() => route.params.id, () => { if (activeRoom.value && routeRoomId.value !== activeRoom.value.id)
     closePublisherEventSource(); void syncRouteSession(); void loadHubRooms(); });
-watch(() => [isCurrentHostRoom.value, isLive.value, Boolean(previewStream.value)], ([hostRoom, living, hasStream]) => { if (hostRoom && living && hasStream && routeRoomId.value) {
-    openPublisherEventSourceFor(routeRoomId.value);
-    startPublisherPolling(routeRoomId.value);
-    return;
-} closePublisherEventSource(); stopPublisherPolling(); });
+watch(() => [isCurrentHostRoom.value, isLive.value, Boolean(previewStream.value)], () => undefined);
 onMounted(() => { void syncRouteSession(); void loadHubRooms(); startHubPolling(); });
-onUnmounted(() => { closeRoomEventSource(); closePublisherEventSource(); closeViewerEventSource(); clearHubPolling(); stopPublisherPolling(); stopViewerAnswerPolling(); cleanupPublisherPeers(); cleanupViewerPeer(); void stopLocalRecording(); stopPreviewStream(); clearRecordingPreviewUrl(); resetDanmaku(null); });
+onUnmounted(() => { closeRoomEventSource(); closePublisherEventSource(); closeViewerEventSource(); clearHubPolling(); stopPublisherPolling(); stopViewerAnswerPolling(); stopFramePublishing(); stopFramePolling(true); cleanupPublisherPeers(); cleanupViewerPeer(); void stopLocalRecording(); stopPreviewStream(); clearRecordingPreviewUrl(); resetDanmaku(null); });
 debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};
 let __VLS_components;
@@ -687,6 +733,11 @@ else {
             ...{ class: "tag tag-idle" },
         });
     }
+    if (__VLS_ctx.isViewerMode && __VLS_ctx.hasFramePlayback && !__VLS_ctx.hasRemotePlayback) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "tag tag-compat" },
+        });
+    }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
         ...{ class: "tag" },
     });
@@ -703,6 +754,13 @@ else {
             controls: true,
         });
         /** @type {typeof __VLS_ctx.viewerRef} */ ;
+    }
+    else if (__VLS_ctx.isViewerMode && __VLS_ctx.hasFramePlayback) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.img)({
+            ...{ class: "stage-video" },
+            src: (__VLS_ctx.liveFrameUrl),
+            alt: "直播兼容画面",
+        });
     }
     else if (!__VLS_ctx.isViewerMode && __VLS_ctx.hasPreview) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.video)({
@@ -887,7 +945,7 @@ else {
             onClick: (__VLS_ctx.handleJoinViewer)
         };
         __VLS_91.slots.default;
-        (__VLS_ctx.hasRemotePlayback ? '重新连接' : '进入观看');
+        (__VLS_ctx.viewerActionText);
         var __VLS_91;
         const __VLS_96 = {}.ElButton;
         /** @type {[typeof __VLS_components.ElButton, typeof __VLS_components.elButton, typeof __VLS_components.ElButton, typeof __VLS_components.elButton, ]} */ ;
@@ -895,12 +953,12 @@ else {
         const __VLS_97 = __VLS_asFunctionalComponent(__VLS_96, new __VLS_96({
             ...{ 'onClick': {} },
             plain: true,
-            disabled: (!__VLS_ctx.hasRemotePlayback),
+            disabled: (!__VLS_ctx.canLeaveViewer),
         }));
         const __VLS_98 = __VLS_97({
             ...{ 'onClick': {} },
             plain: true,
-            disabled: (!__VLS_ctx.hasRemotePlayback),
+            disabled: (!__VLS_ctx.canLeaveViewer),
         }, ...__VLS_functionalComponentArgsRest(__VLS_97));
         let __VLS_100;
         let __VLS_101;
@@ -1619,8 +1677,11 @@ var __VLS_226;
 /** @type {__VLS_StyleScopedClasses['tag']} */ ;
 /** @type {__VLS_StyleScopedClasses['tag-idle']} */ ;
 /** @type {__VLS_StyleScopedClasses['tag']} */ ;
+/** @type {__VLS_StyleScopedClasses['tag-compat']} */ ;
+/** @type {__VLS_StyleScopedClasses['tag']} */ ;
 /** @type {__VLS_StyleScopedClasses['stage-shell']} */ ;
 /** @type {__VLS_StyleScopedClasses['room-stage-shell']} */ ;
+/** @type {__VLS_StyleScopedClasses['stage-video']} */ ;
 /** @type {__VLS_StyleScopedClasses['stage-video']} */ ;
 /** @type {__VLS_StyleScopedClasses['stage-video']} */ ;
 /** @type {__VLS_StyleScopedClasses['stage-video']} */ ;
@@ -1685,6 +1746,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             replayCoverInputRef: replayCoverInputRef,
             recordedBlob: recordedBlob,
             recordingPreviewUrl: recordingPreviewUrl,
+            liveFrameUrl: liveFrameUrl,
             activeRoom: activeRoom,
             liveMessages: liveMessages,
             activeDanmaku: activeDanmaku,
@@ -1697,10 +1759,12 @@ const __VLS_self = (await import('vue')).defineComponent({
             isViewerMode: isViewerMode,
             hasPreview: hasPreview,
             hasRemotePlayback: hasRemotePlayback,
+            hasFramePlayback: hasFramePlayback,
             displayedReplayUrl: displayedReplayUrl,
             hasReplayPlayback: hasReplayPlayback,
             isLive: isLive,
             canJoinAsViewer: canJoinAsViewer,
+            canLeaveViewer: canLeaveViewer,
             canSendMessage: canSendMessage,
             canOpenReplaySaver: canOpenReplaySaver,
             sourceModeLabel: sourceModeLabel,
@@ -1713,6 +1777,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             placeholderTitle: placeholderTitle,
             placeholderDescription: placeholderDescription,
             showQuickSaveActions: showQuickSaveActions,
+            viewerActionText: viewerActionText,
             openStudio: openStudio,
             goToMyRoom: goToMyRoom,
             formatTime: formatTime,

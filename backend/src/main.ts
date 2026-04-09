@@ -10,6 +10,9 @@ async function bootstrap() {
     cors: true,
   });
 
+  app.use(express.json({ limit: '2mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '2mb' }));
+
   if (getStorageMode() === 'local') {
     app.use('/storage', express.static(LOCAL_STORAGE_ROOT));
   }
