@@ -22,7 +22,7 @@ const routes: RouteRecordRaw[] = [
       { path: '', name: 'home', component: HomeView },
       { path: 'search', name: 'search', component: SearchView },
       { path: 'video/:id', name: 'video-detail', component: VideoDetailView },
-      { path: 'live/:id', name: 'live-room', component: LiveRoomView },
+      { path: 'live/:id?', alias: 'live', name: 'live-room', component: LiveRoomView },
       { path: 'user/dashboard', alias: 'creator/dashboard', name: 'user-dashboard', component: CreatorDashboardView },
       { path: 'admin/dashboard', name: 'admin-dashboard', component: AdminDashboardView, meta: { adminOnly: true } },
       { path: 'login', name: 'login', component: LoginView },
