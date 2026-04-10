@@ -1,4 +1,4 @@
-export const categoryOptions = [
+﻿export const categoryOptions = [
   { code: 'recommend', label: '推荐' },
   { code: 'entertainment', label: '娱乐' },
   { code: 'study', label: '学习' },

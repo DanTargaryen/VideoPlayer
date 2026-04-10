@@ -22,7 +22,7 @@
     <el-tabs v-model="activeTab" class="tabs" @tab-change="handleTabChange">
       <el-tab-pane :label="`视频 (${result.video.length})`" name="video" />
       <el-tab-pane :label="`用户 (${result.user.length})`" name="user" />
-      <el-tab-pane label="直播 (0)" name="live" />
+      <el-tab-pane :label="`直播 (${result.live.length})`" name="live" />
     </el-tabs>
 
     <section v-if="activeTab === 'video'" class="cards">
@@ -41,8 +41,9 @@
       <el-empty v-if="result.user.length === 0" description="当前条件下没有找到相关用户" />
     </section>
 
-    <section v-else class="empty-wrap">
-      <el-empty description="直播搜索结果将在直播模块完善后接入" />
+    <section v-else class="cards">
+      <LiveRoomCard v-for="item in result.live" :key="item.id" :item="item" />
+      <el-empty v-if="result.live.length === 0" description="当前条件下没有找到相关直播" />
     </section>
   </section>
 </template>
@@ -53,6 +54,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 
 import VideoMediaCard from '@/components/VideoMediaCard.vue';
+import LiveRoomCard from '@/components/live/LiveRoomCard.vue';
 import { categoryOptions, normalizeCategoryCode, type CategoryCode } from '@/constants/categories';
 import { searchAll } from '@/api/platform';
 import type { SearchResultResponse } from '@/types/api';
@@ -197,9 +199,4 @@ watch(
   color: #60a5fa;
 }
 
-.empty-wrap {
-  padding: 24px;
-  border-radius: 20px;
-  background: rgba(30, 41, 59, 0.92);
-}
 </style>

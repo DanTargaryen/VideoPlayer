@@ -74,7 +74,7 @@ export class FollowService {
       select: { followingId: true },
     });
 
-    const followingIds = relations.map((item) => item.followingId);
+    const followingIds = relations.map((item: (typeof relations)[number]) => item.followingId);
 
     if (followingIds.length === 0) {
       return [];
