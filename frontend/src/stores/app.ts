@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue';
+﻿import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
 
 import type { FrontendRole } from '@/types/auth';

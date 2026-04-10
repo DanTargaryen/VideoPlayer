@@ -1,4 +1,4 @@
-import http from './http';
+﻿import http from './http';
 import type {
   ApiResponse,
   CommentListResponse,
@@ -6,10 +6,21 @@ import type {
   CreatorDashboardData,
   CreatorVideo,
   DanmakuItem,
+  LiveFrameResponse,
+  LiveRoomInfo,
+  LiveMessage,
+  LiveRtcExchangeResponse,
+  LiveReplaySaveResponse,
+  LiveSessionInfo,
+  LiveStartResponse,
+  LiveViewerAnswerResponse,
+  LiveViewerTicket,
   LoginResponse,
   NotificationItem,
+  PendingLiveViewer,
   ReportItem,
   ReviewHistoryItem,
+  SessionDescriptionPayload,
   ReviewQueueItem,
   SearchResultResponse,
   TextReviewItem,
@@ -27,6 +38,119 @@ export async function fetchRecommendFeed(params?: { categoryCode?: string; page?
   const { data } = await http.get<ApiResponse<VideoCard[]>>('/feeds/recommend', {
     params,
   });
+  return data.data;
+}
+
+export async function createLiveRoom(payload: {
+  title: string;
+  categoryId?: number;
+  coverUrl?: string;
+  sourceMode?: 'camera' | 'screen';
+}) {
+  const { data } = await http.post<ApiResponse<LiveRoomInfo>>('/lives/rooms', payload);
+  return data.data;
+}
+
+export async function fetchLiveRooms(params?: {
+  keyword?: string;
+  status?: 'IDLE' | 'LIVING' | 'ENDED';
+  categoryId?: number;
+  broadcasterId?: number;
+  limit?: number;
+}) {
+  const { data } = await http.get<ApiResponse<LiveRoomInfo[]>>('/lives/rooms', {
+    params,
+  });
+  return data.data;
+}
+
+export async function fetchLiveRoom(roomId: number) {
+  const { data } = await http.get<ApiResponse<LiveRoomInfo>>(`/lives/rooms/${roomId}`);
+  return data.data;
+}
+
+export async function publishLiveRoom(roomId: number, payload: SessionDescriptionPayload) {
+  const { data } = await http.post<ApiResponse<LiveRtcExchangeResponse>>(`/lives/rooms/${roomId}/publish`, payload);
+  return data.data;
+}
+
+export async function playLiveRoom(roomId: number, payload: SessionDescriptionPayload) {
+  const { data } = await http.post<ApiResponse<LiveRtcExchangeResponse>>(`/lives/rooms/${roomId}/play`, payload);
+  return data.data;
+}
+
+export async function fetchLiveFrame(roomId: number) {
+  const { data } = await http.get<ApiResponse<LiveFrameResponse>>(`/lives/rooms/${roomId}/frame`);
+  return data.data;
+}
+
+export async function updateLiveFrame(roomId: number, payload: { image: string }) {
+  const { data } = await http.post<ApiResponse<LiveFrameResponse>>(`/lives/rooms/${roomId}/frame`, payload);
+  return data.data;
+}
+
+export async function startLiveRoom(roomId: number) {
+  const { data } = await http.post<ApiResponse<LiveStartResponse>>(`/lives/rooms/${roomId}/start`);
+  return data.data;
+}
+
+export async function stopLiveRoom(roomId: number) {
+  const { data } = await http.post<ApiResponse<LiveStartResponse>>(`/lives/rooms/${roomId}/stop`);
+  return data.data;
+}
+
+export async function fetchLiveSession(sessionId: number) {
+  const { data } = await http.get<ApiResponse<LiveSessionInfo>>(`/lives/sessions/${sessionId}`);
+  return data.data;
+}
+
+export async function createLiveViewer(roomId: number) {
+  const { data } = await http.post<ApiResponse<LiveViewerTicket>>(`/lives/rooms/${roomId}/viewers`);
+  return data.data;
+}
+
+export async function leaveLiveViewer(roomId: number, viewerId: number) {
+  const { data } = await http.delete<ApiResponse<{ roomId: number; viewerId: number; removed: boolean }>>(
+    `/lives/rooms/${roomId}/viewers/${viewerId}`,
+  );
+  return data.data;
+}
+
+export async function submitLiveViewerOffer(roomId: number, viewerId: number, payload: SessionDescriptionPayload) {
+  const { data } = await http.post<ApiResponse<{ roomId: number; viewerId: number; received: boolean }>>(
+    `/lives/rooms/${roomId}/viewers/${viewerId}/offer`,
+    payload,
+  );
+  return data.data;
+}
+
+export async function fetchPendingLiveViewers(roomId: number) {
+  const { data } = await http.get<ApiResponse<PendingLiveViewer[]>>(`/lives/rooms/${roomId}/publisher/pending-viewers`);
+  return data.data;
+}
+
+export async function submitLiveViewerAnswer(roomId: number, viewerId: number, payload: SessionDescriptionPayload) {
+  const { data } = await http.post<ApiResponse<{ roomId: number; viewerId: number; delivered: boolean }>>(
+    `/lives/rooms/${roomId}/viewers/${viewerId}/answer`,
+    payload,
+  );
+  return data.data;
+}
+
+export async function fetchLiveViewerAnswer(roomId: number, viewerId: number) {
+  const { data } = await http.get<ApiResponse<LiveViewerAnswerResponse>>(
+    `/lives/rooms/${roomId}/viewers/${viewerId}/answer`,
+  );
+  return data.data;
+}
+
+export async function fetchLiveMessages(roomId: number) {
+  const { data } = await http.get<ApiResponse<LiveMessage[]>>(`/lives/rooms/${roomId}/messages`);
+  return data.data;
+}
+
+export async function createLiveMessage(roomId: number, payload: { content: string }) {
+  const { data } = await http.post<ApiResponse<LiveMessage>>(`/lives/rooms/${roomId}/messages`, payload);
   return data.data;
 }
 
@@ -64,7 +188,7 @@ export async function fetchUserHomepage(id: number) {
   return data.data;
 }
 
-export async function uploadVideo(file: File, assetType: 'ORIGINAL' | 'COVER' = 'ORIGINAL') {
+export async function uploadVideo(file: File, assetType: 'ORIGINAL' | 'COVER' | 'RECORDING' = 'ORIGINAL') {
   const formData = new FormData();
   formData.append('file', file);
   const { data } = await http.post<
@@ -75,6 +199,24 @@ export async function uploadVideo(file: File, assetType: 'ORIGINAL' | 'COVER' = 
     },
     params: { assetType },
   });
+  return data.data;
+}
+
+export async function saveLiveReplay(
+  roomId: number,
+  payload: {
+    saveMode: 'REPLAY' | 'UPLOAD';
+    assetId?: number;
+    uploadToken?: string;
+    title?: string;
+    description?: string;
+    categoryId?: number;
+    coverUrl?: string;
+    coverAssetId?: number;
+    coverUploadToken?: string;
+  },
+) {
+  const { data } = await http.post<ApiResponse<LiveReplaySaveResponse>>(`/lives/rooms/${roomId}/replay`, payload);
   return data.data;
 }
 
@@ -252,3 +394,6 @@ export async function createDanmaku(
   const { data } = await http.post<ApiResponse<DanmakuItem>>(`/videos/${videoId}/danmaku`, payload);
   return data.data;
 }
+
+
+

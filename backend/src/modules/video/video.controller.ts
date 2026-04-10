@@ -138,7 +138,7 @@ export class VideoController {
   async upload(
     @Headers('authorization') authorization: string | undefined,
     @UploadedFile() file?: Express.Multer.File,
-    @Query('assetType') assetType?: 'ORIGINAL' | 'COVER',
+    @Query('assetType') assetType?: 'ORIGINAL' | 'COVER' | 'RECORDING',
   ) {
     await this.authService.requireUser(authorization);
     if (!file) {

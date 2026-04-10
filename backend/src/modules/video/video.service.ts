@@ -23,10 +23,11 @@ export class VideoService {
     private readonly minioService: MinioService,
   ) {}
 
-  async uploadFile(file: Express.Multer.File, assetType: 'ORIGINAL' | 'COVER' = 'ORIGINAL') {
+  async uploadFile(file: Express.Multer.File, assetType: 'ORIGINAL' | 'COVER' | 'RECORDING' = 'ORIGINAL') {
     const datePrefix = new Date().toISOString().slice(0, 10).replace(/-/g, '/');
-    const folder = assetType === 'COVER' ? 'videos/covers' : 'videos/original';
-    const objectKey = `${folder}/${datePrefix}/${Date.now()}-${file.originalname}`;
+    const folder =
+      assetType === 'COVER' ? 'videos/covers' : assetType === 'RECORDING' ? 'videos/recordings' : 'videos/original';
+    const objectKey = `${folder}/${datePrefix}/${this.buildStorageFileName(file.originalname)}`;
     const uploaded = await this.minioService.uploadObject({
       objectKey,
       buffer: file.buffer,
@@ -77,7 +78,11 @@ export class VideoService {
     let coverUrl =
       payload.coverUrl ??
       'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80';
-    const coverAsset = await this.resolveAsset(payload.coverAssetId, payload.coverUploadToken);
+    const coverAsset = await this.resolveAsset(
+      payload.coverAssetId,
+      payload.coverUploadToken,
+      'Cover asset not found',
+    );
 
     if (coverAsset) {
       coverUrl = coverAsset.url;
@@ -243,7 +248,7 @@ export class VideoService {
       where: {
         status: 'PUBLISHED',
         id: {
-          notIn: [id, ...related.map((item) => item.id)],
+          notIn: [id, ...related.map((item: (typeof related)[number]) => item.id)],
         },
       },
       include: {
@@ -601,5 +606,21 @@ export class VideoService {
     }
 
     return Math.min(50, Math.floor(pageSize));
+  }
+
+  private buildStorageFileName(originalName: string) {
+    const extensionMatch = originalName.match(/(\.[A-Za-z0-9]+)$/);
+    const extension = extensionMatch?.[1]?.toLowerCase() ?? '';
+    const baseName = extension ? originalName.slice(0, -extension.length) : originalName;
+    const normalizedBase = baseName
+      .normalize('NFKD')
+      .replace(/[^\x00-\x7F]/g, '')
+      .replace(/[^A-Za-z0-9_-]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      .toLowerCase();
+    const safeBase = normalizedBase || 'upload';
+
+    return `${Date.now()}-${safeBase}${extension}`;
   }
 }
