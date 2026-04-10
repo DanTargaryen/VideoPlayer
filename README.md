@@ -102,3 +102,47 @@ MinIO 控制台默认访问地址：`http://127.0.0.1:9001`
 - 提交信息尽量简洁明确，例如：`docs: 更新需求文档`、`feat: 新增首页推荐页`。
 - 不要提交依赖目录、构建产物、日志和本地密钥文件。
 - 文档、接口、数据库和代码命名必须保持一致。
+
+## 本地启动步骤（已验证）
+
+在项目根目录 `D:\Java_Code\Projects\VideoPlayer` 执行：
+
+```bash
+# 1. 启动 Docker 依赖
+docker compose -f deploy/docker-compose.example.yml up -d mysql redis minio srs
+
+# 2. 生成 Prisma Client
+npm --workspace backend run prisma:generate
+
+# 3. 同步数据库结构
+npm --workspace backend run db:push
+
+# 4. 写入演示数据
+npm --workspace backend run db:seed
+
+# 5. 构建后端
+npm --workspace backend run build
+
+# 6. 启动后端
+node backend/dist/main.js
+
+# 7. 启动前端
+npm --workspace frontend run dev -- --host 127.0.0.1 --port 5173
+```
+
+启动成功后可访问：
+
+- 前端：`http://127.0.0.1:5173`
+- 后端 API：`http://127.0.0.1:3000/api/v1`
+- MinIO：`http://127.0.0.1:9000`
+- MinIO 控制台：`http://127.0.0.1:9001`
+- SRS HTTP：`http://127.0.0.1:8080`
+- SRS API：`http://127.0.0.1:1985/api/v1/versions`
+
+本次本地启动使用的 MySQL 配置为：
+
+- Host：`127.0.0.1`
+- Port：`3306`
+- Database：`video_player`
+- User：`root`
+- Password：`123456`
