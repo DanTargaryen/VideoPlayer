@@ -59,9 +59,19 @@
             <input type="file" accept="video/*" @change="handleVideoFileChange" />
             <span v-if="selectedVideoFile" class="hint">已选择：{{ selectedVideoFile.name }}</span>
           </el-form-item>
+          <el-form-item v-if="autoCoverPreview" label="自动截取封面预览">
+            <div class="cover-preview-wrapper">
+              <img :src="autoCoverPreview" alt="自动截取的封面" class="cover-preview-img" />
+              <div class="cover-preview-actions">
+                <el-button size="small" @click="handleRecaptureFrame">重新截取</el-button>
+                <el-button size="small" type="primary" @click="handleUseAutoCover">使用此封面</el-button>
+              </div>
+            </div>
+          </el-form-item>
           <el-form-item label="封面图片（可选）">
             <input type="file" accept="image/*" @change="handleCoverFileChange" />
             <span v-if="selectedCoverFile" class="hint">已选择：{{ selectedCoverFile.name }}</span>
+            <span v-if="!selectedCoverFile && autoCoverPreview" class="hint success">未选择自定义封面，将自动使用截取画面作为封面</span>
           </el-form-item>
           <div class="panel-actions">
             <el-button :loading="creating" @click="handleCreateDraft">创建稿件</el-button>
@@ -180,6 +190,9 @@ const videos = ref<CreatorVideo[]>([]);
 const reviewHistory = ref<ReviewHistoryItem[]>([]);
 const selectedVideoFile = ref<File | null>(null);
 const selectedCoverFile = ref<File | null>(null);
+const autoCoverPreview = ref<string | null>(null);
+const autoCoverFile = ref<File | null>(null);
+const captureTimeSeconds = ref(1);
 const editDialogVisible = ref(false);
 const reviewDialogVisible = ref(false);
 const editingVideoId = ref<number | null>(null);
@@ -216,11 +229,76 @@ function formatTime(value?: string | null) {
 function handleVideoFileChange(event: Event) {
   const input = event.target as HTMLInputElement;
   selectedVideoFile.value = input.files?.[0] ?? null;
+  if (selectedVideoFile.value) {
+    captureVideoFrame(selectedVideoFile.value, captureTimeSeconds.value);
+  } else {
+    autoCoverPreview.value = null;
+    autoCoverFile.value = null;
+  }
 }
 
 function handleCoverFileChange(event: Event) {
   const input = event.target as HTMLInputElement;
   selectedCoverFile.value = input.files?.[0] ?? null;
+}
+
+function captureVideoFrame(file: File, timeSeconds: number) {
+  const video = document.createElement('video');
+  video.preload = 'metadata';
+  video.muted = true;
+  video.playsInline = true;
+
+  const url = URL.createObjectURL(file);
+  video.src = url;
+
+  video.onloadedmetadata = () => {
+    const seekTime = Math.min(timeSeconds, Math.max(0, video.duration - 0.1));
+    video.currentTime = seekTime;
+  };
+
+  video.onseeked = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      URL.revokeObjectURL(url);
+      return;
+    }
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    autoCoverPreview.value = dataUrl;
+
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          autoCoverFile.value = new File([blob], `auto-cover-${Date.now()}.jpg`, { type: 'image/jpeg' });
+        }
+        URL.revokeObjectURL(url);
+      },
+      'image/jpeg',
+      0.85,
+    );
+  };
+
+  video.onerror = () => {
+    URL.revokeObjectURL(url);
+    autoCoverPreview.value = null;
+    autoCoverFile.value = null;
+  };
+}
+
+function handleRecaptureFrame() {
+  if (!selectedVideoFile.value) return;
+  captureTimeSeconds.value = Math.min(captureTimeSeconds.value + 2, 30);
+  captureVideoFrame(selectedVideoFile.value, captureTimeSeconds.value);
+}
+
+function handleUseAutoCover() {
+  if (autoCoverFile.value) {
+    selectedCoverFile.value = autoCoverFile.value;
+    ElMessage.success({ message: '已选择自动截取的画面作为封面', duration: 1500 });
+  }
 }
 
 async function refreshAll() {
@@ -231,7 +309,7 @@ async function refreshAll() {
 
 async function handleCreateDraft() {
   if (!selectedVideoFile.value) {
-    ElMessage.warning('请先选择视频文件');
+    ElMessage.warning({ message: '请先选择视频文件', duration: 2000 });
     return;
   }
 
@@ -241,8 +319,9 @@ async function handleCreateDraft() {
     let coverUploadToken: string | undefined;
     let coverAssetId: number | undefined;
 
-    if (selectedCoverFile.value) {
-      const coverUpload = await uploadVideo(selectedCoverFile.value, 'COVER');
+    const coverToUpload = selectedCoverFile.value || autoCoverFile.value;
+    if (coverToUpload) {
+      const coverUpload = await uploadVideo(coverToUpload, 'COVER');
       coverAssetId = coverUpload.assetId;
       coverUploadToken = coverUpload.uploadToken;
     }
@@ -260,10 +339,13 @@ async function handleCreateDraft() {
 
     selectedVideoFile.value = null;
     selectedCoverFile.value = null;
-    ElMessage.success('稿件创建成功');
+    autoCoverPreview.value = null;
+    autoCoverFile.value = null;
+    captureTimeSeconds.value = 1;
+    ElMessage.success({ message: '稿件创建成功', duration: 1500 });
     await refreshAll();
   } catch {
-    ElMessage.error('创建稿件失败，请确认 MinIO 服务已启动且已使用用户账号登录');
+    ElMessage.error({ message: '创建稿件失败，请确认 MinIO 服务已启动且已使用用户账号登录', duration: 4000 });
   } finally {
     creating.value = false;
   }
@@ -286,11 +368,11 @@ async function handleSaveDraft() {
   savingDraft.value = true;
   try {
     await updateVideoDraft(editingVideoId.value, { ...editForm });
-    ElMessage.success('稿件已更新');
+    ElMessage.success({ message: '稿件已更新', duration: 1500 });
     editDialogVisible.value = false;
     await refreshAll();
   } catch {
-    ElMessage.error('保存稿件失败');
+    ElMessage.error({ message: '保存稿件失败', duration: 3000 });
   } finally {
     savingDraft.value = false;
   }
@@ -301,17 +383,17 @@ async function openReviewDialog(video: CreatorVideo) {
     reviewHistory.value = await fetchVideoReviews(video.id);
     reviewDialogVisible.value = true;
   } catch {
-    ElMessage.error('加载审核记录失败');
+    ElMessage.error({ message: '加载审核记录失败', duration: 3000 });
   }
 }
 
 async function handleSubmitReview(videoId: number) {
   try {
     await submitReview(videoId);
-    ElMessage.success('已提交审核');
+    ElMessage.success({ message: '已提交审核', duration: 1500 });
     await refreshAll();
   } catch {
-    ElMessage.error('提交审核失败');
+    ElMessage.error({ message: '提交审核失败', duration: 3000 });
   }
 }
 
@@ -319,7 +401,7 @@ onMounted(async () => {
   try {
     await refreshAll();
   } catch {
-    ElMessage.warning('请先登录用户账号查看此页面');
+    ElMessage.warning({ message: '请先登录用户账号查看此页面', duration: 2500 });
   }
 });
 </script>
@@ -404,5 +486,26 @@ onMounted(async () => {
   display: block;
   margin-top: 8px;
   color: #94a3b8;
+}
+
+.hint.success {
+  color: #67c23a;
+}
+
+.cover-preview-wrapper {
+  display: grid;
+  gap: 12px;
+}
+
+.cover-preview-img {
+  width: 100%;
+  max-width: 320px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.cover-preview-actions {
+  display: flex;
+  gap: 8px;
 }
 </style>
