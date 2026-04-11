@@ -102,35 +102,16 @@
 
       <div class="comment-list">
         <article v-for="item in comments" :key="item.id" class="comment-card">
-          <div class="comment-main">
-            <strong>{{ item.user.nickname }}</strong>
-            <p>{{ item.content }}</p>
-            <div class="comment-meta">
-              <span>{{ formatTime(item.createdAt) }}</span>
-              <button class="link-btn" @click="toggleReplyBox(item.id)">回复</button>
-              <button class="link-btn danger" @click="reportComment(item.id)">举报</button>
-            </div>
-          </div>
-
-          <div v-if="replyTargetId === item.id" class="reply-box">
-            <el-input
-              v-model="replyForm"
-              type="textarea"
-              :rows="2"
-              placeholder="输入回复内容"
-            />
-            <div class="comment-actions">
-              <el-button type="primary" size="small" @click="submitReply(item.id, item.id)">发送回复</el-button>
-            </div>
-          </div>
-
-          <div v-if="item.replies.length > 0" class="reply-list">
-            <article v-for="reply in item.replies" :key="reply.id" class="reply-card">
-              <strong>{{ reply.user.nickname }}</strong>
-              <p>{{ reply.content }}</p>
-              <span class="comment-meta">{{ formatTime(reply.createdAt) }}</span>
-            </article>
-          </div>
+          <CommentThread
+            :comment="item"
+            :root-id="item.id"
+            :active-reply-id="replyTargetId"
+            :reply-form-value="replyForm"
+            @update:reply-form-value="replyForm = $event"
+            @toggle-reply="toggleReplyBox"
+            @submit-reply="handleSubmitReply"
+            @report="reportComment"
+          />
         </article>
       </div>
     </section>
@@ -157,6 +138,7 @@ import {
   unfollowUser,
   unlikeVideo,
 } from '@/api/platform';
+import CommentThread from '@/components/CommentThread.vue';
 import { useAppStore } from '@/stores/app';
 import type { CommentItem, DanmakuItem, VideoCard, VideoDetail } from '@/types/api';
 
@@ -238,6 +220,10 @@ async function submitRootComment() {
 function toggleReplyBox(commentId: number) {
   replyTargetId.value = replyTargetId.value === commentId ? null : commentId;
   replyForm.value = '';
+}
+
+function handleSubmitReply(payload: { parentId: number; rootId: number }) {
+  submitReply(payload.parentId, payload.rootId);
 }
 
 async function submitReply(parentId: number, rootId: number) {
