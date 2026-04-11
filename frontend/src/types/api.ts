@@ -87,11 +87,10 @@ export interface CommentReply {
     id: number;
     nickname: string;
   };
-}
-
-export interface CommentItem extends CommentReply {
   replies: CommentReply[];
 }
+
+export interface CommentItem extends CommentReply {}
 
 export interface CommentListResponse {
   videoId: number;
