@@ -47,8 +47,10 @@
           <el-form-item label="简介">
             <el-input v-model="form.description" type="textarea" />
           </el-form-item>
-          <el-form-item label="分区 ID">
-            <el-input-number v-model="form.categoryId" :min="1" :max="5" />
+          <el-form-item label="分区">
+            <el-select v-model="form.category">
+              <el-option v-for="item in videoCategoryOptions" :key="item.code" :label="item.label" :value="item.code" />
+            </el-select>
           </el-form-item>
           <el-form-item label="封面地址（可选）">
             <el-input v-model="form.coverUrl" />
@@ -109,8 +111,10 @@
         <el-form-item label="简介">
           <el-input v-model="editForm.description" type="textarea" />
         </el-form-item>
-        <el-form-item label="分区 ID">
-          <el-input-number v-model="editForm.categoryId" :min="1" :max="5" />
+        <el-form-item label="分区">
+          <el-select v-model="editForm.category">
+            <el-option v-for="item in videoCategoryOptions" :key="item.code" :label="item.label" :value="item.code" />
+          </el-select>
         </el-form-item>
         <el-form-item label="封面地址">
           <el-input v-model="editForm.coverUrl" />
@@ -154,6 +158,7 @@ import {
   updateVideoDraft,
   uploadVideo,
 } from '@/api/platform';
+import { videoCategoryOptions } from '@/constants/categories';
 import type { CreatorDashboardData, CreatorVideo, ReviewHistoryItem } from '@/types/api';
 
 const creating = ref(false);
@@ -181,13 +186,13 @@ const editingVideoId = ref<number | null>(null);
 const form = reactive({
   title: '新的演示投稿',
   description: '这是通过用户中心上传真实文件后创建并提交审核的演示稿件。',
-  categoryId: 1,
+  category: 'entertainment' as string,
   coverUrl: '',
 });
 const editForm = reactive({
   title: '',
   description: '',
-  categoryId: 1,
+  category: 'entertainment' as string,
   coverUrl: '',
 });
 
@@ -247,7 +252,7 @@ async function handleCreateDraft() {
       uploadToken: upload.uploadToken,
       title: form.title,
       description: form.description,
-      categoryId: form.categoryId,
+      category: form.category,
       coverUrl: form.coverUrl || undefined,
       coverAssetId,
       coverUploadToken,
@@ -268,7 +273,7 @@ function openEditDialog(video: CreatorVideo) {
   editingVideoId.value = video.id;
   editForm.title = video.title;
   editForm.description = video.description;
-  editForm.categoryId = video.categoryId;
+  editForm.category = video.category;
   editForm.coverUrl = video.coverUrl;
   editDialogVisible.value = true;
 }

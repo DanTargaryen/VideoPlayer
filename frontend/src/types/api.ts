@@ -30,7 +30,7 @@ export interface VideoCard {
 
 export interface CreatorVideo extends VideoCard {
   creatorId: number;
-  categoryId: number;
+  category: string;
   uploadToken: string;
   rejectReason?: string | null;
   submittedAt?: string | null;
@@ -211,7 +211,7 @@ export interface LiveRoomInfo {
   id: number;
   sessionId?: number;
   title: string;
-  categoryId: number;
+  category: string;
   coverUrl?: string;
   sourceMode?: 'camera' | 'screen' | string;
   streamKey: string;

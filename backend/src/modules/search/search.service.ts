@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { resolveCategoryId } from '../../common/constants/categories';
+import { resolveCategoryCode } from '../../common/constants/categories';
 import { LiveService } from '../live/live.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { VideoService } from '../video/video.service';
@@ -54,7 +54,7 @@ export class SearchService {
     const page = this.normalizePage(options.page);
     const pageSize = this.normalizePageSize(options.pageSize);
     const skip = (page - 1) * pageSize;
-    const categoryId = resolveCategoryId(options.categoryCode);
+    const category = resolveCategoryCode(options.categoryCode);
 
     const video = await this.videoService.searchPublishedVideos(normalizedKeyword, {
       categoryCode: options.categoryCode,
@@ -87,7 +87,7 @@ export class SearchService {
 
     const live = this.liveService.listRooms({
       keyword: normalizedKeyword,
-      categoryId: categoryId ?? undefined,
+      category: category ?? undefined,
       limit: pageSize,
     });
 
@@ -101,7 +101,7 @@ export class SearchService {
       video,
       live,
       user,
-      categoryId: categoryId ?? null,
+      category: category ?? null,
     };
   }
 

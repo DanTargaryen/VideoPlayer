@@ -91,7 +91,7 @@ model Video {
   creator         User          @relation("CreatedVideos", fields: [creatorId], references: [id])
   title           String        @db.VarChar(128)
   description     String        @db.Text
-  categoryId      Int           @default(1)
+  category        String        @default("entertainment") @db.VarChar(32)
   coverUrl        String        @db.VarChar(255)
   playUrl         String        @db.VarChar(255)
   status          VideoStatus   @default(DRAFT)
