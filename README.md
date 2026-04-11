@@ -1,6 +1,6 @@
 # 24级软工项目
 
-本仓库用于 24 级软件工程项目的协作与开发。
+本仓库用于 24 级软件工程项目的协作与开发，当前项目主题为“观澜视频平台”，定位为 Web 端在线视频与直播网站。
 
 ## 项目成员
 
@@ -12,21 +12,93 @@
 | 张壮志 | 24371350 |  |
 | 王一涵 | 24371063 |  |
 
-## 仓库说明
+## 当前结构
 
-- 当前仓库已完成初始化，并包含基础 `README.md` 与 `.gitignore`。
-- 后续可根据项目实际技术栈继续补充目录结构、开发文档、接口文档和任务分工。
+```text
+VideoPlayer/
+  docs/         课程过程文档与设计文档
+  frontend/     Vue 3 + TypeScript 前端骨架
+  backend/      NestJS 风格后端骨架
+  deploy/       演示环境部署示例
+```
+
+## 工程说明
+
+- `frontend/` 已包含主站、直播间、用户中心、审核后台等页面占位。
+- `backend/` 已包含健康检查、认证、视频、搜索、直播、用户中心、审核、礼物币、Agent 等模块骨架。
+- `docs/` 已补齐计划书、需求、概要设计、详细设计、数据库设计、API 文档和分工文档。
+
+## 常用命令
+
+在仓库根目录执行：
+
+```bash
+npm install
+npm run dev:frontend
+npm run dev:backend
+```
+
+
+## 数据库初始化
+
+当前后端目标数据库为 MySQL。初始化步骤如下：
+
+```bash
+# 1. 先确保本机 MySQL 已启动，并创建数据库
+mysql -u root < deploy/mysql/init.sql
+
+# 2. 生成 Prisma Client
+npm --workspace backend run prisma:generate
+
+# 3. 推送表结构
+npm --workspace backend run db:push
+
+# 4. 写入演示数据
+npm --workspace backend run db:seed
+```
+
+如果本机没有 MySQL 服务，后端将无法连接数据库，需先补齐运行环境。
+
+
+## 登录说明
+
+- 普通用户直接在登录页使用用户账号登录。
+- 管理员不在常规入口直接暴露。需要先点击登录页中的“管理入口”，输入密钥 `Administer`，再使用管理员账号登录。
+- 非管理员角色和游客在主站头部不会看到“审核后台”入口。
+
+演示账号：
+
+- 用户：`demo_user / user123`
+- 管理员：`demo_admin / admin123`
+
+## MinIO 上传说明
+
+当前项目默认使用 MinIO 作为对象存储，并接入真实文件上传链路。
+
+- 视频原文件会上传到 MinIO 的 `video-player` bucket
+- 封面图片支持本地上传
+- 视频创建后会执行基础媒体处理：
+  - 时长解析
+  - 自动转码到 MP4
+  - 若未手动上传封面，则自动抽帧生成封面
+- 后端会自动创建 bucket，并配置匿名只读策略，返回的资源 URL 可直接在前端访问
+
+对象路径示例：
+
+```text
+videos/original/YYYY/MM/DD/<timestamp>-sample.mp4
+videos/covers/YYYY/MM/DD/<timestamp>-cover.jpg
+videos/transcoded/YYYY/MM/DD/<timestamp>-sample.mp4
+```
+
+MinIO 默认访问地址：`http://127.0.0.1:9000`
+MinIO 控制台默认访问地址：`http://127.0.0.1:9001`
+
+如需本地启动 MinIO，可在 `deploy/` 目录使用 Docker Compose 启动 `minio` 服务；若确实需要退回本地磁盘存储，可显式设置 `STORAGE_BACKEND=local`。
 
 ## 协作注意事项
 
-- 提交代码前先执行 `git pull`，减少冲突。
-- 提交信息尽量简洁明确，例如：`docs: 更新 README`、`feat: 新增登录页面`、`fix: 修复表单校验问题`。
-- 不要提交本地运行产生的临时文件、日志文件、依赖目录和构建产物。
-- 不要提交包含账号、密码、密钥等敏感信息的配置文件。
-- 如果新增了新的开发工具或运行环境，请同步更新本仓库的文档和 `.gitignore`。
-
-## 关于 .gitignore
-
-- `.gitignore` 用于忽略不应纳入版本管理的文件。
-- 当前已包含常见的 IDE 配置、日志、环境变量文件、依赖目录和构建产物规则。
-- 如果项目后续使用了新的框架或语言，请及时补充对应的忽略规则，避免把无关文件提交到仓库。
+- 提交代码前先同步远端，减少冲突。
+- 提交信息尽量简洁明确，例如：`docs: 更新需求文档`、`feat: 新增首页推荐页`。
+- 不要提交依赖目录、构建产物、日志和本地密钥文件。
+- 文档、接口、数据库和代码命名必须保持一致。

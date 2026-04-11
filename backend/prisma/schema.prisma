@@ -1,0 +1,260 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum VideoStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  REJECTED
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum NotificationType {
+  COMMENT
+  REPLY
+  FOLLOW
+  SYSTEM
+  LIKE
+  FAVORITE
+  REPORT
+}
+
+enum TextStatus {
+  NORMAL
+  HIDDEN
+  DELETED
+}
+
+enum ReportStatus {
+  PENDING
+  PROCESSED
+  REJECTED
+}
+
+enum ReportTargetType {
+  VIDEO
+  COMMENT
+  VIDEO_DANMAKU
+}
+
+enum VideoAssetType {
+  ORIGINAL
+  COVER
+  TRANSCODED
+  RECORDING
+}
+
+model User {
+  id                    Int              @id @default(autoincrement())
+  username              String           @unique @db.VarChar(64)
+  email                 String           @unique @db.VarChar(128)
+  password              String           @db.VarChar(255)
+  role                  UserRole
+  nickname              String           @db.VarChar(64)
+  avatarUrl             String?          @db.VarChar(255)
+  bio                   String?          @db.VarChar(255)
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  createdVideos         Video[]          @relation("CreatedVideos")
+  reviewedReviews       VideoReview[]    @relation("ReviewedReviews")
+  comments              Comment[]
+  followingRelations    FollowRelation[] @relation("FollowingUsers")
+  followerRelations     FollowRelation[] @relation("FollowerUsers")
+  receivedNotifications Notification[]   @relation("NotificationRecipients")
+  actorNotifications    Notification[]   @relation("NotificationActors")
+  videoLikes            VideoLike[]
+  favorites             Favorite[]
+  danmakus              VideoDanmaku[]
+  reports               ReportRecord[]   @relation("ReportCreators")
+  handledReports        ReportRecord[]   @relation("ReportHandlers")
+}
+
+model Video {
+  id              Int           @id @default(autoincrement())
+  creatorId       Int
+  creator         User          @relation("CreatedVideos", fields: [creatorId], references: [id])
+  title           String        @db.VarChar(128)
+  description     String        @db.Text
+  categoryId      Int           @default(1)
+  coverUrl        String        @db.VarChar(255)
+  playUrl         String        @db.VarChar(255)
+  status          VideoStatus   @default(DRAFT)
+  uploadToken     String        @db.VarChar(255)
+  rejectReason    String?       @db.VarChar(255)
+  submittedAt     DateTime?
+  publishedAt     DateTime?
+  likeCount       Int           @default(0)
+  favoriteCount   Int           @default(0)
+  commentCount    Int           @default(0)
+  durationSeconds Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  reviews         VideoReview[]
+  comments        Comment[]
+  likes           VideoLike[]
+  favorites       Favorite[]
+  danmakus        VideoDanmaku[]
+  reports         ReportRecord[]
+  assets          VideoAsset[]
+
+  @@index([creatorId, status])
+}
+
+model VideoAsset {
+  id           Int            @id @default(autoincrement())
+  videoId       Int?
+  video         Video?         @relation(fields: [videoId], references: [id])
+  assetType     VideoAssetType
+  objectKey     String         @unique @db.VarChar(255)
+  bucket        String         @db.VarChar(64)
+  mimeType      String         @db.VarChar(128)
+  originalName  String?        @db.VarChar(255)
+  fileSize      Int            @default(0)
+  url           String         @db.VarChar(255)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([videoId, assetType])
+}
+
+model VideoReview {
+  id         Int          @id @default(autoincrement())
+  videoId    Int
+  video      Video        @relation(fields: [videoId], references: [id])
+  reviewerId Int?
+  reviewer   User?        @relation("ReviewedReviews", fields: [reviewerId], references: [id])
+  status     ReviewStatus @default(PENDING)
+  reason     String?      @db.VarChar(255)
+  createdAt  DateTime     @default(now())
+  reviewedAt DateTime?
+
+  @@index([status, createdAt])
+}
+
+model Comment {
+  id         Int        @id @default(autoincrement())
+  videoId    Int
+  video      Video      @relation(fields: [videoId], references: [id])
+  userId     Int
+  user       User       @relation(fields: [userId], references: [id])
+  parentId   Int?
+  rootId     Int?
+  content    String     @db.VarChar(1000)
+  status     TextStatus @default(NORMAL)
+  replyCount Int        @default(0)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  reports    ReportRecord[]
+
+  @@index([videoId, parentId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model FollowRelation {
+  id          Int      @id @default(autoincrement())
+  followerId  Int
+  follower    User     @relation("FollowingUsers", fields: [followerId], references: [id])
+  followingId Int
+  following   User     @relation("FollowerUsers", fields: [followingId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followingId, createdAt])
+}
+
+model Notification {
+  id          Int              @id @default(autoincrement())
+  recipientId Int
+  recipient   User             @relation("NotificationRecipients", fields: [recipientId], references: [id])
+  actorId     Int?
+  actor       User?            @relation("NotificationActors", fields: [actorId], references: [id])
+  type        NotificationType
+  title       String           @db.VarChar(128)
+  content     String           @db.VarChar(255)
+  relatedType String?          @db.VarChar(32)
+  relatedId   Int?
+  isRead      Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([recipientId, isRead, createdAt])
+}
+
+model VideoLike {
+  id         Int      @id @default(autoincrement())
+  videoId    Int
+  video      Video    @relation(fields: [videoId], references: [id])
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@unique([videoId, userId])
+  @@index([userId, createdAt])
+}
+
+model Favorite {
+  id         Int      @id @default(autoincrement())
+  videoId    Int
+  video      Video    @relation(fields: [videoId], references: [id])
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@unique([videoId, userId])
+  @@index([userId, createdAt])
+}
+
+model VideoDanmaku {
+  id           Int          @id @default(autoincrement())
+  videoId      Int
+  video        Video        @relation(fields: [videoId], references: [id])
+  userId       Int
+  user         User         @relation(fields: [userId], references: [id])
+  content      String       @db.VarChar(255)
+  color        String       @default("#FFFFFF") @db.VarChar(16)
+  timeOffsetMs Int
+  status       TextStatus   @default(NORMAL)
+  createdAt    DateTime     @default(now())
+  reports      ReportRecord[]
+
+  @@index([videoId, timeOffsetMs, createdAt])
+}
+
+model ReportRecord {
+  id          Int              @id @default(autoincrement())
+  reporterId  Int
+  reporter    User             @relation("ReportCreators", fields: [reporterId], references: [id])
+  handlerId   Int?
+  handler     User?            @relation("ReportHandlers", fields: [handlerId], references: [id])
+  targetType  ReportTargetType
+  videoId     Int?
+  video       Video?           @relation(fields: [videoId], references: [id])
+  commentId   Int?
+  comment     Comment?         @relation(fields: [commentId], references: [id])
+  danmakuId   Int?
+  danmaku     VideoDanmaku?    @relation(fields: [danmakuId], references: [id])
+  reason      String           @db.VarChar(255)
+  status      ReportStatus     @default(PENDING)
+  handleNote  String?          @db.VarChar(255)
+  createdAt   DateTime         @default(now())
+  handledAt   DateTime?
+
+  @@index([status, createdAt])
+  @@index([targetType, createdAt])
+}
