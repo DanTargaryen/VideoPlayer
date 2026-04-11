@@ -1,4 +1,4 @@
-﻿import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Response } from 'express';
 
 import { PrismaService } from '../prisma/prisma.service';
@@ -52,7 +52,7 @@ type LiveRoomState = {
   id: number;
   sessionId: number;
   title: string;
-  categoryId: number;
+  category: string;
   coverUrl?: string;
   sourceMode: LiveSourceMode;
   streamKey: string;
@@ -88,7 +88,7 @@ export class LiveService {
     private readonly videoService: VideoService,
   ) {}
 
-  createRoom(user: AuthUser, payload: { title: string; categoryId?: number; coverUrl?: string; sourceMode?: LiveSourceMode }) {
+  createRoom(user: AuthUser, payload: { title: string; category?: string; coverUrl?: string; sourceMode?: LiveSourceMode }) {
     const roomId = this.nextRoomId++;
     const createdAt = new Date().toISOString();
     const streamKey = `room-${roomId}-${Date.now()}`;
@@ -98,7 +98,7 @@ export class LiveService {
       id: roomId,
       sessionId: roomId,
       title: payload.title,
-      categoryId: payload.categoryId ?? 5,
+      category: payload.category ?? 'live',
       coverUrl: payload.coverUrl,
       sourceMode: payload.sourceMode ?? 'camera',
       streamKey,
@@ -129,7 +129,7 @@ export class LiveService {
 
   listRooms(options?: {
     keyword?: string;
-    categoryId?: number;
+    category?: string;
     broadcasterId?: number;
     status?: 'IDLE' | 'LIVING' | 'ENDED';
     limit?: number;
@@ -139,7 +139,7 @@ export class LiveService {
 
     return Array.from(this.rooms.values())
       .filter((room) => !options?.status || room.status === options.status)
-      .filter((room) => !options?.categoryId || room.categoryId === options.categoryId)
+      .filter((room) => !options?.category || room.category === options.category)
       .filter((room) => !options?.broadcasterId || room.broadcasterId === options.broadcasterId)
       .filter((room) => {
         if (!keyword) {
@@ -360,7 +360,7 @@ export class LiveService {
       uploadToken?: string;
       title?: string;
       description?: string;
-      categoryId?: number;
+      category?: string;
       coverUrl?: string;
       coverAssetId?: number;
       coverUploadToken?: string;
@@ -380,7 +380,7 @@ export class LiveService {
         uploadToken: asset.objectKey,
         title: payload.title?.trim() || `${room.title} 回放`,
         description: payload.description?.trim() || `直播回放：${room.title}`,
-        categoryId: payload.categoryId ?? room.categoryId,
+        category: payload.category ?? room.category,
         coverUrl: payload.coverUrl ?? room.coverUrl,
         coverAssetId: payload.coverAssetId,
         coverUploadToken: payload.coverUploadToken,
@@ -516,7 +516,7 @@ export class LiveService {
       id: room.id,
       sessionId: room.sessionId,
       title: room.title,
-      categoryId: room.categoryId,
+      category: room.category,
       coverUrl: room.coverUrl,
       sourceMode: room.sourceMode,
       streamKey: room.streamKey,

@@ -1,7 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Express } from 'express';
 
-import { resolveCategoryId } from '../../common/constants/categories';
+import { resolveCategoryCode } from '../../common/constants/categories';
 import { PrismaService } from '../prisma/prisma.service';
 import { FollowService } from '../follow/follow.service';
 import { MediaService } from './media.service';
@@ -64,7 +64,7 @@ export class VideoService {
       uploadToken?: string;
       title: string;
       description?: string;
-      categoryId: number;
+      category: string;
       coverUrl?: string;
       coverAssetId?: number;
       coverUploadToken?: string;
@@ -93,7 +93,7 @@ export class VideoService {
         creatorId: user.id,
         title: payload.title,
         description: payload.description ?? '',
-        categoryId: payload.categoryId,
+        category: payload.category,
         coverUrl,
         playUrl: asset.url,
         status: 'DRAFT',
@@ -121,7 +121,7 @@ export class VideoService {
   async updateDraft(
     videoId: number,
     user: { id: number; role: 'USER' | 'ADMIN' },
-    payload: { title?: string; description?: string; categoryId?: number; coverUrl?: string },
+    payload: { title?: string; description?: string; category?: string; coverUrl?: string },
   ) {
     const video = await this.prisma.video.findUnique({ where: { id: videoId } });
 
@@ -142,7 +142,7 @@ export class VideoService {
       data: {
         ...(payload.title !== undefined ? { title: payload.title } : {}),
         ...(payload.description !== undefined ? { description: payload.description } : {}),
-        ...(payload.categoryId !== undefined ? { categoryId: payload.categoryId } : {}),
+        ...(payload.category !== undefined ? { category: payload.category } : {}),
         ...(payload.coverUrl !== undefined ? { coverUrl: payload.coverUrl } : {}),
         submittedAt: null,
       },
@@ -226,7 +226,7 @@ export class VideoService {
       where: {
         status: 'PUBLISHED',
         id: { not: id },
-        OR: [{ creatorId: current.creatorId }, { categoryId: current.categoryId }],
+        OR: [{ creatorId: current.creatorId }, { category: current.category }],
       },
       include: {
         creator: {
@@ -332,12 +332,12 @@ export class VideoService {
   async getRecommendFeed(options: VideoListOptions = {}) {
     const page = this.normalizePage(options.page);
     const pageSize = this.normalizePageSize(options.pageSize);
-    const categoryId = resolveCategoryId(options.categoryCode);
+    const category = resolveCategoryCode(options.categoryCode);
 
     return this.prisma.video.findMany({
       where: {
         status: 'PUBLISHED',
-        ...(categoryId ? { categoryId } : {}),
+        ...(category ? { category } : {}),
       },
       include: {
         creator: {
@@ -356,12 +356,12 @@ export class VideoService {
   async searchPublishedVideos(keyword: string, options: VideoListOptions = {}) {
     const page = this.normalizePage(options.page);
     const pageSize = this.normalizePageSize(options.pageSize);
-    const categoryId = resolveCategoryId(options.categoryCode);
+    const category = resolveCategoryCode(options.categoryCode);
 
     return this.prisma.video.findMany({
       where: {
         status: 'PUBLISHED',
-        ...(categoryId ? { categoryId } : {}),
+        ...(category ? { category } : {}),
         ...(keyword
           ? {
               OR: [

@@ -1,4 +1,4 @@
-﻿import http from './http';
+import http from './http';
 import type {
   ApiResponse,
   CommentListResponse,
@@ -43,7 +43,7 @@ export async function fetchRecommendFeed(params?: { categoryCode?: string; page?
 
 export async function createLiveRoom(payload: {
   title: string;
-  categoryId?: number;
+  category?: string;
   coverUrl?: string;
   sourceMode?: 'camera' | 'screen';
 }) {
@@ -54,7 +54,7 @@ export async function createLiveRoom(payload: {
 export async function fetchLiveRooms(params?: {
   keyword?: string;
   status?: 'IDLE' | 'LIVING' | 'ENDED';
-  categoryId?: number;
+  category?: string;
   broadcasterId?: number;
   limit?: number;
 }) {
@@ -210,7 +210,7 @@ export async function saveLiveReplay(
     uploadToken?: string;
     title?: string;
     description?: string;
-    categoryId?: number;
+    category?: string;
     coverUrl?: string;
     coverAssetId?: number;
     coverUploadToken?: string;
@@ -225,7 +225,7 @@ export async function createVideo(payload: {
   uploadToken?: string;
   title: string;
   description: string;
-  categoryId: number;
+  category: string;
   coverUrl?: string;
   coverAssetId?: number;
   coverUploadToken?: string;
@@ -236,7 +236,7 @@ export async function createVideo(payload: {
 
 export async function updateVideoDraft(
   videoId: number,
-  payload: { title?: string; description?: string; categoryId?: number; coverUrl?: string },
+  payload: { title?: string; description?: string; category?: string; coverUrl?: string },
 ) {
   const { data } = await http.put<ApiResponse<CreatorVideo>>(`/videos/${videoId}`, payload);
   return data.data;
