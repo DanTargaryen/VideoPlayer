@@ -10,20 +10,50 @@ import { MinioService } from '../storage/minio.service';
 
 const execFileAsync = promisify(execFile);
 
+const FFMPEG_BIN = process.env.FFMPEG_PATH || 'ffmpeg';
+const FFPROBE_BIN = process.env.FFPROBE_PATH || 'ffprobe';
+
 @Injectable()
 export class MediaService {
   private readonly logger = new Logger(MediaService.name);
+  private ffmpegAvailable: boolean | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly minioService: MinioService,
   ) {}
 
+  private async checkFfmpegAvailable(): Promise<boolean> {
+    if (this.ffmpegAvailable !== null) {
+      return this.ffmpegAvailable;
+    }
+
+    try {
+      await execFileAsync(FFPROBE_BIN, ['-version']);
+      this.ffmpegAvailable = true;
+      this.logger.log(`FFmpeg found: ${FFMPEG_BIN}, FFprobe found: ${FFPROBE_BIN}`);
+    } catch {
+      this.ffmpegAvailable = false;
+      this.logger.warn(
+        `FFmpeg/FFprobe not found (ffmpeg=${FFMPEG_BIN}, ffprobe=${FFPROBE_BIN}). ` +
+          'Video processing (duration probe, cover generation, transcoding) will be skipped. ' +
+          'Please install FFmpeg and ensure it is in PATH, or set FFMPEG_PATH / FFPROBE_PATH in .env.',
+      );
+    }
+
+    return this.ffmpegAvailable;
+  }
+
   async processVideo(videoId: number, originalAssetId: number, existingCoverAssetId?: number | null) {
     const originalAsset = await this.prisma.videoAsset.findUnique({ where: { id: originalAssetId } });
 
     if (!originalAsset) {
       this.logger.warn(`Original asset ${originalAssetId} not found`);
+      return;
+    }
+
+    if (!(await this.checkFfmpegAvailable())) {
+      this.logger.warn(`Media processing skipped for video ${videoId}: FFmpeg not available`);
       return;
     }
 
@@ -99,7 +129,7 @@ export class MediaService {
   }
 
   private async probeDuration(inputPath: string) {
-    const { stdout } = await execFileAsync('ffprobe', [
+    const { stdout } = await execFileAsync(FFPROBE_BIN, [
       '-v',
       'error',
       '-show_entries',
@@ -115,14 +145,14 @@ export class MediaService {
 
   private async generateCover(inputPath: string, coverPath: string) {
     try {
-      await execFileAsync('ffmpeg', ['-y', '-i', inputPath, '-ss', '00:00:01', '-vframes', '1', coverPath]);
+      await execFileAsync(FFMPEG_BIN, ['-y', '-i', inputPath, '-ss', '00:00:01', '-vframes', '1', coverPath]);
     } catch {
-      await execFileAsync('ffmpeg', ['-y', '-i', inputPath, '-vframes', '1', coverPath]);
+      await execFileAsync(FFMPEG_BIN, ['-y', '-i', inputPath, '-vframes', '1', coverPath]);
     }
   }
 
   private async transcodeVideo(inputPath: string, outputPath: string) {
-    await execFileAsync('ffmpeg', [
+    await execFileAsync(FFMPEG_BIN, [
       '-y',
       '-i',
       inputPath,
