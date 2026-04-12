@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <section class="live-page">
     <header class="hero-panel">
       <div class="hero-copy">
@@ -394,9 +394,9 @@ onUnmounted(() => { closeRoomEventSource(); closePublisherEventSource(); closeVi
 </script>
 <style scoped>
 .live-page { display: grid; gap: 24px; }
-.panel { border-radius: 28px; background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.98)); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 24px 60px rgba(15,23,42,.08); }
-.hero-panel { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; padding: 34px 36px; border-radius: 32px; background: radial-gradient(circle at top left, rgba(253,186,116,.42), transparent 28%), radial-gradient(circle at right center, rgba(251,113,133,.22), transparent 30%), linear-gradient(135deg, #fff7ed, #ffffff 40%, #fdf2f8 100%); border: 1px solid rgba(251,113,133,.18); }
-.eyebrow, .section-kicker { display: inline-block; margin-bottom: 10px; padding: 6px 10px; border-radius: 999px; background: rgba(251,113,133,.12); color: #e11d48; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
+.panel { border-radius: 28px; background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.98)); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 4px 24px rgba(15,23,42,.06); }
+.hero-panel { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; padding: 34px 36px; border-radius: 32px; background: radial-gradient(circle at top left, rgba(59,130,246,.12), transparent 28%), radial-gradient(circle at right center, rgba(37,99,235,.08), transparent 30%), linear-gradient(135deg, #eff6ff, #ffffff 40%, #f0f9ff 100%); border: 1px solid rgba(37,99,235,.12); }
+.eyebrow, .section-kicker { display: inline-block; margin-bottom: 10px; padding: 6px 10px; border-radius: 999px; background: rgba(37,99,235,.1); color: #2563eb; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
 .hero-copy h1, .section-head h2, .room-head h2 { margin: 0; color: #111827; }
 .hero-copy p, .section-head p, .compact-head p, .muted { margin: 10px 0 0; color: #4b5563; line-height: 1.75; }
 .hero-stats { display: flex; gap: 14px; margin-top: 24px; flex-wrap: wrap; }
@@ -408,7 +408,7 @@ onUnmounted(() => { closeRoomEventSource(); closePublisherEventSource(); closeVi
 .section-head, .compact-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
 .section-head h2, .compact-head h3 { margin: 0; }
 .studio-grid, .room-layout { display: grid; gap: 20px; grid-template-columns: minmax(0,2fr) minmax(320px,.95fr); }
-.stage-shell { position: relative; overflow: hidden; border-radius: 26px; min-height: 420px; background: radial-gradient(circle at top left, rgba(251,113,133,.24), transparent 28%), linear-gradient(135deg, #111827, #0f172a); }
+.stage-shell { position: relative; overflow: hidden; border-radius: 26px; min-height: 420px; background: linear-gradient(135deg, #111827, #0f172a); }
 .stage-video { width: 100%; height: 100%; min-height: 420px; object-fit: cover; background: #111827; }
 .stage-placeholder { display: grid; place-items: center; gap: 10px; height: 100%; padding: 32px; color: rgba(255,255,255,.88); text-align: center; }
 .preview-shell { min-height: 440px; }
@@ -429,12 +429,12 @@ onUnmounted(() => { closeRoomEventSource(); closePublisherEventSource(); closeVi
 .room-stage-shell { min-height: 520px; }
 .danmaku-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .danmaku-item { position: absolute; right: -120%; display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; background: rgba(17,24,39,.68); color: #fff; white-space: nowrap; box-shadow: 0 10px 28px rgba(0,0,0,.22); animation-name: danmaku-fly; animation-timing-function: linear; animation-fill-mode: forwards; }
-.danmaku-sender { color: #fda4af; font-weight: 700; }
+.danmaku-sender { color: #93c5fd; font-weight: 700; }
 .control-bar { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
-.message-count { display: inline-grid; place-items: center; min-width: 36px; height: 36px; padding: 0 12px; border-radius: 999px; background: rgba(239,68,68,.1); color: #dc2626; font-weight: 700; }
+.message-count { display: inline-grid; place-items: center; min-width: 36px; height: 36px; padding: 0 12px; border-radius: 999px; background: rgba(37,99,235,.1); color: #2563eb; font-weight: 700; }
 .message-list { display: grid; gap: 10px; max-height: 400px; overflow-y: auto; padding-right: 4px; }
 .message-item { display: grid; gap: 8px; padding: 12px 14px; border-radius: 18px; background: #fff; border: 1px solid rgba(15,23,42,.05); }
-.message-item-system { background: rgba(239,68,68,.06); border-color: rgba(239,68,68,.12); }
+.message-item-system { background: rgba(37,99,235,.04); border-color: rgba(37,99,235,.1); }
 .message-meta { display: flex; justify-content: space-between; gap: 12px; color: #111827; font-size: 12px; }
 .message-meta span { color: #6b7280; }
 .message-item p { margin: 0; color: #374151; line-height: 1.6; word-break: break-word; }
