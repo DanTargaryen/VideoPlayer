@@ -412,6 +412,16 @@ onMounted(async () => {
   gap: 20px;
 }
 
+.hero h1 {
+  margin: 0;
+  color: #111827;
+}
+
+.hero p {
+  margin: 4px 0 0;
+  color: #4b5563;
+}
+
 .hero,
 .panel-head {
   display: flex;
@@ -433,8 +443,9 @@ onMounted(async () => {
 .history-card {
   padding: 20px;
   border-radius: 16px;
-  background: rgba(30, 41, 59, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
 }
 
 .stat-card {
@@ -442,8 +453,14 @@ onMounted(async () => {
   gap: 8px;
 }
 
+.stat-card span {
+  color: #6b7280;
+  font-size: 14px;
+}
+
 .stat-card strong {
   font-size: 28px;
+  color: #111827;
 }
 
 .panels {
@@ -460,6 +477,11 @@ onMounted(async () => {
   gap: 16px;
 }
 
+.panel h2 {
+  margin: 0;
+  color: #111827;
+}
+
 .panel-actions {
   display: flex;
   justify-content: flex-end;
@@ -474,6 +496,18 @@ onMounted(async () => {
   gap: 16px;
 }
 
+.video-card h3,
+.warning-card strong,
+.history-card strong {
+  color: #111827;
+}
+
+.video-card p,
+.warning-card p,
+.history-card p {
+  color: #4b5563;
+}
+
 .actions-block {
   display: grid;
   gap: 10px;
@@ -485,11 +519,11 @@ onMounted(async () => {
 .subtle {
   display: block;
   margin-top: 8px;
-  color: #94a3b8;
+  color: #6b7280;
 }
 
 .hint.success {
-  color: #67c23a;
+  color: #16a34a;
 }
 
 .cover-preview-wrapper {
@@ -501,7 +535,7 @@ onMounted(async () => {
   width: 100%;
   max-width: 320px;
   border-radius: 8px;
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  border: 1px solid rgba(15, 23, 42, 0.08);
 }
 
 .cover-preview-actions {

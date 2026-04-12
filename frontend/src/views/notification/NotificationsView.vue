@@ -70,6 +70,16 @@ onMounted(() => {
   justify-content: space-between;
 }
 
+.hero h1 {
+  margin: 0;
+  color: #111827;
+}
+
+.hero p {
+  margin: 4px 0 0;
+  color: #4b5563;
+}
+
 .list {
   display: grid;
   gap: 12px;
@@ -82,24 +92,37 @@ onMounted(() => {
   gap: 16px;
   padding: 20px;
   border-radius: 16px;
-  background: rgba(30, 41, 59, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+}
+
+.card h3 {
+  margin: 0;
+  color: #111827;
+}
+
+.card p {
+  margin: 4px 0 0;
+  color: #4b5563;
 }
 
 .meta {
   display: inline-block;
   margin-top: 8px;
-  color: #94a3b8;
+  color: #6b7280;
 }
 
 .tag {
   padding: 4px 10px;
   border-radius: 999px;
-  background: rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.06);
+  color: #6b7280;
+  font-size: 13px;
 }
 
 .tag.unread {
-  background: rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
 }
 </style>

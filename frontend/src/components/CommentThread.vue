@@ -81,11 +81,21 @@ function handleSubmitReply() {
   gap: 8px;
 }
 
+.comment-main strong {
+  color: #111827;
+}
+
+.comment-main p {
+  margin: 0;
+  color: #374151;
+  line-height: 1.6;
+}
+
 .comment-meta {
   display: flex;
   gap: 16px;
   flex-wrap: wrap;
-  color: #94a3b8;
+  color: #6b7280;
 }
 
 .reply-box {
@@ -102,18 +112,18 @@ function handleSubmitReply() {
   display: grid;
   gap: 12px;
   padding-left: 24px;
-  border-left: 2px solid rgba(148, 163, 184, 0.18);
+  border-left: 2px solid rgba(15, 23, 42, 0.08);
   margin-left: 8px;
 }
 
 .link-btn {
-  color: #60a5fa;
+  color: #2563eb;
   background: transparent;
   border: 0;
   cursor: pointer;
 }
 
 .link-btn.danger {
-  color: #fca5a5;
+  color: #dc2626;
 }
 </style>

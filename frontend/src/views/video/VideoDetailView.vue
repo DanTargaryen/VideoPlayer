@@ -486,8 +486,8 @@ watch(
   border-radius: 16px;
   display: grid;
   place-items: center;
-  background: rgba(15, 23, 42, 0.65);
-  border: 1px dashed rgba(148, 163, 184, 0.35);
+  background: #111827;
+  border: 1px solid rgba(15, 23, 42, 0.12);
   overflow: hidden;
 }
 
@@ -523,8 +523,9 @@ watch(
 .recommend-panel {
   padding: 20px;
   border-radius: 16px;
-  background: rgba(30, 41, 59, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
 }
 
 .title-row,
@@ -548,8 +549,8 @@ watch(
   align-items: center;
   padding: 4px 12px;
   border-radius: 8px;
-  background: rgba(96, 165, 250, 0.15);
-  color: #60a5fa;
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563eb;
   font-size: 13px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -561,7 +562,7 @@ watch(
   display: flex;
   gap: 16px;
   flex-wrap: wrap;
-  color: #94a3b8;
+  color: #6b7280;
 }
 
 .comment-list,
@@ -576,7 +577,8 @@ watch(
 .recommend-card {
   padding: 12px 16px;
   border-radius: 12px;
-  background: rgba(15, 23, 42, 0.55);
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.06);
 }
 
 .comment-actions {
@@ -587,14 +589,14 @@ watch(
 .link-btn,
 .chip-link,
 .secondary-link {
-  color: #60a5fa;
+  color: #2563eb;
   background: transparent;
   border: 0;
   cursor: pointer;
 }
 
 .link-btn.danger {
-  color: #fca5a5;
+  color: #dc2626;
 }
 
 .recommend-card {
@@ -615,8 +617,12 @@ watch(
   gap: 6px;
 }
 
+.recommend-meta strong {
+  color: #111827;
+}
+
 .recommend-meta span {
-  color: #cbd5e1;
+  color: #6b7280;
 }
 
 .report-dialog-body {
@@ -627,11 +633,11 @@ watch(
 .report-preview {
   padding: 12px;
   border-radius: 8px;
-  background: rgba(15, 23, 42, 0.6);
+  background: #f8fafc;
 }
 
 .report-time {
-  color: #94a3b8;
+  color: #6b7280;
   font-size: 13px;
 }
 </style>

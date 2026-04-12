@@ -101,10 +101,11 @@ watch(
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 20px;
+  padding: 24px;
   border-radius: 16px;
-  background: rgba(30, 41, 59, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
 }
 
 .profile-head {
@@ -113,30 +114,48 @@ watch(
   gap: 18px;
 }
 
+.profile-head h1 {
+  margin: 0;
+  color: #111827;
+}
+
+.profile-head p {
+  margin: 4px 0 0;
+  color: #4b5563;
+}
+
 .avatar {
   width: 88px;
   height: 88px;
   border-radius: 50%;
   object-fit: cover;
+  border: 3px solid rgba(37, 99, 235, 0.15);
 }
 
 .meta {
   display: inline-block;
   margin-top: 8px;
-  color: #94a3b8;
+  color: #6b7280;
 }
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, 280px);
   gap: 16px;
 }
 
 .card {
   overflow: hidden;
   border-radius: 16px;
-  background: rgba(30, 41, 59, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.1);
 }
 
 .cover {
@@ -151,7 +170,17 @@ watch(
   padding: 18px;
 }
 
+.card-body h3 {
+  margin: 0;
+  color: #111827;
+}
+
+.card-body p {
+  margin: 0;
+  color: #4b5563;
+}
+
 .enter-link {
-  color: #60a5fa;
+  color: #2563eb;
 }
 </style>

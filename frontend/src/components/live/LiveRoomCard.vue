@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <article class="card">
     <RouterLink :to="`/live/${item.id}`" class="cover-link">
       <img v-if="item.coverUrl" :src="item.coverUrl" :alt="item.title" class="cover" />
@@ -94,7 +94,7 @@ const timeLabel = computed(() => {
   color: #fff;
   background:
     radial-gradient(circle at top left, rgba(255, 255, 255, 0.18), transparent 36%),
-    linear-gradient(135deg, #fb7185, #f97316 55%, #111827);
+    linear-gradient(135deg, #3b82f6, #2563eb 55%, #111827);
 }
 
 .cover-overlay {
@@ -144,8 +144,8 @@ const timeLabel = computed(() => {
   width: 42px;
   height: 42px;
   border-radius: 14px;
-  background: linear-gradient(135deg, #fde68a, #fb7185);
-  color: #7c2d12;
+  background: linear-gradient(135deg, #93c5fd, #3b82f6);
+  color: #fff;
   font-size: 18px;
   font-weight: 800;
 }

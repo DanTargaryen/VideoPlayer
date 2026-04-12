@@ -26,6 +26,8 @@ export interface VideoCard {
     id: number;
     nickname: string;
   };
+  publishedAt?: string;
+  createdAt?: string;
 }
 
 export interface CreatorVideo extends VideoCard {
