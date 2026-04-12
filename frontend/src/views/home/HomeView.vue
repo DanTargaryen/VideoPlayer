@@ -158,5 +158,6 @@ onMounted(loadFeed);
   display: grid;
   grid-template-columns: repeat(auto-fill, 300px);
   gap: 18px;
+  justify-content: center;
 }
 </style>

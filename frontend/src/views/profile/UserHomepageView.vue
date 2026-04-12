@@ -142,6 +142,7 @@ watch(
   display: grid;
   grid-template-columns: repeat(auto-fill, 280px);
   gap: 16px;
+  justify-content: center;
 }
 
 .card {

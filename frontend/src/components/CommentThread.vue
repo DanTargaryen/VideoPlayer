@@ -23,7 +23,16 @@
       </div>
     </div>
 
-    <div v-if="comment.replies.length > 0" class="reply-list">
+    <button
+      v-if="comment.replies.length > 0"
+      class="expand-btn"
+      @click="repliesExpanded = !repliesExpanded"
+    >
+      <span class="expand-arrow" :class="{ expanded: repliesExpanded }">▶</span>
+      {{ repliesExpanded ? '收起回复' : `展开 ${comment.replies.length} 条回复` }}
+    </button>
+
+    <div v-if="comment.replies.length > 0 && repliesExpanded" class="reply-list">
       <CommentThread
         v-for="reply in comment.replies"
         :key="reply.id"
@@ -41,6 +50,7 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
 import type { CommentReply } from '@/types/api';
 
 const props = defineProps<{
@@ -56,6 +66,8 @@ const emit = defineEmits<{
   (e: 'report', commentId: number): void;
   (e: 'update:replyFormValue', value: string): void;
 }>();
+
+const repliesExpanded = ref(false);
 
 function formatTime(value: string) {
   return new Date(value).toLocaleString('zh-CN');
@@ -125,5 +137,32 @@ function handleSubmitReply() {
 
 .link-btn.danger {
   color: #dc2626;
+}
+
+.expand-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: #2563eb;
+  font-size: 13px;
+  cursor: pointer;
+  transition: color 0.12s ease;
+}
+
+.expand-btn:hover {
+  color: #1d4ed8;
+}
+
+.expand-arrow {
+  display: inline-block;
+  font-size: 10px;
+  transition: transform 0.2s ease;
+}
+
+.expand-arrow.expanded {
+  transform: rotate(90deg);
 }
 </style>
