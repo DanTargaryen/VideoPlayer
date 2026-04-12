@@ -2,9 +2,31 @@
   <section class="page" v-loading="loading">
     <div class="top-layout" v-if="video">
       <div class="main-column">
-        <div class="player">
-          <video v-if="video?.playUrl" class="video" controls :src="video.playUrl"></video>
+        <div class="player-wrapper">
+          <video
+            v-if="video?.playUrl"
+            ref="videoRef"
+            class="video"
+            controls
+            :src="video.playUrl"
+            @timeupdate="onTimeUpdate"
+            @loadedmetadata="onLoadedMetadata"
+            @play="onVideoPlay"
+            @pause="onVideoPause"
+          ></video>
           <span v-else>视频播放器占位</span>
+          <DanmakuOverlay
+            v-if="video?.playUrl"
+            :danmakus="danmakus"
+            :current-time-ms="currentVideoTimeMs"
+            :duration-ms="videoDurationMs"
+            :visible="danmakuVisible"
+            :paused="videoPaused"
+            @report="openReportDialog"
+          />
+          <div class="danmaku-toggle" v-if="video?.playUrl">
+            <el-switch v-model="danmakuVisible" active-text="弹幕" inactive-text="关" />
+          </div>
         </div>
 
         <div class="meta">
@@ -67,20 +89,27 @@
       </div>
 
       <div class="danmaku-form">
-        <el-input v-model="danmakuForm.content" placeholder="输入弹幕内容" />
-        <el-input-number v-model="danmakuForm.timeOffsetMs" :min="0" :step="1000" />
+        <el-input
+          v-model="danmakuForm.content"
+          placeholder="输入弹幕内容"
+          @keyup.enter="submitDanmaku"
+          style="flex: 1"
+        />
+        <el-color-picker v-model="danmakuForm.color" size="default" />
+        <span class="time-badge">{{ formatMs(currentVideoTimeMs) }}</span>
         <el-button type="primary" @click="submitDanmaku">发送弹幕</el-button>
       </div>
 
       <div class="danmaku-list">
         <article v-for="item in danmakus" :key="item.id" class="reply-card">
-          <strong>{{ item.user.nickname }}</strong>
+          <strong :style="{ color: item.color || '#fff' }">{{ item.user.nickname }}</strong>
           <p>{{ item.content }}</p>
           <div class="comment-meta">
-            <span>时间点 {{ item.timeOffsetMs }} ms</span>
-            <button class="link-btn danger" @click="reportDanmaku(item.id)">举报</button>
+            <span>时间点 {{ formatMs(item.timeOffsetMs) }}</span>
+            <button class="link-btn danger" @click="openReportDialog(item)">举报</button>
           </div>
         </article>
+        <el-empty v-if="danmakus.length === 0" description="暂无弹幕" />
       </div>
     </section>
 
@@ -115,6 +144,30 @@
         </article>
       </div>
     </section>
+
+    <el-dialog v-model="reportDialogVisible" title="举报弹幕" width="440px" :close-on-click-modal="false">
+      <div class="report-dialog-body" v-if="reportTarget">
+        <p class="report-preview">
+          <strong :style="{ color: reportTarget.color || '#fff' }">{{ reportTarget.user.nickname }}</strong
+          >：{{ reportTarget.content }}
+        </p>
+        <p class="report-time">弹幕时间点：{{ formatMs(reportTarget.timeOffsetMs) }}</p>
+        <el-input
+          v-model="reportReason"
+          type="textarea"
+          :rows="3"
+          placeholder="请输入举报原因（2-255字）"
+          maxlength="255"
+          show-word-limit
+        />
+      </div>
+      <template #footer>
+        <el-button @click="reportDialogVisible = false">取消</el-button>
+        <el-button type="danger" :disabled="!reportReason.trim() || reportReason.trim().length < 2" @click="submitReport">
+          提交举报
+        </el-button>
+      </template>
+    </el-dialog>
   </section>
 </template>
 
@@ -139,6 +192,7 @@ import {
   unlikeVideo,
 } from '@/api/platform';
 import CommentThread from '@/components/CommentThread.vue';
+import DanmakuOverlay from '@/components/DanmakuOverlay.vue';
 import { useAppStore } from '@/stores/app';
 import type { CommentItem, DanmakuItem, VideoCard, VideoDetail } from '@/types/api';
 
@@ -152,17 +206,54 @@ const danmakus = ref<DanmakuItem[]>([]);
 const commentForm = ref('');
 const replyForm = ref('');
 const replyTargetId = ref<number | null>(null);
+
+const videoRef = ref<HTMLVideoElement | null>(null);
+const currentVideoTimeMs = ref(0);
+const videoDurationMs = ref(0);
+const danmakuVisible = ref(true);
+const videoPaused = ref(true);
+
 const danmakuForm = reactive({
   content: '',
-  timeOffsetMs: 1000,
+  timeOffsetMs: 0,
+  color: '#FFFFFF',
 });
+
+const reportDialogVisible = ref(false);
+const reportTarget = ref<DanmakuItem | null>(null);
+const reportReason = ref('');
 
 const canFollow = computed(
   () => appStore.isLoggedIn && video.value && video.value.creator.id !== appStore.userId,
 );
 
-function formatTime(value: string) {
-  return new Date(value).toLocaleString('zh-CN');
+function formatMs(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function onTimeUpdate() {
+  if (videoRef.value) {
+    currentVideoTimeMs.value = Math.floor(videoRef.value.currentTime * 1000);
+    videoPaused.value = videoRef.value.paused;
+  }
+}
+
+function onLoadedMetadata() {
+  if (videoRef.value) {
+    videoDurationMs.value = Math.floor(videoRef.value.duration * 1000);
+    videoPaused.value = videoRef.value.paused;
+  }
+}
+
+function onVideoPlay() {
+  videoPaused.value = false;
+}
+
+function onVideoPause() {
+  videoPaused.value = true;
 }
 
 async function loadDetail() {
@@ -195,7 +286,7 @@ async function loadComments() {
 
 async function loadDanmakus() {
   try {
-    danmakus.value = await fetchDanmakus(Number(route.params.id));
+    danmakus.value = await fetchDanmakus(Number(route.params.id), 0, videoDurationMs.value || 600000);
   } catch {
     ElMessage.error('加载弹幕失败');
   }
@@ -311,14 +402,28 @@ async function reportComment(commentId: number) {
   }
 }
 
-async function reportDanmaku(danmakuId: number) {
+function openReportDialog(danmaku: DanmakuItem) {
+  reportTarget.value = danmaku;
+  reportReason.value = '';
+  reportDialogVisible.value = true;
+}
+
+async function submitReport() {
+  if (!reportTarget.value || !reportReason.value.trim() || reportReason.value.trim().length < 2) {
+    ElMessage.warning('请输入至少2个字的举报原因');
+    return;
+  }
+
   try {
     await reportContent({
       targetType: 'VIDEO_DANMAKU',
-      targetId: danmakuId,
-      reason: '弹幕内容存在风险或不当信息',
+      targetId: reportTarget.value.id,
+      reason: reportReason.value.trim(),
     });
-    ElMessage.success('弹幕举报已提交');
+    ElMessage.success('弹幕举报已提交，管理员将会审核');
+    reportDialogVisible.value = false;
+    reportTarget.value = null;
+    reportReason.value = '';
   } catch {
     ElMessage.error('弹幕举报失败，请确认已登录');
   }
@@ -330,10 +435,15 @@ async function submitDanmaku() {
     return;
   }
 
+  if (videoRef.value) {
+    danmakuForm.timeOffsetMs = Math.floor(videoRef.value.currentTime * 1000);
+  }
+
   try {
     await createDanmaku(Number(route.params.id), {
       content: danmakuForm.content.trim(),
       timeOffsetMs: danmakuForm.timeOffsetMs,
+      color: danmakuForm.color,
     });
     danmakuForm.content = '';
     ElMessage.success('弹幕发送成功');
@@ -370,7 +480,8 @@ watch(
   gap: 20px;
 }
 
-.player {
+.player-wrapper {
+  position: relative;
   min-height: 420px;
   border-radius: 16px;
   display: grid;
@@ -383,6 +494,16 @@ watch(
 .video {
   width: 100%;
   min-height: 420px;
+}
+
+.danmaku-toggle {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 20;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 8px;
+  padding: 4px 10px;
 }
 
 .meta,
@@ -416,6 +537,23 @@ watch(
   gap: 16px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.danmaku-form {
+  align-items: center;
+}
+
+.time-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 8px;
+  background: rgba(96, 165, 250, 0.15);
+  color: #60a5fa;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .chips,
@@ -479,5 +617,21 @@ watch(
 
 .recommend-meta span {
   color: #cbd5e1;
+}
+
+.report-dialog-body {
+  display: grid;
+  gap: 12px;
+}
+
+.report-preview {
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.report-time {
+  color: #94a3b8;
+  font-size: 13px;
 }
 </style>
