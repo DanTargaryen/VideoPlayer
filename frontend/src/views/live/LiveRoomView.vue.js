@@ -318,7 +318,7 @@ async function handleSaveReplay() { if (!recordedBlob.value || !activeRoom.value
     const replay = await saveLiveReplay(activeRoom.value.id, { saveMode: 'UPLOAD', assetId: uploaded.assetId, uploadToken: uploaded.uploadToken, title: safeTitle, description: replayForm.description, coverUrl: replayForm.coverUrl || activeRoom.value.coverUrl });
     applyReplayResult(replay);
     saveReplayVisible.value = false;
-    ElMessage.success('录播已保存为稿件，可在创作中心继续编辑');
+    ElMessage.success('录播已保存为稿件，可在用户中心继续编辑');
 }
 catch {
     ElMessage.error('保存稿件失败，请稍后重试');

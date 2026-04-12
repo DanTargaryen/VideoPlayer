@@ -6,15 +6,34 @@
       class="danmaku-item"
       :class="{ 'danmaku-paused': props.paused }"
       :style="item.style"
-      @click.stop="handleDanmakuClick(item.raw)"
+      @click.stop="handleDanmakuClick($event, item.raw)"
     >
       {{ item.raw.content }}
+    </div>
+
+    <div
+      v-if="contextMenu.visible"
+      class="danmaku-context-menu"
+      :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
+    >
+      <button class="ctx-btn like" :class="{ active: contextMenu.liked }" @click.stop="handleLike">
+        <svg class="ctx-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M7 22V11L10.5 3.5C10.78 2.87 11.41 2.5 12.1 2.5C13.1 2.5 13.85 3.42 13.65 4.4L12.8 9H20c1.1 0 2 0.9 2 2v1c0 .15-.02.3-.05.44l-2.19 8C19.5 21.35 18.68 22 17.73 22H7ZM7 13v8M3 22h2V11H3v11Z" fill="currentColor"/>
+        </svg>
+        {{ contextMenu.liked ? '已赞' : '点赞' }}
+      </button>
+      <button class="ctx-btn report" @click.stop="handleReport">
+        <svg class="ctx-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2Zm1 15h-2v-2h2v2Zm0-4h-2V7h2v6Z" fill="currentColor"/>
+        </svg>
+        举报
+      </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, reactive, ref, watch, onMounted, onUnmounted } from 'vue';
 import type { DanmakuItem } from '@/types/api';
 
 const props = defineProps<{
@@ -23,14 +42,24 @@ const props = defineProps<{
   durationMs: number;
   visible?: boolean;
   paused?: boolean;
+  likedIds?: Set<number>;
 }>();
 
 const emit = defineEmits<{
   (e: 'report', danmaku: DanmakuItem): void;
+  (e: 'like', danmaku: DanmakuItem): void;
   (e: 'overlay-click'): void;
 }>();
 
 const overlayRef = ref<HTMLElement | null>(null);
+
+const contextMenu = reactive({
+  visible: false,
+  x: 0,
+  y: 0,
+  danmaku: null as DanmakuItem | null,
+  liked: false,
+});
 
 const WINDOW_MS = 500;
 
@@ -51,7 +80,7 @@ interface ActiveDanmaku {
 
 const activeDanmakus = ref<ActiveDanmaku[]>([]);
 
-const ANIMATION_DURATION_S = 8;
+const ANIMATION_DURATION_S = 14;
 
 const sortedDanmakus = computed(() =>
   [...props.danmakus].sort((a, b) => a.timeOffsetMs - b.timeOffsetMs),
@@ -137,9 +166,42 @@ function findAvailableTrack(timeMs: number): number {
   return Math.floor(Math.random() * trackCount);
 }
 
-function handleDanmakuClick(danmaku: DanmakuItem) {
-  emit('report', danmaku);
+function handleDanmakuClick(event: MouseEvent, danmaku: DanmakuItem) {
+  const rect = overlayRef.value?.getBoundingClientRect();
+  if (!rect) return;
+  contextMenu.x = event.clientX - rect.left;
+  contextMenu.y = event.clientY - rect.top;
+  contextMenu.danmaku = danmaku;
+  contextMenu.liked = props.likedIds?.has(danmaku.id) ?? false;
+  contextMenu.visible = true;
 }
+
+function handleLike() {
+  if (contextMenu.danmaku) {
+    emit('like', contextMenu.danmaku);
+    contextMenu.liked = !contextMenu.liked;
+  }
+  contextMenu.visible = false;
+}
+
+function handleReport() {
+  if (contextMenu.danmaku) {
+    emit('report', contextMenu.danmaku);
+  }
+  contextMenu.visible = false;
+}
+
+function closeContextMenu() {
+  contextMenu.visible = false;
+}
+
+onMounted(() => {
+  document.addEventListener('click', closeContextMenu);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', closeContextMenu);
+});
 
 watch(
   () => props.danmakus,
@@ -192,6 +254,51 @@ watch(
 .danmaku-item:hover {
   background: rgba(0, 0, 0, 0.5);
   border-radius: 4px;
+}
+
+.danmaku-context-menu {
+  position: absolute;
+  z-index: 30;
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 8px;
+  background: rgba(30, 41, 59, 0.92);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+}
+
+.ctx-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #e2e8f0;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  white-space: nowrap;
+}
+
+.ctx-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.ctx-btn.like.active {
+  color: #60a5fa;
+}
+
+.ctx-btn.report:hover {
+  color: #f87171;
+}
+
+.ctx-icon {
+  width: 14px;
+  height: 14px;
 }
 
 @keyframes danmaku-scroll {

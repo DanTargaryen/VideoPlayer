@@ -49,7 +49,7 @@
           通知
           <span v-if="unreadCount > 0" class="badge">{{ unreadCount }}</span>
         </RouterLink>
-        <RouterLink to="/user/dashboard" class="action-link">创作中心</RouterLink>
+        <RouterLink to="/user/dashboard" class="action-link">用户中心</RouterLink>
         <RouterLink v-if="isAdmin" to="/admin/dashboard" class="action-link">审核后台</RouterLink>
         <button class="ghost-btn" @click="logout">退出</button>
       </template>
