@@ -27,6 +27,8 @@ import type {
   UserHomepage,
   VideoCard,
   VideoDetail,
+  FollowUserItem,
+  MyVideoItem,
 } from '@/types/api';
 
 export async function login(payload: { account: string; password: string; adminSecret?: string }) {
@@ -392,6 +394,40 @@ export async function createDanmaku(
   payload: { content: string; timeOffsetMs: number; color?: string },
 ) {
   const { data } = await http.post<ApiResponse<DanmakuItem>>(`/videos/${videoId}/danmaku`, payload);
+  return data.data;
+}
+
+export async function fetchFollowers(userId: number) {
+  const { data } = await http.get<ApiResponse<FollowUserItem[]>>(`/users/${userId}/followers`);
+  return data.data;
+}
+
+export async function fetchFollowing(userId: number) {
+  const { data } = await http.get<ApiResponse<FollowUserItem[]>>(`/users/${userId}/following`);
+  return data.data;
+}
+
+export async function fetchMyFavorites() {
+  const { data } = await http.get<ApiResponse<MyVideoItem[]>>('/videos/my/favorites');
+  return data.data;
+}
+
+export async function fetchMyLikes() {
+  const { data } = await http.get<ApiResponse<MyVideoItem[]>>('/videos/my/likes');
+  return data.data;
+}
+
+export async function updateProfile(payload: { nickname?: string; avatarUrl?: string; bio?: string }) {
+  const { data } = await http.put<ApiResponse<{ id: number; nickname: string; avatarUrl?: string; bio?: string }>>('/users/profile', payload);
+  return data.data;
+}
+
+export async function uploadAvatar(file: File) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const { data } = await http.post<ApiResponse<{ avatarUrl: string }>>('/users/avatar', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
   return data.data;
 }
 

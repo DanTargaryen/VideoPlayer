@@ -111,7 +111,8 @@
       <aside class="side-column">
         <RouterLink :to="`/users/${video.creator.id}`" class="creator-card">
           <div class="creator-avatar">
-            {{ video.creator.nickname.charAt(0) }}
+            <img v-if="video.creator.avatarUrl" :src="video.creator.avatarUrl" :alt="video.creator.nickname" class="creator-avatar-img" />
+            <span v-else>{{ video.creator.nickname.charAt(0) }}</span>
           </div>
           <div class="creator-info">
             <strong class="creator-name">{{ video.creator.nickname }}</strong>
@@ -614,6 +615,13 @@ watch(
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.creator-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .creator-info {

@@ -206,6 +206,7 @@ export class VideoService {
       creator: {
         id: video.creator.id,
         nickname: video.creator.nickname,
+        avatarUrl: video.creator.avatarUrl,
         role: video.creator.role,
         followerCount,
       },
@@ -495,6 +496,60 @@ export class VideoService {
     });
 
     return { favorited: false };
+  }
+
+  async getUserFavorites(userId: number) {
+    const favorites = await this.prisma.favorite.findMany({
+      where: { userId },
+      include: {
+        video: {
+          include: {
+            creator: { select: { id: true, nickname: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return favorites.map((f) => ({
+      id: f.video.id,
+      title: f.video.title,
+      description: f.video.description,
+      coverUrl: f.video.coverUrl,
+      category: f.video.category,
+      likeCount: f.video.likeCount,
+      favoriteCount: f.video.favoriteCount,
+      commentCount: f.video.commentCount,
+      creator: f.video.creator,
+      favoritedAt: f.createdAt,
+    }));
+  }
+
+  async getUserLikes(userId: number) {
+    const likes = await this.prisma.videoLike.findMany({
+      where: { userId },
+      include: {
+        video: {
+          include: {
+            creator: { select: { id: true, nickname: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return likes.map((l) => ({
+      id: l.video.id,
+      title: l.video.title,
+      description: l.video.description,
+      coverUrl: l.video.coverUrl,
+      category: l.video.category,
+      likeCount: l.video.likeCount,
+      favoriteCount: l.video.favoriteCount,
+      commentCount: l.video.commentCount,
+      creator: l.video.creator,
+      likedAt: l.createdAt,
+    }));
   }
 
   async listDanmakus(videoId: number, fromMs?: number, toMs?: number) {

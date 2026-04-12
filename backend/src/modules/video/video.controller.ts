@@ -128,6 +128,18 @@ export class VideoController {
     return ok(await this.videoService.updateDraft(id, user, dto));
   }
 
+  @Get('my/favorites')
+  async getMyFavorites(@Headers('authorization') authorization: string | undefined) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.videoService.getUserFavorites(user.id));
+  }
+
+  @Get('my/likes')
+  async getMyLikes(@Headers('authorization') authorization: string | undefined) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.videoService.getUserLikes(user.id));
+  }
+
   @Get(':id/reviews')
   async getReviewHistory(
     @Headers('authorization') authorization: string | undefined,
