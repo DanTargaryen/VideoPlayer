@@ -1,16 +1,5 @@
 <template>
   <section class="page">
-    <section class="search-hero">
-      <div>
-        <h1>搜索结果</h1>
-        <p>输入关键词后，可按视频和用户两个结果维度查看匹配内容，并按分区与排序规则筛选。</p>
-      </div>
-      <div class="search-box">
-        <el-input v-model="keyword" placeholder="搜索视频标题、简介或用户昵称" @keyup.enter="submitSearch" />
-        <el-button type="primary" @click="submitSearch">搜索</el-button>
-      </div>
-    </section>
-
     <section class="filters">
       <el-segmented v-model="category" :options="categorySegmentOptions" @change="submitSearch" />
       <el-select v-model="sortBy" class="sort-select" @change="submitSearch">
@@ -146,16 +135,6 @@ watch(
   gap: 24px;
 }
 
-.search-hero {
-  display: grid;
-  gap: 16px;
-  padding: 24px;
-  border-radius: 24px;
-  background: linear-gradient(145deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.98));
-  border: 1px solid rgba(148, 163, 184, 0.18);
-}
-
-.search-box,
 .filters {
   display: flex;
   gap: 12px;
@@ -169,13 +148,14 @@ watch(
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, 300px);
   gap: 18px;
+  justify-content: center;
 }
 
 .user-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, 260px);
   gap: 16px;
 }
 
@@ -186,17 +166,23 @@ watch(
   gap: 16px;
   padding: 20px;
   border-radius: 20px;
-  background: rgba(30, 41, 59, 0.92);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+}
+
+.user-card h3 {
+  margin: 0;
+  color: #111827;
 }
 
 .user-card p {
   margin: 8px 0 0;
-  color: #cbd5e1;
+  color: #6b7280;
 }
 
 .primary-link {
-  color: #60a5fa;
+  color: #2563eb;
 }
 
 </style>

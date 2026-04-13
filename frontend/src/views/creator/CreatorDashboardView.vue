@@ -1,44 +1,69 @@
 <template>
-  <section class="page">
-    <div class="hero">
-      <div>
-        <h1>用户中心</h1>
-        <p>这里已经串起“真实文件上传 -> 创建稿件 -> 编辑稿件 -> 提交审核”的主流程。</p>
-      </div>
-      <el-button type="primary" @click="refreshAll">刷新数据</el-button>
-    </div>
-
-    <el-alert
-      title="请先用用户账号登录，再选择本地视频文件与封面上传并创建稿件。随后切换管理员账号到审核后台处理。"
-      type="warning"
-      :closable="false"
-    />
-
-    <div class="stats-grid">
-      <article class="stat-card" v-for="item in statCards" :key="item.label">
-        <span>{{ item.label }}</span>
-        <strong>{{ item.value }}</strong>
-      </article>
-    </div>
-
-    <section v-if="dashboard.recentRejectedVideos.length > 0" class="panel">
-      <div class="panel-head">
-        <h2>违规提醒</h2>
-        <span class="subtle">最近被驳回的稿件会显示在这里，便于重新修改后提交。</span>
-      </div>
-      <div class="warning-list">
-        <article v-for="item in dashboard.recentRejectedVideos" :key="item.id" class="warning-card">
-          <div>
-            <strong>{{ item.title }}</strong>
-            <p>{{ item.rejectReason || '暂无详细驳回原因' }}</p>
+  <section class="page" v-loading="pageLoading">
+    <div class="profile-banner">
+      <div class="profile-left">
+        <div class="avatar-wrapper" @click="openAvatarEdit">
+          <img :src="profileAvatarUrl" :alt="dashboard.nickname" class="avatar" />
+          <span class="avatar-edit-hint">编辑</span>
+        </div>
+        <div class="profile-info">
+          <div class="nickname-row">
+            <h1 v-if="!editingNickname">{{ dashboard.nickname }}</h1>
+            <el-input
+              v-else
+              v-model="nicknameDraft"
+              size="small"
+              class="nickname-input"
+              @keyup.enter="saveNickname"
+              @keyup.escape="cancelNickname"
+            />
+            <button v-if="!editingNickname" class="edit-nickname-btn" @click="startEditNickname">✏️</button>
+            <template v-else>
+              <el-button size="small" type="primary" @click="saveNickname">保存</el-button>
+              <el-button size="small" @click="cancelNickname">取消</el-button>
+            </template>
           </div>
-          <span class="subtle">{{ formatTime(item.updatedAt) }}</span>
-        </article>
+          <div class="profile-stats">
+            <button class="stat-link" @click="openFollowersDialog">
+              <strong>{{ dashboard.followerCount }}</strong>
+              <span>粉丝</span>
+            </button>
+            <button class="stat-link" @click="openFollowingDialog">
+              <strong>{{ followingCount }}</strong>
+              <span>关注</span>
+            </button>
+            <span class="stat-item">
+              <strong>{{ dashboard.totalLikes }}</strong>
+              <span>获赞</span>
+            </span>
+          </div>
+        </div>
       </div>
-    </section>
+    </div>
 
-    <div class="panels">
-      <section class="panel">
+    <div class="tab-bar">
+      <button class="tab-btn" :class="{ active: activeTab === 'home' }" @click="activeTab = 'home'">主页</button>
+      <button class="tab-btn" :class="{ active: activeTab === 'upload' }" @click="activeTab = 'upload'">投稿</button>
+    </div>
+
+    <template v-if="activeTab === 'upload'">
+      <section v-if="dashboard.recentRejectedVideos.length > 0" class="panel">
+        <div class="panel-head">
+          <h2>违规提醒</h2>
+          <span class="subtle">最近被驳回的稿件会显示在这里，便于重新修改后提交。</span>
+        </div>
+        <div class="warning-list">
+          <article v-for="item in dashboard.recentRejectedVideos" :key="item.id" class="warning-card">
+            <div>
+              <strong>{{ item.title }}</strong>
+              <p>{{ item.rejectReason || '暂无详细驳回原因' }}</p>
+            </div>
+            <span class="subtle">{{ formatTime(item.updatedAt) }}</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel compact-panel">
         <h2>新建投稿</h2>
         <el-form :model="form" label-position="top">
           <el-form-item label="标题">
@@ -47,59 +72,101 @@
           <el-form-item label="简介">
             <el-input v-model="form.description" type="textarea" />
           </el-form-item>
-          <el-form-item label="分区 ID">
-            <el-input-number v-model="form.categoryId" :min="1" :max="5" />
+          <el-form-item label="分区">
+            <el-select v-model="form.category">
+              <el-option v-for="item in videoCategoryOptions" :key="item.code" :label="item.label" :value="item.code" />
+            </el-select>
           </el-form-item>
           <el-form-item label="封面地址（可选）">
             <el-input v-model="form.coverUrl" />
           </el-form-item>
-          <el-form-item label="视频文件">
-            <input type="file" accept="video/*" @change="handleVideoFileChange" />
-            <span v-if="selectedVideoFile" class="hint">已选择：{{ selectedVideoFile.name }}</span>
-          </el-form-item>
-          <el-form-item label="封面图片（可选）">
-            <input type="file" accept="image/*" @change="handleCoverFileChange" />
-            <span v-if="selectedCoverFile" class="hint">已选择：{{ selectedCoverFile.name }}</span>
-          </el-form-item>
-          <div class="panel-actions">
-            <el-button :loading="creating" @click="handleCreateDraft">创建稿件</el-button>
+            <el-form-item label="视频文件">
+              <input type="file" accept="video/*" @change="handleVideoFileChange" />
+              <span v-if="selectedVideoFile" class="hint">已选择：{{ selectedVideoFile.name }}</span>
+            </el-form-item>
+            <el-form-item v-if="autoCoverPreview" label="自动截取封面预览">
+              <div class="cover-preview-wrapper">
+                <img :src="autoCoverPreview" alt="自动截取的封面" class="cover-preview-img" />
+                <div class="cover-preview-actions">
+                  <el-button size="small" @click="handleRecaptureFrame">重新截取</el-button>
+                  <el-button size="small" type="primary" @click="handleUseAutoCover">使用此封面</el-button>
+                </div>
+              </div>
+            </el-form-item>
+            <el-form-item label="封面图片（可选）">
+              <input type="file" accept="image/*" @change="handleCoverFileChange" />
+              <span v-if="selectedCoverFile" class="hint">已选择：{{ selectedCoverFile.name }}</span>
+              <span v-if="!selectedCoverFile && autoCoverPreview" class="hint success">未选择自定义封面，将自动使用截取画面作为封面</span>
+            </el-form-item>
+            <div class="panel-actions">
+              <el-button :loading="creating" @click="handleCreateDraft">创建稿件</el-button>
+            </div>
+          </el-form>
+        </section>
+
+        <section class="panel">
+          <h2>我的稿件</h2>
+          <div class="video-list">
+            <article v-for="item in videos" :key="item.id" class="video-card">
+              <div>
+                <h3>{{ item.title }}</h3>
+                <p>{{ item.description }}</p>
+                <span class="status">状态：{{ item.status }}</span>
+                <span class="reason">时长：{{ item.durationSeconds ?? 0 }} 秒</span>
+                <span v-if="item.rejectReason" class="reason">驳回原因：{{ item.rejectReason }}</span>
+              </div>
+              <div class="actions-block">
+                <el-button plain @click="openReviewDialog(item)">审核记录</el-button>
+                <el-button
+                  plain
+                  :disabled="item.status !== 'DRAFT' && item.status !== 'REJECTED'"
+                  @click="openEditDialog(item)"
+                >
+                  编辑稿件
+                </el-button>
+                <el-button
+                  type="primary"
+                  plain
+                  :disabled="item.status !== 'DRAFT' && item.status !== 'REJECTED'"
+                  @click="handleSubmitReview(Number(item.id))"
+                >
+                  提交审核
+                </el-button>
+              </div>
+            </article>
           </div>
-        </el-form>
+        </section>
+    </template>
+
+    <template v-if="activeTab === 'home'">
+      <section class="panel">
+        <h2>我的收藏</h2>
+        <div class="video-grid" v-if="favoriteVideos.length > 0">
+          <RouterLink v-for="v in favoriteVideos" :key="v.id" :to="`/video/${v.id}`" class="grid-card">
+            <img :src="v.coverUrl" :alt="v.title" class="grid-cover" />
+            <div class="grid-body">
+              <h3>{{ v.title }}</h3>
+              <span class="grid-meta">{{ v.creator.nickname }} · <svg class="meta-icon" viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></svg> {{ v.likeCount }} <svg class="meta-icon" viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg> {{ v.favoriteCount }}</span>
+            </div>
+          </RouterLink>
+        </div>
+        <el-empty v-else description="还没有收藏视频" />
       </section>
 
       <section class="panel">
-        <h2>我的稿件</h2>
-        <div class="video-list">
-          <article v-for="item in videos" :key="item.id" class="video-card">
-            <div>
-              <h3>{{ item.title }}</h3>
-              <p>{{ item.description }}</p>
-              <span class="status">状态：{{ item.status }}</span>
-              <span class="reason">时长：{{ item.durationSeconds ?? 0 }} 秒</span>
-              <span v-if="item.rejectReason" class="reason">驳回原因：{{ item.rejectReason }}</span>
+        <h2>最近点赞</h2>
+        <div class="video-grid" v-if="likedVideos.length > 0">
+          <RouterLink v-for="v in likedVideos" :key="v.id" :to="`/video/${v.id}`" class="grid-card">
+            <img :src="v.coverUrl" :alt="v.title" class="grid-cover" />
+            <div class="grid-body">
+              <h3>{{ v.title }}</h3>
+              <span class="grid-meta">{{ v.creator.nickname }} · <svg class="meta-icon" viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></svg> {{ v.likeCount }} <svg class="meta-icon" viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg> {{ v.favoriteCount }}</span>
             </div>
-            <div class="actions-block">
-              <el-button plain @click="openReviewDialog(item)">审核记录</el-button>
-              <el-button
-                plain
-                :disabled="item.status !== 'DRAFT' && item.status !== 'REJECTED'"
-                @click="openEditDialog(item)"
-              >
-                编辑稿件
-              </el-button>
-              <el-button
-                type="primary"
-                plain
-                :disabled="item.status !== 'DRAFT' && item.status !== 'REJECTED'"
-                @click="handleSubmitReview(Number(item.id))"
-              >
-                提交审核
-              </el-button>
-            </div>
-          </article>
+          </RouterLink>
         </div>
+        <el-empty v-else description="还没有点赞视频" />
       </section>
-    </div>
+    </template>
 
     <el-dialog v-model="editDialogVisible" title="编辑稿件" width="560px">
       <el-form :model="editForm" label-position="top">
@@ -109,8 +176,10 @@
         <el-form-item label="简介">
           <el-input v-model="editForm.description" type="textarea" />
         </el-form-item>
-        <el-form-item label="分区 ID">
-          <el-input-number v-model="editForm.categoryId" :min="1" :max="5" />
+        <el-form-item label="分区">
+          <el-select v-model="editForm.category">
+            <el-option v-for="item in videoCategoryOptions" :key="item.code" :label="item.label" :value="item.code" />
+          </el-select>
         </el-form-item>
         <el-form-item label="封面地址">
           <el-input v-model="editForm.coverUrl" />
@@ -138,34 +207,98 @@
         <el-empty v-if="reviewHistory.length === 0" description="当前稿件还没有审核记录" />
       </div>
     </el-dialog>
+
+    <el-dialog v-model="avatarDialogVisible" title="修改头像" width="420px">
+      <el-form label-position="top">
+        <el-form-item label="上传头像图片">
+          <input type="file" accept="image/*" @change="handleAvatarFileChange" class="avatar-file-input" />
+          <div v-if="avatarPreview" class="avatar-preview-box">
+            <img :src="avatarPreview" alt="预览" class="avatar-preview-img" />
+          </div>
+        </el-form-item>
+        <el-form-item label="或输入头像链接">
+          <el-input v-model="avatarDraft" placeholder="输入头像图片 URL" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="avatarDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="savingAvatar" @click="saveAvatar">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="followersDialogVisible" title="粉丝列表" width="480px">
+      <div class="follow-list" v-if="followersList.length > 0">
+        <RouterLink
+          v-for="u in followersList"
+          :key="u.id"
+          :to="`/users/${u.id}`"
+          class="follow-item"
+        >
+          <img :src="u.avatarUrl || fallbackAvatar" :alt="u.nickname" class="follow-avatar" />
+          <span class="follow-nickname">{{ u.nickname }}</span>
+        </RouterLink>
+      </div>
+      <el-empty v-else description="暂无粉丝" />
+    </el-dialog>
+
+    <el-dialog v-model="followingDialogVisible" title="关注列表" width="480px">
+      <div class="follow-list" v-if="followingList.length > 0">
+        <RouterLink
+          v-for="u in followingList"
+          :key="u.id"
+          :to="`/users/${u.id}`"
+          class="follow-item"
+        >
+          <img :src="u.avatarUrl || fallbackAvatar" :alt="u.nickname" class="follow-avatar" />
+          <span class="follow-nickname">{{ u.nickname }}</span>
+        </RouterLink>
+      </div>
+      <el-empty v-else description="暂无关注" />
+    </el-dialog>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 
 import {
   createVideo,
   fetchCreatorDashboard,
   fetchCreatorVideos,
+  fetchFollowers,
+  fetchFollowing,
+  fetchMyFavorites,
+  fetchMyLikes,
   fetchVideoReviews,
   submitReview,
+  updateProfile,
   updateVideoDraft,
+  uploadAvatar,
   uploadVideo,
 } from '@/api/platform';
-import type { CreatorDashboardData, CreatorVideo, ReviewHistoryItem } from '@/types/api';
+import { videoCategoryOptions } from '@/constants/categories';
+import { useAppStore } from '@/stores/app';
+import type { CreatorDashboardData, CreatorVideo, FollowUserItem, MyVideoItem, ReviewHistoryItem } from '@/types/api';
 
+const fallbackAvatar = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=320&q=80';
+const store = useAppStore();
+const pageLoading = ref(false);
 const creating = ref(false);
 const savingDraft = ref(false);
+const savingAvatar = ref(false);
+const activeTab = ref<'upload' | 'home'>('home');
+
 const dashboard = ref<CreatorDashboardData>({
   nickname: '',
+  avatarUrl: null,
   role: 'USER',
   totalVideos: 0,
   pendingReviews: 0,
   publishedVideos: 0,
   rejectedVideos: 0,
   followerCount: 0,
+  followingCount: 0,
   totalLikes: 0,
   totalFavorites: 0,
   totalComments: 0,
@@ -173,49 +306,113 @@ const dashboard = ref<CreatorDashboardData>({
 });
 const videos = ref<CreatorVideo[]>([]);
 const reviewHistory = ref<ReviewHistoryItem[]>([]);
+const favoriteVideos = ref<MyVideoItem[]>([]);
+const likedVideos = ref<MyVideoItem[]>([]);
+const followersList = ref<FollowUserItem[]>([]);
+const followingList = ref<FollowUserItem[]>([]);
+const followingCount = ref(0);
+
 const selectedVideoFile = ref<File | null>(null);
 const selectedCoverFile = ref<File | null>(null);
+const autoCoverPreview = ref<string | null>(null);
+const autoCoverFile = ref<File | null>(null);
+const captureTimeSeconds = ref(1);
 const editDialogVisible = ref(false);
 const reviewDialogVisible = ref(false);
+const avatarDialogVisible = ref(false);
+const followersDialogVisible = ref(false);
+const followingDialogVisible = ref(false);
 const editingVideoId = ref<number | null>(null);
+
+const avatarDraft = ref('');
+const avatarFile = ref<File | null>(null);
+const avatarPreview = ref('');
+const editingNickname = ref(false);
+const nicknameDraft = ref('');
+
+const profileAvatarUrl = computed(() => dashboard.value.avatarUrl || fallbackAvatar);
+
 const form = reactive({
   title: '新的演示投稿',
   description: '这是通过用户中心上传真实文件后创建并提交审核的演示稿件。',
-  categoryId: 1,
+  category: 'entertainment' as string,
   coverUrl: '',
 });
 const editForm = reactive({
   title: '',
   description: '',
-  categoryId: 1,
+  category: 'entertainment' as string,
   coverUrl: '',
 });
 
-const statCards = computed(() => [
-  { label: '总稿件数', value: dashboard.value.totalVideos },
-  { label: '待审核', value: dashboard.value.pendingReviews },
-  { label: '已发布', value: dashboard.value.publishedVideos },
-  { label: '粉丝数', value: dashboard.value.followerCount },
-  { label: '累计点赞', value: dashboard.value.totalLikes },
-  { label: '累计评论', value: dashboard.value.totalComments },
-]);
-
 function formatTime(value?: string | null) {
-  if (!value) {
-    return '暂无';
-  }
-
+  if (!value) return '暂无';
   return new Date(value).toLocaleString('zh-CN');
 }
 
 function handleVideoFileChange(event: Event) {
   const input = event.target as HTMLInputElement;
   selectedVideoFile.value = input.files?.[0] ?? null;
+  if (selectedVideoFile.value) {
+    captureVideoFrame(selectedVideoFile.value, captureTimeSeconds.value);
+  } else {
+    autoCoverPreview.value = null;
+    autoCoverFile.value = null;
+  }
 }
 
 function handleCoverFileChange(event: Event) {
   const input = event.target as HTMLInputElement;
   selectedCoverFile.value = input.files?.[0] ?? null;
+}
+
+function captureVideoFrame(file: File, timeSeconds: number) {
+  const video = document.createElement('video');
+  video.preload = 'metadata';
+  video.muted = true;
+  video.playsInline = true;
+  const url = URL.createObjectURL(file);
+  video.src = url;
+  video.onloadedmetadata = () => {
+    const seekTime = Math.min(timeSeconds, Math.max(0, video.duration - 0.1));
+    video.currentTime = seekTime;
+  };
+  video.onseeked = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) { URL.revokeObjectURL(url); return; }
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    autoCoverPreview.value = dataUrl;
+    canvas.toBlob(
+      (blob) => {
+        if (blob) autoCoverFile.value = new File([blob], `auto-cover-${Date.now()}.jpg`, { type: 'image/jpeg' });
+        URL.revokeObjectURL(url);
+      },
+      'image/jpeg',
+      0.85,
+    );
+  };
+  video.onerror = () => {
+    URL.revokeObjectURL(url);
+    autoCoverPreview.value = null;
+    autoCoverFile.value = null;
+  };
+}
+
+function handleRecaptureFrame() {
+  if (!selectedVideoFile.value) return;
+  captureTimeSeconds.value = Math.min(captureTimeSeconds.value + 2, 30);
+  captureVideoFrame(selectedVideoFile.value, captureTimeSeconds.value);
+}
+
+function handleUseAutoCover() {
+  if (autoCoverFile.value) {
+    selectedCoverFile.value = autoCoverFile.value;
+    ElMessage.success({ message: '已选择自动截取的画面作为封面', duration: 1500 });
+  }
 }
 
 async function refreshAll() {
@@ -224,41 +421,132 @@ async function refreshAll() {
   videos.value = videoList;
 }
 
+async function loadHomeData() {
+  try {
+    const [fav, likes] = await Promise.all([fetchMyFavorites(), fetchMyLikes()]);
+    favoriteVideos.value = fav;
+    likedVideos.value = likes;
+  } catch {
+    favoriteVideos.value = [];
+    likedVideos.value = [];
+  }
+}
+
+function startEditNickname() {
+  nicknameDraft.value = dashboard.value.nickname;
+  editingNickname.value = true;
+}
+
+function cancelNickname() {
+  editingNickname.value = false;
+}
+
+async function saveNickname() {
+  if (!nicknameDraft.value.trim()) return;
+  try {
+    const result = await updateProfile({ nickname: nicknameDraft.value.trim() });
+    dashboard.value.nickname = result.nickname;
+    store.setAuth({ token: store.token, userId: store.userId, role: store.role === 'admin' ? 'ADMIN' : 'USER', nickname: result.nickname });
+    editingNickname.value = false;
+    ElMessage.success('昵称已更新');
+  } catch {
+    ElMessage.error('更新昵称失败');
+  }
+}
+
+function openAvatarEdit() {
+  avatarDraft.value = dashboard.value.avatarUrl || '';
+  avatarFile.value = null;
+  avatarPreview.value = '';
+  avatarDialogVisible.value = true;
+}
+
+function handleAvatarFileChange(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+  avatarFile.value = file;
+  avatarDraft.value = '';
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    avatarPreview.value = e.target?.result as string;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveAvatar() {
+  savingAvatar.value = true;
+  try {
+    if (avatarFile.value) {
+      const result = await uploadAvatar(avatarFile.value);
+      dashboard.value.avatarUrl = result.avatarUrl;
+    } else if (avatarDraft.value.trim()) {
+      await updateProfile({ avatarUrl: avatarDraft.value.trim() });
+      dashboard.value.avatarUrl = avatarDraft.value.trim();
+    }
+    avatarDialogVisible.value = false;
+    ElMessage.success('头像已更新');
+  } catch {
+    ElMessage.error('更新头像失败');
+  } finally {
+    savingAvatar.value = false;
+  }
+}
+
+async function openFollowersDialog() {
+  followersDialogVisible.value = true;
+  try {
+    followersList.value = await fetchFollowers(store.userId);
+  } catch {
+    followersList.value = [];
+  }
+}
+
+async function openFollowingDialog() {
+  followingDialogVisible.value = true;
+  try {
+    followingList.value = await fetchFollowing(store.userId);
+    followingCount.value = followingList.value.length;
+  } catch {
+    followingList.value = [];
+  }
+}
+
 async function handleCreateDraft() {
   if (!selectedVideoFile.value) {
-    ElMessage.warning('请先选择视频文件');
+    ElMessage.warning({ message: '请先选择视频文件', duration: 2000 });
     return;
   }
-
   creating.value = true;
   try {
     const upload = await uploadVideo(selectedVideoFile.value, 'ORIGINAL');
     let coverUploadToken: string | undefined;
     let coverAssetId: number | undefined;
-
-    if (selectedCoverFile.value) {
-      const coverUpload = await uploadVideo(selectedCoverFile.value, 'COVER');
+    const coverToUpload = selectedCoverFile.value || autoCoverFile.value;
+    if (coverToUpload) {
+      const coverUpload = await uploadVideo(coverToUpload, 'COVER');
       coverAssetId = coverUpload.assetId;
       coverUploadToken = coverUpload.uploadToken;
     }
-
     await createVideo({
       assetId: upload.assetId,
       uploadToken: upload.uploadToken,
       title: form.title,
       description: form.description,
-      categoryId: form.categoryId,
+      category: form.category,
       coverUrl: form.coverUrl || undefined,
       coverAssetId,
       coverUploadToken,
     });
-
     selectedVideoFile.value = null;
     selectedCoverFile.value = null;
-    ElMessage.success('稿件创建成功');
+    autoCoverPreview.value = null;
+    autoCoverFile.value = null;
+    captureTimeSeconds.value = 1;
+    ElMessage.success({ message: '稿件创建成功', duration: 1500 });
     await refreshAll();
   } catch {
-    ElMessage.error('创建稿件失败，请确认 MinIO 服务已启动且已使用用户账号登录');
+    ElMessage.error({ message: '创建稿件失败，请确认 MinIO 服务已启动且已使用用户账号登录', duration: 4000 });
   } finally {
     creating.value = false;
   }
@@ -268,24 +556,21 @@ function openEditDialog(video: CreatorVideo) {
   editingVideoId.value = video.id;
   editForm.title = video.title;
   editForm.description = video.description;
-  editForm.categoryId = video.categoryId;
+  editForm.category = video.category;
   editForm.coverUrl = video.coverUrl;
   editDialogVisible.value = true;
 }
 
 async function handleSaveDraft() {
-  if (!editingVideoId.value) {
-    return;
-  }
-
+  if (!editingVideoId.value) return;
   savingDraft.value = true;
   try {
     await updateVideoDraft(editingVideoId.value, { ...editForm });
-    ElMessage.success('稿件已更新');
+    ElMessage.success({ message: '稿件已更新', duration: 1500 });
     editDialogVisible.value = false;
     await refreshAll();
   } catch {
-    ElMessage.error('保存稿件失败');
+    ElMessage.error({ message: '保存稿件失败', duration: 3000 });
   } finally {
     savingDraft.value = false;
   }
@@ -296,25 +581,36 @@ async function openReviewDialog(video: CreatorVideo) {
     reviewHistory.value = await fetchVideoReviews(video.id);
     reviewDialogVisible.value = true;
   } catch {
-    ElMessage.error('加载审核记录失败');
+    ElMessage.error({ message: '加载审核记录失败', duration: 3000 });
   }
 }
 
 async function handleSubmitReview(videoId: number) {
   try {
     await submitReview(videoId);
-    ElMessage.success('已提交审核');
+    ElMessage.success({ message: '已提交审核', duration: 1500 });
     await refreshAll();
   } catch {
-    ElMessage.error('提交审核失败');
+    ElMessage.error({ message: '提交审核失败', duration: 3000 });
   }
 }
 
 onMounted(async () => {
+  pageLoading.value = true;
   try {
     await refreshAll();
+    followingCount.value = dashboard.value.followingCount;
+    await loadHomeData();
   } catch {
-    ElMessage.warning('请先登录用户账号查看此页面');
+    ElMessage.warning({ message: '请先登录用户账号查看此页面', duration: 2500 });
+  } finally {
+    pageLoading.value = false;
+  }
+});
+
+watch(activeTab, (tab) => {
+  if (tab === 'home') {
+    void loadHomeData();
   }
 });
 </script>
@@ -325,38 +621,202 @@ onMounted(async () => {
   gap: 20px;
 }
 
-.hero,
-.panel-head {
+.profile-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  padding: 28px 32px;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
 }
 
-.stats-grid {
+.profile-left {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.avatar-wrapper {
+  position: relative;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid rgba(37, 99, 235, 0.15);
+  transition: opacity 0.15s;
+}
+
+.avatar-wrapper:hover .avatar {
+  opacity: 0.7;
+}
+
+.avatar-edit-hint {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 11px;
+  padding: 2px 10px;
+  border-radius: 8px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+}
+
+.avatar-wrapper:hover .avatar-edit-hint {
+  opacity: 1;
+}
+
+.avatar-file-input {
+  margin-bottom: 8px;
+}
+
+.avatar-preview-box {
+  margin-top: 8px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid rgba(15, 23, 42, 0.1);
+}
+
+.avatar-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-info {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
+  gap: 8px;
 }
 
-.stat-card,
+.nickname-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nickname-row h1 {
+  margin: 0;
+  color: #111827;
+  font-size: 22px;
+}
+
+.edit-nickname-btn {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-size: 14px;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+
+.edit-nickname-btn:hover {
+  opacity: 1;
+}
+
+.nickname-input {
+  width: 180px;
+}
+
+.profile-stats {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.stat-link {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.12s;
+}
+
+.stat-link:hover strong {
+  color: #2563eb;
+}
+
+.stat-link strong {
+  font-size: 18px;
+  color: #111827;
+  transition: color 0.12s;
+}
+
+.stat-link span,
+.stat-item span {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.stat-item {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.stat-item strong {
+  font-size: 18px;
+  color: #111827;
+}
+
+.tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.tab-btn {
+  padding: 10px 32px;
+  font-size: 15px;
+  font-weight: 500;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  color: #6b7280;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.tab-btn:hover {
+  color: #111827;
+}
+
+.tab-btn.active {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+}
+
 .panel,
 .video-card,
 .warning-card,
 .history-card {
   padding: 20px;
   border-radius: 16px;
-  background: rgba(30, 41, 59, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
 }
 
-.stat-card {
-  display: grid;
-  gap: 8px;
-}
-
-.stat-card strong {
-  font-size: 28px;
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .panels {
@@ -373,6 +833,11 @@ onMounted(async () => {
   gap: 16px;
 }
 
+.panel h2 {
+  margin: 0;
+  color: #111827;
+}
+
 .panel-actions {
   display: flex;
   justify-content: flex-end;
@@ -387,6 +852,18 @@ onMounted(async () => {
   gap: 16px;
 }
 
+.video-card h3,
+.warning-card strong,
+.history-card strong {
+  color: #111827;
+}
+
+.video-card p,
+.warning-card p,
+.history-card p {
+  color: #4b5563;
+}
+
 .actions-block {
   display: grid;
   gap: 10px;
@@ -398,6 +875,131 @@ onMounted(async () => {
 .subtle {
   display: block;
   margin-top: 8px;
-  color: #94a3b8;
+  color: #6b7280;
+}
+
+.hint.success {
+  color: #16a34a;
+}
+
+.compact-panel {
+  padding: 16px 20px;
+}
+
+.compact-panel :deep(.el-form-item) {
+  margin-bottom: 12px;
+}
+
+.compact-panel h2 {
+  margin-bottom: 8px;
+}
+
+.cover-preview-wrapper {
+  display: grid;
+  gap: 12px;
+}
+
+.cover-preview-img {
+  width: 100%;
+  max-width: 320px;
+  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.cover-preview-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.video-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 220px);
+  gap: 16px;
+  justify-content: center;
+}
+
+.grid-card {
+  display: grid;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.05);
+  text-decoration: none;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.grid-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1);
+}
+
+.grid-cover {
+  width: 100%;
+  height: 130px;
+  object-fit: cover;
+}
+
+.grid-body {
+  padding: 10px 12px;
+  display: grid;
+  gap: 4px;
+}
+
+.grid-body h3 {
+  margin: 0;
+  font-size: 14px;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.grid-meta {
+  font-size: 12px;
+  color: #6b7280;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.meta-icon {
+  width: 14px;
+  height: 14px;
+  vertical-align: middle;
+  color: #9ca3af;
+}
+
+.follow-list {
+  display: grid;
+  gap: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.follow-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: background 0.12s;
+}
+
+.follow-item:hover {
+  background: #f3f4f6;
+}
+
+.follow-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.follow-nickname {
+  color: #111827;
+  font-size: 14px;
 }
 </style>

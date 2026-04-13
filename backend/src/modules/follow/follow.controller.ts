@@ -11,6 +11,16 @@ export class FollowController {
     private readonly followService: FollowService,
   ) {}
 
+  @Get('users/:id/followers')
+  async getFollowers(@Param('id', ParseIntPipe) id: number) {
+    return ok(await this.followService.getFollowers(id));
+  }
+
+  @Get('users/:id/following')
+  async getFollowing(@Param('id', ParseIntPipe) id: number) {
+    return ok(await this.followService.getFollowing(id));
+  }
+
   @Post('users/:id/follow')
   async follow(@Headers('authorization') authorization: string | undefined, @Param('id', ParseIntPipe) id: number) {
     const user = await this.authService.requireUser(authorization);

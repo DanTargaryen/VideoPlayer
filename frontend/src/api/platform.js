@@ -238,3 +238,31 @@ export async function createDanmaku(videoId, payload) {
     const { data } = await http.post(`/videos/${videoId}/danmaku`, payload);
     return data.data;
 }
+export async function fetchFollowers(userId) {
+    const { data } = await http.get(`/users/${userId}/followers`);
+    return data.data;
+}
+export async function fetchFollowing(userId) {
+    const { data } = await http.get(`/users/${userId}/following`);
+    return data.data;
+}
+export async function fetchMyFavorites() {
+    const { data } = await http.get('/videos/my/favorites');
+    return data.data;
+}
+export async function fetchMyLikes() {
+    const { data } = await http.get('/videos/my/likes');
+    return data.data;
+}
+export async function updateProfile(payload) {
+    const { data } = await http.put('/users/profile', payload);
+    return data.data;
+}
+export async function uploadAvatar(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const { data } = await http.post('/users/avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data.data;
+}

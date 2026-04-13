@@ -15,7 +15,7 @@ export interface MockVideo {
   creatorId: number;
   title: string;
   description: string;
-  categoryId: number;
+  category: string;
   coverUrl: string;
   playUrl: string;
   status: VideoStatus;

@@ -27,13 +27,13 @@ const editingVideoId = ref(null);
 const form = reactive({
     title: '新的演示投稿',
     description: '这是通过用户中心上传真实文件后创建并提交审核的演示稿件。',
-    categoryId: 1,
+    category: 'entertainment',
     coverUrl: '',
 });
 const editForm = reactive({
     title: '',
     description: '',
-    categoryId: 1,
+    category: 'entertainment',
     coverUrl: '',
 });
 const statCards = computed(() => [
@@ -83,7 +83,7 @@ async function handleCreateDraft() {
             uploadToken: upload.uploadToken,
             title: form.title,
             description: form.description,
-            categoryId: form.categoryId,
+            category: form.category,
             coverUrl: form.coverUrl || undefined,
             coverAssetId,
             coverUploadToken,
@@ -104,7 +104,7 @@ function openEditDialog(video) {
     editingVideoId.value = video.id;
     editForm.title = video.title;
     editForm.description = video.description;
-    editForm.categoryId = video.categoryId;
+    editForm.category = video.category;
     editForm.coverUrl = video.coverUrl;
     editDialogVisible.value = true;
 }
@@ -314,24 +314,20 @@ const __VLS_32 = {}.ElFormItem;
 /** @type {[typeof __VLS_components.ElFormItem, typeof __VLS_components.elFormItem, typeof __VLS_components.ElFormItem, typeof __VLS_components.elFormItem, ]} */ ;
 // @ts-ignore
 const __VLS_33 = __VLS_asFunctionalComponent(__VLS_32, new __VLS_32({
-    label: "分区 ID",
+    label: "分区",
 }));
 const __VLS_34 = __VLS_33({
-    label: "分区 ID",
+    label: "分区",
 }, ...__VLS_functionalComponentArgsRest(__VLS_33));
 __VLS_35.slots.default;
-const __VLS_36 = {}.ElInputNumber;
-/** @type {[typeof __VLS_components.ElInputNumber, typeof __VLS_components.elInputNumber, ]} */ ;
+const __VLS_36 = {}.ElSelect;
+/** @type {[typeof __VLS_components.ElSelect, typeof __VLS_components.elSelect, ]} */ ;
 // @ts-ignore
 const __VLS_37 = __VLS_asFunctionalComponent(__VLS_36, new __VLS_36({
-    modelValue: (__VLS_ctx.form.categoryId),
-    min: (1),
-    max: (5),
+    modelValue: (__VLS_ctx.form.category),
 }));
 const __VLS_38 = __VLS_37({
-    modelValue: (__VLS_ctx.form.categoryId),
-    min: (1),
-    max: (5),
+    modelValue: (__VLS_ctx.form.category),
 }, ...__VLS_functionalComponentArgsRest(__VLS_37));
 var __VLS_35;
 const __VLS_40 = {}.ElFormItem;
@@ -597,24 +593,20 @@ const __VLS_112 = {}.ElFormItem;
 /** @type {[typeof __VLS_components.ElFormItem, typeof __VLS_components.elFormItem, typeof __VLS_components.ElFormItem, typeof __VLS_components.elFormItem, ]} */ ;
 // @ts-ignore
 const __VLS_113 = __VLS_asFunctionalComponent(__VLS_112, new __VLS_112({
-    label: "分区 ID",
+    label: "分区",
 }));
 const __VLS_114 = __VLS_113({
-    label: "分区 ID",
+    label: "分区",
 }, ...__VLS_functionalComponentArgsRest(__VLS_113));
 __VLS_115.slots.default;
-const __VLS_116 = {}.ElInputNumber;
-/** @type {[typeof __VLS_components.ElInputNumber, typeof __VLS_components.elInputNumber, ]} */ ;
+const __VLS_116 = {}.ElSelect;
+/** @type {[typeof __VLS_components.ElSelect, typeof __VLS_components.elSelect, ]} */ ;
 // @ts-ignore
 const __VLS_117 = __VLS_asFunctionalComponent(__VLS_116, new __VLS_116({
-    modelValue: (__VLS_ctx.editForm.categoryId),
-    min: (1),
-    max: (5),
+    modelValue: (__VLS_ctx.editForm.category),
 }));
 const __VLS_118 = __VLS_117({
-    modelValue: (__VLS_ctx.editForm.categoryId),
-    min: (1),
-    max: (5),
+    modelValue: (__VLS_ctx.editForm.category),
 }, ...__VLS_functionalComponentArgsRest(__VLS_117));
 var __VLS_115;
 const __VLS_120 = {}.ElFormItem;
