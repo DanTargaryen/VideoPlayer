@@ -93,6 +93,12 @@ export async function searchAll(payload) {
     });
     return data.data;
 }
+export async function fetchSearchSuggestions(keyword) {
+    const { data } = await http.get('/search/suggest', {
+        params: { keyword },
+    });
+    return data.data;
+}
 export async function fetchVideoDetail(id) {
     const { data } = await http.get(`/videos/${id}`);
     return data.data;
@@ -223,6 +229,28 @@ export async function unlikeVideo(videoId) {
 export async function favoriteVideo(videoId) {
     const { data } = await http.post(`/videos/${videoId}/favorite`);
     return data.data;
+}
+export async function reportVideoPlay(videoId, payload = {}) {
+    const { data } = await http.post(`/videos/${videoId}/play`, payload);
+    return data.data;
+}
+export async function reportVideoWatchProgress(videoId, payload) {
+    const { data } = await http.post(`/videos/${videoId}/watch-progress`, payload);
+    return data.data;
+}
+export async function reportVideoWatchProgressKeepalive(videoId, payload) {
+    const baseURL = String(http.defaults.baseURL ?? '/api/v1').replace(/\/$/, '');
+    const requestUrl = `${baseURL.startsWith('http') ? baseURL : `${window.location.origin}${baseURL}`}/videos/${videoId}/watch-progress`;
+    const token = localStorage.getItem('vp_token');
+    return fetch(requestUrl, {
+        method: 'POST',
+        keepalive: true,
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+    });
 }
 export async function unfavoriteVideo(videoId) {
     const { data } = await http.delete(`/videos/${videoId}/favorite`);

@@ -2,7 +2,7 @@
 
 import { PrismaService } from '../prisma/prisma.service';
 
-const ADMIN_SECRET = 'Administer';
+const ADMIN_SECRET = '123456';
 const BUILTIN_USERS = [
   {
     username: 'live_user_1',

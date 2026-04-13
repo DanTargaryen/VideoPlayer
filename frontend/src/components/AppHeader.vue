@@ -26,18 +26,7 @@
     </nav>
 
     <div class="search-box">
-      <div class="search-input-wrap">
-        <input
-          v-model="searchKeyword"
-          type="text"
-          class="search-input"
-          placeholder="搜索视频、直播或创作者"
-          @keyup.enter="submitSearch"
-        />
-        <button class="search-btn" @click="submitSearch">
-          <el-icon :size="18"><Search /></el-icon>
-        </button>
-      </div>
+      <SearchSuggestBox v-model="searchKeyword" @search="submitSearch" />
     </div>
 
     <div class="actions">
@@ -64,6 +53,7 @@ import { storeToRefs } from 'pinia';
 import { useRoute, useRouter } from 'vue-router';
 import { Search } from '@element-plus/icons-vue';
 
+import SearchSuggestBox from '@/components/SearchSuggestBox.vue';
 import { fetchUnreadNotificationCount } from '@/api/platform';
 import { useAppStore } from '@/stores/app';
 import { primaryNavItems as navItems } from '@/utils/navigation';
@@ -101,11 +91,12 @@ async function syncUnreadCount() {
   }
 }
 
-function submitSearch() {
+function submitSearch(keyword?: string) {
+  const normalizedKeyword = (keyword ?? searchKeyword.value).trim();
   router.push({
     path: '/search',
     query: {
-      keyword: searchKeyword.value,
+      keyword: normalizedKeyword,
       tab: 'video',
     },
   });

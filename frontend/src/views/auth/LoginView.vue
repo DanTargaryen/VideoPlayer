@@ -30,7 +30,7 @@
         </ul>
         <ul v-else>
           <li><strong>管理员：</strong> demo_admin / admin123</li>
-          <li><strong>管理员密钥：</strong> Administer</li>
+          <li><strong>管理员密钥：</strong> 123456</li>
         </ul>
       </div>
 
@@ -49,7 +49,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { login } from '@/api/platform';
 import { useAppStore } from '@/stores/app';
 
-const ADMIN_SECRET = 'Administer';
+const ADMIN_SECRET = '123456';
 
 const router = useRouter();
 const appStore = useAppStore();

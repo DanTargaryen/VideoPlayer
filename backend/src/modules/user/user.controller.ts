@@ -1,11 +1,13 @@
-import { BadRequestException, Body, Controller, Get, Headers, Param, ParseIntPipe, Post, Put, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Headers, Param, ParseIntPipe, Post, Put, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { Express } from 'express';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
 
 import { ok } from '../../common/dto/api-response.dto';
 import { AuthService } from '../auth/auth.service';
 import { MinioService } from '../storage/minio.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { UserProfileService } from './user-profile.service';
 import { UserService } from './user.service';
 
 class UpdateProfileDto {
@@ -32,6 +34,7 @@ export class UserController {
     private readonly authService: AuthService,
     private readonly minioService: MinioService,
     private readonly prisma: PrismaService,
+    private readonly userProfileService: UserProfileService,
   ) {}
 
   @Post('avatar')
@@ -67,6 +70,18 @@ export class UserController {
   ) {
     const user = await this.authService.requireUser(authorization);
     return ok(await this.userService.updateProfile(user.id, dto));
+  }
+
+  @Get('profile/recommendation')
+  async getRecommendationProfile(@Headers('authorization') authorization: string | undefined) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.userProfileService.getProfile(user.id, true));
+  }
+
+  @Post('profile/recommendation/rebuild')
+  async rebuildRecommendationProfile(@Headers('authorization') authorization: string | undefined) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.userProfileService.buildAndSaveProfile(user.id));
   }
 
   @Get(':id/homepage')

@@ -6,6 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { VideoService } from '../video/video.service';
 
 interface ListOptions {
+  currentUserId?: number;
   page?: number;
   pageSize?: number;
   categoryCode?: string;
@@ -14,7 +15,7 @@ interface ListOptions {
 interface SearchOptions extends ListOptions {
   keyword: string;
   tab?: 'video' | 'live' | 'user';
-  sortBy?: 'hot' | 'latest';
+  sortBy?: 'best' | 'hot' | 'latest';
 }
 
 @Injectable()
@@ -27,6 +28,7 @@ export class SearchService {
 
   async getRecommendFeed(options: ListOptions = {}) {
     return this.videoService.getRecommendFeed({
+      currentUserId: options.currentUserId,
       categoryCode: options.categoryCode,
       page: options.page,
       pageSize: options.pageSize,
@@ -56,45 +58,55 @@ export class SearchService {
     const skip = (page - 1) * pageSize;
     const category = resolveCategoryCode(options.categoryCode);
 
-    const video = await this.videoService.searchPublishedVideos(normalizedKeyword, {
-      categoryCode: options.categoryCode,
-      sortBy: options.sortBy,
-      page,
-      pageSize,
-    });
+    const video =
+      normalizedTab === 'user' || normalizedTab === 'live'
+        ? []
+        : await this.videoService.searchPublishedVideos(normalizedKeyword, {
+            currentUserId: options.currentUserId,
+            categoryCode: options.categoryCode,
+            sortBy: options.sortBy,
+            page,
+            pageSize,
+          });
 
-    const user = await this.prisma.user.findMany({
-      where: normalizedKeyword
-        ? {
-            OR: [
-              {
-                nickname: {
-                  contains: normalizedKeyword,
-                },
-              },
-              {
-                username: {
-                  contains: normalizedKeyword,
-                },
-              },
-            ],
-          }
-        : {},
-      orderBy: { id: 'desc' },
-      skip,
-      take: pageSize,
-    });
+    const user =
+      normalizedTab === 'user'
+        ? await this.prisma.user.findMany({
+            where: normalizedKeyword
+              ? {
+                  OR: [
+                    {
+                      nickname: {
+                        contains: normalizedKeyword,
+                      },
+                    },
+                    {
+                      username: {
+                        contains: normalizedKeyword,
+                      },
+                    },
+                  ],
+                }
+              : {},
+            orderBy: { id: 'desc' },
+            skip,
+            take: pageSize,
+          })
+        : [];
 
-    const live = this.liveService.listRooms({
-      keyword: normalizedKeyword,
-      category: category ?? undefined,
-      limit: pageSize,
-    });
+    const live =
+      normalizedTab === 'live'
+        ? this.liveService.listRooms({
+            keyword: normalizedKeyword,
+            category: category ?? undefined,
+            limit: pageSize,
+          })
+        : [];
 
     return {
       keyword: normalizedKeyword,
       tab: normalizedTab,
-      sortBy: options.sortBy ?? 'latest',
+      sortBy: options.sortBy ?? 'best',
       categoryCode: options.categoryCode ?? 'recommend',
       page,
       pageSize,
@@ -116,6 +128,32 @@ export class SearchService {
     const titles = videos.map((item: (typeof videos)[number]) => item.title).filter(Boolean);
     const defaults = ['观澜推荐', '视频弹幕', '投稿审核', '直播互动'];
     return Array.from(new Set([...titles, ...defaults])).slice(0, 8);
+  }
+
+  async suggest(keyword: string) {
+    const normalizedKeyword = keyword.trim();
+
+    if (!normalizedKeyword) {
+      return { list: [] };
+    }
+
+    const videos = await this.prisma.video.findMany({
+      where: {
+        status: 'PUBLISHED',
+        title: {
+          contains: normalizedKeyword,
+        },
+      },
+      select: {
+        title: true,
+      },
+      orderBy: [{ likeCount: 'desc' }, { favoriteCount: 'desc' }, { commentCount: 'desc' }, { publishedAt: 'desc' }],
+      take: 20,
+    });
+
+    return {
+      list: Array.from(new Set(videos.map((item) => item.title).filter(Boolean))).slice(0, 10),
+    };
   }
 
   private normalizePage(page?: number) {
