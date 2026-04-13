@@ -14,6 +14,7 @@
     <section class="filters">
       <el-segmented v-model="category" :options="categorySegmentOptions" @change="submitSearch" />
       <el-select v-model="sortBy" class="sort-select" @change="submitSearch">
+        <el-option label="综合排序" value="best" />
         <el-option label="最新优先" value="latest" />
         <el-option label="热度优先" value="hot" />
       </el-select>
@@ -61,12 +62,12 @@ const route = useRoute();
 const router = useRouter();
 const keyword = ref('');
 const activeTab = ref<'video' | 'user' | 'live'>('video');
-const sortBy = ref<'latest' | 'hot'>('latest');
+const sortBy = ref<'best' | 'latest' | 'hot'>('best');
 const category = ref<CategoryCode>('recommend');
 const result = reactive<SearchResultResponse>({
   keyword: '',
   tab: 'video',
-  sortBy: 'latest',
+  sortBy: 'best',
   categoryCode: 'recommend',
   page: 1,
   pageSize: 20,
@@ -95,7 +96,7 @@ function buildQuery() {
     ...(keyword.value.trim() ? { keyword: keyword.value.trim() } : {}),
     tab: activeTab.value,
     ...(category.value !== 'recommend' ? { category: category.value } : {}),
-    ...(sortBy.value !== 'latest' ? { sortBy: sortBy.value } : {}),
+    ...(sortBy.value !== 'best' ? { sortBy: sortBy.value } : {}),
   };
 }
 
@@ -131,7 +132,7 @@ watch(
     keyword.value = String(query.keyword ?? '');
     activeTab.value = normalizeTab(query.tab);
     category.value = normalizeCategoryCode(typeof query.category === 'string' ? query.category : undefined);
-    sortBy.value = query.sortBy === 'hot' ? 'hot' : 'latest';
+    sortBy.value = query.sortBy === 'hot' ? 'hot' : query.sortBy === 'latest' ? 'latest' : 'best';
     void loadSearch();
   },
   { immediate: true },

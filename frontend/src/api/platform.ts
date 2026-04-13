@@ -12,10 +12,12 @@ import type {
   ReviewHistoryItem,
   ReviewQueueItem,
   SearchResultResponse,
+  SearchSuggestResponse,
   TextReviewItem,
   UserHomepage,
   VideoCard,
   VideoDetail,
+  VideoWatchProgressPayload,
 } from '@/types/api';
 
 export async function login(payload: { account: string; password: string; adminSecret?: string }) {
@@ -38,13 +40,20 @@ export async function fetchFollowingFeed() {
 export async function searchAll(payload: {
   keyword: string;
   tab?: 'video' | 'live' | 'user';
-  sortBy?: 'hot' | 'latest';
+  sortBy?: 'best' | 'hot' | 'latest';
   category?: string;
   page?: number;
   pageSize?: number;
 }) {
   const { data } = await http.get<ApiResponse<SearchResultResponse>>('/search/all', {
     params: payload,
+  });
+  return data.data;
+}
+
+export async function fetchSearchSuggestions(keyword: string) {
+  const { data } = await http.get<ApiResponse<SearchSuggestResponse>>('/search/suggest', {
+    params: { keyword },
   });
   return data.data;
 }
@@ -231,6 +240,32 @@ export async function unlikeVideo(videoId: number) {
 export async function favoriteVideo(videoId: number) {
   const { data } = await http.post<ApiResponse<{ favorited: boolean }>>(`/videos/${videoId}/favorite`);
   return data.data;
+}
+
+export async function reportVideoPlay(videoId: number, payload?: { videoDurationSeconds?: number }) {
+  const { data } = await http.post<ApiResponse<Record<string, unknown>>>(`/videos/${videoId}/play`, payload ?? {});
+  return data.data;
+}
+
+export async function reportVideoWatchProgress(videoId: number, payload: VideoWatchProgressPayload) {
+  const { data } = await http.post<ApiResponse<Record<string, unknown>>>(`/videos/${videoId}/watch-progress`, payload);
+  return data.data;
+}
+
+export async function reportVideoWatchProgressKeepalive(videoId: number, payload: VideoWatchProgressPayload) {
+  const baseURL = String(http.defaults.baseURL ?? '/api/v1').replace(/\/$/, '');
+  const requestUrl = `${baseURL.startsWith('http') ? baseURL : `${window.location.origin}${baseURL}`}/videos/${videoId}/watch-progress`;
+  const token = localStorage.getItem('vp_token');
+
+  return fetch(requestUrl, {
+    method: 'POST',
+    keepalive: true,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function unfavoriteVideo(videoId: number) {

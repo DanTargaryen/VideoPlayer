@@ -72,6 +72,13 @@ export interface VideoDetail extends CreatorVideo {
   isFavorited: boolean;
 }
 
+export interface VideoWatchProgressPayload {
+  watchedSeconds: number;
+  currentTimeSeconds: number;
+  videoDurationSeconds?: number;
+  event: 'pause' | 'leave' | 'ended';
+}
+
 export interface CommentReply {
   id: number;
   videoId: number;
@@ -167,13 +174,17 @@ export interface ReportItem {
 export interface SearchResultResponse {
   keyword: string;
   tab: 'video' | 'live' | 'user';
-  sortBy: 'hot' | 'latest';
+  sortBy: 'best' | 'hot' | 'latest';
   categoryCode: string;
   page: number;
   pageSize: number;
   video: VideoCard[];
   live: never[];
   user: Array<{ id: number; nickname: string }>;
+}
+
+export interface SearchSuggestResponse {
+  list: string[];
 }
 
 export interface CreatorDashboardData {

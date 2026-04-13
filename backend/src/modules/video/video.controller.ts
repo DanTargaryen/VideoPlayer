@@ -17,6 +17,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import type { Express } from 'express';
 import {
   IsArray,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -101,6 +102,32 @@ class CreateDanmakuDto {
   color?: string;
 }
 
+class RecordPlayDto {
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  videoDurationSeconds?: number;
+}
+
+class ReportWatchProgressDto {
+  @IsInt()
+  @Min(0)
+  watchedSeconds!: number;
+
+  @IsInt()
+  @Min(0)
+  currentTimeSeconds!: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  videoDurationSeconds?: number;
+
+  @IsString()
+  @IsIn(['pause', 'leave', 'ended'])
+  event!: 'pause' | 'leave' | 'ended';
+}
+
 @Controller('videos')
 export class VideoController {
   constructor(
@@ -157,8 +184,12 @@ export class VideoController {
   }
 
   @Get(':id/recommendations')
-  async getRecommendations(@Param('id', ParseIntPipe) id: number) {
-    return ok(await this.videoService.getRelatedVideos(id));
+  async getRecommendations(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    const user = await this.authService.getCurrentUser(authorization);
+    return ok(await this.videoService.getRelatedVideos(id, user?.id));
   }
 
   @Post(':id/submit-review')
@@ -195,6 +226,26 @@ export class VideoController {
   ) {
     const user = await this.authService.requireUser(authorization);
     return ok(await this.videoService.favoriteVideo(id, user));
+  }
+
+  @Post(':id/play')
+  async recordPlay(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: RecordPlayDto,
+  ) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.videoService.recordPlay(id, user, dto));
+  }
+
+  @Post(':id/watch-progress')
+  async reportWatchProgress(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ReportWatchProgressDto,
+  ) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.videoService.recordWatchProgress(id, user, dto));
   }
 
   @Delete(':id/favorite')
