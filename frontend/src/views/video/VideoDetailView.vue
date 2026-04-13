@@ -16,19 +16,20 @@
               @loadedmetadata="onLoadedMetadata"
               @play="onVideoPlay"
               @pause="onVideoPause"
+              @ended="handleVideoEnded"
             ></video>
             <span v-else>视频播放器占位</span>
             <DanmakuOverlay
-            v-if="video?.playUrl"
-            :danmakus="danmakus"
-            :current-time-ms="currentVideoTimeMs"
-            :duration-ms="videoDurationMs"
-            :visible="danmakuVisible"
-            :paused="videoPaused"
-            :liked-ids="likedDanmakuIds"
-            @report="openReportDialog"
-            @like="toggleDanmakuLike"
-          />
+              v-if="video?.playUrl"
+              :danmakus="danmakus"
+              :current-time-ms="currentVideoTimeMs"
+              :duration-ms="videoDurationMs"
+              :visible="danmakuVisible"
+              :paused="videoPaused"
+              :liked-ids="likedDanmakuIds"
+              @report="openReportDialog"
+              @like="toggleDanmakuLike"
+            />
           </div>
 
           <div class="danmaku-bar" v-if="video?.playUrl">
@@ -222,8 +223,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
+import { onBeforeRouteLeave, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { StarFilled, ChatDotRound, Warning, ArrowRight } from '@element-plus/icons-vue';
 
@@ -238,6 +239,9 @@ import {
   followUser,
   likeVideo,
   reportContent,
+  reportVideoPlay,
+  reportVideoWatchProgress,
+  reportVideoWatchProgressKeepalive,
   unfavoriteVideo,
   unfollowUser,
   unlikeVideo,
@@ -245,12 +249,17 @@ import {
 import CommentThread from '@/components/CommentThread.vue';
 import DanmakuOverlay from '@/components/DanmakuOverlay.vue';
 import { useAppStore } from '@/stores/app';
-import type { CommentItem, DanmakuItem, VideoCard, VideoDetail } from '@/types/api';
+import type { CommentItem, DanmakuItem, VideoCard, VideoDetail, VideoWatchProgressPayload } from '@/types/api';
+
+const WATCH_PROGRESS_MIN_REPORT_SECONDS = 10;
+const WATCH_PROGRESS_LEAVE_MIN_REPORT_SECONDS = 5;
+const WATCH_PROGRESS_MAX_DELTA_SECONDS = 5;
 
 const route = useRoute();
 const appStore = useAppStore();
 const loading = ref(false);
 const video = ref<VideoDetail | null>(null);
+const videoRef = ref<HTMLVideoElement | null>(null);
 const recommendations = ref<VideoCard[]>([]);
 const comments = ref<CommentItem[]>([]);
 const danmakus = ref<DanmakuItem[]>([]);
@@ -258,7 +267,6 @@ const commentForm = ref('');
 const replyForm = ref('');
 const replyTargetId = ref<number | null>(null);
 
-const videoRef = ref<HTMLVideoElement | null>(null);
 const currentVideoTimeMs = ref(0);
 const videoDurationMs = ref(0);
 const danmakuVisible = ref(true);
@@ -266,6 +274,13 @@ const danmakuListExpanded = ref(false);
 const videoPaused = ref(true);
 const likedDanmakuIds = ref<Set<number>>(new Set());
 
+const hasReportedPlay = ref(false);
+const hasReportedEnded = ref(false);
+const isReportingWatchProgress = ref(false);
+const lastPlaybackPositionSeconds = ref(0);
+const sessionWatchedSeconds = ref(0);
+const reportedWatchSeconds = ref(0);
+const resolvedVideoDurationSeconds = ref(0);
 const danmakuForm = reactive({
   content: '',
   timeOffsetMs: 0,
@@ -295,6 +310,8 @@ function onTimeUpdate() {
     currentVideoTimeMs.value = Math.floor(videoRef.value.currentTime * 1000);
     videoPaused.value = videoRef.value.paused;
   }
+
+  handleTimeUpdate();
 }
 
 function onLoadedMetadata() {
@@ -302,14 +319,185 @@ function onLoadedMetadata() {
     videoDurationMs.value = Math.floor(videoRef.value.duration * 1000);
     videoPaused.value = videoRef.value.paused;
   }
+
+  handleLoadedMetadata();
 }
 
-function onVideoPlay() {
+async function onVideoPlay() {
   videoPaused.value = false;
+  await handleVideoPlay();
 }
 
-function onVideoPause() {
+async function onVideoPause() {
   videoPaused.value = true;
+  await handleVideoPause();
+}
+
+function resetWatchTracking() {
+  hasReportedPlay.value = false;
+  hasReportedEnded.value = false;
+  isReportingWatchProgress.value = false;
+  lastPlaybackPositionSeconds.value = 0;
+  sessionWatchedSeconds.value = 0;
+  reportedWatchSeconds.value = 0;
+  resolvedVideoDurationSeconds.value = 0;
+}
+
+function resolveCurrentVideoDurationSeconds() {
+  const playerDuration = videoRef.value?.duration;
+
+  if (typeof playerDuration === 'number' && Number.isFinite(playerDuration) && playerDuration > 0) {
+    return Math.round(playerDuration);
+  }
+
+  return Math.max(0, Math.round(video.value?.durationSeconds ?? 0));
+}
+
+function capturePlaybackProgress(includePausedDelta = false) {
+  const player = videoRef.value;
+
+  if (!player) {
+    return;
+  }
+
+  const currentTimeSeconds = player.currentTime;
+  const deltaSeconds = currentTimeSeconds - lastPlaybackPositionSeconds.value;
+
+  // Only accumulate small forward deltas so a manual seek does not get counted as watched time.
+  if ((includePausedDelta || !player.paused) && deltaSeconds > 0 && deltaSeconds <= WATCH_PROGRESS_MAX_DELTA_SECONDS) {
+    sessionWatchedSeconds.value += deltaSeconds;
+  }
+
+  lastPlaybackPositionSeconds.value = currentTimeSeconds;
+  resolvedVideoDurationSeconds.value = resolveCurrentVideoDurationSeconds();
+}
+
+function buildWatchProgressPayload(event: VideoWatchProgressPayload['event']) {
+  capturePlaybackProgress(true);
+
+  const player = videoRef.value;
+
+  if (!video.value || !player) {
+    return null;
+  }
+
+  const currentTimeSeconds = Math.max(0, Math.round(player.currentTime));
+  const watchedSeconds = Math.max(0, Math.round(sessionWatchedSeconds.value - reportedWatchSeconds.value));
+  const videoDurationSeconds = resolveCurrentVideoDurationSeconds();
+
+  return {
+    watchedSeconds,
+    currentTimeSeconds,
+    videoDurationSeconds: videoDurationSeconds > 0 ? videoDurationSeconds : undefined,
+    event,
+  } satisfies VideoWatchProgressPayload;
+}
+
+async function flushWatchProgress(
+  event: VideoWatchProgressPayload['event'],
+  options: { force?: boolean; keepalive?: boolean } = {},
+) {
+  if (!appStore.isLoggedIn || !video.value || !videoRef.value || isReportingWatchProgress.value) {
+    return;
+  }
+
+  if (hasReportedEnded.value && event !== 'ended') {
+    return;
+  }
+
+  const payload = buildWatchProgressPayload(event);
+
+  if (!payload) {
+    return;
+  }
+
+  const minReportSeconds =
+    event === 'leave' ? WATCH_PROGRESS_LEAVE_MIN_REPORT_SECONDS : WATCH_PROGRESS_MIN_REPORT_SECONDS;
+  const shouldSkip =
+    !options.force &&
+    event !== 'ended' &&
+    payload.watchedSeconds < minReportSeconds &&
+    payload.currentTimeSeconds < minReportSeconds;
+
+  if (shouldSkip) {
+    return;
+  }
+
+  if (payload.watchedSeconds === 0 && event !== 'ended') {
+    return;
+  }
+
+  if (payload.watchedSeconds === 0 && payload.currentTimeSeconds === 0) {
+    return;
+  }
+
+  isReportingWatchProgress.value = true;
+
+  try {
+    if (options.keepalive) {
+      void reportVideoWatchProgressKeepalive(video.value.id, payload);
+    } else {
+      await reportVideoWatchProgress(video.value.id, payload);
+    }
+
+    reportedWatchSeconds.value += payload.watchedSeconds;
+
+    if (event === 'ended') {
+      hasReportedEnded.value = true;
+    }
+  } catch (error) {
+    console.warn('report watch progress failed', error);
+  } finally {
+    isReportingWatchProgress.value = false;
+  }
+}
+
+function handleLoadedMetadata() {
+  resolvedVideoDurationSeconds.value = resolveCurrentVideoDurationSeconds();
+}
+
+function handleTimeUpdate() {
+  capturePlaybackProgress();
+}
+
+async function handleVideoPlay() {
+  const player = videoRef.value;
+
+  if (!player) {
+    return;
+  }
+
+  lastPlaybackPositionSeconds.value = player.currentTime;
+  resolvedVideoDurationSeconds.value = resolveCurrentVideoDurationSeconds();
+
+  if (!appStore.isLoggedIn || !video.value || hasReportedPlay.value) {
+    return;
+  }
+
+  hasReportedPlay.value = true;
+
+  try {
+    await reportVideoPlay(video.value.id, {
+      videoDurationSeconds: resolvedVideoDurationSeconds.value || undefined,
+    });
+  } catch (error) {
+    hasReportedPlay.value = false;
+    console.warn('report play failed', error);
+  }
+}
+
+async function handleVideoPause() {
+  const player = videoRef.value;
+
+  if (player && Number.isFinite(player.duration) && player.duration > 0 && player.currentTime >= player.duration - 0.5) {
+    return;
+  }
+
+  await flushWatchProgress('pause');
+}
+
+async function handleVideoEnded() {
+  await flushWatchProgress('ended', { force: true });
 }
 
 async function loadDetail() {
@@ -555,13 +743,34 @@ async function submitDanmaku() {
   }
 }
 
+function handlePageHide() {
+  void flushWatchProgress('leave', { force: true, keepalive: true });
+}
+
 watch(
   () => route.params.id,
-  async () => {
+  async (newId, oldId) => {
+    if (oldId !== undefined && Number(oldId) !== Number(newId)) {
+      await flushWatchProgress('leave', { force: true });
+      resetWatchTracking();
+    }
+
     await Promise.all([loadDetail(), loadRecommendations(), loadComments(), loadDanmakus()]);
   },
   { immediate: true },
 );
+
+window.addEventListener('pagehide', handlePageHide);
+
+onBeforeRouteLeave(async () => {
+  await flushWatchProgress('leave', { force: true });
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('pagehide', handlePageHide);
+  void flushWatchProgress('leave', { force: true });
+  resetWatchTracking();
+});
 </script>
 
 <style scoped>

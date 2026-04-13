@@ -25,8 +25,9 @@ export interface VideoCard {
   creator?: {
     id: number;
     nickname: string;
+    avatarUrl?: string | null;
   };
-  publishedAt?: string;
+  publishedAt?: string | null;
   createdAt?: string;
 }
 
@@ -66,12 +67,20 @@ export interface VideoDetail extends CreatorVideo {
   creator: {
     id: number;
     nickname: string;
+    avatarUrl?: string | null;
     role: 'USER' | 'ADMIN';
     followerCount: number;
   };
   isFollowingCreator: boolean;
   isLiked: boolean;
   isFavorited: boolean;
+}
+
+export interface VideoWatchProgressPayload {
+  watchedSeconds: number;
+  currentTimeSeconds: number;
+  videoDurationSeconds?: number;
+  event: 'pause' | 'leave' | 'ended';
 }
 
 export interface CommentReply {
@@ -168,7 +177,7 @@ export interface ReportItem {
 export interface SearchResultResponse {
   keyword: string;
   tab: 'video' | 'live' | 'user';
-  sortBy: 'hot' | 'latest';
+  sortBy: 'best' | 'hot' | 'latest';
   categoryCode: string;
   page: number;
   pageSize: number;
@@ -187,6 +196,10 @@ export interface LiveMessage {
     id: number | null;
     nickname: string;
   };
+}
+
+export interface SearchSuggestResponse {
+  list: string[];
 }
 
 export interface CreatorDashboardData {

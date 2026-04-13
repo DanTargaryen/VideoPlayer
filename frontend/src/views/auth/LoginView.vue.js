@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { login } from '@/api/platform';
 import { useAppStore } from '@/stores/app';
-const ADMIN_SECRET = 'Administer';
+const ADMIN_SECRET = '123456';
 const router = useRouter();
 const appStore = useAppStore();
 const loading = ref(false);
