@@ -17,6 +17,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import type { Express } from 'express';
 import {
   IsArray,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -26,6 +27,7 @@ import {
 } from 'class-validator';
 
 import { ok } from '../../common/dto/api-response.dto';
+import { VIDEO_CATEGORY_CODES } from '../../common/constants/categories';
 import { AuthService } from '../auth/auth.service';
 import { VideoService } from './video.service';
 
@@ -49,8 +51,9 @@ class CreateVideoDto {
   @IsString()
   description?: string;
 
-  @IsInt()
-  categoryId!: number;
+  @IsString()
+  @IsIn(VIDEO_CATEGORY_CODES as unknown as string[])
+  category!: string;
 
   @IsOptional()
   @IsArray()
@@ -79,8 +82,9 @@ class UpdateVideoDto {
   description?: string;
 
   @IsOptional()
-  @IsInt()
-  categoryId?: number;
+  @IsString()
+  @IsIn(VIDEO_CATEGORY_CODES as unknown as string[])
+  category?: string;
 
   @IsOptional()
   @IsString()
@@ -122,6 +126,18 @@ export class VideoController {
   ) {
     const user = await this.authService.requireUser(authorization);
     return ok(await this.videoService.updateDraft(id, user, dto));
+  }
+
+  @Get('my/favorites')
+  async getMyFavorites(@Headers('authorization') authorization: string | undefined) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.videoService.getUserFavorites(user.id));
+  }
+
+  @Get('my/likes')
+  async getMyLikes(@Headers('authorization') authorization: string | undefined) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.videoService.getUserLikes(user.id));
   }
 
   @Get(':id/reviews')

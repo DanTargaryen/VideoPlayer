@@ -197,6 +197,16 @@ onMounted(async () => {
   gap: 20px;
 }
 
+.hero h1 {
+  margin: 0;
+  color: #111827;
+}
+
+.hero p {
+  margin: 4px 0 0;
+  color: #4b5563;
+}
+
 .hero,
 .panel-head {
   display: flex;
@@ -216,8 +226,9 @@ onMounted(async () => {
 .review-card {
   padding: 20px;
   border-radius: 16px;
-  background: rgba(30, 41, 59, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
 }
 
 .stat-card {
@@ -225,13 +236,24 @@ onMounted(async () => {
   gap: 8px;
 }
 
+.stat-card span {
+  color: #6b7280;
+  font-size: 14px;
+}
+
 .stat-card strong {
   font-size: 28px;
+  color: #111827;
 }
 
 .panel {
   display: grid;
   gap: 16px;
+}
+
+.panel h2 {
+  margin: 0;
+  color: #111827;
 }
 
 .review-list {
@@ -246,6 +268,15 @@ onMounted(async () => {
   gap: 16px;
 }
 
+.review-card h3 {
+  margin: 0;
+  color: #111827;
+}
+
+.review-card p {
+  color: #4b5563;
+}
+
 .actions {
   display: flex;
   gap: 12px;
@@ -255,6 +286,6 @@ onMounted(async () => {
 .status {
   display: block;
   margin-top: 8px;
-  color: #94a3b8;
+  color: #6b7280;
 }
 </style>

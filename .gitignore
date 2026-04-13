@@ -59,7 +59,7 @@ backend/prisma/*.db-*
 
 # Local storage and uploads
 data/
-storage/
+# storage/
 uploads/
 
 # Temporary files

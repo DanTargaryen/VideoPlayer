@@ -2,44 +2,157 @@
   <section class="page" v-loading="loading">
     <div class="top-layout" v-if="video">
       <div class="main-column">
-        <div class="player">
-          <video v-if="video?.playUrl" class="video" controls :src="video.playUrl"></video>
-          <span v-else>视频播放器占位</span>
+        <h1 class="video-title">{{ video.title }}</h1>
+
+        <div class="player-section">
+          <div class="player-wrapper">
+            <video
+              v-if="video?.playUrl"
+              ref="videoRef"
+              class="video"
+              controls
+              :src="video.playUrl"
+              @timeupdate="onTimeUpdate"
+              @loadedmetadata="onLoadedMetadata"
+              @play="onVideoPlay"
+              @pause="onVideoPause"
+            ></video>
+            <span v-else>视频播放器占位</span>
+            <DanmakuOverlay
+            v-if="video?.playUrl"
+            :danmakus="danmakus"
+            :current-time-ms="currentVideoTimeMs"
+            :duration-ms="videoDurationMs"
+            :visible="danmakuVisible"
+            :paused="videoPaused"
+            :liked-ids="likedDanmakuIds"
+            @report="openReportDialog"
+            @like="toggleDanmakuLike"
+          />
+          </div>
+
+          <div class="danmaku-bar" v-if="video?.playUrl">
+            <el-switch v-model="danmakuVisible" active-text="弹幕" inactive-text="关" size="small" />
+            <el-input
+              v-model="danmakuForm.content"
+              placeholder="输入弹幕内容"
+              @keyup.enter="submitDanmaku"
+              style="flex: 1"
+            />
+            <span class="time-badge">{{ formatMs(currentVideoTimeMs) }}</span>
+            <el-button type="primary" size="small" @click="submitDanmaku">发送</el-button>
+          </div>
         </div>
 
-        <div class="meta">
-          <div class="title-row">
-            <div>
-              <h1>{{ video.title }}</h1>
-              <p>{{ video.description }}</p>
-            </div>
+        <div class="action-bar">
+          <div class="action-left">
+            <button class="action-icon-btn" :class="{ active: video.isLiked }" @click="toggleLikeAction">
+              <svg class="action-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M7 22V11L10.5 3.5C10.78 2.87 11.41 2.5 12.1 2.5C13.1 2.5 13.85 3.42 13.65 4.4L12.8 9H20c1.1 0 2 0.9 2 2v1c0 .15-.02.3-.05.44l-2.19 8C19.5 21.35 18.68 22 17.73 22H7ZM7 13v8M3 22h2V11H3v11Z" fill="currentColor"/>
+              </svg>
+              <span>{{ video.likeCount }}</span>
+            </button>
+            <button class="action-icon-btn" :class="{ active: video.isFavorited }" @click="toggleFavoriteAction">
+              <el-icon :size="26"><StarFilled /></el-icon>
+              <span>{{ video.favoriteCount }}</span>
+            </button>
+            <button class="action-icon-btn" @click="scrollToComments">
+              <el-icon :size="26"><ChatDotRound /></el-icon>
+              <span>{{ video.commentCount }}</span>
+            </button>
             <el-button
               v-if="canFollow"
               :type="video.isFollowingCreator ? 'default' : 'primary'"
+              size="small"
               @click="toggleFollow"
             >
-              {{ video.isFollowingCreator ? '取消关注' : '关注用户' }}
+              {{ video.isFollowingCreator ? '取消关注' : '关注' }}
             </el-button>
           </div>
-
-          <div class="action-row">
-            <el-button :type="video.isLiked ? 'primary' : 'default'" @click="toggleLikeAction">
-              {{ video.isLiked ? '取消点赞' : '点赞' }} {{ video.likeCount }}
-            </el-button>
-            <el-button :type="video.isFavorited ? 'warning' : 'default'" @click="toggleFavoriteAction">
-              {{ video.isFavorited ? '取消收藏' : '收藏' }} {{ video.favoriteCount }}
-            </el-button>
-          </div>
-
-          <div class="chips">
-            <RouterLink :to="`/users/${video.creator.id}`" class="chip-link">作者 {{ video.creator.nickname }}</RouterLink>
-            <span>粉丝 {{ video.creator.followerCount }}</span>
-            <span>评论 {{ video.commentCount }}</span>
-          </div>
+          <button class="report-btn" @click="openVideoReportDialog">
+            <el-icon :size="18"><Warning /></el-icon>
+            举报视频
+          </button>
         </div>
+
+        <section class="comments" v-if="video">
+          <div class="comments-head">
+            <h2>评论</h2>
+            <el-button type="primary" plain @click="loadComments">刷新评论</el-button>
+          </div>
+
+          <el-input
+            v-model="commentForm"
+            type="textarea"
+            :rows="3"
+            placeholder="输入评论内容"
+          />
+          <div class="comment-actions">
+            <el-button type="primary" @click="submitRootComment">发表评论</el-button>
+          </div>
+
+          <div class="comment-list">
+            <article v-for="item in comments" :key="item.id" class="comment-card">
+              <CommentThread
+                :comment="item"
+                :root-id="item.id"
+                :active-reply-id="replyTargetId"
+                :reply-form-value="replyForm"
+                @update:reply-form-value="replyForm = $event"
+                @toggle-reply="toggleReplyBox"
+                @submit-reply="handleSubmitReply"
+                @report="reportComment"
+              />
+            </article>
+          </div>
+        </section>
       </div>
 
       <aside class="side-column">
+        <RouterLink :to="`/users/${video.creator.id}`" class="creator-card">
+          <div class="creator-avatar">
+            <img v-if="video.creator.avatarUrl" :src="video.creator.avatarUrl" :alt="video.creator.nickname" class="creator-avatar-img" />
+            <span v-else>{{ video.creator.nickname.charAt(0) }}</span>
+          </div>
+          <div class="creator-info">
+            <strong class="creator-name">{{ video.creator.nickname }}</strong>
+            <span class="creator-fans">粉丝 {{ video.creator.followerCount }}</span>
+          </div>
+          <el-icon :size="16" color="#9ca3af"><ArrowRight /></el-icon>
+        </RouterLink>
+
+        <div class="video-desc-card">
+          <p class="video-desc-text">{{ video.description || '暂无简介' }}</p>
+        </div>
+
+        <div class="danmaku-panel">
+          <button class="danmaku-panel-toggle" @click="danmakuListExpanded = !danmakuListExpanded">
+            <span>弹幕列表</span>
+            <span class="danmaku-count">{{ danmakus.length }}</span>
+            <el-icon :size="14" class="toggle-arrow" :class="{ expanded: danmakuListExpanded }"><ArrowRight /></el-icon>
+          </button>
+          <div class="danmaku-panel-body" v-if="danmakuListExpanded">
+            <div class="danmaku-scroll">
+              <div v-for="item in danmakus" :key="item.id" class="danmaku-row" @click="onDanmakuRowClick(item)">
+                <span class="danmaku-time">{{ formatMs(item.timeOffsetMs) }}</span>
+                <span class="danmaku-user" :style="{ color: item.color || '#6b7280' }">{{ item.user.nickname }}</span>
+                <span class="danmaku-text">{{ item.content }}</span>
+                <span class="danmaku-row-actions">
+                  <button class="danmaku-action-btn" :class="{ liked: likedDanmakuIds.has(item.id) }" @click.stop="toggleDanmakuLike(item)">
+                    <svg class="danmaku-action-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M7 22V11L10.5 3.5C10.78 2.87 11.41 2.5 12.1 2.5C13.1 2.5 13.85 3.42 13.65 4.4L12.8 9H20c1.1 0 2 0.9 2 2v1c0 .15-.02.3-.05.44l-2.19 8C19.5 21.35 18.68 22 17.73 22H7ZM7 13v8M3 22h2V11H3v11Z" fill="currentColor"/>
+                    </svg>
+                  </button>
+                  <button class="danmaku-action-btn report" @click.stop="openReportDialog(item)">
+                    <el-icon :size="12"><Warning /></el-icon>
+                  </button>
+                </span>
+              </div>
+              <el-empty v-if="danmakus.length === 0" description="暂无弹幕" :image-size="60" />
+            </div>
+          </div>
+        </div>
+
         <div class="recommend-panel">
           <div class="panel-head">
             <h2>相关推荐</h2>
@@ -60,80 +173,51 @@
       </aside>
     </div>
 
-    <section class="danmaku-panel" v-if="video">
-      <div class="comments-head">
-        <h2>视频弹幕</h2>
-        <el-button type="primary" plain @click="loadDanmakus">刷新弹幕</el-button>
+    <el-dialog v-model="reportDialogVisible" title="举报弹幕" width="440px" :close-on-click-modal="false">
+      <div class="report-dialog-body" v-if="reportTarget">
+        <p class="report-preview">
+          <strong :style="{ color: reportTarget.color || '#fff' }">{{ reportTarget.user.nickname }}</strong
+          >：{{ reportTarget.content }}
+        </p>
+        <p class="report-time">弹幕时间点：{{ formatMs(reportTarget.timeOffsetMs) }}</p>
+        <el-input
+          v-model="reportReason"
+          type="textarea"
+          :rows="3"
+          placeholder="请输入举报原因（2-255字）"
+          maxlength="255"
+          show-word-limit
+        />
       </div>
+      <template #footer>
+        <el-button @click="reportDialogVisible = false">取消</el-button>
+        <el-button type="danger" :disabled="!reportReason.trim() || reportReason.trim().length < 2" @click="submitReport">
+          提交举报
+        </el-button>
+      </template>
+    </el-dialog>
 
-      <div class="danmaku-form">
-        <el-input v-model="danmakuForm.content" placeholder="输入弹幕内容" />
-        <el-input-number v-model="danmakuForm.timeOffsetMs" :min="0" :step="1000" />
-        <el-button type="primary" @click="submitDanmaku">发送弹幕</el-button>
+    <el-dialog v-model="videoReportDialogVisible" title="举报视频" width="440px" :close-on-click-modal="false">
+      <div class="report-dialog-body">
+        <p class="report-preview">
+          <strong>{{ video?.title }}</strong>
+        </p>
+        <el-input
+          v-model="videoReportReason"
+          type="textarea"
+          :rows="3"
+          placeholder="请输入举报原因（2-255字）"
+          maxlength="255"
+          show-word-limit
+        />
       </div>
-
-      <div class="danmaku-list">
-        <article v-for="item in danmakus" :key="item.id" class="reply-card">
-          <strong>{{ item.user.nickname }}</strong>
-          <p>{{ item.content }}</p>
-          <div class="comment-meta">
-            <span>时间点 {{ item.timeOffsetMs }} ms</span>
-            <button class="link-btn danger" @click="reportDanmaku(item.id)">举报</button>
-          </div>
-        </article>
-      </div>
-    </section>
-
-    <section class="comments" v-if="video">
-      <div class="comments-head">
-        <h2>评论区</h2>
-        <el-button type="primary" plain @click="loadComments">刷新评论</el-button>
-      </div>
-
-      <el-input
-        v-model="commentForm"
-        type="textarea"
-        :rows="3"
-        placeholder="输入评论内容"
-      />
-      <div class="comment-actions">
-        <el-button type="primary" @click="submitRootComment">发表评论</el-button>
-      </div>
-
-      <div class="comment-list">
-        <article v-for="item in comments" :key="item.id" class="comment-card">
-          <div class="comment-main">
-            <strong>{{ item.user.nickname }}</strong>
-            <p>{{ item.content }}</p>
-            <div class="comment-meta">
-              <span>{{ formatTime(item.createdAt) }}</span>
-              <button class="link-btn" @click="toggleReplyBox(item.id)">回复</button>
-              <button class="link-btn danger" @click="reportComment(item.id)">举报</button>
-            </div>
-          </div>
-
-          <div v-if="replyTargetId === item.id" class="reply-box">
-            <el-input
-              v-model="replyForm"
-              type="textarea"
-              :rows="2"
-              placeholder="输入回复内容"
-            />
-            <div class="comment-actions">
-              <el-button type="primary" size="small" @click="submitReply(item.id, item.id)">发送回复</el-button>
-            </div>
-          </div>
-
-          <div v-if="item.replies.length > 0" class="reply-list">
-            <article v-for="reply in item.replies" :key="reply.id" class="reply-card">
-              <strong>{{ reply.user.nickname }}</strong>
-              <p>{{ reply.content }}</p>
-              <span class="comment-meta">{{ formatTime(reply.createdAt) }}</span>
-            </article>
-          </div>
-        </article>
-      </div>
-    </section>
+      <template #footer>
+        <el-button @click="videoReportDialogVisible = false">取消</el-button>
+        <el-button type="danger" :disabled="!videoReportReason.trim() || videoReportReason.trim().length < 2" @click="submitVideoReport">
+          提交举报
+        </el-button>
+      </template>
+    </el-dialog>
   </section>
 </template>
 
@@ -141,6 +225,7 @@
 import { computed, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
+import { StarFilled, ChatDotRound, Warning, ArrowRight } from '@element-plus/icons-vue';
 
 import {
   createComment,
@@ -157,6 +242,8 @@ import {
   unfollowUser,
   unlikeVideo,
 } from '@/api/platform';
+import CommentThread from '@/components/CommentThread.vue';
+import DanmakuOverlay from '@/components/DanmakuOverlay.vue';
 import { useAppStore } from '@/stores/app';
 import type { CommentItem, DanmakuItem, VideoCard, VideoDetail } from '@/types/api';
 
@@ -170,17 +257,59 @@ const danmakus = ref<DanmakuItem[]>([]);
 const commentForm = ref('');
 const replyForm = ref('');
 const replyTargetId = ref<number | null>(null);
+
+const videoRef = ref<HTMLVideoElement | null>(null);
+const currentVideoTimeMs = ref(0);
+const videoDurationMs = ref(0);
+const danmakuVisible = ref(true);
+const danmakuListExpanded = ref(false);
+const videoPaused = ref(true);
+const likedDanmakuIds = ref<Set<number>>(new Set());
+
 const danmakuForm = reactive({
   content: '',
-  timeOffsetMs: 1000,
+  timeOffsetMs: 0,
+  color: '#FFFFFF',
 });
+
+const reportDialogVisible = ref(false);
+const reportTarget = ref<DanmakuItem | null>(null);
+const reportReason = ref('');
+
+const videoReportDialogVisible = ref(false);
+const videoReportReason = ref('');
 
 const canFollow = computed(
   () => appStore.isLoggedIn && video.value && video.value.creator.id !== appStore.userId,
 );
 
-function formatTime(value: string) {
-  return new Date(value).toLocaleString('zh-CN');
+function formatMs(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function onTimeUpdate() {
+  if (videoRef.value) {
+    currentVideoTimeMs.value = Math.floor(videoRef.value.currentTime * 1000);
+    videoPaused.value = videoRef.value.paused;
+  }
+}
+
+function onLoadedMetadata() {
+  if (videoRef.value) {
+    videoDurationMs.value = Math.floor(videoRef.value.duration * 1000);
+    videoPaused.value = videoRef.value.paused;
+  }
+}
+
+function onVideoPlay() {
+  videoPaused.value = false;
+}
+
+function onVideoPause() {
+  videoPaused.value = true;
 }
 
 async function loadDetail() {
@@ -213,7 +342,7 @@ async function loadComments() {
 
 async function loadDanmakus() {
   try {
-    danmakus.value = await fetchDanmakus(Number(route.params.id));
+    danmakus.value = await fetchDanmakus(Number(route.params.id), 0, videoDurationMs.value || 600000);
   } catch {
     ElMessage.error('加载弹幕失败');
   }
@@ -238,6 +367,10 @@ async function submitRootComment() {
 function toggleReplyBox(commentId: number) {
   replyTargetId.value = replyTargetId.value === commentId ? null : commentId;
   replyForm.value = '';
+}
+
+function handleSubmitReply(payload: { parentId: number; rootId: number }) {
+  submitReply(payload.parentId, payload.rootId);
 }
 
 async function submitReply(parentId: number, rootId: number) {
@@ -325,14 +458,74 @@ async function reportComment(commentId: number) {
   }
 }
 
-async function reportDanmaku(danmakuId: number) {
+function openReportDialog(danmaku: DanmakuItem) {
+  reportTarget.value = danmaku;
+  reportReason.value = '';
+  reportDialogVisible.value = true;
+}
+
+function openVideoReportDialog() {
+  videoReportReason.value = '';
+  videoReportDialogVisible.value = true;
+}
+
+async function submitVideoReport() {
+  if (!videoReportReason.value.trim() || videoReportReason.value.trim().length < 2) {
+    ElMessage.warning('请输入至少2个字的举报原因');
+    return;
+  }
+
+  try {
+    await reportContent({
+      targetType: 'VIDEO',
+      targetId: Number(route.params.id),
+      reason: videoReportReason.value.trim(),
+    });
+    ElMessage.success('视频举报已提交，管理员将会审核');
+    videoReportDialogVisible.value = false;
+    videoReportReason.value = '';
+  } catch {
+    ElMessage.error('视频举报失败，请确认已登录');
+  }
+}
+
+function scrollToComments() {
+  const el = document.querySelector('.comments');
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function toggleDanmakuLike(danmaku: DanmakuItem) {
+  if (likedDanmakuIds.value.has(danmaku.id)) {
+    likedDanmakuIds.value.delete(danmaku.id);
+  } else {
+    likedDanmakuIds.value.add(danmaku.id);
+  }
+}
+
+function onDanmakuRowClick(danmaku: DanmakuItem) {
+  if (videoRef.value) {
+    videoRef.value.currentTime = danmaku.timeOffsetMs / 1000;
+  }
+}
+
+async function submitReport() {
+  if (!reportTarget.value || !reportReason.value.trim() || reportReason.value.trim().length < 2) {
+    ElMessage.warning('请输入至少2个字的举报原因');
+    return;
+  }
+
   try {
     await reportContent({
       targetType: 'VIDEO_DANMAKU',
-      targetId: danmakuId,
-      reason: '弹幕内容存在风险或不当信息',
+      targetId: reportTarget.value.id,
+      reason: reportReason.value.trim(),
     });
-    ElMessage.success('弹幕举报已提交');
+    ElMessage.success('弹幕举报已提交，管理员将会审核');
+    reportDialogVisible.value = false;
+    reportTarget.value = null;
+    reportReason.value = '';
   } catch {
     ElMessage.error('弹幕举报失败，请确认已登录');
   }
@@ -344,10 +537,15 @@ async function submitDanmaku() {
     return;
   }
 
+  if (videoRef.value) {
+    danmakuForm.timeOffsetMs = Math.floor(videoRef.value.currentTime * 1000);
+  }
+
   try {
     await createDanmaku(Number(route.params.id), {
       content: danmakuForm.content.trim(),
       timeOffsetMs: danmakuForm.timeOffsetMs,
+      color: danmakuForm.color,
     });
     danmakuForm.content = '';
     ElMessage.success('弹幕发送成功');
@@ -384,46 +582,341 @@ watch(
   gap: 20px;
 }
 
-.player {
-  min-height: 420px;
+.side-column {
+  align-self: start;
+}
+
+.creator-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
   border-radius: 16px;
-  display: grid;
-  place-items: center;
-  background: rgba(15, 23, 42, 0.65);
-  border: 1px dashed rgba(148, 163, 184, 0.35);
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+  text-decoration: none;
+  transition: box-shadow 0.15s ease;
+}
+
+.creator-card:hover {
+  box-shadow: 0 6px 28px rgba(15, 23, 42, 0.1);
+}
+
+.creator-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.creator-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.creator-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.creator-name {
+  display: block;
+  color: #111827;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.creator-fans {
+  display: block;
+  margin-top: 2px;
+  color: #9ca3af;
+  font-size: 13px;
+}
+
+.danmaku-panel {
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+}
+
+.danmaku-panel-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  background: transparent;
+  color: #111827;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.danmaku-panel-toggle:hover {
+  background: rgba(15, 23, 42, 0.03);
+}
+
+.danmaku-count {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.toggle-arrow {
+  margin-left: auto;
+  transition: transform 0.2s ease;
+}
+
+.toggle-arrow.expanded {
+  transform: rotate(90deg);
+}
+
+.danmaku-panel-body {
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.danmaku-scroll {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.danmaku-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.danmaku-row:hover {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.danmaku-row:hover .danmaku-row-actions {
+  opacity: 1;
+}
+
+.danmaku-time {
+  flex-shrink: 0;
+  color: #9ca3af;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.danmaku-user {
+  flex-shrink: 0;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.danmaku-text {
+  flex: 1;
+  min-width: 0;
+  color: #374151;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.danmaku-row-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  flex-shrink: 0;
+}
+
+.danmaku-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.danmaku-action-btn:hover {
+  background: rgba(15, 23, 42, 0.06);
+  color: #6b7280;
+}
+
+.danmaku-action-btn.liked {
+  color: #2563eb;
+}
+
+.danmaku-action-btn.report:hover {
+  color: #dc2626;
+}
+
+.danmaku-action-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.video-desc-card {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+}
+
+.video-desc-text {
+  margin: 0;
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.video-title {
+  margin: 0;
+  color: #111827;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.player-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.player-wrapper {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: 16px 16px 0 0;
+  background: #111827;
+  border: 1px solid rgba(15, 23, 42, 0.12);
   overflow: hidden;
 }
 
 .video {
+  position: absolute;
+  inset: 0;
   width: 100%;
-  min-height: 420px;
+  height: 100%;
+  object-fit: contain;
 }
 
-.meta,
+.danmaku-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  margin-top: -1px;
+  border-radius: 0 0 16px 16px;
+  background: #1e293b;
+}
+
+.action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+}
+
+.action-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.action-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #6b7280;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.action-icon-btn:hover {
+  background: rgba(15, 23, 42, 0.05);
+  color: #374151;
+}
+
+.action-icon-btn.active {
+  color: #2563eb;
+}
+
+.action-icon {
+  width: 26px;
+  height: 26px;
+}
+
+.report-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #9ca3af;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.report-btn:hover {
+  background: rgba(220, 38, 38, 0.06);
+  color: #dc2626;
+}
+
 .comments,
 .comment-card,
 .reply-card,
-.danmaku-panel,
 .recommend-panel {
   display: grid;
   gap: 16px;
 }
 
-.meta,
 .comments,
 .comment-card,
-.danmaku-panel,
 .recommend-panel {
   padding: 20px;
   border-radius: 16px;
-  background: rgba(30, 41, 59, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
 }
 
-.title-row,
 .comments-head,
-.action-row,
-.danmaku-form,
 .panel-head {
   display: flex;
   justify-content: space-between;
@@ -432,17 +925,28 @@ watch(
   flex-wrap: wrap;
 }
 
-.chips,
+.time-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 8px;
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .comment-meta {
   display: flex;
   gap: 16px;
   flex-wrap: wrap;
-  color: #94a3b8;
+  color: #6b7280;
 }
 
 .comment-list,
 .reply-list,
-.danmaku-list,
 .recommend-list {
   display: grid;
   gap: 12px;
@@ -452,7 +956,8 @@ watch(
 .recommend-card {
   padding: 12px 16px;
   border-radius: 12px;
-  background: rgba(15, 23, 42, 0.55);
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.06);
 }
 
 .comment-actions {
@@ -461,16 +966,15 @@ watch(
 }
 
 .link-btn,
-.chip-link,
 .secondary-link {
-  color: #60a5fa;
+  color: #2563eb;
   background: transparent;
   border: 0;
   cursor: pointer;
 }
 
 .link-btn.danger {
-  color: #fca5a5;
+  color: #dc2626;
 }
 
 .recommend-card {
@@ -491,7 +995,27 @@ watch(
   gap: 6px;
 }
 
+.recommend-meta strong {
+  color: #111827;
+}
+
 .recommend-meta span {
-  color: #cbd5e1;
+  color: #6b7280;
+}
+
+.report-dialog-body {
+  display: grid;
+  gap: 12px;
+}
+
+.report-preview {
+  padding: 12px;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.report-time {
+  color: #6b7280;
+  font-size: 13px;
 }
 </style>

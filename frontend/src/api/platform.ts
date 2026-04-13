@@ -1,4 +1,4 @@
-﻿import http from './http';
+import http from './http';
 import type {
   ApiResponse,
   CommentListResponse,
@@ -27,6 +27,8 @@ import type {
   UserHomepage,
   VideoCard,
   VideoDetail,
+  FollowUserItem,
+  MyVideoItem,
 } from '@/types/api';
 
 export async function login(payload: { account: string; password: string; adminSecret?: string }) {
@@ -43,7 +45,7 @@ export async function fetchRecommendFeed(params?: { categoryCode?: string; page?
 
 export async function createLiveRoom(payload: {
   title: string;
-  categoryId?: number;
+  category?: string;
   coverUrl?: string;
   sourceMode?: 'camera' | 'screen';
 }) {
@@ -54,7 +56,7 @@ export async function createLiveRoom(payload: {
 export async function fetchLiveRooms(params?: {
   keyword?: string;
   status?: 'IDLE' | 'LIVING' | 'ENDED';
-  categoryId?: number;
+  category?: string;
   broadcasterId?: number;
   limit?: number;
 }) {
@@ -210,7 +212,7 @@ export async function saveLiveReplay(
     uploadToken?: string;
     title?: string;
     description?: string;
-    categoryId?: number;
+    category?: string;
     coverUrl?: string;
     coverAssetId?: number;
     coverUploadToken?: string;
@@ -225,7 +227,7 @@ export async function createVideo(payload: {
   uploadToken?: string;
   title: string;
   description: string;
-  categoryId: number;
+  category: string;
   coverUrl?: string;
   coverAssetId?: number;
   coverUploadToken?: string;
@@ -236,7 +238,7 @@ export async function createVideo(payload: {
 
 export async function updateVideoDraft(
   videoId: number,
-  payload: { title?: string; description?: string; categoryId?: number; coverUrl?: string },
+  payload: { title?: string; description?: string; category?: string; coverUrl?: string },
 ) {
   const { data } = await http.put<ApiResponse<CreatorVideo>>(`/videos/${videoId}`, payload);
   return data.data;
@@ -392,6 +394,40 @@ export async function createDanmaku(
   payload: { content: string; timeOffsetMs: number; color?: string },
 ) {
   const { data } = await http.post<ApiResponse<DanmakuItem>>(`/videos/${videoId}/danmaku`, payload);
+  return data.data;
+}
+
+export async function fetchFollowers(userId: number) {
+  const { data } = await http.get<ApiResponse<FollowUserItem[]>>(`/users/${userId}/followers`);
+  return data.data;
+}
+
+export async function fetchFollowing(userId: number) {
+  const { data } = await http.get<ApiResponse<FollowUserItem[]>>(`/users/${userId}/following`);
+  return data.data;
+}
+
+export async function fetchMyFavorites() {
+  const { data } = await http.get<ApiResponse<MyVideoItem[]>>('/videos/my/favorites');
+  return data.data;
+}
+
+export async function fetchMyLikes() {
+  const { data } = await http.get<ApiResponse<MyVideoItem[]>>('/videos/my/likes');
+  return data.data;
+}
+
+export async function updateProfile(payload: { nickname?: string; avatarUrl?: string; bio?: string }) {
+  const { data } = await http.put<ApiResponse<{ id: number; nickname: string; avatarUrl?: string; bio?: string }>>('/users/profile', payload);
+  return data.data;
+}
+
+export async function uploadAvatar(file: File) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const { data } = await http.post<ApiResponse<{ avatarUrl: string }>>('/users/avatar', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
   return data.data;
 }
 

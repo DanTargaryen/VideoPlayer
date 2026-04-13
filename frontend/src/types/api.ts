@@ -26,11 +26,13 @@ export interface VideoCard {
     id: number;
     nickname: string;
   };
+  publishedAt?: string;
+  createdAt?: string;
 }
 
 export interface CreatorVideo extends VideoCard {
   creatorId: number;
-  categoryId: number;
+  category: string;
   uploadToken: string;
   rejectReason?: string | null;
   submittedAt?: string | null;
@@ -87,11 +89,10 @@ export interface CommentReply {
     id: number;
     nickname: string;
   };
-}
-
-export interface CommentItem extends CommentReply {
   replies: CommentReply[];
 }
+
+export interface CommentItem extends CommentReply {}
 
 export interface CommentListResponse {
   videoId: number;
@@ -190,12 +191,14 @@ export interface LiveMessage {
 
 export interface CreatorDashboardData {
   nickname: string;
+  avatarUrl?: string | null;
   role: 'USER' | 'ADMIN';
   totalVideos: number;
   pendingReviews: number;
   publishedVideos: number;
   rejectedVideos: number;
   followerCount: number;
+  followingCount: number;
   totalLikes: number;
   totalFavorites: number;
   totalComments: number;
@@ -211,7 +214,7 @@ export interface LiveRoomInfo {
   id: number;
   sessionId?: number;
   title: string;
-  categoryId: number;
+  category: string;
   coverUrl?: string;
   sourceMode?: 'camera' | 'screen' | string;
   streamKey: string;
@@ -295,4 +298,25 @@ export interface LiveViewerAnswerResponse {
   ready: boolean;
   answer: SessionDescriptionPayload | null;
   updatedAt: string;
+}
+
+export interface FollowUserItem {
+  id: number;
+  nickname: string;
+  avatarUrl?: string | null;
+  followedAt: string;
+}
+
+export interface MyVideoItem {
+  id: number;
+  title: string;
+  description: string;
+  coverUrl: string;
+  category: string;
+  likeCount: number;
+  favoriteCount: number;
+  commentCount: number;
+  creator: { id: number; nickname: string };
+  favoritedAt?: string;
+  likedAt?: string;
 }
