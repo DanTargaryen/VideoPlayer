@@ -5,7 +5,7 @@
         <span class="hero-badge">综合视频社区</span>
         <h1>首页推荐</h1>
         <p>
-          这里展示规则推荐流、近期热门内容和创作入口提示。管理员审核通过的新投稿会优先进入推荐队列。
+          这里展示基于互动热度、发布时间和基础多样性重排的规则推荐流，帮助新内容和优质内容都获得展示机会。
         </p>
         <div class="hero-actions">
           <RouterLink to="/user/dashboard" class="hero-link primary">去投稿</RouterLink>
@@ -25,7 +25,7 @@
     <div class="section-head">
       <div>
         <h2>推荐视频</h2>
-        <p>基于已发布内容、互动量和发布时间排序。</p>
+        <p>综合点赞、收藏、评论和发布时间计算分数，并尽量避免作者与分区过度集中。</p>
       </div>
       <el-button type="primary" @click="loadFeed">刷新推荐</el-button>
     </div>

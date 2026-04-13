@@ -5,15 +5,7 @@
       <span class="subtitle">在线视频与直播社区</span>
     </div>
 
-    <div class="search-box">
-      <el-input
-        v-model="searchKeyword"
-        placeholder="搜索视频或用户"
-        clearable
-        @keyup.enter="submitSearch"
-      />
-      <el-button type="primary" @click="submitSearch">搜索</el-button>
-    </div>
+    <SearchSuggestBox v-model="searchKeyword" class="search-box" @search="submitSearch" />
 
     <nav class="nav">
       <RouterLink v-for="item in navItems" :key="item.path" :to="item.path" class="nav-link">
@@ -41,6 +33,7 @@ import { onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useRoute, useRouter } from 'vue-router';
 
+import SearchSuggestBox from '@/components/SearchSuggestBox.vue';
 import { fetchUnreadNotificationCount } from '@/api/platform';
 import { useAppStore } from '@/stores/app';
 import { primaryNavItems as navItems } from '@/utils/navigation';
@@ -66,11 +59,12 @@ async function syncUnreadCount() {
   }
 }
 
-function submitSearch() {
+function submitSearch(keyword?: string) {
+  const normalizedKeyword = (keyword ?? searchKeyword.value).trim();
   router.push({
     path: '/search',
     query: {
-      keyword: searchKeyword.value,
+      keyword: normalizedKeyword,
       tab: 'video',
     },
   });
