@@ -1,7 +1,12 @@
-import { BadRequestException, Body, Controller, Get, Headers, Param, ParseIntPipe, Post, Put, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Headers, Param, ParseIntPipe, Post, Put, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Express } from 'express';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
+
+class DeleteAccountDto {
+  @IsString()
+  password!: string;
+}
 
 import { ok } from '../../common/dto/api-response.dto';
 import { AuthService } from '../auth/auth.service';
@@ -82,6 +87,16 @@ export class UserController {
   async rebuildRecommendationProfile(@Headers('authorization') authorization: string | undefined) {
     const user = await this.authService.requireUser(authorization);
     return ok(await this.userProfileService.buildAndSaveProfile(user.id));
+  }
+
+  @Delete('me')
+  async deleteAccount(
+    @Headers('authorization') authorization: string | undefined,
+    @Body() dto: DeleteAccountDto,
+  ) {
+    const user = await this.authService.requireUser(authorization);
+    await this.userService.deleteAccount(user.id, dto.password);
+    return ok({ deleted: true });
   }
 
   @Get(':id/homepage')

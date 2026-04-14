@@ -11,6 +11,14 @@ export interface LoginResponse {
   nickname: string;
 }
 
+export interface RegisterResponse {
+  id: number;
+  username: string;
+  email: string;
+  role: 'USER' | 'ADMIN';
+  nickname: string;
+}
+
 export interface VideoCard {
   id: number;
   title: string;
@@ -47,6 +55,12 @@ export interface ReviewQueueItem {
   videoId: number;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   reason?: string | null;
+  createdAt: string;
+  reviewedAt?: string | null;
+  reviewer?: {
+    id: number;
+    nickname: string;
+  } | null;
   video: CreatorVideo | null;
 }
 
@@ -203,6 +217,8 @@ export interface SearchSuggestResponse {
 }
 
 export interface CreatorDashboardData {
+  id: number;
+  username: string;
   nickname: string;
   avatarUrl?: string | null;
   role: 'USER' | 'ADMIN';

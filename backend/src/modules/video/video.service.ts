@@ -166,8 +166,33 @@ export class VideoService {
       throw new ForbiddenException('Cannot update others videos');
     }
 
-    if (!['DRAFT', 'REJECTED'].includes(video.status)) {
-      throw new ForbiddenException('Only draft or rejected videos can be edited');
+    if (!['DRAFT', 'REJECTED', 'PENDING_REVIEW', 'PUBLISHED'].includes(video.status)) {
+      throw new ForbiddenException('Only draft, rejected, pending review, or published videos can be edited');
+    }
+
+    if (video.status === 'PENDING_REVIEW' || video.status === 'PUBLISHED') {
+      await this.prisma.$transaction([
+        this.prisma.video.update({
+          where: { id: videoId },
+          data: {
+            ...(payload.title !== undefined ? { title: payload.title } : {}),
+            ...(payload.description !== undefined ? { description: payload.description } : {}),
+            ...(payload.category !== undefined ? { category: payload.category } : {}),
+            ...(payload.coverUrl !== undefined ? { coverUrl: payload.coverUrl } : {}),
+            status: 'DRAFT',
+            submittedAt: null,
+            publishedAt: null,
+          },
+        }),
+        this.prisma.videoReview.deleteMany({
+          where: {
+            videoId,
+            status: 'PENDING',
+          },
+        }),
+      ]);
+
+      return this.prisma.video.findUnique({ where: { id: videoId } });
     }
 
     return this.prisma.video.update({
@@ -180,6 +205,40 @@ export class VideoService {
         submittedAt: null,
       },
     });
+  }
+
+  async withdrawReview(videoId: number, user: { id: number; role: 'USER' | 'ADMIN' }) {
+    const video = await this.prisma.video.findUnique({ where: { id: videoId } });
+
+    if (!video) {
+      throw new NotFoundException('Video not found');
+    }
+
+    if (video.creatorId !== user.id && user.role !== 'ADMIN') {
+      throw new ForbiddenException('Cannot withdraw others videos');
+    }
+
+    if (video.status !== 'PENDING_REVIEW') {
+      throw new ForbiddenException('Only pending review videos can be withdrawn');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.video.update({
+        where: { id: videoId },
+        data: {
+          status: 'DRAFT',
+          submittedAt: null,
+        },
+      }),
+      this.prisma.videoReview.deleteMany({
+        where: {
+          videoId,
+          status: 'PENDING',
+        },
+      }),
+    ]);
+
+    return this.prisma.video.findUnique({ where: { id: videoId } });
   }
 
   async getReviewHistory(videoId: number, user: { id: number; role: 'USER' | 'ADMIN' }) {
@@ -321,6 +380,10 @@ export class VideoService {
 
     if (video.creatorId !== user.id && user.role !== 'ADMIN') {
       throw new ForbiddenException('Cannot submit others videos');
+    }
+
+    if (!['DRAFT', 'REJECTED'].includes(video.status)) {
+      throw new ForbiddenException('Only draft or rejected videos can be submitted for review');
     }
 
     await this.prisma.video.update({
@@ -772,7 +835,12 @@ export class VideoService {
 
   async getUserFavorites(userId: number) {
     const favorites = await this.prisma.favorite.findMany({
-      where: { userId },
+      where: {
+        userId,
+        video: {
+          status: 'PUBLISHED',
+        },
+      },
       include: {
         video: {
           include: {
@@ -799,7 +867,12 @@ export class VideoService {
 
   async getUserLikes(userId: number) {
     const likes = await this.prisma.videoLike.findMany({
-      where: { userId },
+      where: {
+        userId,
+        video: {
+          status: 'PUBLISHED',
+        },
+      },
       include: {
         video: {
           include: {

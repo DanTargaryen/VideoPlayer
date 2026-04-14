@@ -36,7 +36,7 @@
         <RouterLink to="/following" class="action-link">关注流</RouterLink>
         <RouterLink to="/notifications" class="action-link">
           通知
-          <span v-if="unreadCount > 0" class="badge">{{ unreadCount }}</span>
+          <span v-if="unreadNotificationCount > 0" class="badge">{{ unreadNotificationCount }}</span>
         </RouterLink>
         <RouterLink to="/user/dashboard" class="action-link">用户中心</RouterLink>
         <RouterLink v-if="isAdmin" to="/admin/dashboard" class="action-link">审核后台</RouterLink>
@@ -61,8 +61,7 @@ import { primaryNavItems as navItems } from '@/utils/navigation';
 const store = useAppStore();
 const router = useRouter();
 const route = useRoute();
-const { siteName, nickname, isLoggedIn, isAdmin, token } = storeToRefs(store);
-const unreadCount = ref(0);
+const { siteName, nickname, isLoggedIn, isAdmin, token, unreadNotificationCount } = storeToRefs(store);
 const searchKeyword = ref(String(route.query.keyword ?? ''));
 
 function isNavActive(item: { path: string }) {
@@ -79,15 +78,15 @@ function isNavActive(item: { path: string }) {
 
 async function syncUnreadCount() {
   if (!isLoggedIn.value) {
-    unreadCount.value = 0;
+    store.setUnreadNotificationCount(0);
     return;
   }
 
   try {
     const result = await fetchUnreadNotificationCount();
-    unreadCount.value = result.unreadCount;
+    store.setUnreadNotificationCount(result.unreadCount);
   } catch {
-    unreadCount.value = 0;
+    store.setUnreadNotificationCount(0);
   }
 }
 
@@ -104,7 +103,6 @@ function submitSearch(keyword?: string) {
 
 function logout() {
   store.logout();
-  unreadCount.value = 0;
   router.push('/');
 }
 

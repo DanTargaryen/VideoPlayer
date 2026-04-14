@@ -73,8 +73,8 @@ npm --workspace backend run db:seed
 
 默认演示账号：
 
-- 普通用户：`demo_user / user123`
-- 管理员：`demo_admin / admin123`
+- 普通用户：`demo_user / User123456!`
+- 管理员：`demo_admin / Admin123456!`
 
 主要文件：
 

@@ -92,8 +92,8 @@ npm --workspace backend run db:seed
 
 演示账号：
 
-- 用户：`demo_user / user123`
-- 管理员：`demo_admin / admin123`
+- 用户：`demo_user / User123456!`
+- 管理员：`demo_admin / Admin123456!`
 
 ## MinIO 上传说明
 
