@@ -27,8 +27,10 @@ import { onMounted, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 
 import { fetchNotifications, readAllNotifications } from '@/api/platform';
+import { useAppStore } from '@/stores/app';
 import type { NotificationItem } from '@/types/api';
 
+const store = useAppStore();
 const notifications = ref<NotificationItem[]>([]);
 
 function formatTime(value: string) {
@@ -38,6 +40,7 @@ function formatTime(value: string) {
 async function loadNotifications() {
   try {
     notifications.value = await fetchNotifications();
+    store.setUnreadNotificationCount(notifications.value.filter((item) => !item.isRead).length);
   } catch {
     ElMessage.warning('请先登录后查看通知');
   }
@@ -46,6 +49,7 @@ async function loadNotifications() {
 async function handleReadAll() {
   try {
     await readAllNotifications();
+    store.setUnreadNotificationCount(0);
     await loadNotifications();
     ElMessage.success('已全部标记为已读');
   } catch {

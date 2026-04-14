@@ -3,17 +3,23 @@
 import { PrismaService } from '../prisma/prisma.service';
 
 const ADMIN_SECRET = '123456';
+const ADMIN_USER = {
+  username: 'demo_admin',
+  email: 'admin@guanlan.dev',
+  password: 'Admin123456!',
+  nickname: '平台管理员',
+} as const;
 const BUILTIN_USERS = [
   {
     username: 'live_user_1',
     email: 'live_user_1@guanlan.dev',
-    password: 'live123456',
+    password: 'Live123456!',
     nickname: 'LiveTester1',
   },
   {
     username: 'live_user_2',
     email: 'live_user_2@guanlan.dev',
-    password: 'live123456',
+    password: 'Live123456!',
     nickname: 'LiveTester2',
   },
 ] as const;
@@ -22,10 +28,11 @@ const BUILTIN_USERS = [
 export class AuthService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async register(payload: { username: string; email: string; password: string; nickname?: string }) {
+  async register(payload: { username: string; password: string; nickname?: string }) {
+    const generatedEmail = this.buildRegistrationEmail(payload.username);
     const exists = await this.prisma.user.findFirst({
       where: {
-        OR: [{ username: payload.username }, { email: payload.email }],
+        OR: [{ username: payload.username }, { email: generatedEmail }],
       },
     });
 
@@ -36,7 +43,7 @@ export class AuthService {
     const createdUser = await this.prisma.user.create({
       data: {
         username: payload.username,
-        email: payload.email,
+        email: generatedEmail,
         password: payload.password,
         role: 'USER',
         nickname: payload.nickname || payload.username,
@@ -52,7 +59,20 @@ export class AuthService {
     };
   }
 
-  async login(account: string, password: string, adminSecret?: string) {
+  private buildRegistrationEmail(username: string) {
+    const encoded = Buffer.from(username, 'utf8').toString('hex');
+    return `user-${encoded}@local.invalid`;
+  }
+
+  async login(account?: string, password?: string, adminSecret?: string) {
+    if (adminSecret && !account && !password) {
+      return this.loginWithAdminSecret(adminSecret);
+    }
+
+    if (!account || !password) {
+      throw new UnauthorizedException('Account and password are required');
+    }
+
     const builtin = BUILTIN_USERS.find(
       (item) => (item.username === account || item.email === account) && item.password === password,
     );
@@ -80,6 +100,60 @@ export class AuthService {
     };
   }
 
+  private async loginWithAdminSecret(adminSecret: string) {
+    if (adminSecret !== ADMIN_SECRET) {
+      throw new UnauthorizedException('Admin secret is invalid');
+    }
+
+    const adminUser = await this.ensureAdminUser();
+
+    return {
+      token: `mock-token-${adminUser.id}`,
+      userId: adminUser.id,
+      role: adminUser.role,
+      nickname: adminUser.nickname,
+    };
+  }
+
+  private async ensureAdminUser() {
+    const existingDemoAdmin = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ username: ADMIN_USER.username }, { email: ADMIN_USER.email }],
+      },
+    });
+
+    if (existingDemoAdmin) {
+      if (existingDemoAdmin.role === 'ADMIN') {
+        return existingDemoAdmin;
+      }
+
+      return this.prisma.user.update({
+        where: { id: existingDemoAdmin.id },
+        data: {
+          role: 'ADMIN',
+        },
+      });
+    }
+
+    const existingAdmin = await this.prisma.user.findFirst({
+      where: { role: 'ADMIN' },
+    });
+
+    if (existingAdmin) {
+      return existingAdmin;
+    }
+
+    return this.prisma.user.create({
+      data: {
+        username: ADMIN_USER.username,
+        email: ADMIN_USER.email,
+        password: ADMIN_USER.password,
+        role: 'ADMIN',
+        nickname: ADMIN_USER.nickname,
+      },
+    });
+  }
+
   private async ensureBuiltinUser(payload: (typeof BUILTIN_USERS)[number]) {
     const existing = await this.prisma.user.findFirst({
       where: {
@@ -95,7 +169,6 @@ export class AuthService {
           email: payload.email,
           password: payload.password,
           role: 'USER',
-          nickname: payload.nickname,
         },
       });
     }

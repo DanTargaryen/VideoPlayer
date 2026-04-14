@@ -32,7 +32,7 @@ async function createUsers() {
       data: {
         username: 'demo_admin',
         email: 'admin@guanlan.dev',
-        password: 'admin123',
+        password: 'Admin123456!',
         role: UserRole.ADMIN,
         nickname: '平台管理员',
         avatarUrl: 'https://images.unsplash.com/photo-1544723795-3fb6469f5b39?auto=format&fit=crop&w=320&q=80',
@@ -43,7 +43,7 @@ async function createUsers() {
       data: {
         username: 'demo_user',
         email: 'user@guanlan.dev',
-        password: 'user123',
+        password: 'User123456!',
         role: UserRole.USER,
         nickname: '演示用户',
         avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=320&q=80',
@@ -378,8 +378,8 @@ async function main() {
     videos: videos.length,
     publishedVideos: videos.filter((item) => item.status === VideoStatus.PUBLISHED).length,
     accounts: {
-      admin: 'demo_admin / admin123',
-      user: 'demo_user / user123',
+      admin: 'demo_admin / Admin123456!',
+      user: 'demo_user / User123456!',
     },
   });
 }

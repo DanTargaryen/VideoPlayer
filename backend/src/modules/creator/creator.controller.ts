@@ -47,6 +47,8 @@ export class CreatorController {
     ]);
 
     return ok({
+      id: user.id,
+      username: user.username,
       nickname: user.nickname,
       avatarUrl: user.avatarUrl,
       role: user.role,

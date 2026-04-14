@@ -18,6 +18,7 @@ import type {
   LoginResponse,
   NotificationItem,
   PendingLiveViewer,
+  RegisterResponse,
   ReportItem,
   ReviewHistoryItem,
   SessionDescriptionPayload,
@@ -33,8 +34,24 @@ import type {
   VideoWatchProgressPayload,
 } from '@/types/api';
 
-export async function login(payload: { account: string; password: string; adminSecret?: string }) {
+export async function login(payload: { account?: string; password?: string; adminSecret?: string }) {
   const { data } = await http.post<ApiResponse<LoginResponse>>('/auth/login', payload);
+  return data.data;
+}
+
+export async function register(payload: {
+  username: string;
+  password: string;
+  nickname?: string;
+}) {
+  const { data } = await http.post<ApiResponse<RegisterResponse>>('/auth/register', payload);
+  return data.data;
+}
+
+export async function deleteAccount(payload: { password: string }) {
+  const { data } = await http.delete<ApiResponse<{ deleted: boolean }>>('/users/me', {
+    data: payload,
+  });
   return data.data;
 }
 
@@ -273,6 +290,11 @@ export async function submitReview(videoId: number) {
   return data.data;
 }
 
+export async function withdrawVideoReview(videoId: number) {
+  const { data } = await http.post<ApiResponse<CreatorVideo>>(`/videos/${videoId}/withdraw-review`);
+  return data.data;
+}
+
 export async function fetchAdminDashboard() {
   const { data } = await http.get<ApiResponse<Record<string, number | string>>>('/admin/dashboard');
   return data.data;
@@ -465,5 +487,3 @@ export async function uploadAvatar(file: File) {
   });
   return data.data;
 }
-
-

@@ -154,6 +154,15 @@ export class VideoController {
     return ok(await this.videoService.updateDraft(id, user, dto));
   }
 
+  @Post(':id/withdraw-review')
+  async withdrawReview(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.videoService.withdrawReview(id, user));
+  }
+
   @Get('my/favorites')
   async getMyFavorites(@Headers('authorization') authorization: string | undefined) {
     const user = await this.authService.requireUser(authorization);

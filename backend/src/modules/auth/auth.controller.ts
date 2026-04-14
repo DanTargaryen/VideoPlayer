@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Headers, Post } from '@nestjs/common';
-import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsOptional, IsString, MinLength } from 'class-validator';
 
 import { ok } from '../../common/dto/api-response.dto';
 import { AuthService } from './auth.service';
@@ -7,9 +7,6 @@ import { AuthService } from './auth.service';
 class RegisterDto {
   @IsString()
   username!: string;
-
-  @IsEmail()
-  email!: string;
 
   @IsString()
   @MinLength(6)
@@ -21,11 +18,13 @@ class RegisterDto {
 }
 
 class LoginDto {
+  @IsOptional()
   @IsString()
-  account!: string;
+  account?: string;
 
+  @IsOptional()
   @IsString()
-  password!: string;
+  password?: string;
 
   @IsOptional()
   @IsString()
