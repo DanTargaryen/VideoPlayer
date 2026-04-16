@@ -17,6 +17,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import type { Express } from 'express';
 import {
   IsArray,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -26,6 +27,7 @@ import {
 } from 'class-validator';
 
 import { ok } from '../../common/dto/api-response.dto';
+import { VIDEO_CATEGORY_CODES } from '../../common/constants/categories';
 import { AuthService } from '../auth/auth.service';
 import { VideoService } from './video.service';
 
@@ -49,8 +51,9 @@ class CreateVideoDto {
   @IsString()
   description?: string;
 
-  @IsInt()
-  categoryId!: number;
+  @IsString()
+  @IsIn(VIDEO_CATEGORY_CODES as unknown as string[])
+  category!: string;
 
   @IsOptional()
   @IsArray()
@@ -79,8 +82,9 @@ class UpdateVideoDto {
   description?: string;
 
   @IsOptional()
-  @IsInt()
-  categoryId?: number;
+  @IsString()
+  @IsIn(VIDEO_CATEGORY_CODES as unknown as string[])
+  category?: string;
 
   @IsOptional()
   @IsString()
@@ -99,6 +103,32 @@ class CreateDanmakuDto {
   @IsOptional()
   @IsString()
   color?: string;
+}
+
+class RecordPlayDto {
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  videoDurationSeconds?: number;
+}
+
+class ReportWatchProgressDto {
+  @IsInt()
+  @Min(0)
+  watchedSeconds!: number;
+
+  @IsInt()
+  @Min(0)
+  currentTimeSeconds!: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  videoDurationSeconds?: number;
+
+  @IsString()
+  @IsIn(['pause', 'leave', 'ended'])
+  event!: 'pause' | 'leave' | 'ended';
 }
 
 @Controller('videos')
@@ -122,6 +152,27 @@ export class VideoController {
   ) {
     const user = await this.authService.requireUser(authorization);
     return ok(await this.videoService.updateDraft(id, user, dto));
+  }
+
+  @Post(':id/withdraw-review')
+  async withdrawReview(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.videoService.withdrawReview(id, user));
+  }
+
+  @Get('my/favorites')
+  async getMyFavorites(@Headers('authorization') authorization: string | undefined) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.videoService.getUserFavorites(user.id));
+  }
+
+  @Get('my/likes')
+  async getMyLikes(@Headers('authorization') authorization: string | undefined) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.videoService.getUserLikes(user.id));
   }
 
   @Get(':id/reviews')
@@ -157,8 +208,12 @@ export class VideoController {
   }
 
   @Get(':id/recommendations')
-  async getRecommendations(@Param('id', ParseIntPipe) id: number) {
-    return ok(await this.videoService.getRelatedVideos(id));
+  async getRecommendations(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    const user = await this.authService.getCurrentUser(authorization);
+    return ok(await this.videoService.getRelatedVideos(id, user?.id));
   }
 
   @Post(':id/submit-review')
@@ -195,6 +250,26 @@ export class VideoController {
   ) {
     const user = await this.authService.requireUser(authorization);
     return ok(await this.videoService.favoriteVideo(id, user));
+  }
+
+  @Post(':id/play')
+  async recordPlay(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: RecordPlayDto,
+  ) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.videoService.recordPlay(id, user, dto));
+  }
+
+  @Post(':id/watch-progress')
+  async reportWatchProgress(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ReportWatchProgressDto,
+  ) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.videoService.recordWatchProgress(id, user, dto));
   }
 
   @Delete(':id/favorite')

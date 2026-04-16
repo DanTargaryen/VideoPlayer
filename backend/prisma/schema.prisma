@@ -83,6 +83,53 @@ model User {
   danmakus              VideoDanmaku[]
   reports               ReportRecord[]   @relation("ReportCreators")
   handledReports        ReportRecord[]   @relation("ReportHandlers")
+  profileSummary        UserProfileSummary?
+  categoryPreferences   UserCategoryPreference[]
+  creatorPreferences    UserCreatorPreference[] @relation("UserCreatorPreferences")
+  preferredByUsers      UserCreatorPreference[] @relation("PreferredCreator")
+  videoWatches          UserVideoWatch[]
+}
+
+model UserProfileSummary {
+  id                    Int      @id @default(autoincrement())
+  userId                Int      @unique
+  user                  User     @relation(fields: [userId], references: [id])
+  activityScore         Int      @default(0)
+  activityLevel         String   @db.VarChar(32)
+  behaviorSignalCount   Int      @default(0)
+  viewerScore           Int      @default(0)
+  creatorScore          Int      @default(0)
+  creatorViewerTendency String   @db.VarChar(32)
+  isColdStart           Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model UserCategoryPreference {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id])
+  categoryId Int
+  score      Float    @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, categoryId])
+  @@index([userId, score])
+}
+
+model UserCreatorPreference {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation("UserCreatorPreferences", fields: [userId], references: [id])
+  creatorId  Int
+  creator    User     @relation("PreferredCreator", fields: [creatorId], references: [id])
+  score      Float    @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, creatorId])
+  @@index([userId, score])
 }
 
 model Video {
@@ -91,7 +138,7 @@ model Video {
   creator         User          @relation("CreatedVideos", fields: [creatorId], references: [id])
   title           String        @db.VarChar(128)
   description     String        @db.Text
-  categoryId      Int           @default(1)
+  category        String        @default("entertainment") @db.VarChar(32)
   coverUrl        String        @db.VarChar(255)
   playUrl         String        @db.VarChar(255)
   status          VideoStatus   @default(DRAFT)
@@ -112,8 +159,31 @@ model Video {
   danmakus        VideoDanmaku[]
   reports         ReportRecord[]
   assets          VideoAsset[]
+  userWatches     UserVideoWatch[]
 
   @@index([creatorId, status])
+}
+
+model UserVideoWatch {
+  id                        Int      @id @default(autoincrement())
+  userId                    Int
+  user                      User     @relation(fields: [userId], references: [id])
+  videoId                   Int
+  video                     Video    @relation(fields: [videoId], references: [id])
+  playCount                 Int      @default(0)
+  totalWatchDurationSeconds Int      @default(0)
+  lastWatchDurationSeconds  Int      @default(0)
+  videoDurationSeconds      Int      @default(0)
+  maxWatchRatio             Float    @default(0)
+  lastWatchRatio            Float    @default(0)
+  completedCount            Int      @default(0)
+  lastWatchedAt             DateTime?
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  @@unique([userId, videoId])
+  @@index([userId, lastWatchedAt])
+  @@index([videoId, lastWatchedAt])
 }
 
 model VideoAsset {

@@ -1,19 +1,9 @@
 <template>
   <section class="page">
-    <section class="search-hero">
-      <div>
-        <h1>搜索结果</h1>
-        <p>输入关键词后，可按视频和用户两个结果维度查看匹配内容，并按分区与排序规则筛选。</p>
-      </div>
-      <div class="search-box">
-        <el-input v-model="keyword" placeholder="搜索视频标题、简介或用户昵称" @keyup.enter="submitSearch" />
-        <el-button type="primary" @click="submitSearch">搜索</el-button>
-      </div>
-    </section>
-
     <section class="filters">
       <el-segmented v-model="category" :options="categorySegmentOptions" @change="submitSearch" />
       <el-select v-model="sortBy" class="sort-select" @change="submitSearch">
+        <el-option label="综合排序" value="best" />
         <el-option label="最新优先" value="latest" />
         <el-option label="热度优先" value="hot" />
       </el-select>
@@ -63,12 +53,12 @@ const route = useRoute();
 const router = useRouter();
 const keyword = ref('');
 const activeTab = ref<'video' | 'user' | 'live'>('video');
-const sortBy = ref<'latest' | 'hot'>('latest');
+const sortBy = ref<'best' | 'latest' | 'hot'>('best');
 const category = ref<CategoryCode>('recommend');
 const result = reactive<SearchResultResponse>({
   keyword: '',
   tab: 'video',
-  sortBy: 'latest',
+  sortBy: 'best',
   categoryCode: 'recommend',
   page: 1,
   pageSize: 20,
@@ -97,7 +87,7 @@ function buildQuery() {
     ...(keyword.value.trim() ? { keyword: keyword.value.trim() } : {}),
     tab: activeTab.value,
     ...(category.value !== 'recommend' ? { category: category.value } : {}),
-    ...(sortBy.value !== 'latest' ? { sortBy: sortBy.value } : {}),
+    ...(sortBy.value !== 'best' ? { sortBy: sortBy.value } : {}),
   };
 }
 
@@ -133,7 +123,7 @@ watch(
     keyword.value = String(query.keyword ?? '');
     activeTab.value = normalizeTab(query.tab);
     category.value = normalizeCategoryCode(typeof query.category === 'string' ? query.category : undefined);
-    sortBy.value = query.sortBy === 'hot' ? 'hot' : 'latest';
+    sortBy.value = query.sortBy === 'hot' ? 'hot' : query.sortBy === 'latest' ? 'latest' : 'best';
     void loadSearch();
   },
   { immediate: true },
@@ -146,16 +136,6 @@ watch(
   gap: 24px;
 }
 
-.search-hero {
-  display: grid;
-  gap: 16px;
-  padding: 24px;
-  border-radius: 24px;
-  background: linear-gradient(145deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.98));
-  border: 1px solid rgba(148, 163, 184, 0.18);
-}
-
-.search-box,
 .filters {
   display: flex;
   gap: 12px;
@@ -169,13 +149,14 @@ watch(
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, 300px);
   gap: 18px;
+  justify-content: center;
 }
 
 .user-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, 260px);
   gap: 16px;
 }
 
@@ -186,17 +167,23 @@ watch(
   gap: 16px;
   padding: 20px;
   border-radius: 20px;
-  background: rgba(30, 41, 59, 0.92);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+}
+
+.user-card h3 {
+  margin: 0;
+  color: #111827;
 }
 
 .user-card p {
   margin: 8px 0 0;
-  color: #cbd5e1;
+  color: #6b7280;
 }
 
 .primary-link {
-  color: #60a5fa;
+  color: #2563eb;
 }
 
 </style>

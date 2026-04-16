@@ -3,6 +3,7 @@ import { IsIn, IsInt, IsOptional, IsString } from 'class-validator';
 import type { Response } from 'express';
 
 import { ok } from '../../common/dto/api-response.dto';
+import { CATEGORY_DEFINITIONS } from '../../common/constants/categories';
 import { AuthService } from '../auth/auth.service';
 import { LiveService } from './live.service';
 
@@ -11,8 +12,8 @@ class CreateRoomDto {
   title!: string;
 
   @IsOptional()
-  @IsInt()
-  categoryId?: number;
+  @IsString()
+  category?: string;
 
   @IsOptional()
   @IsString()
@@ -58,8 +59,8 @@ class SaveReplayDto {
   description?: string;
 
   @IsOptional()
-  @IsInt()
-  categoryId?: number;
+  @IsString()
+  category?: string;
 
   @IsOptional()
   @IsString()
@@ -105,7 +106,7 @@ export class LiveController {
   listRooms(
     @Query('keyword') keyword?: string,
     @Query('status') status?: 'IDLE' | 'LIVING' | 'ENDED',
-    @Query('categoryId') categoryId?: string,
+    @Query('category') category?: string,
     @Query('broadcasterId') broadcasterId?: string,
     @Query('limit') limit?: string,
   ) {
@@ -113,7 +114,7 @@ export class LiveController {
       this.liveService.listRooms({
         keyword,
         status,
-        categoryId: categoryId !== undefined ? Number(categoryId) : undefined,
+        category,
         broadcasterId: broadcasterId !== undefined ? Number(broadcasterId) : undefined,
         limit: limit !== undefined ? Number(limit) : undefined,
       }),

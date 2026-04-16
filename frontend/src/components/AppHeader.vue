@@ -1,5 +1,10 @@
-﻿<template>
+<template>
   <header class="header">
+    <div class="header-bg">
+      <img src="/assets/nav-bg.jpg" alt="" class="header-bg-img" />
+      <div class="header-bg-overlay"></div>
+    </div>
+
     <RouterLink to="/" class="brand-wrap">
       <span class="brand-mark">G</span>
       <div>
@@ -9,31 +14,31 @@
     </RouterLink>
 
     <nav class="nav">
-      <RouterLink v-for="item in navItems" :key="item.path" :to="item.path" class="nav-link">
+      <RouterLink
+        v-for="item in navItems"
+        :key="item.path"
+        :to="item.path"
+        class="nav-link"
+        :class="{ active: isNavActive(item) }"
+      >
         {{ item.label }}
       </RouterLink>
     </nav>
 
     <div class="search-box">
-      <el-input
-        v-model="searchKeyword"
-        placeholder="搜索视频、直播或创作者"
-        clearable
-        @keyup.enter="submitSearch"
-      />
-      <el-button type="primary" @click="submitSearch">搜索</el-button>
+      <SearchSuggestBox v-model="searchKeyword" @search="submitSearch" />
     </div>
 
     <div class="actions">
       <RouterLink to="/live" class="live-entry">直播</RouterLink>
       <template v-if="isLoggedIn">
         <span class="nickname">{{ nickname }}</span>
-        <RouterLink to="/following" class="action-link">关注</RouterLink>
+        <RouterLink to="/following" class="action-link">关注流</RouterLink>
         <RouterLink to="/notifications" class="action-link">
           通知
-          <span v-if="unreadCount > 0" class="badge">{{ unreadCount }}</span>
+          <span v-if="unreadNotificationCount > 0" class="badge">{{ unreadNotificationCount }}</span>
         </RouterLink>
-        <RouterLink to="/user/dashboard" class="action-link">创作中心</RouterLink>
+        <RouterLink to="/user/dashboard" class="action-link">用户中心</RouterLink>
         <RouterLink v-if="isAdmin" to="/admin/dashboard" class="action-link">审核后台</RouterLink>
         <button class="ghost-btn" @click="logout">退出</button>
       </template>
@@ -46,7 +51,9 @@
 import { onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useRoute, useRouter } from 'vue-router';
+import { Search } from '@element-plus/icons-vue';
 
+import SearchSuggestBox from '@/components/SearchSuggestBox.vue';
 import { fetchUnreadNotificationCount } from '@/api/platform';
 import { useAppStore } from '@/stores/app';
 import { primaryNavItems as navItems } from '@/utils/navigation';
@@ -54,29 +61,41 @@ import { primaryNavItems as navItems } from '@/utils/navigation';
 const store = useAppStore();
 const router = useRouter();
 const route = useRoute();
-const { siteName, nickname, isLoggedIn, isAdmin, token } = storeToRefs(store);
-const unreadCount = ref(0);
+const { siteName, nickname, isLoggedIn, isAdmin, token, unreadNotificationCount } = storeToRefs(store);
 const searchKeyword = ref(String(route.query.keyword ?? ''));
+
+function isNavActive(item: { path: string }) {
+  if (item.path === '/') {
+    return route.path === '/' && !route.query.category;
+  }
+  if (item.path === '/live') {
+    return route.path === '/live';
+  }
+  const url = new URL(item.path, window.location.origin);
+  const itemCategory = url.searchParams.get('category');
+  return route.path === url.pathname && route.query.category === itemCategory;
+}
 
 async function syncUnreadCount() {
   if (!isLoggedIn.value) {
-    unreadCount.value = 0;
+    store.setUnreadNotificationCount(0);
     return;
   }
 
   try {
     const result = await fetchUnreadNotificationCount();
-    unreadCount.value = result.unreadCount;
+    store.setUnreadNotificationCount(result.unreadCount);
   } catch {
-    unreadCount.value = 0;
+    store.setUnreadNotificationCount(0);
   }
 }
 
-function submitSearch() {
+function submitSearch(keyword?: string) {
+  const normalizedKeyword = (keyword ?? searchKeyword.value).trim();
   router.push({
     path: '/search',
     query: {
-      keyword: searchKeyword.value,
+      keyword: normalizedKeyword,
       tab: 'video',
     },
   });
@@ -84,7 +103,6 @@ function submitSearch() {
 
 function logout() {
   store.logout();
-  unreadCount.value = 0;
   router.push('/');
 }
 
@@ -110,21 +128,40 @@ onMounted(() => {
   top: 0;
   z-index: 30;
   display: grid;
-  grid-template-columns: auto minmax(320px, 1fr) minmax(300px, 420px) auto;
+  grid-template-columns: auto auto minmax(300px, 1fr) auto;
   align-items: center;
   gap: 18px;
   padding: 14px 24px;
-  background: rgba(250, 251, 255, 0.88);
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.header-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+
+.header-bg-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.header-bg-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.3));
 }
 
 .brand-wrap {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #111827;
+  color: #ffffff;
   text-decoration: none;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
 .brand-mark {
@@ -133,7 +170,7 @@ onMounted(() => {
   width: 42px;
   height: 42px;
   border-radius: 14px;
-  background: linear-gradient(135deg, #fb7185, #f97316);
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
   color: #fff;
   font-size: 20px;
   font-weight: 800;
@@ -147,14 +184,14 @@ onMounted(() => {
 
 .subtitle {
   margin: 2px 0 0;
-  color: #6b7280;
+  color: rgba(255, 255, 255, 0.85);
   font-size: 12px;
 }
 
 .nav {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
@@ -167,22 +204,76 @@ onMounted(() => {
 }
 
 .nav-link {
-  padding: 8px 14px;
+  padding: 8px 16px;
   border-radius: 999px;
-  color: #374151;
+  color: rgba(255, 255, 255, 0.9);
   text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 .nav-link:hover,
-.nav-link.router-link-active {
-  background: rgba(248, 113, 113, 0.12);
-  color: #e11d48;
+.nav-link.active {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
 }
 
 .search-box {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
+}
+
+.search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 400px;
+}
+
+.search-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 44px 0 16px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.search-input::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.search-input:focus {
+  border-color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.15);
+}
+
+.search-btn {
+  position: absolute;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.search-btn:hover {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
 .actions {
@@ -201,42 +292,46 @@ onMounted(() => {
 }
 
 .live-entry {
-  background: linear-gradient(135deg, #fb7185, #ef4444);
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
   color: #fff;
-  box-shadow: 0 10px 24px rgba(239, 68, 68, 0.22);
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
 }
 
 .login-btn {
-  background: #111827;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
   color: #fff;
 }
 
 .nickname {
-  color: #111827;
+  color: #ffffff;
   font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 .action-link,
 .ghost-btn {
-  color: #4b5563;
+  color: rgba(255, 255, 255, 0.85);
   text-decoration: none;
   background: transparent;
   border: 0;
   cursor: pointer;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 .action-link:hover,
 .ghost-btn:hover {
-  color: #111827;
+  color: #ffffff;
 }
 
 .badge {
   margin-left: 6px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: #ef4444;
-  color: #fff;
+  background: #ffffff;
+  color: #2563eb;
   font-size: 12px;
+  font-weight: 600;
 }
 
 @media (max-width: 1200px) {

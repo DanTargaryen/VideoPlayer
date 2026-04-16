@@ -5,7 +5,7 @@
         <span class="hero-badge">综合视频社区</span>
         <h1>首页推荐</h1>
         <p>
-          这里展示规则推荐流、近期热门内容和创作入口提示。管理员审核通过的新投稿会优先进入推荐队列。
+          这里展示基于互动热度、发布时间和基础多样性重排的规则推荐流，帮助新内容和优质内容都获得展示机会。
         </p>
         <div class="hero-actions">
           <RouterLink to="/user/dashboard" class="hero-link primary">去投稿</RouterLink>
@@ -25,7 +25,7 @@
     <div class="section-head">
       <div>
         <h2>推荐视频</h2>
-        <p>基于已发布内容、互动量和发布时间排序。</p>
+        <p>综合点赞、收藏、评论和发布时间计算分数，并尽量避免作者与分区过度集中。</p>
       </div>
       <el-button type="primary" @click="loadFeed">刷新推荐</el-button>
     </div>
@@ -61,18 +61,19 @@ onMounted(loadFeed);
 <style scoped>
 .page {
   display: grid;
-  gap: 24px;
+  gap: 28px;
 }
 
 .hero-card {
   display: grid;
   grid-template-columns: 1.2fr 1fr;
   gap: 24px;
-  padding: 28px;
+  padding: 32px;
   border-radius: 24px;
-  background: radial-gradient(circle at top left, rgba(59, 130, 246, 0.18), transparent 40%),
-    linear-gradient(145deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.98));
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: radial-gradient(circle at top left, rgba(59, 130, 246, 0.08), transparent 40%),
+    linear-gradient(145deg, #ffffff, #f8fafc);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
 }
 
 .hero-copy {
@@ -84,12 +85,13 @@ onMounted(loadFeed);
 .hero-copy h1,
 .section-head h2 {
   margin: 0;
+  color: #111827;
 }
 
 .hero-copy p,
 .section-head p {
   margin: 0;
-  color: #cbd5e1;
+  color: #4b5563;
   line-height: 1.6;
 }
 
@@ -97,8 +99,8 @@ onMounted(loadFeed);
   width: fit-content;
   padding: 6px 12px;
   border-radius: 999px;
-  background: rgba(37, 99, 235, 0.2);
-  color: #bfdbfe;
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
   font-size: 13px;
 }
 
@@ -118,15 +120,15 @@ onMounted(loadFeed);
 }
 
 .hero-link.secondary {
-  background: rgba(148, 163, 184, 0.14);
-  color: #e2e8f0;
+  background: rgba(15, 23, 42, 0.06);
+  color: #374151;
 }
 
 .hero-highlight {
   overflow: hidden;
   border-radius: 20px;
-  background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.08);
 }
 
 .highlight-cover {
@@ -142,7 +144,7 @@ onMounted(loadFeed);
 }
 
 .highlight-meta span {
-  color: #cbd5e1;
+  color: #6b7280;
 }
 
 .section-head {
@@ -154,7 +156,8 @@ onMounted(loadFeed);
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, 300px);
   gap: 18px;
+  justify-content: center;
 }
 </style>

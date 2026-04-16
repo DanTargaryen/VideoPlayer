@@ -8,6 +8,7 @@ import LiveRoomView from '@/views/live/LiveRoomView.vue';
 import CreatorDashboardView from '@/views/creator/CreatorDashboardView.vue';
 import AdminDashboardView from '@/views/admin/AdminDashboardView.vue';
 import LoginView from '@/views/auth/LoginView.vue';
+import RegisterView from '@/views/auth/RegisterView.vue';
 import NotificationsView from '@/views/notification/NotificationsView.vue';
 import FollowingFeedView from '@/views/following/FollowingFeedView.vue';
 import UserHomepageView from '@/views/profile/UserHomepageView.vue';
@@ -26,6 +27,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'user/dashboard', alias: 'creator/dashboard', name: 'user-dashboard', component: CreatorDashboardView },
       { path: 'admin/dashboard', name: 'admin-dashboard', component: AdminDashboardView, meta: { adminOnly: true } },
       { path: 'login', name: 'login', component: LoginView },
+      { path: 'register', name: 'register', component: RegisterView },
       { path: 'notifications', name: 'notifications', component: NotificationsView },
       { path: 'following', name: 'following-feed', component: FollowingFeedView },
       { path: 'users/:id', name: 'user-homepage', component: UserHomepageView },

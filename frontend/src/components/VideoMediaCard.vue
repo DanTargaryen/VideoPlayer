@@ -1,20 +1,31 @@
 <template>
   <article class="card">
-    <img :src="item.coverUrl" :alt="item.title" class="cover" />
+    <RouterLink :to="`/video/${item.id}`" class="cover-wrap">
+      <img :src="item.coverUrl" :alt="item.title" class="cover" />
+      <div class="cover-stats">
+        <span class="stat-item">
+          <svg class="stat-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M7 22V11L10.5 3.5C10.78 2.87 11.41 2.5 12.1 2.5C13.1 2.5 13.85 3.42 13.65 4.4L12.8 9H20c1.1 0 2 0.9 2 2v1c0 .15-.02.3-.05.44l-2.19 8C19.5 21.35 18.68 22 17.73 22H7ZM7 13v8M3 22h2V11H3v11Z" fill="currentColor"/>
+          </svg>
+          {{ item.likeCount }}
+        </span>
+        <span class="stat-item">
+          <el-icon :size="14"><StarFilled /></el-icon>
+          {{ item.favoriteCount }}
+        </span>
+        <span class="stat-item">
+          <el-icon :size="14"><ChatDotRound /></el-icon>
+          {{ item.commentCount }}
+        </span>
+      </div>
+    </RouterLink>
     <div class="card-body">
-      <div class="title-block">
-        <h3>{{ item.title }}</h3>
-        <p>{{ item.description }}</p>
-      </div>
-      <div class="meta-row">
-        <span class="meta-chip">{{ creatorLabel }}</span>
-        <span class="meta-chip">点赞 {{ item.likeCount }}</span>
-        <span class="meta-chip">收藏 {{ item.favoriteCount }}</span>
-        <span class="meta-chip">评论 {{ item.commentCount }}</span>
-      </div>
-      <div class="actions">
-        <RouterLink :to="`/video/${item.id}`" class="primary-link">查看详情</RouterLink>
-        <RouterLink v-if="creatorId" :to="`/users/${creatorId}`" class="secondary-link">访问主页</RouterLink>
+      <h3 class="title">{{ item.title }}</h3>
+      <p class="desc">{{ item.description }}</p>
+      <div class="meta">
+        <RouterLink v-if="creatorId" :to="`/users/${creatorId}`" class="author">{{ creatorLabel }}</RouterLink>
+        <span v-else class="author static">{{ creatorLabel }}</span>
+        <span class="time">{{ formattedTime }}</span>
       </div>
     </div>
   </article>
@@ -22,6 +33,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { StarFilled, ChatDotRound } from '@element-plus/icons-vue';
 
 import type { VideoCard } from '@/types/api';
 
@@ -31,74 +43,132 @@ const props = defineProps<{
 
 const creatorId = computed(() => props.item.creator?.id ?? props.item.creatorId ?? null);
 const creatorLabel = computed(() => props.item.creator?.nickname ?? `用户 #${creatorId.value ?? '-'}`);
+
+const formattedTime = computed(() => {
+  const raw = props.item.publishedAt ?? props.item.createdAt;
+  if (!raw) return '';
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return '';
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return '刚刚';
+  if (diffMin < 60) return `${diffMin}分钟前`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}小时前`;
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay < 30) return `${diffDay}天前`;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+});
 </script>
 
 <style scoped>
 .card {
   overflow: hidden;
-  border-radius: 20px;
-  background: linear-gradient(180deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.98));
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  box-shadow: 0 12px 32px rgba(2, 6, 23, 0.25);
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1);
+}
+
+.cover-wrap {
+  position: relative;
+  display: block;
+  text-decoration: none;
 }
 
 .cover {
   width: 100%;
   height: 200px;
   object-fit: cover;
+  display: block;
+}
+
+.cover-stats {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  gap: 10px;
+  padding: 6px 14px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+}
+
+.stat-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.stat-icon {
+  width: 14px;
+  height: 14px;
 }
 
 .card-body {
-  display: grid;
-  gap: 14px;
-  padding: 18px;
+  padding: 14px 16px 16px;
 }
 
-.title-block {
-  display: grid;
-  gap: 8px;
+.title {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.title-block h3 {
-  margin: 0;
-  font-size: 18px;
-}
-
-.title-block p {
-  margin: 0;
-  color: #cbd5e1;
+.desc {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #6b7280;
   line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.meta-row {
+.meta {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.meta-chip {
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: rgba(59, 130, 246, 0.12);
-  color: #bfdbfe;
+  align-items: center;
+  justify-content: space-between;
   font-size: 12px;
+  color: #9ca3af;
 }
 
-.actions {
-  display: flex;
-  gap: 12px;
+.author {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.15s;
 }
 
-.primary-link,
-.secondary-link {
-  font-size: 14px;
+.author:hover {
+  color: #1d4ed8;
 }
 
-.primary-link {
-  color: #60a5fa;
+.author.static {
+  color: #6b7280;
 }
 
-.secondary-link {
-  color: #cbd5e1;
+.time {
+  color: #9ca3af;
+  margin-left: auto;
 }
 </style>

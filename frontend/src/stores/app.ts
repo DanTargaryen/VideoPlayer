@@ -9,6 +9,7 @@ export const useAppStore = defineStore('app', () => {
   const userId = ref(Number(localStorage.getItem('vp_user_id') ?? 0));
   const role = ref<FrontendRole>((localStorage.getItem('vp_role') as FrontendRole) || 'guest');
   const nickname = ref(localStorage.getItem('vp_nickname') ?? '游客');
+  const unreadNotificationCount = ref(0);
   const adminAccessGranted = ref(localStorage.getItem('vp_admin_access') === 'true');
 
   const isLoggedIn = computed(() => Boolean(token.value));
@@ -46,11 +47,16 @@ export const useAppStore = defineStore('app', () => {
     localStorage.setItem('vp_nickname', payload.nickname);
   }
 
+  function setUnreadNotificationCount(count: number) {
+    unreadNotificationCount.value = Math.max(0, count);
+  }
+
   function logout() {
     token.value = '';
     userId.value = 0;
     role.value = 'guest';
     nickname.value = '游客';
+    unreadNotificationCount.value = 0;
     revokeAdminAccess();
 
     localStorage.removeItem('vp_token');
@@ -65,10 +71,12 @@ export const useAppStore = defineStore('app', () => {
     userId,
     role,
     nickname,
+    unreadNotificationCount,
     adminAccessGranted,
     isLoggedIn,
     isAdmin,
     setAuth,
+    setUnreadNotificationCount,
     logout,
     grantAdminAccess,
     revokeAdminAccess,
