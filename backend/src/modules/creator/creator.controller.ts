@@ -19,7 +19,7 @@ export class CreatorController {
   async getDashboard(@Headers('authorization') authorization?: string) {
     const user = await this.authService.requireUser(authorization);
     const counts = await this.videoService.countVideosByStatus(user.id);
-    const [aggregates, followerCount, recentRejectedVideos] = await Promise.all([
+    const [aggregates, followerCount, followingCount, recentRejectedVideos] = await Promise.all([
       this.prisma.video.aggregate({
         where: { creatorId: user.id },
         _sum: {
@@ -29,6 +29,7 @@ export class CreatorController {
         },
       }),
       this.followService.getFollowerCount(user.id),
+      this.prisma.followRelation.count({ where: { followerId: user.id } }),
       this.prisma.video.findMany({
         where: {
           creatorId: user.id,
@@ -46,9 +47,13 @@ export class CreatorController {
     ]);
 
     return ok({
+      id: user.id,
+      username: user.username,
       nickname: user.nickname,
+      avatarUrl: user.avatarUrl,
       role: user.role,
       followerCount,
+      followingCount,
       totalLikes: aggregates._sum.likeCount ?? 0,
       totalFavorites: aggregates._sum.favoriteCount ?? 0,
       totalComments: aggregates._sum.commentCount ?? 0,

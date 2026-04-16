@@ -33,9 +33,28 @@ VideoPlayer/
 在仓库根目录执行：
 
 ```bash
-npm install
+npm run dev
+```
+
+这条命令会统一启动本机 MySQL 检查、Redis、MinIO、SRS，以及前后端开发服务。
+
+如果需要分别启动，也可以使用：
+
+```bash
 npm run dev:frontend
 npm run dev:backend
+```
+
+停止由开发环境启动的 Redis、MinIO、SRS：
+
+```bash
+npm run dev:down
+```
+
+首次安装与数据库初始化：
+
+```bash
+npm run db:init
 ```
 
 
@@ -44,32 +63,37 @@ npm run dev:backend
 当前后端目标数据库为 MySQL。初始化步骤如下：
 
 ```bash
-# 1. 先确保本机 MySQL 已启动，并创建数据库
-mysql -u root < deploy/mysql/init.sql
+# 1. 启动本机 MySQL（脚本也会自动尝试拉起 mysql 服务）
+sudo systemctl start mysql
 
-# 2. 生成 Prisma Client
+# 2. 创建数据库
+MYSQL_PWD=proot mysql -h 127.0.0.1 -P 3306 -u root < deploy/mysql/init.sql
+
+# 3. 生成 Prisma Client
 npm --workspace backend run prisma:generate
 
-# 3. 推送表结构
+# 4. 推送表结构
 npm --workspace backend run db:push
 
-# 4. 写入演示数据
+# 5. 写入演示数据
 npm --workspace backend run db:seed
 ```
 
-如果本机没有 MySQL 服务，后端将无法连接数据库，需先补齐运行环境。
+默认本地开发数据库连接为 `mysql://root:proot@127.0.0.1:3306/video_player`。
+
+如果本机没有 MySQL 服务，后端将无法连接数据库，需先补齐运行环境。`npm run dev` 和 `npm run db:init` 会先检查连接，连接失败时会自动尝试启动 Linux 下的 `mysql` 服务。`npm run dev` 还会自动拉起 Docker 中的 Redis、MinIO 和 SRS。
 
 
 ## 登录说明
 
 - 普通用户直接在登录页使用用户账号登录。
-- 管理员不在常规入口直接暴露。需要先点击登录页中的“管理入口”，输入密钥 `Administer`，再使用管理员账号登录。
+- 管理员不在常规入口直接暴露。需要先点击登录页中的“管理入口”，输入密钥 `123456`，再使用管理员账号登录。
 - 非管理员角色和游客在主站头部不会看到“审核后台”入口。
 
 演示账号：
 
-- 用户：`demo_user / user123`
-- 管理员：`demo_admin / admin123`
+- 用户：`demo_user / User123456!`
+- 管理员：`demo_admin / Admin123456!`
 
 ## MinIO 上传说明
 
