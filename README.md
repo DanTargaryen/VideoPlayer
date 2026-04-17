@@ -169,4 +169,4 @@ npm --workspace frontend run dev -- --host 127.0.0.1 --port 5173
 - Port：`3306`
 - Database：`video_player`
 - User：`root`
-- Password：`123456`
+- Password：`你在本地单独配置的管理员密钥`
