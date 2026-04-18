@@ -30,16 +30,20 @@
     </div>
 
     <div class="actions">
-      <RouterLink to="/live" class="live-entry">直播</RouterLink>
       <template v-if="isLoggedIn">
-        <span class="nickname">{{ nickname }}</span>
-        <RouterLink to="/following" class="action-link">关注流</RouterLink>
-        <RouterLink to="/notifications" class="action-link">
-          通知
+        <RouterLink to="/following" class="action-icon-link">
+          <el-icon :size="22"><Promotion /></el-icon>
+          <span class="action-label">动态</span>
+        </RouterLink>
+        <RouterLink to="/notifications" class="action-icon-link">
+          <el-icon :size="22"><Message /></el-icon>
+          <span class="action-label">消息</span>
           <span v-if="unreadNotificationCount > 0" class="badge">{{ unreadNotificationCount }}</span>
         </RouterLink>
-        <RouterLink to="/user/dashboard" class="action-link">用户中心</RouterLink>
-        <RouterLink v-if="isAdmin" to="/admin/dashboard" class="action-link">审核后台</RouterLink>
+        <RouterLink to="/user/dashboard" class="avatar-link">
+          <img v-if="avatarUrl" :src="avatarUrl" alt="avatar" class="header-avatar" />
+          <el-icon v-else :size="24"><User /></el-icon>
+        </RouterLink>
         <button class="ghost-btn" @click="logout">退出</button>
       </template>
       <RouterLink v-else to="/login" class="login-btn">登录</RouterLink>
@@ -52,16 +56,17 @@ import { onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useRoute, useRouter } from 'vue-router';
 import { Search } from '@element-plus/icons-vue';
+import { Promotion, Message, User } from '@element-plus/icons-vue';
 
 import SearchSuggestBox from '@/components/SearchSuggestBox.vue';
-import { fetchUnreadNotificationCount } from '@/api/platform';
+import { fetchUnreadNotificationCount, fetchCurrentUser } from '@/api/platform';
 import { useAppStore } from '@/stores/app';
 import { primaryNavItems as navItems } from '@/utils/navigation';
 
 const store = useAppStore();
 const router = useRouter();
 const route = useRoute();
-const { siteName, nickname, isLoggedIn, isAdmin, token, unreadNotificationCount } = storeToRefs(store);
+const { siteName, avatarUrl, isLoggedIn, isAdmin, token, unreadNotificationCount } = storeToRefs(store);
 const searchKeyword = ref(String(route.query.keyword ?? ''));
 
 function isNavActive(item: { path: string }) {
@@ -90,6 +95,26 @@ async function syncUnreadCount() {
   }
 }
 
+async function syncAvatar() {
+  if (!isLoggedIn.value) {
+    return;
+  }
+
+  try {
+    const user = await fetchCurrentUser();
+    if (user.avatarUrl) {
+      store.setAuth({
+        token: store.token,
+        userId: store.userId,
+        role: store.role as 'USER' | 'ADMIN',
+        nickname: store.nickname,
+        avatarUrl: user.avatarUrl,
+      });
+    }
+  } catch {
+  }
+}
+
 function submitSearch(keyword?: string) {
   const normalizedKeyword = (keyword ?? searchKeyword.value).trim();
   router.push({
@@ -108,6 +133,7 @@ function logout() {
 
 watch(token, () => {
   void syncUnreadCount();
+  void syncAvatar();
 });
 
 watch(
@@ -119,6 +145,7 @@ watch(
 
 onMounted(() => {
   void syncUnreadCount();
+  void syncAvatar();
 });
 </script>
 
@@ -128,12 +155,12 @@ onMounted(() => {
   top: 0;
   z-index: 30;
   display: grid;
-  grid-template-columns: auto auto minmax(300px, 1fr) auto;
+  grid-template-columns: auto auto 1fr auto;
   align-items: center;
   gap: 18px;
   padding: 14px 24px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .header-bg {
@@ -203,6 +230,54 @@ onMounted(() => {
   transition: all 0.2s ease;
 }
 
+.action-icon-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  font-size: 12px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.action-icon-link:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.action-label {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.avatar-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  transition: all 0.2s ease;
+}
+
+.avatar-link:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+.header-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
 .nav-link {
   padding: 8px 16px;
   border-radius: 999px;
@@ -223,58 +298,12 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.search-input-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
   width: 100%;
-  max-width: 400px;
+  max-width: 500px;
+  margin: 0 auto;
 }
 
-.search-input {
-  width: 100%;
-  height: 40px;
-  padding: 0 44px 0 16px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.2);
-  color: #ffffff;
-  font-size: 14px;
-  outline: none;
-  transition: all 0.2s ease;
-}
 
-.search-input::placeholder {
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.search-input:focus {
-  border-color: rgba(255, 255, 255, 0.6);
-  background: rgba(255, 255, 255, 0.3);
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.15);
-}
-
-.search-btn {
-  position: absolute;
-  right: 4px;
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border: 0;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  color: #fff;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.search-btn:hover {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-}
 
 .actions {
   display: flex;
