@@ -40,11 +40,18 @@
           <span class="action-label">消息</span>
           <span v-if="unreadNotificationCount > 0" class="badge">{{ unreadNotificationCount }}</span>
         </RouterLink>
+        <RouterLink to="/upload" class="action-icon-link">
+          <el-icon :size="22"><Upload /></el-icon>
+          <span class="action-label">投稿</span>
+        </RouterLink>
+        <RouterLink v-if="isAdmin" to="/admin/dashboard" class="action-icon-link">
+          <el-icon :size="22"><DocumentChecked /></el-icon>
+          <span class="action-label">审核</span>
+        </RouterLink>
         <RouterLink to="/user/dashboard" class="avatar-link">
           <img v-if="avatarUrl" :src="avatarUrl" alt="avatar" class="header-avatar" />
           <el-icon v-else :size="24"><User /></el-icon>
         </RouterLink>
-        <button class="ghost-btn" @click="logout">退出</button>
       </template>
       <RouterLink v-else to="/login" class="login-btn">登录</RouterLink>
     </div>
@@ -55,7 +62,7 @@
 import { onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useRoute, useRouter } from 'vue-router';
-import { Search } from '@element-plus/icons-vue';
+import { Search, DocumentChecked, Upload } from '@element-plus/icons-vue';
 import { Promotion, Message, User } from '@element-plus/icons-vue';
 
 import SearchSuggestBox from '@/components/SearchSuggestBox.vue';
@@ -102,15 +109,14 @@ async function syncAvatar() {
 
   try {
     const user = await fetchCurrentUser();
-    if (user.avatarUrl) {
-      store.setAuth({
-        token: store.token,
-        userId: store.userId,
-        role: store.role as 'USER' | 'ADMIN',
-        nickname: store.nickname,
-        avatarUrl: user.avatarUrl,
-      });
-    }
+    const backendRole = user.role === 'ADMIN' ? 'ADMIN' : 'USER';
+    store.setAuth({
+      token: store.token,
+      userId: store.userId,
+      role: backendRole,
+      nickname: store.nickname,
+      avatarUrl: user.avatarUrl ?? '',
+    });
   } catch {
   }
 }

@@ -1,8 +1,8 @@
 <template>
   <section class="page">
     <div class="section-head">
-      <h2>推荐视频</h2>
-      <el-button type="primary" size="small" @click="loadFeed">刷新推荐</el-button>
+      <h2>{{ categoryLabel }}</h2>
+      <el-button type="primary" size="small" @click="loadFeed">刷新</el-button>
     </div>
 
     <template v-if="cards.length > 0">
@@ -81,13 +81,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 
 import VideoMediaCard from '@/components/VideoMediaCard.vue';
 import { fetchRecommendFeed } from '@/api/platform';
+import { videoCategoryOptions, type VideoCategoryCode } from '@/constants/categories';
 import type { VideoCard } from '@/types/api';
 
+const props = defineProps<{
+  category?: VideoCategoryCode;
+}>();
+
+const route = useRoute();
 const cards = ref<VideoCard[]>([]);
 const carousel = ref<VideoCard[]>([]);
 const carouselIndex = ref(0);
@@ -136,6 +143,16 @@ function extractColor(event: Event) {
   }
 }
 
+const categoryCode = computed(() => {
+  if (props.category) return props.category;
+  return route.params.category as VideoCategoryCode;
+});
+
+const categoryLabel = computed(() => {
+  const found = videoCategoryOptions.find((opt) => opt.code === categoryCode.value);
+  return found ? found.label : '视频';
+});
+
 function pickCarousel(videos: VideoCard[], count: number): VideoCard[] {
   if (videos.length <= count) return [...videos];
   const shuffled = [...videos];
@@ -179,15 +196,19 @@ async function loadFeed() {
   try {
     stopCarouselTimer();
     gradientStyles.value = {};
-    const videos = await fetchRecommendFeed();
+    const videos = await fetchRecommendFeed({ categoryCode: categoryCode.value });
     cards.value = videos;
     carousel.value = pickCarousel(videos, Math.min(5, Math.max(3, videos.length)));
     carouselIndex.value = 0;
     startCarouselTimer();
   } catch {
-    ElMessage.error('加载推荐流失败');
+    ElMessage.error(`加载${categoryLabel.value}视频失败`);
   }
 }
+
+watch(() => props.category, () => {
+  void loadFeed();
+});
 
 onMounted(loadFeed);
 onUnmounted(stopCarouselTimer);
