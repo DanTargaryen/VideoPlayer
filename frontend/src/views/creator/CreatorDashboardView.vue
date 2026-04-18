@@ -47,11 +47,10 @@
 
     <div class="tab-bar">
       <button class="tab-btn" :class="{ active: activeTab === 'home' }" @click="activeTab = 'home'">主页</button>
-      <button class="tab-btn" :class="{ active: activeTab === 'upload' }" @click="activeTab = 'upload'">投稿</button>
       <button class="tab-btn" :class="{ active: activeTab === 'settings' }" @click="activeTab = 'settings'">账号设置</button>
     </div>
 
-    <template v-if="activeTab === 'upload'">
+    <template v-if="activeTab === 'home'">
       <section v-if="dashboard.recentRejectedVideos.length > 0" class="panel">
         <div class="panel-head">
           <h2>违规提醒</h2>
@@ -67,47 +66,6 @@
           </article>
         </div>
       </section>
-
-      <section class="panel compact-panel">
-        <h2>新建投稿</h2>
-        <el-form :model="form" label-position="top">
-          <el-form-item label="标题">
-            <el-input v-model="form.title" />
-          </el-form-item>
-          <el-form-item label="简介">
-            <el-input v-model="form.description" type="textarea" />
-          </el-form-item>
-          <el-form-item label="分区">
-            <el-select v-model="form.category">
-              <el-option v-for="item in videoCategoryOptions" :key="item.code" :label="item.label" :value="item.code" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="封面地址（可选）">
-            <el-input v-model="form.coverUrl" />
-          </el-form-item>
-            <el-form-item label="视频文件">
-              <input type="file" accept="video/*" @change="handleVideoFileChange" />
-              <span v-if="selectedVideoFile" class="hint">已选择：{{ selectedVideoFile.name }}</span>
-            </el-form-item>
-            <el-form-item v-if="autoCoverPreview" label="自动截取封面预览">
-              <div class="cover-preview-wrapper">
-                <img :src="autoCoverPreview" alt="自动截取的封面" class="cover-preview-img" />
-                <div class="cover-preview-actions">
-                  <el-button size="small" @click="handleRecaptureFrame">重新截取</el-button>
-                  <el-button size="small" type="primary" @click="handleUseAutoCover">使用此封面</el-button>
-                </div>
-              </div>
-            </el-form-item>
-            <el-form-item label="封面图片（可选）">
-              <input type="file" accept="image/*" @change="handleCoverFileChange" />
-              <span v-if="selectedCoverFile" class="hint">已选择：{{ selectedCoverFile.name }}</span>
-              <span v-if="!selectedCoverFile && autoCoverPreview" class="hint success">未选择自定义封面，将自动使用截取画面作为封面</span>
-            </el-form-item>
-            <div class="panel-actions">
-              <el-button :loading="creating" @click="handleCreateDraft">创建稿件</el-button>
-            </div>
-          </el-form>
-        </section>
 
         <section class="panel">
           <h2>我的稿件</h2>
@@ -297,6 +255,13 @@
           </div>
           <div class="danger-action">
             <div>
+              <strong>退出登录</strong>
+              <p class="subtle">退出当前账号登录状态，回到登录页面。</p>
+            </div>
+            <el-button type="warning" plain @click="handleLogout">退出登录</el-button>
+          </div>
+          <div class="danger-action">
+            <div>
               <strong>注销账户</strong>
               <p class="subtle">永久删除您的账号及所有相关数据（视频、评论、弹幕等），此操作无法撤销。</p>
             </div>
@@ -368,7 +333,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 
 import {
@@ -395,11 +360,12 @@ import type { CreatorDashboardData, CreatorVideo, FollowUserItem, MyVideoItem, R
 const fallbackAvatar = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=320&q=80';
 const store = useAppStore();
 const router = useRouter();
+const route = useRoute();
 const pageLoading = ref(false);
 const creating = ref(false);
 const savingDraft = ref(false);
 const savingAvatar = ref(false);
-const activeTab = ref<'upload' | 'home' | 'settings'>('home');
+const activeTab = ref<'home' | 'settings'>('home');
 const deleteAccountDialogVisible = ref(false);
 const deleteAccountPassword = ref('');
 const deletingAccount = ref(false);
@@ -651,6 +617,11 @@ async function openFollowersDialog() {
   }
 }
 
+function handleLogout() {
+  store.logout();
+  router.push('/login');
+}
+
 async function openFollowingDialog() {
   followingDialogVisible.value = true;
   try {
@@ -762,6 +733,12 @@ async function handleWithdrawReview(videoId: number) {
 }
 
 onMounted(async () => {
+  // 根据 URL 参数设置初始标签页
+  const tabParam = route.query.tab as string;
+  if (tabParam === 'settings') {
+    activeTab.value = 'settings';
+  }
+
   pageLoading.value = true;
   try {
     await refreshAll();
@@ -1104,6 +1081,10 @@ async function handleDeleteAccount() {
 .actions-block {
   display: grid;
   gap: 10px;
+}
+
+.actions-block :deep(.el-button) {
+  width: 100%;
 }
 
 .status,
