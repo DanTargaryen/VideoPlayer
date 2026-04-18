@@ -39,6 +39,11 @@ export async function login(payload: { account?: string; password?: string; admi
   return data.data;
 }
 
+export async function fetchCurrentUser() {
+  const { data } = await http.get<ApiResponse<{ id: number; username: string; role: string; nickname: string; email: string; avatarUrl: string | null; bio: string | null }>>('/auth/me');
+  return data.data;
+}
+
 export async function register(payload: {
   username: string;
   password: string;

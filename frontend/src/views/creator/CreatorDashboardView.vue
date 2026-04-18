@@ -615,9 +615,23 @@ async function saveAvatar() {
     if (avatarFile.value) {
       const result = await uploadAvatar(avatarFile.value);
       dashboard.value.avatarUrl = result.avatarUrl;
+      store.setAuth({
+        token: store.token,
+        userId: store.userId,
+        role: store.role as 'USER' | 'ADMIN',
+        nickname: store.nickname,
+        avatarUrl: result.avatarUrl
+      });
     } else if (avatarDraft.value.trim()) {
       await updateProfile({ avatarUrl: avatarDraft.value.trim() });
       dashboard.value.avatarUrl = avatarDraft.value.trim();
+      store.setAuth({
+        token: store.token,
+        userId: store.userId,
+        role: store.role as 'USER' | 'ADMIN',
+        nickname: store.nickname,
+        avatarUrl: avatarDraft.value.trim()
+      });
     }
     avatarDialogVisible.value = false;
     ElMessage.success('头像已更新');
