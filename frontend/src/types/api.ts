@@ -115,7 +115,7 @@ export interface CommentReply {
   replies: CommentReply[];
 }
 
-export interface CommentItem extends CommentReply {}
+export type CommentItem = CommentReply;
 
 export interface CommentListResponse {
   videoId: number;
@@ -348,4 +348,19 @@ export interface MyVideoItem {
   creator: { id: number; nickname: string };
   favoritedAt?: string;
   likedAt?: string;
+}
+
+export interface VideoAiSummaryResult {
+  success: boolean;
+  videoId: number;
+  summary: string;
+  frameCount: number;
+  cached: boolean;
+}
+
+export interface VideoAiChatResult {
+  success: boolean;
+  videoId: number;
+  reply: string;
+  frameCount: number;
 }

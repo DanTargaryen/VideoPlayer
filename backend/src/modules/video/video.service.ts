@@ -1283,9 +1283,10 @@ export class VideoService {
     const extensionMatch = originalName.match(/(\.[A-Za-z0-9]+)$/);
     const extension = extensionMatch?.[1]?.toLowerCase() ?? '';
     const baseName = extension ? originalName.slice(0, -extension.length) : originalName;
-    const normalizedBase = baseName
-      .normalize('NFKD')
-      .replace(/[^\x00-\x7F]/g, '')
+    const asciiBaseName = Array.from(baseName.normalize('NFKD'))
+      .filter((char) => char.charCodeAt(0) <= 0x7f)
+      .join('');
+    const normalizedBase = asciiBaseName
       .replace(/[^A-Za-z0-9_-]+/g, '-')
       .replace(/-+/g, '-')
       .replace(/^-|-$/g, '')
