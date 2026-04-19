@@ -27,7 +27,9 @@ import type {
   SearchSuggestResponse,
   TextReviewItem,
   UserHomepage,
+  VideoAiChatResult,
   VideoCard,
+  VideoAiSummaryResult,
   VideoDetail,
   FollowUserItem,
   MyVideoItem,
@@ -203,6 +205,22 @@ export async function fetchSearchSuggestions(keyword: string) {
 
 export async function fetchVideoDetail(id: number) {
   const { data } = await http.get<ApiResponse<VideoDetail>>(`/videos/${id}`);
+  return data.data;
+}
+
+export async function createVideoAiSummary(payload: { videoId: number }) {
+  const timeoutMs = Number(import.meta.env.VITE_AI_SUMMARY_TIMEOUT_MS ?? 120000);
+  const { data } = await http.post<ApiResponse<VideoAiSummaryResult>>('/ai/video-summary', payload, {
+    timeout: Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 120000,
+  });
+  return data.data;
+}
+
+export async function createVideoAiChat(payload: { videoId: number; prompt: string }) {
+  const timeoutMs = Number(import.meta.env.VITE_AI_SUMMARY_TIMEOUT_MS ?? 120000);
+  const { data } = await http.post<ApiResponse<VideoAiChatResult>>('/ai/video-chat', payload, {
+    timeout: Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 120000,
+  });
   return data.data;
 }
 
