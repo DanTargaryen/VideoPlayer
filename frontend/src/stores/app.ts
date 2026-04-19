@@ -10,6 +10,7 @@ export const useAppStore = defineStore('app', () => {
   const role = ref<FrontendRole>((localStorage.getItem('vp_role') as FrontendRole) || 'guest');
   const nickname = ref(localStorage.getItem('vp_nickname') ?? '游客');
   const avatarUrl = ref(localStorage.getItem('vp_avatar') ?? '');
+  const phone = ref(localStorage.getItem('vp_phone') ?? '');
   const unreadNotificationCount = ref(0);
   const adminAccessGranted = ref(localStorage.getItem('vp_admin_access') === 'true');
 
@@ -37,12 +38,14 @@ export const useAppStore = defineStore('app', () => {
     role: 'USER' | 'ADMIN';
     nickname: string;
     avatarUrl?: string;
+    phone?: string;
   }) {
     token.value = payload.token;
     userId.value = payload.userId;
     role.value = normalizeRole(payload.role);
     nickname.value = payload.nickname;
     avatarUrl.value = payload.avatarUrl ?? '';
+    phone.value = payload.phone ?? '';
 
     localStorage.setItem('vp_token', payload.token);
     localStorage.setItem('vp_user_id', String(payload.userId));
@@ -50,6 +53,9 @@ export const useAppStore = defineStore('app', () => {
     localStorage.setItem('vp_nickname', payload.nickname);
     if (payload.avatarUrl) {
       localStorage.setItem('vp_avatar', payload.avatarUrl);
+    }
+    if (payload.phone) {
+      localStorage.setItem('vp_phone', payload.phone);
     }
   }
 
@@ -63,6 +69,7 @@ export const useAppStore = defineStore('app', () => {
     role.value = 'guest';
     nickname.value = '游客';
     avatarUrl.value = '';
+    phone.value = '';
     unreadNotificationCount.value = 0;
     revokeAdminAccess();
 
@@ -71,6 +78,7 @@ export const useAppStore = defineStore('app', () => {
     localStorage.removeItem('vp_role');
     localStorage.removeItem('vp_nickname');
     localStorage.removeItem('vp_avatar');
+    localStorage.removeItem('vp_phone');
   }
 
   return {
@@ -80,6 +88,7 @@ export const useAppStore = defineStore('app', () => {
     role,
     nickname,
     avatarUrl,
+    phone,
     unreadNotificationCount,
     adminAccessGranted,
     isLoggedIn,
