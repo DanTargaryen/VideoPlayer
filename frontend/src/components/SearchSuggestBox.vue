@@ -1,18 +1,25 @@
 <template>
   <div ref="rootRef" class="search-suggest-box">
     <div class="search-row">
-      <el-input
-        v-model="inputValue"
-        :placeholder="placeholder"
-        clearable
-        @focus="handleFocus"
-        @blur="handleBlur"
-        @keydown.down.prevent="highlightNext"
-        @keydown.up.prevent="highlightPrevious"
-        @keydown.enter.prevent="confirmSearch"
-        @keydown.esc.prevent="closePanel"
-      />
-      <el-button type="primary" @click="searchWithCurrentInput">搜索</el-button>
+      <div class="search-input-container">
+        <input
+          v-model="inputValue"
+          :placeholder="placeholder"
+          class="search-input"
+          @focus="handleFocus"
+          @blur="handleBlur"
+          @keydown.down.prevent="highlightNext"
+          @keydown.up.prevent="highlightPrevious"
+          @keydown.enter.prevent="confirmSearch"
+          @keydown.esc.prevent="closePanel"
+        />
+        <button class="search-icon-btn" @click="searchWithCurrentInput">
+          <el-icon :size="20"><Search /></el-icon>
+        </button>
+        <button v-if="inputValue" class="clear-btn" @click="inputValue = ''">
+          <el-icon :size="16"><Close /></el-icon>
+        </button>
+      </div>
     </div>
 
     <div v-if="showPanel" class="suggest-panel">
@@ -35,6 +42,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { Search, Close } from '@element-plus/icons-vue';
 
 import { fetchSearchSuggestions } from '@/api/platform';
 
@@ -239,7 +247,80 @@ function searchWithCurrentInput() {
 
 .search-row {
   display: flex;
-  gap: 10px;
+  justify-content: center;
+  width: 100%;
+}
+
+.search-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 500px;
+  height: 40px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.377);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  transition: all 0.2s ease;
+}
+
+.search-input-container:focus-within {
+  border-color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.15);
+}
+
+.search-input {
+  flex: 1;
+  height: 100%;
+  padding: 0 50px 0 16px;
+  border: none;
+  background: transparent;
+  color: #ffffff;
+  font-size: 14px;
+  outline: none;
+}
+
+.search-input::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.search-icon-btn {
+  position: absolute;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: #ffffff;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.search-icon-btn:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.clear-btn {
+  position: absolute;
+  right: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.clear-btn:hover {
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .suggest-panel {

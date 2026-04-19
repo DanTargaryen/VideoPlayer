@@ -2,10 +2,10 @@
   <section class="page">
     <div class="hero">
       <div>
-        <h1>关注流</h1>
+        <h1>动态</h1>
         <p>查看你已关注用户最近发布的内容。</p>
       </div>
-      <el-button type="primary" @click="loadFeed">刷新关注流</el-button>
+      <el-button type="primary" @click="loadFeed">刷新动态</el-button>
     </div>
 
     <div class="cards">

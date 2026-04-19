@@ -18,6 +18,8 @@ import { AdminModule } from './modules/admin/admin.module';
 import { GiftModule } from './modules/gift/gift.module';
 import { AgentModule } from './modules/agent/agent.module';
 import { AiModule } from './modules/ai/ai.module';
+import { SmsModule } from './modules/sms/sms.module';
+import { CaptchaModule } from './modules/captcha/captcha.module';
 
 @Module({
   imports: [
@@ -42,6 +44,8 @@ import { AiModule } from './modules/ai/ai.module';
     GiftModule,
     AgentModule,
     AiModule,
+    SmsModule,
+    CaptchaModule,
   ],
 })
 export class AppModule {}
