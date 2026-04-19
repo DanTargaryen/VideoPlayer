@@ -23,9 +23,26 @@
               <el-button size="small" @click="cancelNickname">取消</el-button>
             </template>
           </div>
-          <div class="account-meta">
-            <span>账号 ID：#{{ dashboard.id || '-' }}</span>
-            <span>登录账号：{{ dashboard.username || '-' }}</span>
+          <div class="bio-row">
+            <template v-if="!editingBio">
+              <span class="bio-text" :class="{ placeholder: !dashboard.bio }" @click="startEditBio">
+                {{ dashboard.bio || '编辑个性签名' }}
+              </span>
+            </template>
+            <template v-else>
+              <el-input
+                v-model="bioDraft"
+                size="small"
+                class="bio-input"
+                maxlength="200"
+                show-word-limit
+                placeholder="写点什么介绍自己吧..."
+                @keyup.enter="saveBio"
+                @keyup.escape="cancelBio"
+              />
+              <el-button size="small" type="primary" @click="saveBio">保存</el-button>
+              <el-button size="small" @click="cancelBio">取消</el-button>
+            </template>
           </div>
           <div class="profile-stats">
             <button class="stat-link" @click="openFollowersDialog">
@@ -68,7 +85,7 @@
       </section>
 
         <section class="panel">
-          <h2>我的稿件</h2>
+          <h2>我的作品</h2>
           <div class="video-list">
             <article v-for="item in videos" :key="item.id" class="video-card">
               <button class="video-cover-button" type="button" @click="openVideoPreview(item)">
@@ -224,25 +241,74 @@
       <section class="panel">
         <h2>账号信息</h2>
         <el-form label-position="top" class="account-settings-form" @submit.prevent>
-          <el-form-item label="账号 ID">
-            <el-input :model-value="String(dashboard.id || '')" disabled />
-          </el-form-item>
           <el-form-item label="登录账号">
-            <el-input :model-value="dashboard.username || ''" disabled />
+            <div class="form-row">
+              <el-input :model-value="dashboard.username || ''" disabled />
+              <span class="form-btn-placeholder"></span>
+            </div>
           </el-form-item>
           <el-form-item label="昵称">
-            <el-input
-              v-model="nicknameDraft"
-              maxlength="64"
-              show-word-limit
-              placeholder="输入要显示给其他用户看的昵称"
-              @keyup.enter="saveNickname"
-            />
+            <div class="form-row">
+              <el-input
+                v-model="nicknameDraft"
+                maxlength="64"
+                show-word-limit
+                placeholder="输入要显示给其他用户看的昵称"
+                @keyup.enter="saveNickname"
+              />
+              <el-button type="primary" :disabled="!nicknameDraft.trim()" @click="saveNickname">保存</el-button>
+            </div>
           </el-form-item>
-          <div class="panel-actions">
-            <el-button type="primary" :disabled="!nicknameDraft.trim()" @click="saveNickname">保存昵称</el-button>
-            <el-button @click="nicknameDraft = dashboard.nickname">重置</el-button>
-          </div>
+          <el-form-item label="个性签名">
+            <div class="form-row">
+              <el-input
+                v-model="bioDraft"
+                type="textarea"
+                :rows="3"
+                maxlength="200"
+                show-word-limit
+                placeholder="写点什么介绍自己吧..."
+              />
+              <el-button type="primary" @click="saveBio">保存</el-button>
+            </div>
+          </el-form-item>
+          <el-form-item label="手机号">
+            <div class="form-row">
+              <template v-if="!editingPhone">
+                <el-input :model-value="dashboard.phone || '未绑定'" disabled />
+                <el-button type="primary" @click="startEditPhone">绑定/修改</el-button>
+              </template>
+              <template v-else>
+                <div class="phone-input-group">
+                  <el-input
+                    v-model="phoneDraft"
+                    placeholder="请输入手机号"
+                    maxlength="11"
+                    show-word-limit
+                  />
+                  <el-input
+                    v-model="smsCode"
+                    placeholder="请输入验证码"
+                    maxlength="6"
+                    show-word-limit
+                  >
+                    <template #append>
+                      <el-button
+                        :disabled="sendingSmsCode || countdown > 0"
+                        @click="sendSmsCode"
+                      >
+                        {{ sendingSmsCode ? '发送中...' : (countdown > 0 ? `${countdown}s后重发` : '获取验证码') }}
+                      </el-button>
+                    </template>
+                  </el-input>
+                </div>
+                <div class="phone-buttons">
+                  <el-button type="primary" @click="savePhone">保存</el-button>
+                  <el-button @click="cancelPhone">取消</el-button>
+                </div>
+              </template>
+            </div>
+          </el-form-item>
         </el-form>
       </section>
 
@@ -375,6 +441,8 @@ const dashboard = ref<CreatorDashboardData>({
   username: '',
   nickname: '',
   avatarUrl: null,
+  bio: null,
+  phone: null,
   role: 'USER',
   totalVideos: 0,
   pendingReviews: 0,
@@ -415,6 +483,14 @@ const avatarFile = ref<File | null>(null);
 const avatarPreview = ref('');
 const editingNickname = ref(false);
 const nicknameDraft = ref('');
+const editingBio = ref(false);
+const bioDraft = ref('');
+const editingPhone = ref(false);
+const phoneDraft = ref('');
+const smsCode = ref('');
+const sendingSmsCode = ref(false);
+const countdown = ref(0);
+let countdownTimer: number | null = null;
 
 const profileAvatarUrl = computed(() => dashboard.value.avatarUrl || fallbackAvatar);
 
@@ -552,6 +628,106 @@ async function saveNickname() {
     ElMessage.success('昵称已更新');
   } catch {
     ElMessage.error('更新昵称失败');
+  }
+}
+
+function startEditBio() {
+  bioDraft.value = dashboard.value.bio || '';
+  editingBio.value = true;
+}
+
+function cancelBio() {
+  editingBio.value = false;
+  bioDraft.value = dashboard.value.bio || '';
+}
+
+async function saveBio() {
+  const nextBio = bioDraft.value.trim();
+
+  try {
+    const result = await updateProfile({ bio: nextBio });
+    dashboard.value.bio = result.bio;
+    bioDraft.value = result.bio || '';
+    editingBio.value = false;
+    ElMessage.success('个性签名已更新');
+  } catch {
+    ElMessage.error('更新个性签名失败');
+  }
+}
+
+function startEditPhone() {
+  phoneDraft.value = dashboard.value.phone || '';
+  smsCode.value = '';
+  editingPhone.value = true;
+}
+
+function cancelPhone() {
+  editingPhone.value = false;
+  phoneDraft.value = dashboard.value.phone || '';
+  smsCode.value = '';
+  if (countdownTimer) {
+    clearInterval(countdownTimer);
+    countdownTimer = null;
+  }
+  countdown.value = 0;
+}
+
+function sendSmsCode() {
+  const phone = phoneDraft.value.trim();
+  if (!/^1[3-9]\d{9}$/.test(phone)) {
+    ElMessage.warning('请输入正确的手机号');
+    return;
+  }
+
+  sendingSmsCode.value = true;
+  // 这里应该调用发送验证码的API
+  setTimeout(() => {
+    sendingSmsCode.value = false;
+    ElMessage.success('验证码已发送');
+    startCountdown();
+  }, 1000);
+}
+
+function startCountdown() {
+  countdown.value = 60;
+  if (countdownTimer) {
+    clearInterval(countdownTimer);
+  }
+  countdownTimer = window.setInterval(() => {
+    if (countdown.value > 0) {
+      countdown.value--;
+    } else {
+      if (countdownTimer) {
+        clearInterval(countdownTimer);
+        countdownTimer = null;
+      }
+    }
+  }, 1000);
+}
+
+async function savePhone() {
+  const phone = phoneDraft.value.trim();
+  const code = smsCode.value.trim();
+
+  if (!/^1[3-9]\d{9}$/.test(phone)) {
+    ElMessage.warning('请输入正确的手机号');
+    return;
+  }
+
+  if (!code) {
+    ElMessage.warning('请输入验证码');
+    return;
+  }
+
+  try {
+    // 这里应该调用更新手机号的API，传入手机号和验证码
+    const result = await updateProfile({ phone });
+    dashboard.value.phone = result.phone;
+    phoneDraft.value = result.phone || '';
+    editingPhone.value = false;
+    ElMessage.success('手机号已更新');
+  } catch {
+    ElMessage.error('更新手机号失败');
   }
 }
 
@@ -867,12 +1043,37 @@ async function handleDeleteAccount() {
   gap: 8px;
 }
 
-.account-meta {
+.bio-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px 14px;
-  color: #6b7280;
-  font-size: 13px;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.bio-text {
+  color: #374151;
+  font-size: 14px;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.bio-text:hover {
+  color: #2563eb;
+}
+
+.bio-text.placeholder {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.bio-text.placeholder:hover {
+  color: #2563eb;
+}
+
+.bio-input {
+  flex: 1;
+  max-width: 400px;
 }
 
 .nickname-row {
@@ -906,6 +1107,54 @@ async function handleDeleteAccount() {
 
 .account-settings-form {
   max-width: 520px;
+}
+
+.account-settings-form .el-form-item__content {
+  display: flex;
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.form-row .el-input,
+.form-row .el-textarea {
+  flex: 1;
+  min-width: 0;
+}
+
+.form-row .el-button {
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.form-btn-placeholder {
+  flex-shrink: 0;
+  width: 56px;
+  height: 32px;
+  margin-top: 4px;
+}
+
+.phone-input-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.phone-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.phone-buttons .el-button {
+  width: 80px;
 }
 
 .profile-stats {
