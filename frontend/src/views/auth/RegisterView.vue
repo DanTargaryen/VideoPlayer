@@ -23,6 +23,9 @@
         <el-form-item label="昵称（可选）">
           <el-input v-model="form.nickname" placeholder="不填则默认使用用户名" autocomplete="off" />
         </el-form-item>
+        <el-form-item label="邮箱（可选）">
+          <el-input v-model="form.email" placeholder="用于邮箱验证码和找回密码" autocomplete="off" />
+        </el-form-item>
         <div class="actions">
           <el-button type="primary" :loading="loading" @click="handleRegister">注册</el-button>
         </div>
@@ -50,7 +53,10 @@ const form = reactive({
   username: '',
   password: '',
   nickname: '',
+  email: '',
 });
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 async function handleRegister() {
   if (!form.username || !form.password) {
@@ -61,6 +67,10 @@ async function handleRegister() {
     ElMessage.warning('密码至少需要6位');
     return;
   }
+  if (form.email.trim() && !emailPattern.test(form.email.trim())) {
+    ElMessage.warning('请输入正确的邮箱');
+    return;
+  }
 
   loading.value = true;
   try {
@@ -68,6 +78,7 @@ async function handleRegister() {
       username: form.username,
       password: form.password,
       nickname: form.nickname || undefined,
+      email: form.email.trim() || undefined,
     });
 
     // Auto-login after successful registration
@@ -78,7 +89,7 @@ async function handleRegister() {
   } catch (err: unknown) {
     const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '';
     if (msg.includes('already') || msg.includes('exists')) {
-      ElMessage.error('用户名已被使用');
+      ElMessage.error('用户名或邮箱已被使用');
     } else {
       ElMessage.error('注册失败，请稍后重试');
     }

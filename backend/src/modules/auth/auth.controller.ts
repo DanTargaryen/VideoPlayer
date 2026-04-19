@@ -1,9 +1,9 @@
 import { BadRequestException, Body, Controller, Get, Headers, Post } from '@nestjs/common';
-import { IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 import { ok } from '../../common/dto/api-response.dto';
+import { EmailService } from '../email/email.service';
 import { AuthService } from './auth.service';
-import { SmsService } from '../sms/sms.service';
 
 class RegisterDto {
   @IsString()
@@ -16,6 +16,11 @@ class RegisterDto {
   @IsOptional()
   @IsString()
   nickname?: string;
+
+  @IsOptional()
+  @IsEmail({}, { message: '邮箱格式不正确' })
+  @MaxLength(128)
+  email?: string;
 }
 
 class LoginDto {
@@ -37,14 +42,13 @@ class ResetPasswordDto {
   @MaxLength(64)
   username!: string;
 
-  @IsString()
-  @MaxLength(20)
-  @Matches(/^1[3-9]\d{9}$/, { message: '手机号格式不正确' })
-  phone!: string;
+  @IsEmail({}, { message: '邮箱格式不正确' })
+  @MaxLength(128)
+  email!: string;
 
   @IsString()
   @MaxLength(10)
-  smsCode!: string;
+  emailCode!: string;
 
   @IsString()
   @MinLength(6)
@@ -56,7 +60,7 @@ class ResetPasswordDto {
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
-    private readonly smsService: SmsService,
+    private readonly emailService: EmailService,
   ) {}
 
   @Post('register')
@@ -71,12 +75,12 @@ export class AuthController {
 
   @Post('reset-password')
   async resetPassword(@Body() dto: ResetPasswordDto) {
-    const isCodeValid = this.smsService.verifyCode(dto.phone, dto.smsCode);
+    const isCodeValid = this.emailService.verifyCode(dto.email, dto.emailCode);
     if (!isCodeValid) {
-      throw new BadRequestException('手机验证码不正确');
+      throw new BadRequestException('邮箱验证码不正确');
     }
 
-    const result = await this.authService.resetPasswordByPhone(dto.username, dto.phone, dto.newPassword);
+    const result = await this.authService.resetPasswordByEmail(dto.username, dto.email, dto.newPassword);
     return ok(result);
   }
 
@@ -92,7 +96,6 @@ export class AuthController {
       email: user.email,
       avatarUrl: user.avatarUrl,
       bio: user.bio,
-      phone: user.phone,
     });
   }
 }

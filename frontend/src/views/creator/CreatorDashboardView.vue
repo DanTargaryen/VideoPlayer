@@ -272,38 +272,38 @@
               <el-button type="primary" @click="saveBio">保存</el-button>
             </div>
           </el-form-item>
-          <el-form-item label="手机号">
-            <div v-if="!editingPhone" class="form-row">
-              <el-input :model-value="dashboard.phone || '未绑定'" disabled />
-              <el-button type="primary" @click="startEditPhone">绑定/修改</el-button>
+          <el-form-item label="邮箱">
+            <div v-if="!editingEmail" class="form-row">
+              <el-input :model-value="dashboard.email || '未绑定'" disabled />
+              <el-button type="primary" @click="startEditEmail">绑定/修改</el-button>
             </div>
-            <div v-else class="phone-edit-rows">
-              <div class="phone-edit-row">
+            <div v-else class="email-edit-rows">
+              <div class="email-edit-row">
                 <el-input
-                  v-model="phoneDraft"
-                  placeholder="请输入手机号"
-                  maxlength="11"
+                  v-model="emailDraft"
+                  placeholder="请输入邮箱"
+                  maxlength="128"
                   show-word-limit
                 />
-                <el-button type="primary" @click="savePhone">保存</el-button>
+                <el-button type="primary" @click="saveEmail">保存</el-button>
               </div>
-              <div class="phone-edit-row">
+              <div class="email-edit-row">
                 <el-input
-                  v-model="smsCode"
+                  v-model="emailCode"
                   placeholder="请输入验证码"
                   maxlength="6"
                   show-word-limit
                 >
                   <template #append>
                     <el-button
-                      :disabled="sendingSmsCode || countdown > 0"
-                      @click="sendSmsCodeApi"
+                      :disabled="sendingEmailCode || countdown > 0"
+                      @click="sendEmailCodeApi"
                     >
-                      {{ sendingSmsCode ? '发送中...' : (countdown > 0 ? `${countdown}s后重发` : '获取验证码') }}
+                      {{ sendingEmailCode ? '发送中...' : (countdown > 0 ? `${countdown}s后重发` : '获取验证码') }}
                     </el-button>
                   </template>
                 </el-input>
-                <el-button @click="cancelPhone">取消</el-button>
+                <el-button @click="cancelEmail">取消</el-button>
               </div>
             </div>
           </el-form-item>
@@ -403,6 +403,7 @@ import { ElMessage } from 'element-plus';
 import {
   createVideo,
   deleteAccount,
+  sendEmailCode,
   fetchCreatorDashboard,
   fetchCreatorVideos,
   fetchFollowers,
@@ -410,13 +411,12 @@ import {
   fetchMyFavorites,
   fetchMyLikes,
   fetchVideoReviews,
-  sendSmsCode,
   submitReview,
   updateProfile,
   updateVideoDraft,
   uploadAvatar,
   uploadVideo,
-  verifySmsCode,
+  verifyEmailCode,
   withdrawVideoReview,
 } from '@/api/platform';
 import { videoCategoryOptions } from '@/constants/categories';
@@ -442,7 +442,7 @@ const dashboard = ref<CreatorDashboardData>({
   nickname: '',
   avatarUrl: null,
   bio: null,
-  phone: null,
+  email: '',
   role: 'USER',
   totalVideos: 0,
   pendingReviews: 0,
@@ -485,12 +485,25 @@ const editingNickname = ref(false);
 const nicknameDraft = ref('');
 const editingBio = ref(false);
 const bioDraft = ref('');
-const editingPhone = ref(false);
-const phoneDraft = ref('');
-const smsCode = ref('');
-const sendingSmsCode = ref(false);
+const editingEmail = ref(false);
+const emailDraft = ref('');
+const emailCode = ref('');
+const sendingEmailCode = ref(false);
 const countdown = ref(0);
 let countdownTimer: number | null = null;
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function getErrorMessage(error: unknown, fallback: string) {
+  const responseMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+  if (typeof responseMessage === 'string' && responseMessage) {
+    return responseMessage;
+  }
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return fallback;
+}
 
 const profileAvatarUrl = computed(() => dashboard.value.avatarUrl || fallbackAvatar);
 
@@ -591,6 +604,8 @@ async function refreshAll() {
   const [dashboardData, videoList] = await Promise.all([fetchCreatorDashboard(), fetchCreatorVideos()]);
   dashboard.value = dashboardData;
   nicknameDraft.value = dashboardData.nickname;
+  bioDraft.value = dashboardData.bio || '';
+  emailDraft.value = dashboardData.email || '';
   videos.value = videoList;
 }
 
@@ -655,16 +670,16 @@ async function saveBio() {
   }
 }
 
-function startEditPhone() {
-  phoneDraft.value = dashboard.value.phone || '';
-  smsCode.value = '';
-  editingPhone.value = true;
+function startEditEmail() {
+  emailDraft.value = dashboard.value.email || '';
+  emailCode.value = '';
+  editingEmail.value = true;
 }
 
-function cancelPhone() {
-  editingPhone.value = false;
-  phoneDraft.value = dashboard.value.phone || '';
-  smsCode.value = '';
+function cancelEmail() {
+  editingEmail.value = false;
+  emailDraft.value = dashboard.value.email || '';
+  emailCode.value = '';
   if (countdownTimer) {
     clearInterval(countdownTimer);
     countdownTimer = null;
@@ -672,22 +687,27 @@ function cancelPhone() {
   countdown.value = 0;
 }
 
-async function sendSmsCodeApi() {
-  const phone = phoneDraft.value.trim();
-  if (!/^1[3-9]\d{9}$/.test(phone)) {
-    ElMessage.warning('请输入正确的手机号');
+async function sendEmailCodeApi() {
+  const email = emailDraft.value.trim();
+  if (!emailPattern.test(email)) {
+    ElMessage.warning('请输入正确的邮箱');
     return;
   }
 
-  sendingSmsCode.value = true;
+  sendingEmailCode.value = true;
   try {
-    await sendSmsCode(phone);
+    await sendEmailCode(email);
     ElMessage.success('验证码已发送');
     startCountdown();
-  } catch {
-    ElMessage.error('发送验证码失败');
+  } catch (e: unknown) {
+    const msg = getErrorMessage(e, '发送验证码失败');
+    if (msg.includes('邮箱格式不正确')) {
+      ElMessage.error('邮箱格式不正确');
+    } else {
+      ElMessage.error(msg);
+    }
   } finally {
-    sendingSmsCode.value = false;
+    sendingEmailCode.value = false;
   }
 }
 
@@ -708,12 +728,12 @@ function startCountdown() {
   }, 1000);
 }
 
-async function savePhone() {
-  const phone = phoneDraft.value.trim();
-  const code = smsCode.value.trim();
+async function saveEmail() {
+  const email = emailDraft.value.trim();
+  const code = emailCode.value.trim();
 
-  if (!/^1[3-9]\d{9}$/.test(phone)) {
-    ElMessage.warning('请输入正确的手机号');
+  if (!emailPattern.test(email)) {
+    ElMessage.warning('请输入正确的邮箱');
     return;
   }
 
@@ -723,15 +743,28 @@ async function savePhone() {
   }
 
   try {
-    await verifySmsCode(phone, code);
-    const result = await updateProfile({ phone });
-    dashboard.value.phone = result.phone;
-    phoneDraft.value = result.phone || '';
-    smsCode.value = '';
-    editingPhone.value = false;
-    ElMessage.success('手机号已更新');
-  } catch {
-    ElMessage.error('验证码校验失败或已过期');
+    await verifyEmailCode(email, code);
+    const result = await updateProfile({ email });
+    dashboard.value.email = result.email || '';
+    emailDraft.value = result.email || '';
+    emailCode.value = '';
+    editingEmail.value = false;
+    store.setAuth({
+      token: store.token,
+      userId: store.userId,
+      role: store.role === 'admin' ? 'ADMIN' : 'USER',
+      nickname: store.nickname,
+      avatarUrl: store.avatarUrl,
+      email: result.email,
+    });
+    ElMessage.success('邮箱已更新');
+  } catch (e: unknown) {
+    const msg = getErrorMessage(e, '验证码校验失败或已过期');
+    if (msg.includes('邮箱已被使用')) {
+      ElMessage.error('邮箱已被使用');
+    } else {
+      ElMessage.error(msg);
+    }
   }
 }
 
@@ -1145,26 +1178,26 @@ async function handleDeleteAccount() {
   height: 32px;
 }
 
-.phone-edit-rows {
+.email-edit-rows {
   display: flex;
   flex-direction: column;
   gap: 8px;
   width: 100%;
 }
 
-.phone-edit-row {
+.email-edit-row {
   display: flex;
   gap: 12px;
   align-items: flex-start;
   width: 100%;
 }
 
-.phone-edit-row .el-input {
+.email-edit-row .el-input {
   flex: 1;
   min-width: 0;
 }
 
-.phone-edit-row .el-button {
+.email-edit-row .el-button {
   flex-shrink: 0;
   white-space: nowrap;
 }

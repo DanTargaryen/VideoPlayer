@@ -46,21 +46,21 @@ export async function fetchCaptcha() {
   return data.data;
 }
 
-export async function sendResetSmsCode(username: string, phone: string, captchaId: string, captchaCode: string) {
-  const { data } = await http.post<ApiResponse<{ message: string }>>('/sms/send-reset-code', {
+export async function sendResetEmailCode(username: string, email: string, captchaId: string, captchaCode: string) {
+  const { data } = await http.post<ApiResponse<{ message: string }>>('/email/send-reset-code', {
     username,
-    phone,
+    email,
     captchaId,
     captchaCode,
   });
   return data.data;
 }
 
-export async function resetPassword(username: string, phone: string, smsCode: string, newPassword: string) {
+export async function resetPassword(username: string, email: string, emailCode: string, newPassword: string) {
   const { data } = await http.post<ApiResponse<{ id: number; username: string }>>('/auth/reset-password', {
     username,
-    phone,
-    smsCode,
+    email,
+    emailCode,
     newPassword,
   });
   return data.data;
@@ -75,6 +75,7 @@ export async function register(payload: {
   username: string;
   password: string;
   nickname?: string;
+  email?: string;
 }) {
   const { data } = await http.post<ApiResponse<RegisterResponse>>('/auth/register', payload);
   return data.data;
@@ -441,6 +442,11 @@ export async function readAllNotifications() {
   return data.data;
 }
 
+export async function readNotification(id: number) {
+  const { data } = await http.post<ApiResponse<{ success: boolean }>>(`/notifications/${id}/read`);
+  return data.data;
+}
+
 export async function likeVideo(videoId: number) {
   const { data } = await http.post<ApiResponse<{ liked: boolean }>>(`/videos/${videoId}/like`);
   return data.data;
@@ -522,18 +528,18 @@ export async function fetchMyLikes() {
   return data.data;
 }
 
-export async function updateProfile(payload: { nickname?: string; avatarUrl?: string; bio?: string; phone?: string }) {
-  const { data } = await http.put<ApiResponse<{ id: number; nickname: string; avatarUrl?: string; bio?: string; phone?: string }>>('/users/profile', payload);
+export async function updateProfile(payload: { nickname?: string; avatarUrl?: string; bio?: string; email?: string }) {
+  const { data } = await http.put<ApiResponse<{ id: number; nickname: string; avatarUrl?: string; bio?: string; email?: string }>>('/users/profile', payload);
   return data.data;
 }
 
-export async function sendSmsCode(phone: string) {
-  const { data } = await http.post<ApiResponse<{ message: string }>>('/sms/send-code', { phone });
+export async function sendEmailCode(email: string) {
+  const { data } = await http.post<ApiResponse<{ message: string }>>('/email/send-code', { email });
   return data.data;
 }
 
-export async function verifySmsCode(phone: string, code: string) {
-  const { data } = await http.post<ApiResponse<{ message: string }>>('/sms/verify-code', { phone, code });
+export async function verifyEmailCode(email: string, code: string) {
+  const { data } = await http.post<ApiResponse<{ message: string }>>('/email/verify-code', { email, code });
   return data.data;
 }
 

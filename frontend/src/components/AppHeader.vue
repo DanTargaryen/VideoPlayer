@@ -30,9 +30,7 @@
     </div>
 
     <div class="actions">
-      <RouterLink to="/live" class="live-entry">直播</RouterLink>
       <template v-if="isLoggedIn">
-        <span class="nickname">{{ nickname }}</span>
         <RouterLink to="/following" class="action-icon-link" aria-label="关注动态">
           <el-icon :size="20"><Promotion /></el-icon>
           <span class="action-label">动态</span>
@@ -54,7 +52,6 @@
           <img v-if="avatarUrl" :src="avatarUrl" alt="avatar" class="header-avatar" />
           <el-icon v-else :size="24"><User /></el-icon>
         </RouterLink>
-        <button class="ghost-btn" @click="logout">退出</button>
       </template>
       <RouterLink v-else to="/login" class="login-btn">登录</RouterLink>
     </div>
@@ -75,7 +72,7 @@ import { primaryNavItems as navItems } from '@/utils/navigation';
 const store = useAppStore();
 const router = useRouter();
 const route = useRoute();
-const { siteName, nickname, avatarUrl, isLoggedIn, isAdmin, token, unreadNotificationCount } = storeToRefs(store);
+const { siteName, avatarUrl, isLoggedIn, isAdmin, token, unreadNotificationCount } = storeToRefs(store);
 const searchKeyword = ref(String(route.query.keyword ?? ''));
 
 function isNavActive(item: { path: string }) {
@@ -118,6 +115,7 @@ async function syncAvatar() {
       role: backendRole,
       nickname: store.nickname,
       avatarUrl: user.avatarUrl ?? '',
+      email: user.email,
     });
   } catch {
   }
@@ -132,11 +130,6 @@ function submitSearch(keyword?: string) {
       tab: 'video',
     },
   });
-}
-
-function logout() {
-  store.logout();
-  router.push('/');
 }
 
 watch(token, () => {
@@ -231,7 +224,6 @@ onMounted(() => {
 }
 
 .nav-link,
-.ghost-btn,
 .login-btn,
 .live-entry {
   transition: all 0.2s ease;
@@ -270,42 +262,16 @@ onMounted(() => {
   flex-wrap: wrap;
 }
 
-.live-entry,
 .login-btn {
   padding: 10px 16px;
   border-radius: 999px;
   text-decoration: none;
 }
 
-.live-entry {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  color: #fff;
-  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
-}
-
 .login-btn {
   background: rgba(255, 255, 255, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.4);
   color: #fff;
-}
-
-.nickname {
-  color: #ffffff;
-  font-weight: 700;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-}
-
-.ghost-btn {
-  color: rgba(255, 255, 255, 0.85);
-  text-decoration: none;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-}
-
-.ghost-btn:hover {
-  color: #ffffff;
 }
 
 .action-icon-link {
