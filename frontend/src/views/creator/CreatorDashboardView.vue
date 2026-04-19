@@ -295,7 +295,7 @@
                     <template #append>
                       <el-button
                         :disabled="sendingSmsCode || countdown > 0"
-                        @click="sendSmsCode"
+                        @click="sendSmsCodeApi"
                       >
                         {{ sendingSmsCode ? '发送中...' : (countdown > 0 ? `${countdown}s后重发` : '获取验证码') }}
                       </el-button>
@@ -412,11 +412,13 @@ import {
   fetchMyFavorites,
   fetchMyLikes,
   fetchVideoReviews,
+  sendSmsCode,
   submitReview,
   updateProfile,
   updateVideoDraft,
   uploadAvatar,
   uploadVideo,
+  verifySmsCode,
   withdrawVideoReview,
 } from '@/api/platform';
 import { videoCategoryOptions } from '@/constants/categories';
@@ -672,7 +674,7 @@ function cancelPhone() {
   countdown.value = 0;
 }
 
-function sendSmsCode() {
+async function sendSmsCodeApi() {
   const phone = phoneDraft.value.trim();
   if (!/^1[3-9]\d{9}$/.test(phone)) {
     ElMessage.warning('请输入正确的手机号');
@@ -680,12 +682,15 @@ function sendSmsCode() {
   }
 
   sendingSmsCode.value = true;
-  // 这里应该调用发送验证码的API
-  setTimeout(() => {
-    sendingSmsCode.value = false;
+  try {
+    await sendSmsCode(phone);
     ElMessage.success('验证码已发送');
     startCountdown();
-  }, 1000);
+  } catch {
+    ElMessage.error('发送验证码失败');
+  } finally {
+    sendingSmsCode.value = false;
+  }
 }
 
 function startCountdown() {
@@ -720,14 +725,15 @@ async function savePhone() {
   }
 
   try {
-    // 这里应该调用更新手机号的API，传入手机号和验证码
+    await verifySmsCode(phone, code);
     const result = await updateProfile({ phone });
     dashboard.value.phone = result.phone;
     phoneDraft.value = result.phone || '';
+    smsCode.value = '';
     editingPhone.value = false;
     ElMessage.success('手机号已更新');
   } catch {
-    ElMessage.error('更新手机号失败');
+    ElMessage.error('验证码校验失败或已过期');
   }
 }
 
