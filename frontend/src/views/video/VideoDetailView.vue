@@ -88,6 +88,7 @@
             :rows="3"
             placeholder="输入评论内容"
           />
+          <p class="comment-tip">输入 <strong>@grok</strong> + 问题，可召唤智能体回复</p>
           <div class="comment-actions">
             <el-button type="primary" @click="submitRootComment">发表评论</el-button>
           </div>
@@ -1437,6 +1438,12 @@ onBeforeUnmount(() => {
 .comment-actions {
   display: flex;
   justify-content: flex-end;
+}
+
+.comment-tip {
+  margin: -6px 0 0;
+  color: #6b7280;
+  font-size: 12px;
 }
 
 .link-btn,

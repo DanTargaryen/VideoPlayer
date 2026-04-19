@@ -1,10 +1,16 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 
+import { CommentAiService } from '../comment-ai/comment-ai.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class CommentService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(CommentService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly commentAiService: CommentAiService,
+  ) {}
 
   async listComments(videoId: number) {
     const comments = await this.prisma.comment.findMany({
@@ -119,6 +125,18 @@ export class CommentService {
         },
       });
     }
+
+    void this.commentAiService
+      .enqueueIfMention({
+        commentId: created.id,
+        videoId,
+        requesterId: user.id,
+        content: payload.content,
+      })
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.error(`Failed to enqueue @grok task for comment ${created.id}: ${message}`);
+      });
 
     return created;
   }

@@ -60,6 +60,15 @@ export class AiSummaryService {
     };
   }
 
+  async generateTextReply(prompt: string, temperature = 0.2): Promise<{ text: string; model: string }> {
+    const normalizedPrompt = prompt.trim();
+    if (!normalizedPrompt) {
+      throw new BadRequestException('Prompt is required');
+    }
+
+    return this.requestTextOnly(normalizedPrompt, temperature);
+  }
+
   private async requestTextWithFrames(framePaths: string[], prompt: string, temperature: number) {
     if (framePaths.length === 0) {
       throw new BadGatewayException('No frames available for AI summary');
@@ -123,6 +132,77 @@ export class AiSummaryService {
       const payload = (await response.json()) as DashScopeChatCompletionResponse;
       const text = this.extractSummary(payload);
 
+      if (!text) {
+        throw new BadGatewayException('Qwen API returned empty summary');
+      }
+
+      return {
+        text,
+        model,
+      };
+    } catch (error) {
+      if (error instanceof BadGatewayException || error instanceof InternalServerErrorException) {
+        throw error;
+      }
+
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new BadGatewayException('Qwen API request timed out');
+      }
+
+      this.logger.error(`Failed to call Qwen API: ${this.getErrorMessage(error)}`);
+      throw new BadGatewayException('Failed to generate summary from Qwen API');
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  private async requestTextOnly(prompt: string, temperature: number) {
+    const apiKey = this.configService.get<string>('DASHSCOPE_API_KEY');
+    if (!apiKey) {
+      throw new InternalServerErrorException('DASHSCOPE_API_KEY is not configured');
+    }
+
+    const model = this.configService.get<string>('QWEN_VL_MODEL') || 'qwen3.6-plus';
+    const baseUrl =
+      this.configService.get<string>('DASHSCOPE_BASE_URL') || DEFAULT_DASHSCOPE_BASE_URL;
+    const timeoutMs = Number(this.configService.get<string>('AI_SUMMARY_MODEL_TIMEOUT_MS') || 120000);
+    const endpoint = `${baseUrl.replace(/\/$/, '')}/chat/completions`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 120000,
+    );
+
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          temperature,
+          messages: [
+            {
+              role: 'user',
+              content: [{ type: 'text', text: prompt }],
+            },
+          ],
+        }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new BadGatewayException(
+          `Qwen API request failed with status ${response.status}: ${message || 'empty response'}`,
+        );
+      }
+
+      const payload = (await response.json()) as DashScopeChatCompletionResponse;
+      const text = this.extractSummary(payload);
       if (!text) {
         throw new BadGatewayException('Qwen API returned empty summary');
       }
