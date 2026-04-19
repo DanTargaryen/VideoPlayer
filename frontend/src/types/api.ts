@@ -9,6 +9,7 @@ export interface LoginResponse {
   userId: number;
   role: 'USER' | 'ADMIN';
   nickname: string;
+  email: string;
 }
 
 export interface RegisterResponse {
@@ -222,7 +223,7 @@ export interface CreatorDashboardData {
   nickname: string;
   avatarUrl?: string | null;
   bio?: string | null;
-  phone?: string | null;
+  email: string;
   role: 'USER' | 'ADMIN';
   totalVideos: number;
   pendingReviews: number;

@@ -52,7 +52,7 @@ export class CreatorController {
       nickname: user.nickname,
       avatarUrl: user.avatarUrl,
       role: user.role,
-      phone: user.phone,
+      email: user.email,
       bio: user.bio,
       followerCount,
       followingCount,

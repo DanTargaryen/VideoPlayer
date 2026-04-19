@@ -52,8 +52,8 @@
         <el-form-item label="用户名">
           <el-input v-model="forgotForm.username" placeholder="请输入用户名" />
         </el-form-item>
-        <el-form-item label="手机号">
-          <el-input v-model="forgotForm.phone" placeholder="请输入绑定的手机号" maxlength="11" />
+        <el-form-item label="邮箱">
+          <el-input v-model="forgotForm.email" placeholder="请输入绑定的邮箱" maxlength="128" />
         </el-form-item>
         <el-form-item label="图形验证码">
           <div class="captcha-row">
@@ -61,14 +61,14 @@
             <img :src="captchaDataUrl" alt="图形验证码" class="captcha-img" @click="refreshCaptcha" />
           </div>
         </el-form-item>
-        <el-form-item label="手机验证码">
-          <div class="sms-row">
-            <el-input v-model="forgotForm.smsCode" placeholder="请输入手机验证码" maxlength="6" />
+        <el-form-item label="邮箱验证码">
+          <div class="code-row">
+            <el-input v-model="forgotForm.emailCode" placeholder="请输入邮箱验证码" maxlength="6" />
             <el-button
-              :disabled="smsCountdown > 0 || sendingSmsCode"
-              @click="sendResetSms"
+              :disabled="codeCountdown > 0 || sendingEmailCode"
+              @click="sendResetEmail"
             >
-              {{ sendingSmsCode ? '发送中...' : (smsCountdown > 0 ? `${smsCountdown}s后重发` : '获取验证码') }}
+              {{ sendingEmailCode ? '发送中...' : (codeCountdown > 0 ? `${codeCountdown}s后重发` : '获取验证码') }}
             </el-button>
           </div>
         </el-form-item>
@@ -89,7 +89,7 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 
-import { fetchCaptcha, login, resetPassword, sendResetSmsCode } from '@/api/platform';
+import { fetchCaptcha, login, resetPassword, sendResetEmailCode } from '@/api/platform';
 import { useAppStore } from '@/stores/app';
 
 const ADMIN_SECRET = '123456';
@@ -108,17 +108,30 @@ const adminMode = computed(() => appStore.adminAccessGranted);
 const forgotDialogVisible = ref(false);
 const forgotForm = reactive({
   username: '',
-  phone: '',
+  email: '',
   captchaId: '',
   captchaCode: '',
-  smsCode: '',
+  emailCode: '',
   newPassword: '',
 });
 const captchaDataUrl = ref('');
-const smsCountdown = ref(0);
-const sendingSmsCode = ref(false);
+const codeCountdown = ref(0);
+const sendingEmailCode = ref(false);
 const resettingPassword = ref(false);
-let smsTimer: number | null = null;
+let codeTimer: number | null = null;
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function getErrorMessage(error: unknown, fallback: string) {
+  const responseMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+  if (typeof responseMessage === 'string' && responseMessage) {
+    return responseMessage;
+  }
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return fallback;
+}
 
 function enterAdminMode() {
   appStore.grantAdminAccess();
@@ -175,8 +188,8 @@ async function refreshCaptcha() {
   forgotForm.captchaCode = '';
 }
 
-async function sendResetSms() {
-  const phone = forgotForm.phone.trim();
+async function sendResetEmail() {
+  const email = forgotForm.email.trim();
   const username = forgotForm.username.trim();
   const captchaCode = forgotForm.captchaCode.trim();
 
@@ -184,8 +197,8 @@ async function sendResetSms() {
     ElMessage.warning('请输入用户名');
     return;
   }
-  if (!/^1[3-9]\d{9}$/.test(phone)) {
-    ElMessage.warning('请输入正确的手机号');
+  if (!emailPattern.test(email)) {
+    ElMessage.warning('请输入正确的邮箱');
     return;
   }
   if (!captchaCode) {
@@ -193,51 +206,55 @@ async function sendResetSms() {
     return;
   }
 
-  sendingSmsCode.value = true;
+  sendingEmailCode.value = true;
   try {
-    await sendResetSmsCode(username, phone, forgotForm.captchaId, captchaCode);
+    await sendResetEmailCode(username, email, forgotForm.captchaId, captchaCode);
     ElMessage.success('验证码已发送');
-    startSmsCountdown();
+    startCodeCountdown();
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : '发送失败';
+    const msg = getErrorMessage(e, '发送失败');
     if (msg.includes('图形验证码不正确')) {
       ElMessage.error('图形验证码不正确');
-    } else if (msg.includes('手机号不正确')) {
-      ElMessage.error('手机号不正确');
+    } else if (msg.includes('邮箱不正确')) {
+      ElMessage.error('邮箱不正确');
     } else {
       ElMessage.error('发送失败');
     }
-    refreshCaptcha();
+    await refreshCaptcha();
   } finally {
-    sendingSmsCode.value = false;
+    sendingEmailCode.value = false;
   }
 }
 
-function startSmsCountdown() {
-  smsCountdown.value = 60;
-  if (smsTimer) {
-    clearInterval(smsTimer);
+function startCodeCountdown() {
+  codeCountdown.value = 60;
+  if (codeTimer) {
+    clearInterval(codeTimer);
   }
-  smsTimer = window.setInterval(() => {
-    if (smsCountdown.value > 0) {
-      smsCountdown.value--;
+  codeTimer = window.setInterval(() => {
+    if (codeCountdown.value > 0) {
+      codeCountdown.value--;
     } else {
-      if (smsTimer) {
-        clearInterval(smsTimer);
-        smsTimer = null;
+      if (codeTimer) {
+        clearInterval(codeTimer);
+        codeTimer = null;
       }
     }
   }, 1000);
 }
 
 async function handleResetPassword() {
-  const phone = forgotForm.phone.trim();
+  const email = forgotForm.email.trim();
   const username = forgotForm.username.trim();
-  const smsCode = forgotForm.smsCode.trim();
+  const emailCode = forgotForm.emailCode.trim();
   const newPassword = forgotForm.newPassword.trim();
 
-  if (!username || !phone || !smsCode || !newPassword) {
+  if (!username || !email || !emailCode || !newPassword) {
     ElMessage.warning('请填写所有字段');
+    return;
+  }
+  if (!emailPattern.test(email)) {
+    ElMessage.warning('请输入正确的邮箱');
     return;
   }
   if (newPassword.length < 6) {
@@ -247,20 +264,16 @@ async function handleResetPassword() {
 
   resettingPassword.value = true;
   try {
-    await resetPassword(username, phone, smsCode, newPassword);
+    await resetPassword(username, email, emailCode, newPassword);
     ElMessage.success('密码重置成功，请使用新密码登录');
     forgotDialogVisible.value = false;
-    if (smsTimer) {
-      clearInterval(smsTimer);
-      smsTimer = null;
+    if (codeTimer) {
+      clearInterval(codeTimer);
+      codeTimer = null;
     }
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : '重置失败';
-    if (msg.includes('手机验证码不正确')) {
-      ElMessage.error('手机验证码不正确');
-    } else {
-      ElMessage.error('重置失败');
-    }
+    const msg = getErrorMessage(e, '重置失败');
+    ElMessage.error(msg);
   } finally {
     resettingPassword.value = false;
   }
@@ -268,8 +281,13 @@ async function handleResetPassword() {
 
 function openForgotDialog() {
   forgotDialogVisible.value = true;
-  forgotForm.username = form.account || '';
-  refreshCaptcha();
+  forgotForm.username = form.account.includes('@') ? '' : form.account;
+  forgotForm.email = form.account.includes('@') ? form.account : '';
+  forgotForm.captchaId = '';
+  forgotForm.captchaCode = '';
+  forgotForm.emailCode = '';
+  forgotForm.newPassword = '';
+  void refreshCaptcha();
 }
 </script>
 
@@ -398,13 +416,13 @@ function openForgotDialog() {
   flex-shrink: 0;
 }
 
-.sms-row {
+.code-row {
   display: flex;
   gap: 12px;
   align-items: center;
 }
 
-.sms-row .el-input {
+.code-row .el-input {
   flex: 1;
 }
 </style>

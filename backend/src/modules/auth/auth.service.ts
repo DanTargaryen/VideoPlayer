@@ -28,11 +28,11 @@ const BUILTIN_USERS = [
 export class AuthService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async register(payload: { username: string; password: string; nickname?: string }) {
-    const generatedEmail = this.buildRegistrationEmail(payload.username);
+  async register(payload: { username: string; password: string; nickname?: string; email?: string }) {
+    const resolvedEmail = payload.email?.trim() || this.buildRegistrationEmail(payload.username);
     const exists = await this.prisma.user.findFirst({
       where: {
-        OR: [{ username: payload.username }, { email: generatedEmail }],
+        OR: [{ username: payload.username }, { email: resolvedEmail }],
       },
     });
 
@@ -43,7 +43,7 @@ export class AuthService {
     const createdUser = await this.prisma.user.create({
       data: {
         username: payload.username,
-        email: generatedEmail,
+        email: resolvedEmail,
         password: payload.password,
         role: 'USER',
         nickname: payload.nickname || payload.username,
@@ -97,7 +97,7 @@ export class AuthService {
       userId: user.id,
       role: user.role,
       nickname: user.nickname,
-      phone: user.phone,
+      email: user.email,
       bio: user.bio,
     };
   }
@@ -114,7 +114,7 @@ export class AuthService {
       userId: adminUser.id,
       role: adminUser.role,
       nickname: adminUser.nickname,
-      phone: adminUser.phone,
+      email: adminUser.email,
       bio: adminUser.bio,
     };
   }
@@ -170,11 +170,9 @@ export class AuthService {
         where: { id: existing.id },
         data: {
           username: payload.username,
-          email: payload.email,
+          email: existing.email,
           password: payload.password,
           role: 'USER',
-          // 保留现有的字段
-          ...(existing.phone && { phone: existing.phone }),
           ...(existing.nickname && { nickname: existing.nickname }),
           ...(existing.bio && { bio: existing.bio }),
         },
@@ -192,16 +190,16 @@ export class AuthService {
     });
   }
 
-  async resetPasswordByPhone(username: string, phone: string, newPassword: string) {
+  async resetPasswordByEmail(username: string, email: string, newPassword: string) {
     const user = await this.prisma.user.findFirst({
       where: {
         username,
-        phone,
+        email,
       },
     });
 
     if (!user) {
-      throw new UnauthorizedException('用户名与手机号不匹配');
+      throw new UnauthorizedException('用户名与邮箱不匹配');
     }
 
     const updated = await this.prisma.user.update({
@@ -212,7 +210,7 @@ export class AuthService {
     return {
       id: updated.id,
       username: updated.username,
-      phone: updated.phone,
+      email: updated.email,
     };
   }
 

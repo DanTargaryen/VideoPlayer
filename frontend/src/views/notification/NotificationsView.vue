@@ -15,7 +15,16 @@
           <p>{{ item.content }}</p>
           <span class="meta">{{ formatTime(item.createdAt) }}</span>
         </div>
-        <span class="tag" :class="{ unread: !item.isRead }">{{ item.isRead ? '已读' : '未读' }}</span>
+        <button
+          v-if="!item.isRead"
+          type="button"
+          class="tag unread action-tag"
+          :disabled="readingId === item.id"
+          @click="handleReadOne(item.id)"
+        >
+          {{ readingId === item.id ? '处理中...' : '标记已读' }}
+        </button>
+        <span v-else class="tag">已读</span>
       </article>
       <el-empty v-if="notifications.length === 0" description="暂无通知" />
     </div>
@@ -26,12 +35,13 @@
 import { onMounted, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 
-import { fetchNotifications, readAllNotifications } from '@/api/platform';
+import { fetchNotifications, readAllNotifications, readNotification } from '@/api/platform';
 import { useAppStore } from '@/stores/app';
 import type { NotificationItem } from '@/types/api';
 
 const store = useAppStore();
 const notifications = ref<NotificationItem[]>([]);
+const readingId = ref<number | null>(null);
 
 function formatTime(value: string) {
   return new Date(value).toLocaleString('zh-CN');
@@ -50,10 +60,26 @@ async function handleReadAll() {
   try {
     await readAllNotifications();
     store.setUnreadNotificationCount(0);
-    await loadNotifications();
+    notifications.value = notifications.value.map((item) => ({ ...item, isRead: true }));
     ElMessage.success('已全部标记为已读');
   } catch {
     ElMessage.error('处理失败');
+  }
+}
+
+async function handleReadOne(id: number) {
+  readingId.value = id;
+  try {
+    await readNotification(id);
+    notifications.value = notifications.value.map((item) =>
+      item.id === id ? { ...item, isRead: true } : item,
+    );
+    store.setUnreadNotificationCount(notifications.value.filter((item) => !item.isRead).length);
+    ElMessage.success('已标记为已读');
+  } catch {
+    ElMessage.error('标记已读失败');
+  } finally {
+    readingId.value = null;
   }
 }
 
@@ -128,5 +154,20 @@ onMounted(() => {
 .tag.unread {
   background: rgba(37, 99, 235, 0.1);
   color: #2563eb;
+}
+
+.action-tag {
+  border: 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.action-tag:hover:not(:disabled) {
+  background: rgba(37, 99, 235, 0.18);
+}
+
+.action-tag:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 </style>

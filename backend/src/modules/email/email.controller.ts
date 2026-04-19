@@ -1,16 +1,16 @@
 import { BadRequestException, Body, Controller, Headers, Post } from '@nestjs/common';
-import { IsString, Matches, MaxLength } from 'class-validator';
+import { IsEmail, IsString, MaxLength } from 'class-validator';
+
 import { ok } from '../../common/dto/api-response.dto';
 import { AuthService } from '../auth/auth.service';
 import { CaptchaService } from '../captcha/captcha.service';
-import { SmsService } from './sms.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { EmailService } from './email.service';
 
 class SendCodeDto {
-  @IsString()
-  @MaxLength(20)
-  @Matches(/^1[3-9]\d{9}$/, { message: '手机号格式不正确' })
-  phone!: string;
+  @IsEmail({}, { message: '邮箱格式不正确' })
+  @MaxLength(128)
+  email!: string;
 }
 
 class SendResetCodeDto {
@@ -18,10 +18,9 @@ class SendResetCodeDto {
   @MaxLength(64)
   username!: string;
 
-  @IsString()
-  @MaxLength(20)
-  @Matches(/^1[3-9]\d{9}$/, { message: '手机号格式不正确' })
-  phone!: string;
+  @IsEmail({}, { message: '邮箱格式不正确' })
+  @MaxLength(128)
+  email!: string;
 
   @IsString()
   captchaId!: string;
@@ -31,20 +30,19 @@ class SendResetCodeDto {
 }
 
 class VerifyCodeDto {
-  @IsString()
-  @MaxLength(20)
-  @Matches(/^1[3-9]\d{9}$/, { message: '手机号格式不正确' })
-  phone!: string;
+  @IsEmail({}, { message: '邮箱格式不正确' })
+  @MaxLength(128)
+  email!: string;
 
   @IsString()
   @MaxLength(10)
   code!: string;
 }
 
-@Controller('sms')
-export class SmsController {
+@Controller('email')
+export class EmailController {
   constructor(
-    private readonly smsService: SmsService,
+    private readonly emailService: EmailService,
     private readonly authService: AuthService,
     private readonly captchaService: CaptchaService,
     private readonly prisma: PrismaService,
@@ -56,8 +54,8 @@ export class SmsController {
     @Body() dto: SendCodeDto,
   ) {
     const user = await this.authService.requireUser(authorization);
-    console.log(`[SMS] User ${user.id} requesting SMS code for phone ${dto.phone}`);
-    this.smsService.generateCode(dto.phone);
+    console.log(`[Email] User ${user.id} requesting email code for ${dto.email}`);
+    await this.emailService.generateCode(dto.email);
     return ok({ message: '验证码已发送' });
   }
 
@@ -69,21 +67,21 @@ export class SmsController {
     }
 
     const user = await this.prisma.user.findFirst({
-      where: { username: dto.username, phone: dto.phone },
+      where: { username: dto.username, email: dto.email },
     });
 
     if (!user) {
-      throw new BadRequestException('手机号不正确');
+      throw new BadRequestException('邮箱不正确');
     }
 
-    console.log(`[SMS] Password reset request for user ${dto.username}, phone ${dto.phone}`);
-    this.smsService.generateCode(dto.phone);
+    console.log(`[Email] Password reset request for user ${dto.username}, email ${dto.email}`);
+    await this.emailService.generateCode(dto.email);
     return ok({ message: '验证码已发送' });
   }
 
   @Post('verify-code')
   async verifyCode(@Body() dto: VerifyCodeDto) {
-    const isValid = this.smsService.verifyCode(dto.phone, dto.code);
+    const isValid = this.emailService.verifyCode(dto.email, dto.code);
     if (!isValid) {
       throw new BadRequestException('验证码无效或已过期');
     }

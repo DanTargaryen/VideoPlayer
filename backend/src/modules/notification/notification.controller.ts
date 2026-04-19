@@ -1,4 +1,4 @@
-import { Controller, Get, Headers, Post } from '@nestjs/common';
+import { Controller, Get, Headers, Param, ParseIntPipe, Post } from '@nestjs/common';
 
 import { ok } from '../../common/dto/api-response.dto';
 import { AuthService } from '../auth/auth.service';
@@ -27,5 +27,14 @@ export class NotificationController {
   async readAll(@Headers('authorization') authorization: string | undefined) {
     const user = await this.authService.requireUser(authorization);
     return ok(await this.notificationService.markAllAsRead(user.id));
+  }
+
+  @Post(':id/read')
+  async readOne(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.notificationService.markOneAsRead(user.id, id));
   }
 }

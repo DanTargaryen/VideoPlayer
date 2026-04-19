@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 
 import { FollowService } from '../follow/follow.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -96,11 +96,24 @@ export class UserService {
 
   async updateProfile(
     userId: number,
-    payload: { nickname?: string; avatarUrl?: string; bio?: string; phone?: string },
+    payload: { nickname?: string; avatarUrl?: string; bio?: string; email?: string },
   ) {
     const data = Object.fromEntries(
       Object.entries(payload).filter(([, value]) => value !== undefined),
     );
+
+    if (typeof data.email === 'string') {
+      const existing = await this.prisma.user.findFirst({
+        where: {
+          email: data.email,
+          NOT: { id: userId },
+        },
+      });
+
+      if (existing) {
+        throw new BadRequestException('邮箱已被使用');
+      }
+    }
 
     const updated = await this.prisma.user.update({
       where: { id: userId },
@@ -114,7 +127,6 @@ export class UserService {
       nickname: updated.nickname,
       avatarUrl: updated.avatarUrl,
       bio: updated.bio,
-      phone: updated.phone,
       role: updated.role,
     };
   }
