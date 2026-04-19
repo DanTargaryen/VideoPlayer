@@ -1,4 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -26,6 +27,8 @@ const BUILTIN_USERS = [
 
 @Injectable()
 export class AuthService {
+  private readonly activeSessionNonceByUserId = new Map<number, string>();
+
   constructor(private readonly prisma: PrismaService) {}
 
   async register(payload: { username: string; password: string; nickname?: string; email?: string }) {
@@ -92,8 +95,10 @@ export class AuthService {
       throw new UnauthorizedException('Admin secret is required');
     }
 
+    const token = this.issueToken(user.id);
+
     return {
-      token: `mock-token-${user.id}`,
+      token,
       userId: user.id,
       role: user.role,
       nickname: user.nickname,
@@ -108,9 +113,10 @@ export class AuthService {
     }
 
     const adminUser = await this.ensureAdminUser();
+    const token = this.issueToken(adminUser.id);
 
     return {
-      token: `mock-token-${adminUser.id}`,
+      token,
       userId: adminUser.id,
       role: adminUser.role,
       nickname: adminUser.nickname,
@@ -206,6 +212,7 @@ export class AuthService {
       where: { id: user.id },
       data: { password: newPassword },
     });
+    this.activeSessionNonceByUserId.delete(updated.id);
 
     return {
       id: updated.id,
@@ -215,19 +222,17 @@ export class AuthService {
   }
 
   async getCurrentUser(authHeader?: string) {
-    const token = authHeader?.replace('Bearer ', '').trim();
+    const parsed = this.parseToken(authHeader);
 
-    if (!token) {
+    if (!parsed) {
+      return null;
+    }
+    const activeSessionNonce = this.activeSessionNonceByUserId.get(parsed.userId);
+    if (!activeSessionNonce || activeSessionNonce !== parsed.sessionNonce) {
       return null;
     }
 
-    const userId = Number(token.replace('mock-token-', ''));
-
-    if (!Number.isFinite(userId)) {
-      return null;
-    }
-
-    return this.prisma.user.findUnique({ where: { id: userId } });
+    return this.prisma.user.findUnique({ where: { id: parsed.userId } });
   }
 
   async requireUser(authHeader?: string) {
@@ -238,5 +243,34 @@ export class AuthService {
     }
 
     return user;
+  }
+
+  private issueToken(userId: number) {
+    const sessionNonce = randomUUID();
+    this.activeSessionNonceByUserId.set(userId, sessionNonce);
+    return `mock-token-${userId}-${sessionNonce}`;
+  }
+
+  private parseToken(authHeader?: string) {
+    const token = authHeader?.replace('Bearer ', '').trim();
+
+    if (!token) {
+      return null;
+    }
+
+    const match = /^mock-token-(\d+)-(.+)$/.exec(token);
+
+    if (!match) {
+      return null;
+    }
+
+    const userId = Number(match[1]);
+    const sessionNonce = match[2];
+
+    if (!Number.isFinite(userId) || !sessionNonce) {
+      return null;
+    }
+
+    return { userId, sessionNonce };
   }
 }
