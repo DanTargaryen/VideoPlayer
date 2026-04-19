@@ -65,7 +65,7 @@ export class SmsController {
   async sendResetCode(@Body() dto: SendResetCodeDto) {
     const isCaptchaValid = this.captchaService.verifyCaptcha(dto.captchaId, dto.captchaCode);
     if (!isCaptchaValid) {
-      throw new BadRequestException('图形验证码错误或已过期');
+      throw new BadRequestException('图形验证码不正确');
     }
 
     const user = await this.prisma.user.findFirst({
@@ -73,7 +73,7 @@ export class SmsController {
     });
 
     if (!user) {
-      throw new BadRequestException('用户名与手机号不匹配');
+      throw new BadRequestException('手机号不正确');
     }
 
     console.log(`[SMS] Password reset request for user ${dto.username}, phone ${dto.phone}`);

@@ -260,7 +260,7 @@
             </div>
           </el-form-item>
           <el-form-item label="个性签名">
-            <div class="form-row">
+            <div class="form-row bio-row">
               <el-input
                 v-model="bioDraft"
                 type="textarea"
@@ -273,40 +273,38 @@
             </div>
           </el-form-item>
           <el-form-item label="手机号">
-            <div class="form-row">
-              <template v-if="!editingPhone">
-                <el-input :model-value="dashboard.phone || '未绑定'" disabled />
-                <el-button type="primary" @click="startEditPhone">绑定/修改</el-button>
-              </template>
-              <template v-else>
-                <div class="phone-input-group">
-                  <el-input
-                    v-model="phoneDraft"
-                    placeholder="请输入手机号"
-                    maxlength="11"
-                    show-word-limit
-                  />
-                  <el-input
-                    v-model="smsCode"
-                    placeholder="请输入验证码"
-                    maxlength="6"
-                    show-word-limit
-                  >
-                    <template #append>
-                      <el-button
-                        :disabled="sendingSmsCode || countdown > 0"
-                        @click="sendSmsCodeApi"
-                      >
-                        {{ sendingSmsCode ? '发送中...' : (countdown > 0 ? `${countdown}s后重发` : '获取验证码') }}
-                      </el-button>
-                    </template>
-                  </el-input>
-                </div>
-                <div class="phone-buttons">
-                  <el-button type="primary" @click="savePhone">保存</el-button>
-                  <el-button @click="cancelPhone">取消</el-button>
-                </div>
-              </template>
+            <div v-if="!editingPhone" class="form-row">
+              <el-input :model-value="dashboard.phone || '未绑定'" disabled />
+              <el-button type="primary" @click="startEditPhone">绑定/修改</el-button>
+            </div>
+            <div v-else class="phone-edit-rows">
+              <div class="phone-edit-row">
+                <el-input
+                  v-model="phoneDraft"
+                  placeholder="请输入手机号"
+                  maxlength="11"
+                  show-word-limit
+                />
+                <el-button type="primary" @click="savePhone">保存</el-button>
+              </div>
+              <div class="phone-edit-row">
+                <el-input
+                  v-model="smsCode"
+                  placeholder="请输入验证码"
+                  maxlength="6"
+                  show-word-limit
+                >
+                  <template #append>
+                    <el-button
+                      :disabled="sendingSmsCode || countdown > 0"
+                      @click="sendSmsCodeApi"
+                    >
+                      {{ sendingSmsCode ? '发送中...' : (countdown > 0 ? `${countdown}s后重发` : '获取验证码') }}
+                    </el-button>
+                  </template>
+                </el-input>
+                <el-button @click="cancelPhone">取消</el-button>
+              </div>
             </div>
           </el-form-item>
         </el-form>
@@ -1122,8 +1120,12 @@ async function handleDeleteAccount() {
 .form-row {
   display: flex;
   gap: 12px;
-  align-items: flex-start;
+  align-items: center;
   width: 100%;
+}
+
+.form-row.bio-row {
+  align-items: flex-start;
 }
 
 .form-row .el-input,
@@ -1134,33 +1136,37 @@ async function handleDeleteAccount() {
 
 .form-row .el-button {
   flex-shrink: 0;
-  margin-top: 4px;
+  white-space: nowrap;
 }
 
 .form-btn-placeholder {
   flex-shrink: 0;
-  width: 56px;
-  height: 32px;
-  margin-top: 4px;
-}
-
-.phone-input-group {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.phone-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex-shrink: 0;
-  margin-top: 4px;
-}
-
-.phone-buttons .el-button {
   width: 80px;
+  height: 32px;
+}
+
+.phone-edit-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.phone-edit-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.phone-edit-row .el-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.phone-edit-row .el-button {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .profile-stats {

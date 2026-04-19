@@ -73,7 +73,7 @@ export class AuthController {
   async resetPassword(@Body() dto: ResetPasswordDto) {
     const isCodeValid = this.smsService.verifyCode(dto.phone, dto.smsCode);
     if (!isCodeValid) {
-      throw new BadRequestException('验证码无效或已过期');
+      throw new BadRequestException('手机验证码不正确');
     }
 
     const result = await this.authService.resetPasswordByPhone(dto.username, dto.phone, dto.newPassword);
