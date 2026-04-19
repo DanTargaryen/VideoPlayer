@@ -59,7 +59,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useRoute, useRouter } from 'vue-router';
 import { DocumentChecked, Upload, Promotion, Message, User } from '@element-plus/icons-vue';
@@ -74,6 +74,7 @@ const router = useRouter();
 const route = useRoute();
 const { siteName, avatarUrl, isLoggedIn, isAdmin, token, unreadNotificationCount } = storeToRefs(store);
 const searchKeyword = ref(String(route.query.keyword ?? ''));
+let headerSyncTimer: number | null = null;
 
 function isNavActive(item: { path: string }) {
   if (item.path === '/') {
@@ -135,6 +136,12 @@ function submitSearch(keyword?: string) {
 watch(token, () => {
   void syncUnreadCount();
   void syncAvatar();
+  if (token.value) {
+    startHeaderSync();
+    return;
+  }
+
+  stopHeaderSync();
 });
 
 watch(
@@ -147,7 +154,29 @@ watch(
 onMounted(() => {
   void syncUnreadCount();
   void syncAvatar();
+  if (token.value) {
+    startHeaderSync();
+  }
 });
+
+onUnmounted(() => {
+  stopHeaderSync();
+});
+
+function stopHeaderSync() {
+  if (headerSyncTimer) {
+    window.clearInterval(headerSyncTimer);
+    headerSyncTimer = null;
+  }
+}
+
+function startHeaderSync() {
+  stopHeaderSync();
+  headerSyncTimer = window.setInterval(() => {
+    void syncUnreadCount();
+    void syncAvatar();
+  }, 3000);
+}
 </script>
 
 <style scoped>
