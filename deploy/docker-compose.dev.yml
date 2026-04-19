@@ -16,6 +16,10 @@ services:
 
   srs:
     image: ossrs/srs:5
+    environment:
+      CANDIDATE: 10.64.132.182
     ports:
       - "1935:1935"
       - "8080:8080"
+      - "1985:1985"
+      - "8000:8000/udp"
