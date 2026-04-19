@@ -33,11 +33,17 @@
       <RouterLink to="/live" class="live-entry">直播</RouterLink>
       <template v-if="isLoggedIn">
         <span class="nickname">{{ nickname }}</span>
-        <RouterLink to="/following" class="action-link">关注流</RouterLink>
-        <RouterLink to="/notifications" class="action-link">
-          通知
-          <span v-if="unreadNotificationCount > 0" class="badge">{{ unreadNotificationCount }}</span>
-        </RouterLink>
+        <el-tooltip content="关注流" placement="bottom">
+          <RouterLink to="/following" class="action-icon-link" aria-label="关注流">
+            <el-icon :size="18"><Connection /></el-icon>
+          </RouterLink>
+        </el-tooltip>
+        <el-tooltip content="通知" placement="bottom">
+          <RouterLink to="/notifications" class="action-icon-link" aria-label="通知">
+            <el-icon :size="18"><Bell /></el-icon>
+            <span v-if="unreadNotificationCount > 0" class="icon-badge">{{ unreadNotificationCount }}</span>
+          </RouterLink>
+        </el-tooltip>
         <RouterLink to="/user/dashboard" class="action-link">用户中心</RouterLink>
         <RouterLink v-if="isAdmin" to="/admin/dashboard" class="action-link">审核后台</RouterLink>
         <button class="ghost-btn" @click="logout">退出</button>
@@ -49,9 +55,9 @@
 
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue';
+import { Bell, Connection } from '@element-plus/icons-vue';
 import { storeToRefs } from 'pinia';
 import { useRoute, useRouter } from 'vue-router';
-import { Search } from '@element-plus/icons-vue';
 
 import SearchSuggestBox from '@/components/SearchSuggestBox.vue';
 import { fetchUnreadNotificationCount } from '@/api/platform';
@@ -324,14 +330,38 @@ onMounted(() => {
   color: #ffffff;
 }
 
-.badge {
-  margin-left: 6px;
-  padding: 2px 8px;
+.action-icon-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.14);
+  transition: all 0.2s ease;
+}
+
+.action-icon-link:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.icon-badge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  min-width: 16px;
+  padding: 1px 5px;
   border-radius: 999px;
   background: #ffffff;
   color: #2563eb;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
 }
 
 @media (max-width: 1200px) {
