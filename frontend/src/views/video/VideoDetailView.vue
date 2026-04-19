@@ -110,6 +110,51 @@
       </div>
 
       <aside class="side-column">
+        <div class="agent-entry">
+          <el-popover
+            v-model:visible="agentPanelVisible"
+            placement="bottom-end"
+            :width="360"
+            trigger="click"
+            popper-class="video-agent-popper"
+          >
+            <template #reference>
+              <el-button type="primary" plain class="agent-entry-btn">
+                <el-icon :size="16"><ChatDotRound /></el-icon>
+                智能体
+              </el-button>
+            </template>
+
+            <div class="agent-panel">
+              <div class="agent-panel-head">
+                <strong>视频智能体</strong>
+                <span v-if="agentLastFrameCount > 0">分析帧数：{{ agentLastFrameCount }}</span>
+              </div>
+              <div ref="agentMessagesRef" class="agent-messages">
+                <div
+                  v-for="item in agentMessages"
+                  :key="item.id"
+                  class="agent-message"
+                  :class="item.role === 'user' ? 'agent-message-user' : 'agent-message-assistant'"
+                >
+                  <p>{{ item.content }}</p>
+                </div>
+                <div v-if="agentLoading" class="agent-loading">智能体思考中...</div>
+              </div>
+              <p v-if="agentError" class="agent-error">{{ agentError }}</p>
+              <div class="agent-input-wrap">
+                <el-input
+                  v-model="agentDraft"
+                  placeholder="输入你的问题，例如：这个视频里人物在做什么？"
+                  :disabled="agentLoading"
+                  @keydown.enter.exact.prevent="askVideoAgent"
+                />
+                <el-button type="primary" :loading="agentLoading" @click="askVideoAgent">发送</el-button>
+              </div>
+            </div>
+          </el-popover>
+        </div>
+
         <RouterLink :to="`/users/${video.creator.id}`" class="creator-card">
           <div class="creator-avatar">
             <img v-if="video.creator.avatarUrl" :src="video.creator.avatarUrl" :alt="video.creator.nickname" class="creator-avatar-img" />
@@ -223,12 +268,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { onBeforeRouteLeave, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { StarFilled, ChatDotRound, Warning, ArrowRight } from '@element-plus/icons-vue';
 
 import {
+  createVideoAiChat,
   createComment,
   createDanmaku,
   favoriteVideo,
@@ -254,6 +300,12 @@ import type { CommentItem, DanmakuItem, VideoCard, VideoDetail, VideoWatchProgre
 const WATCH_PROGRESS_MIN_REPORT_SECONDS = 10;
 const WATCH_PROGRESS_LEAVE_MIN_REPORT_SECONDS = 5;
 const WATCH_PROGRESS_MAX_DELTA_SECONDS = 5;
+
+interface AgentMessage {
+  id: number;
+  role: 'user' | 'assistant';
+  content: string;
+}
 
 const route = useRoute();
 const appStore = useAppStore();
@@ -293,6 +345,14 @@ const reportReason = ref('');
 
 const videoReportDialogVisible = ref(false);
 const videoReportReason = ref('');
+const agentPanelVisible = ref(false);
+const agentLoading = ref(false);
+const agentDraft = ref('');
+const agentError = ref('');
+const agentLastFrameCount = ref(0);
+const agentMessagesRef = ref<HTMLElement | null>(null);
+const agentMessages = ref<AgentMessage[]>([]);
+let agentMessageSeed = 0;
 
 const canFollow = computed(
   () => appStore.isLoggedIn && video.value && video.value.creator.id !== appStore.userId,
@@ -536,6 +596,106 @@ async function loadDanmakus() {
   }
 }
 
+function appendAgentMessage(role: AgentMessage['role'], content: string) {
+  agentMessageSeed += 1;
+  agentMessages.value = [
+    ...agentMessages.value,
+    {
+      id: agentMessageSeed,
+      role,
+      content,
+    },
+  ];
+}
+
+async function scrollAgentToBottom() {
+  await nextTick();
+  const container = agentMessagesRef.value;
+  if (!container) {
+    return;
+  }
+  container.scrollTop = container.scrollHeight;
+}
+
+function resetAgentState() {
+  agentPanelVisible.value = false;
+  agentLoading.value = false;
+  agentDraft.value = '';
+  agentError.value = '';
+  agentLastFrameCount.value = 0;
+  agentMessageSeed = 0;
+  agentMessages.value = [];
+  appendAgentMessage('assistant', '你好，我是视频智能体。你可以问我这个视频里发生了什么。');
+}
+
+function resolveApiErrorMessage(error: unknown, fallback: string) {
+  const candidate = error as { code?: string; response?: { data?: { message?: string | string[] } } };
+
+  if (candidate.code === 'ECONNABORTED') {
+    return '智能体请求超时，请稍后重试';
+  }
+
+  const message = candidate.response?.data?.message;
+
+  if (Array.isArray(message)) {
+    return message.join('; ');
+  }
+
+  if (typeof message === 'string' && message.trim()) {
+    return message;
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
+async function askVideoAgent() {
+  if (!video.value || agentLoading.value) {
+    return;
+  }
+
+  const prompt = agentDraft.value.trim();
+  if (!prompt) {
+    ElMessage.warning('请输入问题');
+    return;
+  }
+
+  const targetVideoId = video.value.id;
+  agentLoading.value = true;
+  agentError.value = '';
+  agentDraft.value = '';
+  appendAgentMessage('user', prompt);
+  await scrollAgentToBottom();
+
+  try {
+    const result = await createVideoAiChat({
+      videoId: targetVideoId,
+      prompt,
+    });
+    if (!video.value || video.value.id !== targetVideoId) {
+      return;
+    }
+    appendAgentMessage('assistant', result.reply);
+    agentLastFrameCount.value = result.frameCount;
+    await scrollAgentToBottom();
+  } catch (error) {
+    if (!video.value || video.value.id !== targetVideoId) {
+      return;
+    }
+    const message = resolveApiErrorMessage(error, '智能体暂时不可用，请稍后重试');
+    agentError.value = message;
+    appendAgentMessage('assistant', `出错了：${message}`);
+    await scrollAgentToBottom();
+  } finally {
+    if (video.value?.id === targetVideoId) {
+      agentLoading.value = false;
+    }
+  }
+}
+
 async function submitRootComment() {
   if (!commentForm.value.trim()) {
     ElMessage.warning('请输入评论内容');
@@ -748,6 +908,25 @@ function handlePageHide() {
 }
 
 watch(
+  () => agentMessages.value.length,
+  () => {
+    if (!agentPanelVisible.value) {
+      return;
+    }
+    void scrollAgentToBottom();
+  },
+);
+
+watch(
+  agentPanelVisible,
+  (visible) => {
+    if (visible) {
+      void scrollAgentToBottom();
+    }
+  },
+);
+
+watch(
   () => route.params.id,
   async (newId, oldId) => {
     if (oldId !== undefined && Number(oldId) !== Number(newId)) {
@@ -755,6 +934,7 @@ watch(
       resetWatchTracking();
     }
 
+    resetAgentState();
     await Promise.all([loadDetail(), loadRecommendations(), loadComments(), loadDanmakus()]);
   },
   { immediate: true },
@@ -1006,6 +1186,91 @@ onBeforeUnmount(() => {
   font-size: 13px;
   line-height: 1.6;
   word-break: break-word;
+}
+
+.agent-entry {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.agent-entry-btn {
+  min-width: 92px;
+}
+
+.agent-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.agent-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #111827;
+}
+
+.agent-panel-head span {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.agent-messages {
+  display: grid;
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 4px 2px;
+}
+
+.agent-message {
+  display: flex;
+}
+
+.agent-message p {
+  margin: 0;
+  padding: 8px 10px;
+  max-width: 85%;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.agent-message-user {
+  justify-content: flex-end;
+}
+
+.agent-message-user p {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.agent-message-assistant p {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.agent-loading {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.agent-error {
+  margin: 0;
+  color: #dc2626;
+  font-size: 12px;
+}
+
+.agent-input-wrap {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+:deep(.video-agent-popper) {
+  padding: 12px;
 }
 
 .video-title {
