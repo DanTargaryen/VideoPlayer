@@ -96,7 +96,7 @@ export class UserService {
 
   async updateProfile(
     userId: number,
-    payload: { nickname?: string; avatarUrl?: string; bio?: string },
+    payload: { nickname?: string; avatarUrl?: string; bio?: string; phone?: string },
   ) {
     const data = Object.fromEntries(
       Object.entries(payload).filter(([, value]) => value !== undefined),
@@ -114,6 +114,7 @@ export class UserService {
       nickname: updated.nickname,
       avatarUrl: updated.avatarUrl,
       bio: updated.bio,
+      phone: updated.phone,
       role: updated.role,
     };
   }

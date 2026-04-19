@@ -221,6 +221,8 @@ export interface CreatorDashboardData {
   username: string;
   nickname: string;
   avatarUrl?: string | null;
+  bio?: string | null;
+  phone?: string | null;
   role: 'USER' | 'ADMIN';
   totalVideos: number;
   pendingReviews: number;

@@ -1,4 +1,4 @@
-﻿import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -97,6 +97,8 @@ export class AuthService {
       userId: user.id,
       role: user.role,
       nickname: user.nickname,
+      phone: user.phone,
+      bio: user.bio,
     };
   }
 
@@ -112,6 +114,8 @@ export class AuthService {
       userId: adminUser.id,
       role: adminUser.role,
       nickname: adminUser.nickname,
+      phone: adminUser.phone,
+      bio: adminUser.bio,
     };
   }
 
@@ -169,6 +173,10 @@ export class AuthService {
           email: payload.email,
           password: payload.password,
           role: 'USER',
+          // 保留现有的字段
+          ...(existing.phone && { phone: existing.phone }),
+          ...(existing.nickname && { nickname: existing.nickname }),
+          ...(existing.bio && { bio: existing.bio }),
         },
       });
     }
@@ -182,6 +190,30 @@ export class AuthService {
         nickname: payload.nickname,
       },
     });
+  }
+
+  async resetPasswordByPhone(username: string, phone: string, newPassword: string) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        username,
+        phone,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('用户名与手机号不匹配');
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: user.id },
+      data: { password: newPassword },
+    });
+
+    return {
+      id: updated.id,
+      username: updated.username,
+      phone: updated.phone,
+    };
   }
 
   async getCurrentUser(authHeader?: string) {

@@ -2,7 +2,7 @@
   <section class="page">
     <div class="hero">
       <div>
-        <h1>通知中心</h1>
+        <h1>消息</h1>
         <p>这里展示关注、评论和回复通知。</p>
       </div>
       <el-button type="primary" plain @click="handleReadAll">全部标记已读</el-button>

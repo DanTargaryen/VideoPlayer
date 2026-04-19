@@ -33,19 +33,27 @@
       <RouterLink to="/live" class="live-entry">直播</RouterLink>
       <template v-if="isLoggedIn">
         <span class="nickname">{{ nickname }}</span>
-        <el-tooltip content="关注流" placement="bottom">
-          <RouterLink to="/following" class="action-icon-link" aria-label="关注流">
-            <el-icon :size="18"><Connection /></el-icon>
-          </RouterLink>
-        </el-tooltip>
-        <el-tooltip content="通知" placement="bottom">
-          <RouterLink to="/notifications" class="action-icon-link" aria-label="通知">
-            <el-icon :size="18"><Bell /></el-icon>
-            <span v-if="unreadNotificationCount > 0" class="icon-badge">{{ unreadNotificationCount }}</span>
-          </RouterLink>
-        </el-tooltip>
-        <RouterLink to="/user/dashboard" class="action-link">用户中心</RouterLink>
-        <RouterLink v-if="isAdmin" to="/admin/dashboard" class="action-link">审核后台</RouterLink>
+        <RouterLink to="/following" class="action-icon-link" aria-label="关注动态">
+          <el-icon :size="20"><Promotion /></el-icon>
+          <span class="action-label">动态</span>
+        </RouterLink>
+        <RouterLink to="/notifications" class="action-icon-link" aria-label="消息通知">
+          <el-icon :size="20"><Message /></el-icon>
+          <span class="action-label">消息</span>
+          <span v-if="unreadNotificationCount > 0" class="badge">{{ unreadNotificationCount }}</span>
+        </RouterLink>
+        <RouterLink to="/upload" class="action-icon-link" aria-label="上传投稿">
+          <el-icon :size="20"><Upload /></el-icon>
+          <span class="action-label">投稿</span>
+        </RouterLink>
+        <RouterLink v-if="isAdmin" to="/admin/dashboard" class="action-icon-link" aria-label="审核后台">
+          <el-icon :size="20"><DocumentChecked /></el-icon>
+          <span class="action-label">审核</span>
+        </RouterLink>
+        <RouterLink to="/user/dashboard" class="avatar-link" aria-label="用户中心">
+          <img v-if="avatarUrl" :src="avatarUrl" alt="avatar" class="header-avatar" />
+          <el-icon v-else :size="24"><User /></el-icon>
+        </RouterLink>
         <button class="ghost-btn" @click="logout">退出</button>
       </template>
       <RouterLink v-else to="/login" class="login-btn">登录</RouterLink>
@@ -55,19 +63,19 @@
 
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue';
-import { Bell, Connection } from '@element-plus/icons-vue';
 import { storeToRefs } from 'pinia';
 import { useRoute, useRouter } from 'vue-router';
+import { DocumentChecked, Upload, Promotion, Message, User } from '@element-plus/icons-vue';
 
 import SearchSuggestBox from '@/components/SearchSuggestBox.vue';
-import { fetchUnreadNotificationCount } from '@/api/platform';
+import { fetchUnreadNotificationCount, fetchCurrentUser } from '@/api/platform';
 import { useAppStore } from '@/stores/app';
 import { primaryNavItems as navItems } from '@/utils/navigation';
 
 const store = useAppStore();
 const router = useRouter();
 const route = useRoute();
-const { siteName, nickname, isLoggedIn, isAdmin, token, unreadNotificationCount } = storeToRefs(store);
+const { siteName, nickname, avatarUrl, isLoggedIn, isAdmin, token, unreadNotificationCount } = storeToRefs(store);
 const searchKeyword = ref(String(route.query.keyword ?? ''));
 
 function isNavActive(item: { path: string }) {
@@ -96,6 +104,25 @@ async function syncUnreadCount() {
   }
 }
 
+async function syncAvatar() {
+  if (!isLoggedIn.value) {
+    return;
+  }
+
+  try {
+    const user = await fetchCurrentUser();
+    const backendRole = user.role === 'ADMIN' ? 'ADMIN' : 'USER';
+    store.setAuth({
+      token: store.token,
+      userId: store.userId,
+      role: backendRole,
+      nickname: store.nickname,
+      avatarUrl: user.avatarUrl ?? '',
+    });
+  } catch {
+  }
+}
+
 function submitSearch(keyword?: string) {
   const normalizedKeyword = (keyword ?? searchKeyword.value).trim();
   router.push({
@@ -114,6 +141,7 @@ function logout() {
 
 watch(token, () => {
   void syncUnreadCount();
+  void syncAvatar();
 });
 
 watch(
@@ -125,6 +153,7 @@ watch(
 
 onMounted(() => {
   void syncUnreadCount();
+  void syncAvatar();
 });
 </script>
 
@@ -139,7 +168,7 @@ onMounted(() => {
   gap: 18px;
   padding: 14px 24px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .header-bg {
@@ -202,7 +231,6 @@ onMounted(() => {
 }
 
 .nav-link,
-.action-link,
 .ghost-btn,
 .login-btn,
 .live-entry {
@@ -229,57 +257,9 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.search-input-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
   width: 100%;
-  max-width: 400px;
-}
-
-.search-input {
-  width: 100%;
-  height: 40px;
-  padding: 0 44px 0 16px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.2);
-  color: #ffffff;
-  font-size: 14px;
-  outline: none;
-  transition: all 0.2s ease;
-}
-
-.search-input::placeholder {
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.search-input:focus {
-  border-color: rgba(255, 255, 255, 0.6);
-  background: rgba(255, 255, 255, 0.3);
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.15);
-}
-
-.search-btn {
-  position: absolute;
-  right: 4px;
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border: 0;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  color: #fff;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.search-btn:hover {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  max-width: 500px;
+  margin: 0 auto;
 }
 
 .actions {
@@ -315,7 +295,6 @@ onMounted(() => {
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
-.action-link,
 .ghost-btn {
   color: rgba(255, 255, 255, 0.85);
   text-decoration: none;
@@ -325,43 +304,67 @@ onMounted(() => {
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
-.action-link:hover,
 .ghost-btn:hover {
   color: #ffffff;
 }
 
 .action-icon-link {
-  position: relative;
-  display: inline-flex;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 8px;
   color: rgba(255, 255, 255, 0.9);
   text-decoration: none;
-  background: rgba(255, 255, 255, 0.14);
+  font-size: 12px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
   transition: all 0.2s ease;
 }
 
 .action-icon-link:hover {
+  background: rgba(255, 255, 255, 0.2);
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.22);
 }
 
-.icon-badge {
-  position: absolute;
-  top: -6px;
-  right: -8px;
-  min-width: 16px;
-  padding: 1px 5px;
+.action-label {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.badge {
+  margin-left: 6px;
+  padding: 2px 8px;
   border-radius: 999px;
   background: #ffffff;
   color: #2563eb;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  line-height: 1.2;
-  text-align: center;
+}
+
+.avatar-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  transition: all 0.2s ease;
+}
+
+.avatar-link:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+.header-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
 }
 
 @media (max-width: 1200px) {

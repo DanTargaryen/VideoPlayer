@@ -19,9 +19,8 @@
         </span>
       </div>
     </RouterLink>
-    <div class="card-body">
+    <div class="card-info">
       <h3 class="title">{{ item.title }}</h3>
-      <p class="desc">{{ item.description }}</p>
       <div class="meta">
         <RouterLink v-if="creatorId" :to="`/users/${creatorId}`" class="author">{{ creatorLabel }}</RouterLink>
         <span v-else class="author static">{{ creatorLabel }}</span>
@@ -67,23 +66,16 @@ const formattedTime = computed(() => {
 
 <style scoped>
 .card {
-  overflow: hidden;
-  border-radius: 16px;
-  background: #ffffff;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.05);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1);
+  display: flex;
+  flex-direction: column;
 }
 
 .cover-wrap {
   position: relative;
   display: block;
   text-decoration: none;
+  border-radius: 6px;
+  overflow: hidden;
 }
 
 .cover {
@@ -119,8 +111,8 @@ const formattedTime = computed(() => {
   height: 14px;
 }
 
-.card-body {
-  padding: 14px 16px 16px;
+.card-info {
+  padding: 12px 4px 0;
 }
 
 .title {
@@ -131,17 +123,6 @@ const formattedTime = computed(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.desc {
-  margin: 0 0 10px;
-  font-size: 13px;
-  color: #6b7280;
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .meta {
