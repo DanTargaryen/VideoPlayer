@@ -41,9 +41,9 @@
       </div>
 
       <div class="register-link-wrap" v-if="!adminMode">
-        <RouterLink to="/register" class="register-link">还没有账号？免费注册</RouterLink>
+        <RouterLink to="/register" class="register-link">注册</RouterLink>
         <span class="separator">|</span>
-        <el-button text @click="openForgotDialog" class="forgot-btn">忘记密码？</el-button>
+        <a href="javascript:void(0)" @click="openForgotDialog" class="forgot-btn">忘记密码</a>
       </div>
     </div>
 
@@ -200,7 +200,13 @@ async function sendResetSms() {
     startSmsCountdown();
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : '发送失败';
-    ElMessage.error(msg.includes('图形验证码') ? '图形验证码错误或已过期' : msg.includes('不匹配') ? '用户名与手机号不匹配' : '发送失败');
+    if (msg.includes('图形验证码不正确')) {
+      ElMessage.error('图形验证码不正确');
+    } else if (msg.includes('手机号不正确')) {
+      ElMessage.error('手机号不正确');
+    } else {
+      ElMessage.error('发送失败');
+    }
     refreshCaptcha();
   } finally {
     sendingSmsCode.value = false;
@@ -250,7 +256,11 @@ async function handleResetPassword() {
     }
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : '重置失败';
-    ElMessage.error(msg.includes('无效') || msg.includes('过期') ? '验证码无效或已过期' : '重置失败');
+    if (msg.includes('手机验证码不正确')) {
+      ElMessage.error('手机验证码不正确');
+    } else {
+      ElMessage.error('重置失败');
+    }
   } finally {
     resettingPassword.value = false;
   }
@@ -336,6 +346,10 @@ function openForgotDialog() {
 
 .register-link-wrap {
   margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
 }
 
 .register-link {
@@ -349,13 +363,20 @@ function openForgotDialog() {
 }
 
 .separator {
-  margin: 0 8px;
+  margin: 0;
   color: #d1d5db;
+  font-size: 13px;
 }
 
 .forgot-btn {
   font-size: 13px;
-  color: #6b7280;
+  color: #2563eb;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.forgot-btn:hover {
+  text-decoration: underline;
 }
 
 .captcha-row {

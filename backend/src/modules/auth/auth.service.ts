@@ -98,6 +98,7 @@ export class AuthService {
       role: user.role,
       nickname: user.nickname,
       phone: user.phone,
+      bio: user.bio,
     };
   }
 
@@ -114,6 +115,7 @@ export class AuthService {
       role: adminUser.role,
       nickname: adminUser.nickname,
       phone: adminUser.phone,
+      bio: adminUser.bio,
     };
   }
 
@@ -174,6 +176,7 @@ export class AuthService {
           // 保留现有的字段
           ...(existing.phone && { phone: existing.phone }),
           ...(existing.nickname && { nickname: existing.nickname }),
+          ...(existing.bio && { bio: existing.bio }),
         },
       });
     }
