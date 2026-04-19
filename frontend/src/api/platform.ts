@@ -39,6 +39,31 @@ export async function login(payload: { account?: string; password?: string; admi
   return data.data;
 }
 
+export async function fetchCaptcha() {
+  const { data } = await http.get<ApiResponse<{ id: string; dataUrl: string }>>('/captcha');
+  return data.data;
+}
+
+export async function sendResetSmsCode(username: string, phone: string, captchaId: string, captchaCode: string) {
+  const { data } = await http.post<ApiResponse<{ message: string }>>('/sms/send-reset-code', {
+    username,
+    phone,
+    captchaId,
+    captchaCode,
+  });
+  return data.data;
+}
+
+export async function resetPassword(username: string, phone: string, smsCode: string, newPassword: string) {
+  const { data } = await http.post<ApiResponse<{ id: number; username: string }>>('/auth/reset-password', {
+    username,
+    phone,
+    smsCode,
+    newPassword,
+  });
+  return data.data;
+}
+
 export async function fetchCurrentUser() {
   const { data } = await http.get<ApiResponse<{ id: number; username: string; role: string; nickname: string; email: string; avatarUrl: string | null; bio: string | null }>>('/auth/me');
   return data.data;

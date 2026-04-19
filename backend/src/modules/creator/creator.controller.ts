@@ -52,6 +52,7 @@ export class CreatorController {
       nickname: user.nickname,
       avatarUrl: user.avatarUrl,
       role: user.role,
+      phone: user.phone,
       followerCount,
       followingCount,
       totalLikes: aggregates._sum.likeCount ?? 0,

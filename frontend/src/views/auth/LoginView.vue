@@ -42,17 +42,54 @@
 
       <div class="register-link-wrap" v-if="!adminMode">
         <RouterLink to="/register" class="register-link">还没有账号？免费注册</RouterLink>
+        <span class="separator">|</span>
+        <el-button text @click="openForgotDialog" class="forgot-btn">忘记密码？</el-button>
       </div>
     </div>
+
+    <el-dialog v-model="forgotDialogVisible" title="忘记密码" width="420px" destroy-on-close>
+      <el-form :model="forgotForm" label-position="top" @submit.prevent>
+        <el-form-item label="用户名">
+          <el-input v-model="forgotForm.username" placeholder="请输入用户名" />
+        </el-form-item>
+        <el-form-item label="手机号">
+          <el-input v-model="forgotForm.phone" placeholder="请输入绑定的手机号" maxlength="11" />
+        </el-form-item>
+        <el-form-item label="图形验证码">
+          <div class="captcha-row">
+            <el-input v-model="forgotForm.captchaCode" placeholder="请输入图形验证码" maxlength="6" />
+            <img :src="captchaDataUrl" alt="图形验证码" class="captcha-img" @click="refreshCaptcha" />
+          </div>
+        </el-form-item>
+        <el-form-item label="手机验证码">
+          <div class="sms-row">
+            <el-input v-model="forgotForm.smsCode" placeholder="请输入手机验证码" maxlength="6" />
+            <el-button
+              :disabled="smsCountdown > 0 || sendingSmsCode"
+              @click="sendResetSms"
+            >
+              {{ sendingSmsCode ? '发送中...' : (smsCountdown > 0 ? `${smsCountdown}s后重发` : '获取验证码') }}
+            </el-button>
+          </div>
+        </el-form-item>
+        <el-form-item label="新密码">
+          <el-input v-model="forgotForm.newPassword" type="password" show-password placeholder="请输入新密码（至少6位）" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="forgotDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="resettingPassword" @click="handleResetPassword">确认重置</el-button>
+      </template>
+    </el-dialog>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 
-import { login } from '@/api/platform';
+import { fetchCaptcha, login, resetPassword, sendResetSmsCode } from '@/api/platform';
 import { useAppStore } from '@/stores/app';
 
 const ADMIN_SECRET = '123456';
@@ -67,6 +104,21 @@ const form = reactive({
 });
 
 const adminMode = computed(() => appStore.adminAccessGranted);
+
+const forgotDialogVisible = ref(false);
+const forgotForm = reactive({
+  username: '',
+  phone: '',
+  captchaId: '',
+  captchaCode: '',
+  smsCode: '',
+  newPassword: '',
+});
+const captchaDataUrl = ref('');
+const smsCountdown = ref(0);
+const sendingSmsCode = ref(false);
+const resettingPassword = ref(false);
+let smsTimer: number | null = null;
 
 function enterAdminMode() {
   appStore.grantAdminAccess();
@@ -114,6 +166,100 @@ async function handleLogin() {
   } finally {
     loading.value = false;
   }
+}
+
+async function refreshCaptcha() {
+  const result = await fetchCaptcha();
+  captchaDataUrl.value = result.dataUrl;
+  forgotForm.captchaId = result.id;
+  forgotForm.captchaCode = '';
+}
+
+async function sendResetSms() {
+  const phone = forgotForm.phone.trim();
+  const username = forgotForm.username.trim();
+  const captchaCode = forgotForm.captchaCode.trim();
+
+  if (!username) {
+    ElMessage.warning('请输入用户名');
+    return;
+  }
+  if (!/^1[3-9]\d{9}$/.test(phone)) {
+    ElMessage.warning('请输入正确的手机号');
+    return;
+  }
+  if (!captchaCode) {
+    ElMessage.warning('请输入图形验证码');
+    return;
+  }
+
+  sendingSmsCode.value = true;
+  try {
+    await sendResetSmsCode(username, phone, forgotForm.captchaId, captchaCode);
+    ElMessage.success('验证码已发送');
+    startSmsCountdown();
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : '发送失败';
+    ElMessage.error(msg.includes('图形验证码') ? '图形验证码错误或已过期' : msg.includes('不匹配') ? '用户名与手机号不匹配' : '发送失败');
+    refreshCaptcha();
+  } finally {
+    sendingSmsCode.value = false;
+  }
+}
+
+function startSmsCountdown() {
+  smsCountdown.value = 60;
+  if (smsTimer) {
+    clearInterval(smsTimer);
+  }
+  smsTimer = window.setInterval(() => {
+    if (smsCountdown.value > 0) {
+      smsCountdown.value--;
+    } else {
+      if (smsTimer) {
+        clearInterval(smsTimer);
+        smsTimer = null;
+      }
+    }
+  }, 1000);
+}
+
+async function handleResetPassword() {
+  const phone = forgotForm.phone.trim();
+  const username = forgotForm.username.trim();
+  const smsCode = forgotForm.smsCode.trim();
+  const newPassword = forgotForm.newPassword.trim();
+
+  if (!username || !phone || !smsCode || !newPassword) {
+    ElMessage.warning('请填写所有字段');
+    return;
+  }
+  if (newPassword.length < 6) {
+    ElMessage.warning('密码至少6位');
+    return;
+  }
+
+  resettingPassword.value = true;
+  try {
+    await resetPassword(username, phone, smsCode, newPassword);
+    ElMessage.success('密码重置成功，请使用新密码登录');
+    forgotDialogVisible.value = false;
+    if (smsTimer) {
+      clearInterval(smsTimer);
+      smsTimer = null;
+    }
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : '重置失败';
+    ElMessage.error(msg.includes('无效') || msg.includes('过期') ? '验证码无效或已过期' : '重置失败');
+  } finally {
+    resettingPassword.value = false;
+  }
+}
+
+function openForgotDialog() {
+  forgotDialogVisible.value = true;
+  forgotForm.username = form.account || '';
+  refreshCaptcha();
 }
 </script>
 
@@ -200,5 +346,44 @@ async function handleLogin() {
 
 .register-link:hover {
   text-decoration: underline;
+}
+
+.separator {
+  margin: 0 8px;
+  color: #d1d5db;
+}
+
+.forgot-btn {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.captcha-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.captcha-row .el-input {
+  flex: 1;
+}
+
+.captcha-img {
+  width: 120px;
+  height: 40px;
+  cursor: pointer;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  flex-shrink: 0;
+}
+
+.sms-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.sms-row .el-input {
+  flex: 1;
 }
 </style>
