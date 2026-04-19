@@ -17,6 +17,7 @@ import { ReportModule } from './modules/report/report.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { GiftModule } from './modules/gift/gift.module';
 import { AgentModule } from './modules/agent/agent.module';
+import { SmsModule } from './modules/sms/sms.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { AgentModule } from './modules/agent/agent.module';
     AdminModule,
     GiftModule,
     AgentModule,
+    SmsModule,
   ],
 })
 export class AppModule {}

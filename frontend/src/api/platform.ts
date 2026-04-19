@@ -479,8 +479,18 @@ export async function fetchMyLikes() {
   return data.data;
 }
 
-export async function updateProfile(payload: { nickname?: string; avatarUrl?: string; bio?: string }) {
-  const { data } = await http.put<ApiResponse<{ id: number; nickname: string; avatarUrl?: string; bio?: string }>>('/users/profile', payload);
+export async function updateProfile(payload: { nickname?: string; avatarUrl?: string; bio?: string; phone?: string }) {
+  const { data } = await http.put<ApiResponse<{ id: number; nickname: string; avatarUrl?: string; bio?: string; phone?: string }>>('/users/profile', payload);
+  return data.data;
+}
+
+export async function sendSmsCode(phone: string) {
+  const { data } = await http.post<ApiResponse<{ message: string }>>('/sms/send-code', { phone });
+  return data.data;
+}
+
+export async function verifySmsCode(phone: string, code: string) {
+  const { data } = await http.post<ApiResponse<{ message: string }>>('/sms/verify-code', { phone, code });
   return data.data;
 }
 
