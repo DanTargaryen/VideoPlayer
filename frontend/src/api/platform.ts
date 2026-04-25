@@ -275,6 +275,7 @@ export async function uploadVideo(file: File, assetType: 'ORIGINAL' | 'COVER' | 
       'Content-Type': 'multipart/form-data',
     },
     params: { assetType },
+    timeout: 300000,
   });
   return data.data;
 }

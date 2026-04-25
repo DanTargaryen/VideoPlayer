@@ -1,4 +1,5 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import type { Express } from 'express';
 
 import { CATEGORY_DEFINITIONS, resolveCategoryCode, resolveCategoryId } from '../../common/constants/categories';
@@ -17,7 +18,7 @@ interface VideoListOptions {
   pageSize?: number;
 }
 
-interface RecommendCandidate {
+export interface RecommendCandidate {
   id: number;
   creatorId: number;
   category: string;
@@ -338,7 +339,7 @@ export class VideoService {
       where: {
         status: 'PUBLISHED',
         id: {
-          notIn: [id, ...primaryCandidates.map((item) => item.id)],
+          notIn: [id, ...primaryCandidates.map((item: { id: number }) => item.id)],
         },
       },
       include: {
@@ -597,19 +598,19 @@ export class VideoService {
     const now = new Date();
 
     return candidates
-      .map((video) => ({
+      .map((video: RecommendCandidate & { title: string; description: string; creator: { id: number; nickname: string } | null }) => ({
         video,
         score: this.calculateSearchRankingScore(video, normalizedKeyword, tokens, now, recommendationContext),
       }))
-      .filter((item) => item.score > 0)
+      .filter((item: { score: number }) => item.score > 0)
       .sort(
-        (left, right) =>
+        (left: { score: number; video: { publishedAt: Date | null; id: number } }, right: { score: number; video: { publishedAt: Date | null; id: number } }) =>
           right.score - left.score ||
           (right.video.publishedAt?.getTime() ?? 0) - (left.video.publishedAt?.getTime() ?? 0) ||
           right.video.id - left.video.id,
       )
       .slice((page - 1) * pageSize, page * pageSize)
-      .map((item) => item.video);
+      .map((item: { video: RecommendCandidate & { title: string; description: string; creator: { id: number; nickname: string } | null } }) => item.video);
   }
 
   async likeVideo(videoId: number, user: { id: number; nickname: string }) {
@@ -851,7 +852,7 @@ export class VideoService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return favorites.map((f) => ({
+    return favorites.map((f: { video: { id: number; title: string; description: string; coverUrl: string; category: string; likeCount: number; favoriteCount: number; commentCount: number; creator: { id: number; nickname: string } }; createdAt: Date }) => ({
       id: f.video.id,
       title: f.video.title,
       description: f.video.description,
@@ -883,7 +884,7 @@ export class VideoService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return likes.map((l) => ({
+    return likes.map((l: { video: { id: number; title: string; description: string; coverUrl: string; category: string; likeCount: number; favoriteCount: number; commentCount: number; creator: { id: number; nickname: string } }; createdAt: Date }) => ({
       id: l.video.id,
       title: l.video.title,
       description: l.video.description,

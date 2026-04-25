@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 
 import { CATEGORY_DEFINITIONS, resolveCategoryId } from '../../common/constants/categories';
 import { PrismaService } from '../prisma/prisma.service';
@@ -99,8 +100,8 @@ export class UserProfileService {
         isColdStart: summary.isColdStart,
         updatedAt: summary.updatedAt,
       },
-      categoryPreferences: categoryPreferences.map((item) => this.toCategoryPreferenceDto(item.categoryId, item.score)),
-      creatorPreferences: creatorPreferences.map((item) => ({
+      categoryPreferences: categoryPreferences.map((item: { categoryId: number; score: number }) => this.toCategoryPreferenceDto(item.categoryId, item.score)),
+      creatorPreferences: creatorPreferences.map((item: { creatorId: number; creator: { nickname: string }; score: number }) => ({
         creatorId: item.creatorId,
         creatorNickname: item.creator.nickname,
         score: item.score,
@@ -304,7 +305,7 @@ export class UserProfileService {
     );
     const creatorPreferences = await this.buildCreatorPreferenceDtos(creatorScores);
 
-    await this.prisma.$transaction(async (tx) => {
+    await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       await tx.userCategoryPreference.deleteMany({ where: { userId } });
       if (categoryPreferences.length > 0) {
         await tx.userCategoryPreference.createMany({
@@ -393,7 +394,7 @@ export class UserProfileService {
       },
     });
 
-    const creatorIndex = new Map(creators.map((item) => [item.id, item.nickname]));
+    const creatorIndex = new Map(creators.map((item: { id: number; nickname: string }) => [item.id, item.nickname]));
 
     return sortedScores
       .map(([creatorId, score]) => {
