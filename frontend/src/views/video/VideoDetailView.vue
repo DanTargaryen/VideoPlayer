@@ -96,6 +96,7 @@
             :rows="3"
             placeholder="输入评论内容"
           />
+          <p class="comment-tip">输入 <strong>@grok</strong> + 问题，可召唤智能体回复</p>
           <div class="comment-actions">
             <el-button type="primary" @click="submitRootComment">发表评论</el-button>
           </div>

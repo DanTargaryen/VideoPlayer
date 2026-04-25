@@ -9,6 +9,7 @@ function hoursAgo(value) {
 }
 
 async function resetDatabase() {
+  await prisma.commentAiTask.deleteMany();
   await prisma.videoAiSummary.deleteMany();
   await prisma.reportRecord.deleteMany();
   await prisma.videoDanmaku.deleteMany();
