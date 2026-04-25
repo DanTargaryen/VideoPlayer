@@ -57,6 +57,11 @@
               <strong>{{ dashboard.totalLikes }}</strong>
               <span>获赞</span>
             </span>
+            <span class="stat-item">
+              <strong>{{ dashboard.coinBalance }}</strong>
+              <span>平台货币</span>
+            </span>
+            <el-button size="small" type="primary" :loading="claimingDaily" @click="handleDailyClaim">每日打卡 +2</el-button>
           </div>
         </div>
       </div>
@@ -406,6 +411,7 @@ import {
   sendEmailCode,
   fetchCreatorDashboard,
   fetchCreatorVideos,
+  claimDailyCoins,
   fetchFollowers,
   fetchFollowing,
   fetchMyFavorites,
@@ -435,6 +441,7 @@ const activeTab = ref<'home' | 'settings'>('home');
 const deleteAccountDialogVisible = ref(false);
 const deleteAccountPassword = ref('');
 const deletingAccount = ref(false);
+const claimingDaily = ref(false);
 
 const dashboard = ref<CreatorDashboardData>({
   id: 0,
@@ -453,6 +460,7 @@ const dashboard = ref<CreatorDashboardData>({
   totalLikes: 0,
   totalFavorites: 0,
   totalComments: 0,
+  coinBalance: 0,
   recentRejectedVideos: [],
 });
 const videos = ref<CreatorVideo[]>([]);
@@ -607,6 +615,23 @@ async function refreshAll() {
   bioDraft.value = dashboardData.bio || '';
   emailDraft.value = dashboardData.email || '';
   videos.value = videoList;
+}
+
+async function handleDailyClaim() {
+  claimingDaily.value = true;
+  try {
+    const result = await claimDailyCoins();
+    dashboard.value.coinBalance = result.balance;
+    if (result.claimed) {
+      ElMessage.success(`打卡成功，获得 ${result.amount} 个货币`);
+    } else {
+      ElMessage.info('今日已打卡');
+    }
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error, '打卡失败'));
+  } finally {
+    claimingDaily.value = false;
+  }
 }
 
 async function loadHomeData() {
