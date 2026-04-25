@@ -30,6 +30,10 @@ class LoginDto {
 
   @IsOptional()
   @IsString()
+  identifier?: string;
+
+  @IsOptional()
+  @IsString()
   password?: string;
 
   @IsOptional()
@@ -70,7 +74,7 @@ export class AuthController {
 
   @Post('login')
   async login(@Body() dto: LoginDto) {
-    return ok(await this.authService.login(dto.account, dto.password, dto.adminSecret));
+    return ok(await this.authService.login(dto.account ?? dto.identifier, dto.password, dto.adminSecret));
   }
 
   @Post('reset-password')
