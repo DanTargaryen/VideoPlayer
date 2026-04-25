@@ -60,6 +60,18 @@ enum VideoAssetType {
   RECORDING
 }
 
+enum CoinTransactionType {
+  DAILY_CLAIM
+  VIDEO_COIN
+}
+
+enum CommentAiTaskStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
 model User {
   id                    Int              @id @default(autoincrement())
   username              String           @unique @db.VarChar(64)
@@ -69,6 +81,8 @@ model User {
   nickname              String           @db.VarChar(64)
   avatarUrl             String?          @db.VarChar(255)
   bio                   String?          @db.VarChar(255)
+  phone                 String?          @unique @db.VarChar(20)
+  coinBalance           Int              @default(0)
   createdAt             DateTime         @default(now())
   updatedAt             DateTime         @updatedAt
   createdVideos         Video[]          @relation("CreatedVideos")
@@ -83,6 +97,57 @@ model User {
   danmakus              VideoDanmaku[]
   reports               ReportRecord[]   @relation("ReportCreators")
   handledReports        ReportRecord[]   @relation("ReportHandlers")
+  profileSummary        UserProfileSummary?
+  categoryPreferences   UserCategoryPreference[]
+  creatorPreferences    UserCreatorPreference[] @relation("UserCreatorPreferences")
+  preferredByUsers      UserCreatorPreference[] @relation("PreferredCreator")
+  videoWatches          UserVideoWatch[]
+  coinTransactions      CoinTransaction[]
+  dailyCoinClaims       DailyCoinClaim[]
+  videoCoinContributions VideoCoinContribution[]
+  commentAiTasks        CommentAiTask[]         @relation("CommentAiTaskRequester")
+}
+
+model UserProfileSummary {
+  id                    Int      @id @default(autoincrement())
+  userId                Int      @unique
+  user                  User     @relation(fields: [userId], references: [id])
+  activityScore         Int      @default(0)
+  activityLevel         String   @db.VarChar(32)
+  behaviorSignalCount   Int      @default(0)
+  viewerScore           Int      @default(0)
+  creatorScore          Int      @default(0)
+  creatorViewerTendency String   @db.VarChar(32)
+  isColdStart           Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model UserCategoryPreference {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id])
+  categoryId Int
+  score      Float    @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, categoryId])
+  @@index([userId, score])
+}
+
+model UserCreatorPreference {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation("UserCreatorPreferences", fields: [userId], references: [id])
+  creatorId  Int
+  creator    User     @relation("PreferredCreator", fields: [creatorId], references: [id])
+  score      Float    @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, creatorId])
+  @@index([userId, score])
 }
 
 model Video {
@@ -91,7 +156,7 @@ model Video {
   creator         User          @relation("CreatedVideos", fields: [creatorId], references: [id])
   title           String        @db.VarChar(128)
   description     String        @db.Text
-  categoryId      Int           @default(1)
+  category        String        @default("entertainment") @db.VarChar(32)
   coverUrl        String        @db.VarChar(255)
   playUrl         String        @db.VarChar(255)
   status          VideoStatus   @default(DRAFT)
@@ -102,6 +167,7 @@ model Video {
   likeCount       Int           @default(0)
   favoriteCount   Int           @default(0)
   commentCount    Int           @default(0)
+  coinCount       Int           @default(0)
   durationSeconds Int           @default(0)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
@@ -112,8 +178,46 @@ model Video {
   danmakus        VideoDanmaku[]
   reports         ReportRecord[]
   assets          VideoAsset[]
+  userWatches     UserVideoWatch[]
+  aiSummary       VideoAiSummary?
+  coinTransactions CoinTransaction[]
+  coinContributions VideoCoinContribution[]
+  commentAiTasks  CommentAiTask[]
 
   @@index([creatorId, status])
+}
+
+model VideoAiSummary {
+  id         Int      @id @default(autoincrement())
+  videoId    Int      @unique
+  video      Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  summary    String   @db.Text
+  frameCount Int      @default(0)
+  model      String   @db.VarChar(64)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model UserVideoWatch {
+  id                        Int      @id @default(autoincrement())
+  userId                    Int
+  user                      User     @relation(fields: [userId], references: [id])
+  videoId                   Int
+  video                     Video    @relation(fields: [videoId], references: [id])
+  playCount                 Int      @default(0)
+  totalWatchDurationSeconds Int      @default(0)
+  lastWatchDurationSeconds  Int      @default(0)
+  videoDurationSeconds      Int      @default(0)
+  maxWatchRatio             Float    @default(0)
+  lastWatchRatio            Float    @default(0)
+  completedCount            Int      @default(0)
+  lastWatchedAt             DateTime?
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  @@unique([userId, videoId])
+  @@index([userId, lastWatchedAt])
+  @@index([videoId, lastWatchedAt])
 }
 
 model VideoAsset {
@@ -161,9 +265,33 @@ model Comment {
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
   reports    ReportRecord[]
+  aiTask     CommentAiTask? @relation("CommentAiTaskComment")
+  aiTaskReply CommentAiTask? @relation("CommentAiTaskReply")
 
   @@index([videoId, parentId, createdAt])
   @@index([userId, createdAt])
+}
+
+model CommentAiTask {
+  id             Int                 @id @default(autoincrement())
+  commentId      Int                 @unique
+  comment        Comment             @relation("CommentAiTaskComment", fields: [commentId], references: [id], onDelete: Cascade)
+  videoId        Int
+  video          Video               @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  requesterId    Int
+  requester      User                @relation("CommentAiTaskRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  prompt         String              @db.VarChar(1000)
+  status         CommentAiTaskStatus @default(PENDING)
+  replyCommentId Int?                @unique
+  replyComment   Comment?            @relation("CommentAiTaskReply", fields: [replyCommentId], references: [id], onDelete: SetNull)
+  errorMessage   String?             @db.VarChar(1024)
+  attempts       Int                 @default(0)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([status, updatedAt])
+  @@index([requesterId, createdAt])
+  @@index([videoId, createdAt])
 }
 
 model FollowRelation {
@@ -203,6 +331,47 @@ model VideoLike {
   userId     Int
   user       User     @relation(fields: [userId], references: [id])
   createdAt  DateTime @default(now())
+
+  @@unique([videoId, userId])
+  @@index([userId, createdAt])
+}
+
+model CoinTransaction {
+  id           Int                 @id @default(autoincrement())
+  userId       Int
+  user         User                @relation(fields: [userId], references: [id])
+  type         CoinTransactionType
+  amount       Int
+  balanceAfter Int
+  videoId      Int?
+  video        Video?              @relation(fields: [videoId], references: [id])
+  createdAt    DateTime            @default(now())
+
+  @@index([userId, createdAt])
+  @@index([videoId, createdAt])
+}
+
+model DailyCoinClaim {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  claimDate DateTime @db.Date
+  amount    Int      @default(2)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, claimDate])
+  @@index([claimDate])
+}
+
+model VideoCoinContribution {
+  id        Int      @id @default(autoincrement())
+  videoId   Int
+  video     Video    @relation(fields: [videoId], references: [id])
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  amount    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([videoId, userId])
   @@index([userId, createdAt])

@@ -64,9 +64,16 @@ export class AdminController {
     await this.requireAdmin(authorization);
 
     const items = await this.prisma.videoReview.findMany({
-      where: { status: 'PENDING' },
-      include: { video: true },
-      orderBy: { createdAt: 'asc' },
+      include: {
+        video: true,
+        reviewer: {
+          select: {
+            id: true,
+            nickname: true,
+          },
+        },
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
 
     return ok(items);

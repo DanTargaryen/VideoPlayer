@@ -2,7 +2,7 @@
   <section class="page">
     <div class="hero">
       <div>
-        <h1>通知中心</h1>
+        <h1>消息</h1>
         <p>这里展示关注、评论和回复通知。</p>
       </div>
       <el-button type="primary" plain @click="handleReadAll">全部标记已读</el-button>
@@ -15,7 +15,16 @@
           <p>{{ item.content }}</p>
           <span class="meta">{{ formatTime(item.createdAt) }}</span>
         </div>
-        <span class="tag" :class="{ unread: !item.isRead }">{{ item.isRead ? '已读' : '未读' }}</span>
+        <button
+          v-if="!item.isRead"
+          type="button"
+          class="tag unread action-tag"
+          :disabled="readingId === item.id"
+          @click="handleReadOne(item.id)"
+        >
+          {{ readingId === item.id ? '处理中...' : '标记已读' }}
+        </button>
+        <span v-else class="tag">已读</span>
       </article>
       <el-empty v-if="notifications.length === 0" description="暂无通知" />
     </div>
@@ -26,10 +35,13 @@
 import { onMounted, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 
-import { fetchNotifications, readAllNotifications } from '@/api/platform';
+import { fetchNotifications, readAllNotifications, readNotification } from '@/api/platform';
+import { useAppStore } from '@/stores/app';
 import type { NotificationItem } from '@/types/api';
 
+const store = useAppStore();
 const notifications = ref<NotificationItem[]>([]);
+const readingId = ref<number | null>(null);
 
 function formatTime(value: string) {
   return new Date(value).toLocaleString('zh-CN');
@@ -38,6 +50,7 @@ function formatTime(value: string) {
 async function loadNotifications() {
   try {
     notifications.value = await fetchNotifications();
+    store.setUnreadNotificationCount(notifications.value.filter((item) => !item.isRead).length);
   } catch {
     ElMessage.warning('请先登录后查看通知');
   }
@@ -46,10 +59,27 @@ async function loadNotifications() {
 async function handleReadAll() {
   try {
     await readAllNotifications();
-    await loadNotifications();
+    store.setUnreadNotificationCount(0);
+    notifications.value = notifications.value.map((item) => ({ ...item, isRead: true }));
     ElMessage.success('已全部标记为已读');
   } catch {
     ElMessage.error('处理失败');
+  }
+}
+
+async function handleReadOne(id: number) {
+  readingId.value = id;
+  try {
+    await readNotification(id);
+    notifications.value = notifications.value.map((item) =>
+      item.id === id ? { ...item, isRead: true } : item,
+    );
+    store.setUnreadNotificationCount(notifications.value.filter((item) => !item.isRead).length);
+    ElMessage.success('已标记为已读');
+  } catch {
+    ElMessage.error('标记已读失败');
+  } finally {
+    readingId.value = null;
   }
 }
 
@@ -70,6 +100,16 @@ onMounted(() => {
   justify-content: space-between;
 }
 
+.hero h1 {
+  margin: 0;
+  color: #111827;
+}
+
+.hero p {
+  margin: 4px 0 0;
+  color: #4b5563;
+}
+
 .list {
   display: grid;
   gap: 12px;
@@ -82,24 +122,52 @@ onMounted(() => {
   gap: 16px;
   padding: 20px;
   border-radius: 16px;
-  background: rgba(30, 41, 59, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+}
+
+.card h3 {
+  margin: 0;
+  color: #111827;
+}
+
+.card p {
+  margin: 4px 0 0;
+  color: #4b5563;
 }
 
 .meta {
   display: inline-block;
   margin-top: 8px;
-  color: #94a3b8;
+  color: #6b7280;
 }
 
 .tag {
   padding: 4px 10px;
   border-radius: 999px;
-  background: rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.06);
+  color: #6b7280;
+  font-size: 13px;
 }
 
 .tag.unread {
-  background: rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+}
+
+.action-tag {
+  border: 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.action-tag:hover:not(:disabled) {
+  background: rgba(37, 99, 235, 0.18);
+}
+
+.action-tag:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 </style>
