@@ -1,10 +1,16 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 
+import { CommentAiService } from '../comment-ai/comment-ai.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class CommentService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(CommentService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly commentAiService: CommentAiService,
+  ) {}
 
   async listComments(videoId: number) {
     const comments = await this.prisma.comment.findMany({
@@ -20,15 +26,29 @@ export class CommentService {
       orderBy: [{ createdAt: 'asc' }],
     });
 
-    const topLevel = comments.filter((item: (typeof comments)[number]) => item.parentId === null);
-    const replies = comments.filter((item: (typeof comments)[number]) => item.parentId !== null);
+    type CommentNode = (typeof comments)[number] & { replies: CommentNode[] };
+
+    const nodeMap = new Map<number, CommentNode>();
+    for (const c of comments) {
+      nodeMap.set(c.id, { ...c, replies: [] });
+    }
+
+    const roots: CommentNode[] = [];
+    for (const c of comments) {
+      const node = nodeMap.get(c.id)!;
+      if (c.parentId === null) {
+        roots.push(node);
+      } else {
+        const parent = nodeMap.get(c.parentId);
+        if (parent) {
+          parent.replies.push(node);
+        }
+      }
+    }
 
     return {
       videoId,
-      items: topLevel.map((item: (typeof topLevel)[number]) => ({
-        ...item,
-        replies: replies.filter((reply: (typeof replies)[number]) => reply.rootId === item.id),
-      })),
+      items: roots,
     };
   }
 
@@ -105,6 +125,18 @@ export class CommentService {
         },
       });
     }
+
+    void this.commentAiService
+      .enqueueIfMention({
+        commentId: created.id,
+        videoId,
+        requesterId: user.id,
+        content: payload.content,
+      })
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.error(`Failed to enqueue @grok task for comment ${created.id}: ${message}`);
+      });
 
     return created;
   }
