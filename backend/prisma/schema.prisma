@@ -65,6 +65,13 @@ enum CoinTransactionType {
   VIDEO_COIN
 }
 
+enum CommentAiTaskStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
 model User {
   id                    Int              @id @default(autoincrement())
   username              String           @unique @db.VarChar(64)
@@ -98,6 +105,7 @@ model User {
   coinTransactions      CoinTransaction[]
   dailyCoinClaims       DailyCoinClaim[]
   videoCoinContributions VideoCoinContribution[]
+  commentAiTasks        CommentAiTask[]         @relation("CommentAiTaskRequester")
 }
 
 model UserProfileSummary {
@@ -174,6 +182,7 @@ model Video {
   aiSummary       VideoAiSummary?
   coinTransactions CoinTransaction[]
   coinContributions VideoCoinContribution[]
+  commentAiTasks  CommentAiTask[]
 
   @@index([creatorId, status])
 }
@@ -256,9 +265,33 @@ model Comment {
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
   reports    ReportRecord[]
+  aiTask     CommentAiTask? @relation("CommentAiTaskComment")
+  aiTaskReply CommentAiTask? @relation("CommentAiTaskReply")
 
   @@index([videoId, parentId, createdAt])
   @@index([userId, createdAt])
+}
+
+model CommentAiTask {
+  id             Int                 @id @default(autoincrement())
+  commentId      Int                 @unique
+  comment        Comment             @relation("CommentAiTaskComment", fields: [commentId], references: [id], onDelete: Cascade)
+  videoId        Int
+  video          Video               @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  requesterId    Int
+  requester      User                @relation("CommentAiTaskRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  prompt         String              @db.VarChar(1000)
+  status         CommentAiTaskStatus @default(PENDING)
+  replyCommentId Int?                @unique
+  replyComment   Comment?            @relation("CommentAiTaskReply", fields: [replyCommentId], references: [id], onDelete: SetNull)
+  errorMessage   String?             @db.VarChar(1024)
+  attempts       Int                 @default(0)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([status, updatedAt])
+  @@index([requesterId, createdAt])
+  @@index([videoId, createdAt])
 }
 
 model FollowRelation {
