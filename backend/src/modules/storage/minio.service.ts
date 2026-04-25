@@ -15,7 +15,7 @@ export function getStorageMode(): 'minio' | 'local' {
 @Injectable()
 export class MinioService implements OnModuleInit {
   private readonly logger = new Logger(MinioService.name);
-  private readonly storageMode: 'minio' | 'local';
+  private storageMode: 'minio' | 'local';
   private readonly bucket: string;
   private readonly publicBaseUrl: string;
   private readonly client: Client | null;
@@ -47,9 +47,7 @@ export class MinioService implements OnModuleInit {
 
   async onModuleInit() {
     if (this.storageMode === 'local') {
-      if (!fs.existsSync(LOCAL_STORAGE_ROOT)) {
-        fs.mkdirSync(LOCAL_STORAGE_ROOT, { recursive: true });
-      }
+      this.ensureLocalStorageRoot();
       return;
     }
 
@@ -57,25 +55,38 @@ export class MinioService implements OnModuleInit {
       return;
     }
 
-    const exists = await this.client.bucketExists(this.bucket).catch(() => false);
+    try {
+      const exists = await this.client.bucketExists(this.bucket).catch(() => false);
 
-    if (!exists) {
-      await this.client.makeBucket(this.bucket, 'us-east-1');
-      await this.client.setBucketPolicy(
-        this.bucket,
-        JSON.stringify({
-          Version: '2012-10-17',
-          Statement: [
-            {
-              Effect: 'Allow',
-              Principal: { AWS: ['*'] },
-              Action: ['s3:GetObject'],
-              Resource: [`arn:aws:s3:::${this.bucket}/*`],
-            },
-          ],
-        }),
-      );
-      this.logger.log(`Created bucket ${this.bucket}`);
+      if (!exists) {
+        await this.client.makeBucket(this.bucket, 'us-east-1');
+        await this.client.setBucketPolicy(
+          this.bucket,
+          JSON.stringify({
+            Version: '2012-10-17',
+            Statement: [
+              {
+                Effect: 'Allow',
+                Principal: { AWS: ['*'] },
+                Action: ['s3:GetObject'],
+                Resource: [`arn:aws:s3:::${this.bucket}/*`],
+              },
+            ],
+          }),
+        );
+        this.logger.log(`Created bucket ${this.bucket}`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`MinIO unavailable, fallback to local storage: ${message}`);
+      this.storageMode = 'local';
+      this.ensureLocalStorageRoot();
+    }
+  }
+
+  private ensureLocalStorageRoot() {
+    if (!fs.existsSync(LOCAL_STORAGE_ROOT)) {
+      fs.mkdirSync(LOCAL_STORAGE_ROOT, { recursive: true });
     }
   }
 
