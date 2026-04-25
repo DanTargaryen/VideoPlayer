@@ -13,6 +13,9 @@ async function resetDatabase() {
   await prisma.reportRecord.deleteMany();
   await prisma.videoDanmaku.deleteMany();
   await prisma.comment.deleteMany();
+  await prisma.coinTransaction.deleteMany();
+  await prisma.dailyCoinClaim.deleteMany();
+  await prisma.videoCoinContribution.deleteMany();
   await prisma.favorite.deleteMany();
   await prisma.videoLike.deleteMany();
   await prisma.notification.deleteMany();

@@ -38,6 +38,7 @@ export class UserService {
       following: followingCount,
       videos: videoCount,
       isFollowing,
+      coinBalance: currentUserId === id ? user.coinBalance : undefined,
       items: videos,
     };
   }
@@ -62,6 +63,9 @@ export class UserService {
 
       // Delete leaf records owned by user
       await tx.userVideoWatch.deleteMany({ where: { userId } });
+      await tx.coinTransaction.deleteMany({ where: { userId } });
+      await tx.dailyCoinClaim.deleteMany({ where: { userId } });
+      await tx.videoCoinContribution.deleteMany({ where: { userId } });
       await tx.userCategoryPreference.deleteMany({ where: { userId } });
       await tx.userCreatorPreference.deleteMany({ where: { userId } });
       await tx.userCreatorPreference.deleteMany({ where: { creatorId: userId } });
@@ -76,6 +80,8 @@ export class UserService {
 
       if (videoIds.length > 0) {
         await tx.userVideoWatch.deleteMany({ where: { videoId: { in: videoIds } } });
+        await tx.coinTransaction.updateMany({ where: { videoId: { in: videoIds } }, data: { videoId: null } });
+        await tx.videoCoinContribution.deleteMany({ where: { videoId: { in: videoIds } } });
         await tx.videoLike.deleteMany({ where: { videoId: { in: videoIds } } });
         await tx.favorite.deleteMany({ where: { videoId: { in: videoIds } } });
         await tx.reportRecord.deleteMany({ where: { videoId: { in: videoIds } } });
