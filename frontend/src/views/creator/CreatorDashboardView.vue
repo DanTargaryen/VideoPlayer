@@ -23,9 +23,26 @@
               <el-button size="small" @click="cancelNickname">取消</el-button>
             </template>
           </div>
-          <div class="account-meta">
-            <span>账号 ID：#{{ dashboard.id || '-' }}</span>
-            <span>登录账号：{{ dashboard.username || '-' }}</span>
+          <div class="bio-row">
+            <template v-if="!editingBio">
+              <span class="bio-text" :class="{ placeholder: !dashboard.bio }" @click="startEditBio">
+                {{ dashboard.bio || '编辑个性签名' }}
+              </span>
+            </template>
+            <template v-else>
+              <el-input
+                v-model="bioDraft"
+                size="small"
+                class="bio-input"
+                maxlength="200"
+                show-word-limit
+                placeholder="写点什么介绍自己吧..."
+                @keyup.enter="saveBio"
+                @keyup.escape="cancelBio"
+              />
+              <el-button size="small" type="primary" @click="saveBio">保存</el-button>
+              <el-button size="small" @click="cancelBio">取消</el-button>
+            </template>
           </div>
           <div class="profile-stats">
             <button class="stat-link" @click="openFollowersDialog">
@@ -47,11 +64,10 @@
 
     <div class="tab-bar">
       <button class="tab-btn" :class="{ active: activeTab === 'home' }" @click="activeTab = 'home'">主页</button>
-      <button class="tab-btn" :class="{ active: activeTab === 'upload' }" @click="activeTab = 'upload'">投稿</button>
       <button class="tab-btn" :class="{ active: activeTab === 'settings' }" @click="activeTab = 'settings'">账号设置</button>
     </div>
 
-    <template v-if="activeTab === 'upload'">
+    <template v-if="activeTab === 'home'">
       <section v-if="dashboard.recentRejectedVideos.length > 0" class="panel">
         <div class="panel-head">
           <h2>违规提醒</h2>
@@ -68,49 +84,8 @@
         </div>
       </section>
 
-      <section class="panel compact-panel">
-        <h2>新建投稿</h2>
-        <el-form :model="form" label-position="top">
-          <el-form-item label="标题">
-            <el-input v-model="form.title" />
-          </el-form-item>
-          <el-form-item label="简介">
-            <el-input v-model="form.description" type="textarea" />
-          </el-form-item>
-          <el-form-item label="分区">
-            <el-select v-model="form.category">
-              <el-option v-for="item in videoCategoryOptions" :key="item.code" :label="item.label" :value="item.code" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="封面地址（可选）">
-            <el-input v-model="form.coverUrl" />
-          </el-form-item>
-            <el-form-item label="视频文件">
-              <input type="file" accept="video/*" @change="handleVideoFileChange" />
-              <span v-if="selectedVideoFile" class="hint">已选择：{{ selectedVideoFile.name }}</span>
-            </el-form-item>
-            <el-form-item v-if="autoCoverPreview" label="自动截取封面预览">
-              <div class="cover-preview-wrapper">
-                <img :src="autoCoverPreview" alt="自动截取的封面" class="cover-preview-img" />
-                <div class="cover-preview-actions">
-                  <el-button size="small" @click="handleRecaptureFrame">重新截取</el-button>
-                  <el-button size="small" type="primary" @click="handleUseAutoCover">使用此封面</el-button>
-                </div>
-              </div>
-            </el-form-item>
-            <el-form-item label="封面图片（可选）">
-              <input type="file" accept="image/*" @change="handleCoverFileChange" />
-              <span v-if="selectedCoverFile" class="hint">已选择：{{ selectedCoverFile.name }}</span>
-              <span v-if="!selectedCoverFile && autoCoverPreview" class="hint success">未选择自定义封面，将自动使用截取画面作为封面</span>
-            </el-form-item>
-            <div class="panel-actions">
-              <el-button :loading="creating" @click="handleCreateDraft">创建稿件</el-button>
-            </div>
-          </el-form>
-        </section>
-
         <section class="panel">
-          <h2>我的稿件</h2>
+          <h2>我的作品</h2>
           <div class="video-list">
             <article v-for="item in videos" :key="item.id" class="video-card">
               <button class="video-cover-button" type="button" @click="openVideoPreview(item)">
@@ -266,25 +241,72 @@
       <section class="panel">
         <h2>账号信息</h2>
         <el-form label-position="top" class="account-settings-form" @submit.prevent>
-          <el-form-item label="账号 ID">
-            <el-input :model-value="String(dashboard.id || '')" disabled />
-          </el-form-item>
           <el-form-item label="登录账号">
-            <el-input :model-value="dashboard.username || ''" disabled />
+            <div class="form-row">
+              <el-input :model-value="dashboard.username || ''" disabled />
+              <span class="form-btn-placeholder"></span>
+            </div>
           </el-form-item>
           <el-form-item label="昵称">
-            <el-input
-              v-model="nicknameDraft"
-              maxlength="64"
-              show-word-limit
-              placeholder="输入要显示给其他用户看的昵称"
-              @keyup.enter="saveNickname"
-            />
+            <div class="form-row">
+              <el-input
+                v-model="nicknameDraft"
+                maxlength="64"
+                show-word-limit
+                placeholder="输入要显示给其他用户看的昵称"
+                @keyup.enter="saveNickname"
+              />
+              <el-button type="primary" :disabled="!nicknameDraft.trim()" @click="saveNickname">保存</el-button>
+            </div>
           </el-form-item>
-          <div class="panel-actions">
-            <el-button type="primary" :disabled="!nicknameDraft.trim()" @click="saveNickname">保存昵称</el-button>
-            <el-button @click="nicknameDraft = dashboard.nickname">重置</el-button>
-          </div>
+          <el-form-item label="个性签名">
+            <div class="form-row bio-row">
+              <el-input
+                v-model="bioDraft"
+                type="textarea"
+                :rows="3"
+                maxlength="200"
+                show-word-limit
+                placeholder="写点什么介绍自己吧..."
+              />
+              <el-button type="primary" @click="saveBio">保存</el-button>
+            </div>
+          </el-form-item>
+          <el-form-item label="邮箱">
+            <div v-if="!editingEmail" class="form-row">
+              <el-input :model-value="dashboard.email || '未绑定'" disabled />
+              <el-button type="primary" @click="startEditEmail">绑定/修改</el-button>
+            </div>
+            <div v-else class="email-edit-rows">
+              <div class="email-edit-row">
+                <el-input
+                  v-model="emailDraft"
+                  placeholder="请输入邮箱"
+                  maxlength="128"
+                  show-word-limit
+                />
+                <el-button type="primary" @click="saveEmail">保存</el-button>
+              </div>
+              <div class="email-edit-row">
+                <el-input
+                  v-model="emailCode"
+                  placeholder="请输入验证码"
+                  maxlength="6"
+                  show-word-limit
+                >
+                  <template #append>
+                    <el-button
+                      :disabled="sendingEmailCode || countdown > 0"
+                      @click="sendEmailCodeApi"
+                    >
+                      {{ sendingEmailCode ? '发送中...' : (countdown > 0 ? `${countdown}s后重发` : '获取验证码') }}
+                    </el-button>
+                  </template>
+                </el-input>
+                <el-button @click="cancelEmail">取消</el-button>
+              </div>
+            </div>
+          </el-form-item>
         </el-form>
       </section>
 
@@ -294,6 +316,13 @@
           <div class="danger-zone-header">
             <h3>危险操作</h3>
             <p class="subtle">以下操作不可逆，请谨慎操作。</p>
+          </div>
+          <div class="danger-action">
+            <div>
+              <strong>退出登录</strong>
+              <p class="subtle">退出当前账号登录状态，回到登录页面。</p>
+            </div>
+            <el-button type="warning" plain @click="handleLogout">退出登录</el-button>
           </div>
           <div class="danger-action">
             <div>
@@ -368,12 +397,13 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 
 import {
   createVideo,
   deleteAccount,
+  sendEmailCode,
   fetchCreatorDashboard,
   fetchCreatorVideos,
   fetchFollowers,
@@ -386,6 +416,7 @@ import {
   updateVideoDraft,
   uploadAvatar,
   uploadVideo,
+  verifyEmailCode,
   withdrawVideoReview,
 } from '@/api/platform';
 import { videoCategoryOptions } from '@/constants/categories';
@@ -395,11 +426,12 @@ import type { CreatorDashboardData, CreatorVideo, FollowUserItem, MyVideoItem, R
 const fallbackAvatar = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=320&q=80';
 const store = useAppStore();
 const router = useRouter();
+const route = useRoute();
 const pageLoading = ref(false);
 const creating = ref(false);
 const savingDraft = ref(false);
 const savingAvatar = ref(false);
-const activeTab = ref<'upload' | 'home' | 'settings'>('home');
+const activeTab = ref<'home' | 'settings'>('home');
 const deleteAccountDialogVisible = ref(false);
 const deleteAccountPassword = ref('');
 const deletingAccount = ref(false);
@@ -409,6 +441,8 @@ const dashboard = ref<CreatorDashboardData>({
   username: '',
   nickname: '',
   avatarUrl: null,
+  bio: null,
+  email: '',
   role: 'USER',
   totalVideos: 0,
   pendingReviews: 0,
@@ -449,6 +483,27 @@ const avatarFile = ref<File | null>(null);
 const avatarPreview = ref('');
 const editingNickname = ref(false);
 const nicknameDraft = ref('');
+const editingBio = ref(false);
+const bioDraft = ref('');
+const editingEmail = ref(false);
+const emailDraft = ref('');
+const emailCode = ref('');
+const sendingEmailCode = ref(false);
+const countdown = ref(0);
+let countdownTimer: number | null = null;
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function getErrorMessage(error: unknown, fallback: string) {
+  const responseMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+  if (typeof responseMessage === 'string' && responseMessage) {
+    return responseMessage;
+  }
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return fallback;
+}
 
 const profileAvatarUrl = computed(() => dashboard.value.avatarUrl || fallbackAvatar);
 
@@ -549,6 +604,8 @@ async function refreshAll() {
   const [dashboardData, videoList] = await Promise.all([fetchCreatorDashboard(), fetchCreatorVideos()]);
   dashboard.value = dashboardData;
   nicknameDraft.value = dashboardData.nickname;
+  bioDraft.value = dashboardData.bio || '';
+  emailDraft.value = dashboardData.email || '';
   videos.value = videoList;
 }
 
@@ -589,6 +646,128 @@ async function saveNickname() {
   }
 }
 
+function startEditBio() {
+  bioDraft.value = dashboard.value.bio || '';
+  editingBio.value = true;
+}
+
+function cancelBio() {
+  editingBio.value = false;
+  bioDraft.value = dashboard.value.bio || '';
+}
+
+async function saveBio() {
+  const nextBio = bioDraft.value.trim();
+
+  try {
+    const result = await updateProfile({ bio: nextBio });
+    dashboard.value.bio = result.bio;
+    bioDraft.value = result.bio || '';
+    editingBio.value = false;
+    ElMessage.success('个性签名已更新');
+  } catch {
+    ElMessage.error('更新个性签名失败');
+  }
+}
+
+function startEditEmail() {
+  emailDraft.value = dashboard.value.email || '';
+  emailCode.value = '';
+  editingEmail.value = true;
+}
+
+function cancelEmail() {
+  editingEmail.value = false;
+  emailDraft.value = dashboard.value.email || '';
+  emailCode.value = '';
+  if (countdownTimer) {
+    clearInterval(countdownTimer);
+    countdownTimer = null;
+  }
+  countdown.value = 0;
+}
+
+async function sendEmailCodeApi() {
+  const email = emailDraft.value.trim();
+  if (!emailPattern.test(email)) {
+    ElMessage.warning('请输入正确的邮箱');
+    return;
+  }
+
+  sendingEmailCode.value = true;
+  try {
+    await sendEmailCode(email);
+    ElMessage.success('验证码已发送');
+    startCountdown();
+  } catch (e: unknown) {
+    const msg = getErrorMessage(e, '发送验证码失败');
+    if (msg.includes('邮箱格式不正确')) {
+      ElMessage.error('邮箱格式不正确');
+    } else {
+      ElMessage.error(msg);
+    }
+  } finally {
+    sendingEmailCode.value = false;
+  }
+}
+
+function startCountdown() {
+  countdown.value = 60;
+  if (countdownTimer) {
+    clearInterval(countdownTimer);
+  }
+  countdownTimer = window.setInterval(() => {
+    if (countdown.value > 0) {
+      countdown.value--;
+    } else {
+      if (countdownTimer) {
+        clearInterval(countdownTimer);
+        countdownTimer = null;
+      }
+    }
+  }, 1000);
+}
+
+async function saveEmail() {
+  const email = emailDraft.value.trim();
+  const code = emailCode.value.trim();
+
+  if (!emailPattern.test(email)) {
+    ElMessage.warning('请输入正确的邮箱');
+    return;
+  }
+
+  if (!code) {
+    ElMessage.warning('请输入验证码');
+    return;
+  }
+
+  try {
+    await verifyEmailCode(email, code);
+    const result = await updateProfile({ email });
+    dashboard.value.email = result.email || '';
+    emailDraft.value = result.email || '';
+    emailCode.value = '';
+    editingEmail.value = false;
+    store.setAuth({
+      token: store.token,
+      userId: store.userId,
+      role: store.role === 'admin' ? 'ADMIN' : 'USER',
+      nickname: store.nickname,
+      avatarUrl: store.avatarUrl,
+      email: result.email,
+    });
+    ElMessage.success('邮箱已更新');
+  } catch (e: unknown) {
+    const msg = getErrorMessage(e, '验证码校验失败或已过期');
+    if (msg.includes('邮箱已被使用')) {
+      ElMessage.error('邮箱已被使用');
+    } else {
+      ElMessage.error(msg);
+    }
+  }
+}
+
 function openAvatarEdit() {
   avatarDraft.value = dashboard.value.avatarUrl || '';
   avatarFile.value = null;
@@ -615,9 +794,23 @@ async function saveAvatar() {
     if (avatarFile.value) {
       const result = await uploadAvatar(avatarFile.value);
       dashboard.value.avatarUrl = result.avatarUrl;
+      store.setAuth({
+        token: store.token,
+        userId: store.userId,
+        role: store.role as 'USER' | 'ADMIN',
+        nickname: store.nickname,
+        avatarUrl: result.avatarUrl
+      });
     } else if (avatarDraft.value.trim()) {
       await updateProfile({ avatarUrl: avatarDraft.value.trim() });
       dashboard.value.avatarUrl = avatarDraft.value.trim();
+      store.setAuth({
+        token: store.token,
+        userId: store.userId,
+        role: store.role as 'USER' | 'ADMIN',
+        nickname: store.nickname,
+        avatarUrl: avatarDraft.value.trim()
+      });
     }
     avatarDialogVisible.value = false;
     ElMessage.success('头像已更新');
@@ -635,6 +828,11 @@ async function openFollowersDialog() {
   } catch {
     followersList.value = [];
   }
+}
+
+function handleLogout() {
+  store.logout();
+  router.push('/login');
 }
 
 async function openFollowingDialog() {
@@ -748,6 +946,12 @@ async function handleWithdrawReview(videoId: number) {
 }
 
 onMounted(async () => {
+  // 根据 URL 参数设置初始标签页
+  const tabParam = route.query.tab as string;
+  if (tabParam === 'settings') {
+    activeTab.value = 'settings';
+  }
+
   pageLoading.value = true;
   try {
     await refreshAll();
@@ -876,12 +1080,37 @@ async function handleDeleteAccount() {
   gap: 8px;
 }
 
-.account-meta {
+.bio-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px 14px;
-  color: #6b7280;
-  font-size: 13px;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.bio-text {
+  color: #374151;
+  font-size: 14px;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.bio-text:hover {
+  color: #2563eb;
+}
+
+.bio-text.placeholder {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.bio-text.placeholder:hover {
+  color: #2563eb;
+}
+
+.bio-input {
+  flex: 1;
+  max-width: 400px;
 }
 
 .nickname-row {
@@ -915,6 +1144,62 @@ async function handleDeleteAccount() {
 
 .account-settings-form {
   max-width: 520px;
+}
+
+.account-settings-form .el-form-item__content {
+  display: flex;
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+}
+
+.form-row.bio-row {
+  align-items: flex-start;
+}
+
+.form-row .el-input,
+.form-row .el-textarea {
+  flex: 1;
+  min-width: 0;
+}
+
+.form-row .el-button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.form-btn-placeholder {
+  flex-shrink: 0;
+  width: 80px;
+  height: 32px;
+}
+
+.email-edit-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.email-edit-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.email-edit-row .el-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.email-edit-row .el-button {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .profile-stats {
@@ -1090,6 +1375,10 @@ async function handleDeleteAccount() {
 .actions-block {
   display: grid;
   gap: 10px;
+}
+
+.actions-block :deep(.el-button) {
+  width: 100%;
 }
 
 .status,

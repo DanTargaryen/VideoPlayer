@@ -1,7 +1,7 @@
 import { BadRequestException, Body, Controller, Delete, Get, Headers, Param, ParseIntPipe, Post, Put, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Express } from 'express';
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MaxLength } from 'class-validator';
 
 class DeleteAccountDto {
   @IsString()
@@ -30,6 +30,11 @@ class UpdateProfileDto {
   @IsString()
   @MaxLength(255)
   bio?: string;
+
+  @IsOptional()
+  @IsEmail({}, { message: '邮箱格式不正确' })
+  @MaxLength(128)
+  email?: string;
 }
 
 @Controller('users')

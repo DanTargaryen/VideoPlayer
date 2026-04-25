@@ -1,4 +1,7 @@
 <template>
+  <div class="back-btn" @click="goBack">
+    <el-icon :size="20"><ArrowLeft /></el-icon>
+  </div>
   <section class="page" v-loading="loading">
     <div class="hero" v-if="homepage">
       <div class="profile-head">
@@ -34,12 +37,19 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
+import { ArrowLeft } from '@element-plus/icons-vue';
 
 import { fetchUserHomepage, followUser, unfollowUser } from '@/api/platform';
 import { useAppStore } from '@/stores/app';
 import type { UserHomepage } from '@/types/api';
+
+const router = useRouter();
+
+function goBack() {
+  router.back();
+}
 
 const fallbackAvatar = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=320&q=80';
 const route = useRoute();
@@ -91,6 +101,30 @@ watch(
 </script>
 
 <style scoped>
+.back-btn {
+  position: fixed;
+  top: 100px;
+  left: 32px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.back-btn:hover {
+  background: #ffffff;
+  color: #2563eb;
+  transform: scale(1.1);
+}
+
 .page {
   display: grid;
   gap: 20px;

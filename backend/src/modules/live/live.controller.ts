@@ -3,7 +3,6 @@ import { IsIn, IsInt, IsOptional, IsString } from 'class-validator';
 import type { Response } from 'express';
 
 import { ok } from '../../common/dto/api-response.dto';
-import { CATEGORY_DEFINITIONS } from '../../common/constants/categories';
 import { AuthService } from '../auth/auth.service';
 import { LiveService } from './live.service';
 

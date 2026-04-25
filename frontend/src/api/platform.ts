@@ -27,7 +27,9 @@ import type {
   SearchSuggestResponse,
   TextReviewItem,
   UserHomepage,
+  VideoAiChatResult,
   VideoCard,
+  VideoAiSummaryResult,
   VideoDetail,
   FollowUserItem,
   MyVideoItem,
@@ -39,10 +41,41 @@ export async function login(payload: { account?: string; password?: string; admi
   return data.data;
 }
 
+export async function fetchCaptcha() {
+  const { data } = await http.get<ApiResponse<{ id: string; dataUrl: string }>>('/captcha');
+  return data.data;
+}
+
+export async function sendResetEmailCode(username: string, email: string, captchaId: string, captchaCode: string) {
+  const { data } = await http.post<ApiResponse<{ message: string }>>('/email/send-reset-code', {
+    username,
+    email,
+    captchaId,
+    captchaCode,
+  });
+  return data.data;
+}
+
+export async function resetPassword(username: string, email: string, emailCode: string, newPassword: string) {
+  const { data } = await http.post<ApiResponse<{ id: number; username: string }>>('/auth/reset-password', {
+    username,
+    email,
+    emailCode,
+    newPassword,
+  });
+  return data.data;
+}
+
+export async function fetchCurrentUser() {
+  const { data } = await http.get<ApiResponse<{ id: number; username: string; role: string; nickname: string; email: string; avatarUrl: string | null; bio: string | null }>>('/auth/me');
+  return data.data;
+}
+
 export async function register(payload: {
   username: string;
   password: string;
   nickname?: string;
+  email?: string;
 }) {
   const { data } = await http.post<ApiResponse<RegisterResponse>>('/auth/register', payload);
   return data.data;
@@ -203,6 +236,22 @@ export async function fetchSearchSuggestions(keyword: string) {
 
 export async function fetchVideoDetail(id: number) {
   const { data } = await http.get<ApiResponse<VideoDetail>>(`/videos/${id}`);
+  return data.data;
+}
+
+export async function createVideoAiSummary(payload: { videoId: number }) {
+  const timeoutMs = Number(import.meta.env.VITE_AI_SUMMARY_TIMEOUT_MS ?? 120000);
+  const { data } = await http.post<ApiResponse<VideoAiSummaryResult>>('/ai/video-summary', payload, {
+    timeout: Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 120000,
+  });
+  return data.data;
+}
+
+export async function createVideoAiChat(payload: { videoId: number; prompt: string }) {
+  const timeoutMs = Number(import.meta.env.VITE_AI_SUMMARY_TIMEOUT_MS ?? 120000);
+  const { data } = await http.post<ApiResponse<VideoAiChatResult>>('/ai/video-chat', payload, {
+    timeout: Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 120000,
+  });
   return data.data;
 }
 
@@ -393,6 +442,11 @@ export async function readAllNotifications() {
   return data.data;
 }
 
+export async function readNotification(id: number) {
+  const { data } = await http.post<ApiResponse<{ success: boolean }>>(`/notifications/${id}/read`);
+  return data.data;
+}
+
 export async function likeVideo(videoId: number) {
   const { data } = await http.post<ApiResponse<{ liked: boolean }>>(`/videos/${videoId}/like`);
   return data.data;
@@ -474,8 +528,18 @@ export async function fetchMyLikes() {
   return data.data;
 }
 
-export async function updateProfile(payload: { nickname?: string; avatarUrl?: string; bio?: string }) {
-  const { data } = await http.put<ApiResponse<{ id: number; nickname: string; avatarUrl?: string; bio?: string }>>('/users/profile', payload);
+export async function updateProfile(payload: { nickname?: string; avatarUrl?: string; bio?: string; email?: string }) {
+  const { data } = await http.put<ApiResponse<{ id: number; nickname: string; avatarUrl?: string; bio?: string; email?: string }>>('/users/profile', payload);
+  return data.data;
+}
+
+export async function sendEmailCode(email: string) {
+  const { data } = await http.post<ApiResponse<{ message: string }>>('/email/send-code', { email });
+  return data.data;
+}
+
+export async function verifyEmailCode(email: string, code: string) {
+  const { data } = await http.post<ApiResponse<{ message: string }>>('/email/verify-code', { email, code });
   return data.data;
 }
 
