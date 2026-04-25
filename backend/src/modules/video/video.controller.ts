@@ -21,6 +21,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
   Min,
   ValidateIf,
@@ -110,6 +111,13 @@ class RecordPlayDto {
   @IsInt()
   @Min(0)
   videoDurationSeconds?: number;
+}
+
+class CoinVideoDto {
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  amount!: number;
 }
 
 class ReportWatchProgressDto {
@@ -250,6 +258,16 @@ export class VideoController {
   ) {
     const user = await this.authService.requireUser(authorization);
     return ok(await this.videoService.favoriteVideo(id, user));
+  }
+
+  @Post(':id/coin')
+  async coinVideo(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CoinVideoDto,
+  ) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.videoService.coinVideo(id, user, dto.amount));
   }
 
   @Post(':id/play')

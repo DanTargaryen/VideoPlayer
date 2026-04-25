@@ -30,6 +30,7 @@ export interface VideoCard {
   likeCount: number;
   favoriteCount: number;
   commentCount: number;
+  coinCount?: number;
   creatorId?: number;
   creator?: {
     id: number;
@@ -89,6 +90,31 @@ export interface VideoDetail extends CreatorVideo {
   isFollowingCreator: boolean;
   isLiked: boolean;
   isFavorited: boolean;
+  myCoinCount: number;
+  myCoinLimit: number;
+}
+
+export interface CoinWallet {
+  balance: number;
+  totalClaimed: number;
+  totalSpent: number;
+  claimedToday: boolean;
+  todayClaimAmount: number;
+}
+
+export interface DailyClaimResponse {
+  claimed: boolean;
+  amount: number;
+  balance: number;
+  claimedToday: boolean;
+}
+
+export interface VideoCoinResponse {
+  videoId: number;
+  amount: number;
+  userVideoCoinCount: number;
+  videoCoinCount: number;
+  balance: number;
 }
 
 export interface VideoWatchProgressPayload {
@@ -164,6 +190,7 @@ export interface UserHomepage {
   following: number;
   videos: number;
   isFollowing: boolean;
+  coinBalance?: number;
   items: VideoCard[];
 }
 
@@ -234,6 +261,7 @@ export interface CreatorDashboardData {
   totalLikes: number;
   totalFavorites: number;
   totalComments: number;
+  coinBalance: number;
   recentRejectedVideos: Array<{
     id: number;
     title: string;
@@ -348,6 +376,7 @@ export interface MyVideoItem {
   likeCount: number;
   favoriteCount: number;
   commentCount: number;
+  coinCount?: number;
   creator: { id: number; nickname: string };
   favoritedAt?: string;
   likedAt?: string;
