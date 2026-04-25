@@ -1,17 +1,27 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Client } from 'minio';
+import * as fs from 'node:fs';
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
+import * as path from 'node:path';
+
+export const LOCAL_STORAGE_ROOT = path.join(process.cwd(), 'storage');
+
+export function getStorageMode(): 'minio' | 'local' {
+  return (process.env.STORAGE_BACKEND || 'minio') as 'minio' | 'local';
+}
 
 @Injectable()
 export class MinioService implements OnModuleInit {
   private readonly logger = new Logger(MinioService.name);
-  private readonly client: Client;
+  private readonly storageMode: 'minio' | 'local';
   private readonly bucket: string;
   private readonly publicBaseUrl: string;
+  private readonly client: Client | null;
 
   constructor(private readonly configService: ConfigService) {
+    this.storageMode = getStorageMode();
     const endPoint = this.configService.get<string>('MINIO_ENDPOINT', '127.0.0.1') ?? '127.0.0.1';
     const port = Number(this.configService.get<string>('MINIO_PORT', '9000'));
     const useSSL = this.configService.get<string>('MINIO_USE_SSL', 'false') === 'true';
@@ -23,16 +33,30 @@ export class MinioService implements OnModuleInit {
       this.configService.get<string>('MINIO_PUBLIC_BASE_URL') ??
       `${useSSL ? 'https' : 'http'}://${endPoint}:${port}`;
 
-    this.client = new Client({
-      endPoint,
-      port,
-      useSSL,
-      accessKey,
-      secretKey,
-    });
+    this.client =
+      this.storageMode === 'minio'
+        ? new Client({
+            endPoint,
+            port,
+            useSSL,
+            accessKey,
+            secretKey,
+          })
+        : null;
   }
 
   async onModuleInit() {
+    if (this.storageMode === 'local') {
+      if (!fs.existsSync(LOCAL_STORAGE_ROOT)) {
+        fs.mkdirSync(LOCAL_STORAGE_ROOT, { recursive: true });
+      }
+      return;
+    }
+
+    if (!this.client) {
+      return;
+    }
+
     const exists = await this.client.bucketExists(this.bucket).catch(() => false);
 
     if (!exists) {
@@ -55,6 +79,25 @@ export class MinioService implements OnModuleInit {
     }
   }
 
+  async uploadFile(bucketName: string, objectName: string, filePath: string, contentType: string) {
+    if (this.storageMode === 'minio' && this.client) {
+      await this.client.fPutObject(bucketName, objectName, filePath, {
+        'Content-Type': contentType,
+      });
+      return `${this.publicBaseUrl}/${bucketName}/${objectName}`;
+    }
+
+    const destPath = path.join(LOCAL_STORAGE_ROOT, objectName);
+    const destDir = path.dirname(destPath);
+
+    if (!fs.existsSync(destDir)) {
+      fs.mkdirSync(destDir, { recursive: true });
+    }
+
+    fs.copyFileSync(filePath, destPath);
+    return `/storage/${objectName}`;
+  }
+
   async uploadObject(input: {
     objectKey: string;
     buffer: Buffer;
@@ -62,15 +105,31 @@ export class MinioService implements OnModuleInit {
     mimeType: string;
     originalName?: string;
   }) {
-    await this.client.putObject(this.bucket, input.objectKey, input.buffer, input.size, {
-      'Content-Type': input.mimeType,
-      'X-Amz-Meta-Original-Name': input.originalName ?? '',
-    });
+    if (this.storageMode === 'minio' && this.client) {
+      await this.client.putObject(this.bucket, input.objectKey, input.buffer, input.size, {
+        'Content-Type': input.mimeType,
+        'X-Amz-Meta-Original-Name': input.originalName ?? '',
+      });
 
+      return {
+        bucket: this.bucket,
+        objectKey: input.objectKey,
+        url: `${this.publicBaseUrl}/${this.bucket}/${input.objectKey}`,
+      };
+    }
+
+    const destPath = path.join(LOCAL_STORAGE_ROOT, input.objectKey);
+    const destDir = path.dirname(destPath);
+
+    if (!fs.existsSync(destDir)) {
+      fs.mkdirSync(destDir, { recursive: true });
+    }
+
+    fs.writeFileSync(destPath, input.buffer);
     return {
       bucket: this.bucket,
       objectKey: input.objectKey,
-      url: `${this.publicBaseUrl}/${this.bucket}/${input.objectKey}`,
+      url: `/storage/${input.objectKey}`,
     };
   }
 
@@ -81,27 +140,71 @@ export class MinioService implements OnModuleInit {
     originalName?: string;
   }) {
     const fileStat = await stat(input.filePath);
-    await this.client.putObject(
-      this.bucket,
-      input.objectKey,
-      createReadStream(input.filePath),
-      fileStat.size,
-      {
-        'Content-Type': input.mimeType,
-        'X-Amz-Meta-Original-Name': input.originalName ?? '',
-      },
-    );
 
+    if (this.storageMode === 'minio' && this.client) {
+      await this.client.putObject(
+        this.bucket,
+        input.objectKey,
+        createReadStream(input.filePath),
+        fileStat.size,
+        {
+          'Content-Type': input.mimeType,
+          'X-Amz-Meta-Original-Name': input.originalName ?? '',
+        },
+      );
+
+      return {
+        bucket: this.bucket,
+        objectKey: input.objectKey,
+        url: `${this.publicBaseUrl}/${this.bucket}/${input.objectKey}`,
+        size: fileStat.size,
+      };
+    }
+
+    const destPath = path.join(LOCAL_STORAGE_ROOT, input.objectKey);
+    const destDir = path.dirname(destPath);
+
+    if (!fs.existsSync(destDir)) {
+      fs.mkdirSync(destDir, { recursive: true });
+    }
+
+    fs.copyFileSync(input.filePath, destPath);
     return {
       bucket: this.bucket,
       objectKey: input.objectKey,
-      url: `${this.publicBaseUrl}/${this.bucket}/${input.objectKey}`,
+      url: `/storage/${input.objectKey}`,
       size: fileStat.size,
     };
   }
 
   async downloadObjectToFile(objectKey: string, targetPath: string) {
-    await this.client.fGetObject(this.bucket, objectKey, targetPath);
+    if (this.storageMode === 'minio' && this.client) {
+      await this.client.fGetObject(this.bucket, objectKey, targetPath);
+      return targetPath;
+    }
+
+    const sourcePath = path.join(LOCAL_STORAGE_ROOT, objectKey);
+    const destDir = path.dirname(targetPath);
+    if (!fs.existsSync(destDir)) {
+      fs.mkdirSync(destDir, { recursive: true });
+    }
+    fs.copyFileSync(sourcePath, targetPath);
     return targetPath;
+  }
+
+  async deleteFile(bucketName: string, objectName: string) {
+    if (this.storageMode === 'minio' && this.client) {
+      await this.client.removeObject(bucketName, objectName);
+      return;
+    }
+
+    const filePath = path.join(LOCAL_STORAGE_ROOT, objectName);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  }
+
+  getStorageMode(): 'minio' | 'local' {
+    return this.storageMode;
   }
 }

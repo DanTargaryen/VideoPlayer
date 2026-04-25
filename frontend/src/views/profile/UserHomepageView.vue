@@ -1,4 +1,7 @@
 <template>
+  <div class="back-btn" @click="goBack">
+    <el-icon :size="20"><ArrowLeft /></el-icon>
+  </div>
   <section class="page" v-loading="loading">
     <div class="hero" v-if="homepage">
       <div class="profile-head">
@@ -7,6 +10,7 @@
           <h1>{{ homepage.nickname }} 的主页</h1>
           <p>{{ homepage.bio || '这个用户还没有填写简介。' }}</p>
           <span class="meta">粉丝 {{ homepage.followers }} · 关注 {{ homepage.following }} · 视频 {{ homepage.videos }}</span>
+          <span v-if="isOwnHomepage" class="meta coin-meta">平台货币 {{ homepage.coinBalance ?? 0 }}</span>
         </div>
       </div>
       <el-button
@@ -34,12 +38,19 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
+import { ArrowLeft } from '@element-plus/icons-vue';
 
 import { fetchUserHomepage, followUser, unfollowUser } from '@/api/platform';
 import { useAppStore } from '@/stores/app';
 import type { UserHomepage } from '@/types/api';
+
+const router = useRouter();
+
+function goBack() {
+  router.back();
+}
 
 const fallbackAvatar = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=320&q=80';
 const route = useRoute();
@@ -50,6 +61,7 @@ const homepage = ref<UserHomepage | null>(null);
 const canFollow = computed(
   () => homepage.value && store.isLoggedIn && homepage.value.id !== store.userId,
 );
+const isOwnHomepage = computed(() => Boolean(homepage.value && store.userId === homepage.value.id));
 
 async function loadHomepage() {
   loading.value = true;
@@ -91,6 +103,30 @@ watch(
 </script>
 
 <style scoped>
+.back-btn {
+  position: fixed;
+  top: 100px;
+  left: 32px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.back-btn:hover {
+  background: #ffffff;
+  color: #2563eb;
+  transform: scale(1.1);
+}
+
 .page {
   display: grid;
   gap: 20px;
@@ -101,10 +137,11 @@ watch(
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 20px;
+  padding: 24px;
   border-radius: 16px;
-  background: rgba(30, 41, 59, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
 }
 
 .profile-head {
@@ -113,30 +150,55 @@ watch(
   gap: 18px;
 }
 
+.profile-head h1 {
+  margin: 0;
+  color: #111827;
+}
+
+.profile-head p {
+  margin: 4px 0 0;
+  color: #4b5563;
+}
+
 .avatar {
   width: 88px;
   height: 88px;
   border-radius: 50%;
   object-fit: cover;
+  border: 3px solid rgba(37, 99, 235, 0.15);
 }
 
 .meta {
   display: inline-block;
   margin-top: 8px;
-  color: #94a3b8;
+  color: #6b7280;
+}
+
+.coin-meta {
+  display: block;
+  color: #f59e0b;
+  font-weight: 700;
 }
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, 280px);
   gap: 16px;
+  justify-content: center;
 }
 
 .card {
   overflow: hidden;
   border-radius: 16px;
-  background: rgba(30, 41, 59, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.1);
 }
 
 .cover {
@@ -151,7 +213,17 @@ watch(
   padding: 18px;
 }
 
+.card-body h3 {
+  margin: 0;
+  color: #111827;
+}
+
+.card-body p {
+  margin: 0;
+  color: #4b5563;
+}
+
 .enter-link {
-  color: #60a5fa;
+  color: #2563eb;
 }
 </style>

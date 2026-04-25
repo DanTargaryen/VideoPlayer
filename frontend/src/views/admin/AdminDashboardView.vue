@@ -16,22 +16,54 @@
     </div>
 
     <section class="panel">
-      <h2>待审视频队列</h2>
+      <h2>视频审核记录</h2>
       <div class="review-list">
         <article v-for="item in queue" :key="String(item.id)" class="review-card">
-          <div>
+          <button
+            v-if="item.video"
+            class="review-cover-button"
+            type="button"
+            @click="openVideoPreview(item)"
+          >
+            <img :src="item.video.coverUrl" :alt="item.video.title" class="review-cover-thumb" />
+            <span class="review-cover-overlay">查看完整视频</span>
+          </button>
+          <div class="review-main">
             <h3>{{ item.video?.title }}</h3>
             <p>{{ item.video?.description }}</p>
-            <span class="status">审核记录 ID：{{ item.id }}</span>
+            <span class="status">审核记录 ID：{{ item.id }} · 状态：{{ formatReviewStatus(item.status) }}</span>
+            <span class="status">提交时间：{{ formatTime(item.createdAt) }}</span>
+            <span v-if="item.reviewedAt" class="status">
+              审核时间：{{ formatTime(item.reviewedAt) }} · 审核人：{{ item.reviewer?.nickname || '管理员' }}
+            </span>
+            <span v-if="item.reason" class="status">审核意见：{{ item.reason }}</span>
           </div>
           <div class="actions">
-            <el-button type="success" @click="handleReview(Number(item.id), 'APPROVE')">通过</el-button>
-            <el-button type="danger" plain @click="handleReview(Number(item.id), 'REJECT')">驳回</el-button>
+            <el-button plain :disabled="!item.video?.playUrl" @click="openVideoPreview(item)">预览视频</el-button>
+            <el-button type="success" @click="handleReview(Number(item.id), 'APPROVE')">
+              {{ item.status === 'REJECTED' ? '改为通过' : '通过' }}
+            </el-button>
+            <el-button type="danger" plain @click="handleReview(Number(item.id), 'REJECT')">
+              {{ item.status === 'APPROVED' ? '撤回并驳回' : '驳回' }}
+            </el-button>
           </div>
         </article>
-        <el-empty v-if="queue.length === 0" description="当前没有待审视频" />
+        <el-empty v-if="queue.length === 0" description="当前没有视频审核记录" />
       </div>
     </section>
+
+    <el-dialog v-model="previewDialogVisible" :title="previewItem?.video?.title || '视频预览'" width="860px" top="6vh">
+      <div v-if="previewItem?.video" class="preview-dialog-body">
+        <video
+          class="preview-player"
+          :src="previewItem.video.playUrl"
+          :poster="previewItem.video.coverUrl"
+          controls
+          preload="metadata"
+        />
+        <p class="preview-description">{{ previewItem.video.description || '暂无简介' }}</p>
+      </div>
+    </el-dialog>
 
     <section class="panel">
       <div class="panel-head">
@@ -96,13 +128,15 @@ import {
   moderateTextContent,
   reviewVideo,
 } from '@/api/platform';
-import type { ReportItem, TextReviewItem } from '@/types/api';
+import type { ReportItem, ReviewQueueItem, TextReviewItem } from '@/types/api';
 
 const dashboard = ref<Record<string, number | string>>({});
-const queue = ref<import('@/types/api').ReviewQueueItem[]>([]);
+const queue = ref<ReviewQueueItem[]>([]);
 const textReviews = ref<TextReviewItem[]>([]);
 const reports = ref<ReportItem[]>([]);
 const textFilter = ref<'ALL' | 'COMMENT' | 'VIDEO_DANMAKU'>('ALL');
+const previewDialogVisible = ref(false);
+const previewItem = ref<ReviewQueueItem | null>(null);
 
 const statCards = computed(() => [
   { label: '总视频数', value: dashboard.value.totalVideos ?? 0 },
@@ -111,6 +145,17 @@ const statCards = computed(() => [
   { label: '异常评论', value: dashboard.value.hiddenComments ?? 0 },
   { label: '异常弹幕', value: dashboard.value.hiddenDanmakus ?? 0 },
 ]);
+
+function formatTime(value?: string | null) {
+  if (!value) return '暂无';
+  return new Date(value).toLocaleString('zh-CN');
+}
+
+function formatReviewStatus(status: ReviewQueueItem['status']) {
+  if (status === 'APPROVED') return '已通过';
+  if (status === 'REJECTED') return '已驳回';
+  return '待审核';
+}
 
 async function loadTextReviews() {
   textReviews.value = await fetchTextReviewQueue(textFilter.value === 'ALL' ? undefined : textFilter.value);
@@ -121,6 +166,16 @@ async function refreshAll() {
   queue.value = await fetchReviewQueue();
   reports.value = await fetchReports();
   await loadTextReviews();
+}
+
+function openVideoPreview(item: ReviewQueueItem) {
+  if (!item.video?.playUrl) {
+    ElMessage.warning('当前稿件暂时没有可播放的视频地址');
+    return;
+  }
+
+  previewItem.value = item;
+  previewDialogVisible.value = true;
 }
 
 async function handleReview(id: number, action: 'APPROVE' | 'REJECT') {
@@ -136,7 +191,7 @@ async function handleReview(id: number, action: 'APPROVE' | 'REJECT') {
     await reviewVideo(id, action, reason);
     ElMessage.success(action === 'APPROVE' ? '审核通过' : '已驳回视频');
     await refreshAll();
-  } catch (error) {
+  } catch {
     if (action === 'REJECT') {
       return;
     }
@@ -197,6 +252,16 @@ onMounted(async () => {
   gap: 20px;
 }
 
+.hero h1 {
+  margin: 0;
+  color: #111827;
+}
+
+.hero p {
+  margin: 4px 0 0;
+  color: #4b5563;
+}
+
 .hero,
 .panel-head {
   display: flex;
@@ -216,8 +281,9 @@ onMounted(async () => {
 .review-card {
   padding: 20px;
   border-radius: 16px;
-  background: rgba(30, 41, 59, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
 }
 
 .stat-card {
@@ -225,13 +291,24 @@ onMounted(async () => {
   gap: 8px;
 }
 
+.stat-card span {
+  color: #6b7280;
+  font-size: 14px;
+}
+
 .stat-card strong {
   font-size: 28px;
+  color: #111827;
 }
 
 .panel {
   display: grid;
   gap: 16px;
+}
+
+.panel h2 {
+  margin: 0;
+  color: #111827;
 }
 
 .review-list {
@@ -246,15 +323,77 @@ onMounted(async () => {
   gap: 16px;
 }
 
+.review-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.review-card h3 {
+  margin: 0;
+  color: #111827;
+}
+
+.review-card p {
+  color: #4b5563;
+}
+
 .actions {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
 }
 
+.review-cover-button {
+  position: relative;
+  width: 220px;
+  min-width: 220px;
+  aspect-ratio: 16 / 9;
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #dbe4f0;
+  cursor: pointer;
+}
+
+.review-cover-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.review-cover-overlay {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 10px 12px;
+  background: linear-gradient(180deg, transparent, rgba(15, 23, 42, 0.82));
+  color: #fff;
+  font-size: 13px;
+  text-align: left;
+}
+
 .status {
   display: block;
   margin-top: 8px;
-  color: #94a3b8;
+  color: #6b7280;
+}
+
+.preview-dialog-body {
+  display: grid;
+  gap: 16px;
+}
+
+.preview-player {
+  width: 100%;
+  max-height: 70vh;
+  border-radius: 16px;
+  background: #000;
+}
+
+.preview-description {
+  margin: 0;
+  color: #4b5563;
+  line-height: 1.7;
 }
 </style>
