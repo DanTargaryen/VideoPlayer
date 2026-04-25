@@ -155,9 +155,8 @@ function captureVideoFrame(file: File, timeSeconds: number) {
 
 function handleUseAutoCover() {
   if (autoCoverPreview.value) {
-    autoCoverFile.value = null;
-    form.coverUrl = autoCoverPreview.value;
-    ElMessage.success('已使用截取封面');
+    form.coverUrl = '';
+    ElMessage.success('已选择截取封面，提交时将自动上传');
   }
 }
 
@@ -175,19 +174,23 @@ async function handleCreateDraft() {
   creating.value = true;
 
   try {
+    ElMessage.info('正在上传视频文件，请稍候...');
+
+    const videoResp = await uploadVideo(selectedVideoFile.value, 'ORIGINAL');
+
     let coverUrl = form.coverUrl;
 
     if (!coverUrl && selectedCoverFile.value) {
       const coverResp = await uploadVideo(selectedCoverFile.value, 'COVER');
       coverUrl = coverResp.url;
-    }
-
-    if (!coverUrl && autoCoverFile.value) {
+    } else if (!coverUrl && autoCoverFile.value) {
       const coverResp = await uploadVideo(autoCoverFile.value, 'COVER');
       coverUrl = coverResp.url;
     }
 
     const resp = await createVideo({
+      assetId: videoResp.assetId,
+      uploadToken: videoResp.uploadToken,
       title: form.title,
       description: form.description,
       category: form.category,
@@ -195,9 +198,20 @@ async function handleCreateDraft() {
     });
 
     ElMessage.success('稿件创建成功！');
-    router.push(`/video/${resp.id}`);
-  } catch {
-    ElMessage.error('创建稿件失败，请重试');
+    router.push('/user/dashboard');
+  } catch (error: unknown) {
+    console.error('创建稿件失败:', error);
+    let message = '创建稿件失败，请重试';
+    if (typeof error === 'object' && error !== null && 'response' in error) {
+      const axiosError = error as { response?: { data?: { message?: string | string[] } } };
+      if (axiosError.response?.data?.message) {
+        const msg = axiosError.response.data.message;
+        message = Array.isArray(msg) ? msg.join(', ') : msg;
+      }
+    } else if (error instanceof Error) {
+      message = error.message;
+    }
+    ElMessage.error(message);
   } finally {
     creating.value = false;
   }

@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 
 import { FollowService } from '../follow/follow.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -48,12 +49,12 @@ export class UserService {
       throw new UnauthorizedException('密码验证失败');
     }
 
-    await this.prisma.$transaction(async (tx) => {
+    await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const videos = await tx.video.findMany({
         where: { creatorId: userId },
         select: { id: true },
       });
-      const videoIds = videos.map((v) => v.id);
+      const videoIds = videos.map((v: { id: number }) => v.id);
 
       // Nullify references to preserve audit records
       await tx.videoReview.updateMany({ where: { reviewerId: userId }, data: { reviewerId: null } });
