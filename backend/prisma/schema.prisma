@@ -69,6 +69,7 @@ model User {
   nickname              String           @db.VarChar(64)
   avatarUrl             String?          @db.VarChar(255)
   bio                   String?          @db.VarChar(255)
+  phone                 String?          @unique @db.VarChar(20)
   createdAt             DateTime         @default(now())
   updatedAt             DateTime         @updatedAt
   createdVideos         Video[]          @relation("CreatedVideos")
@@ -160,8 +161,20 @@ model Video {
   reports         ReportRecord[]
   assets          VideoAsset[]
   userWatches     UserVideoWatch[]
+  aiSummary       VideoAiSummary?
 
   @@index([creatorId, status])
+}
+
+model VideoAiSummary {
+  id         Int      @id @default(autoincrement())
+  videoId    Int      @unique
+  video      Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  summary    String   @db.Text
+  frameCount Int      @default(0)
+  model      String   @db.VarChar(64)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model UserVideoWatch {

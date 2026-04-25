@@ -191,7 +191,7 @@ async function handleReview(id: number, action: 'APPROVE' | 'REJECT') {
     await reviewVideo(id, action, reason);
     ElMessage.success(action === 'APPROVE' ? '审核通过' : '已驳回视频');
     await refreshAll();
-  } catch (error) {
+  } catch {
     if (action === 'REJECT') {
       return;
     }

@@ -1,4 +1,5 @@
-﻿import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -26,13 +27,15 @@ const BUILTIN_USERS = [
 
 @Injectable()
 export class AuthService {
+  private readonly activeSessionNonceByUserId = new Map<number, string>();
+
   constructor(private readonly prisma: PrismaService) {}
 
-  async register(payload: { username: string; password: string; nickname?: string }) {
-    const generatedEmail = this.buildRegistrationEmail(payload.username);
+  async register(payload: { username: string; password: string; nickname?: string; email?: string }) {
+    const resolvedEmail = payload.email?.trim() || this.buildRegistrationEmail(payload.username);
     const exists = await this.prisma.user.findFirst({
       where: {
-        OR: [{ username: payload.username }, { email: generatedEmail }],
+        OR: [{ username: payload.username }, { email: resolvedEmail }],
       },
     });
 
@@ -43,7 +46,7 @@ export class AuthService {
     const createdUser = await this.prisma.user.create({
       data: {
         username: payload.username,
-        email: generatedEmail,
+        email: resolvedEmail,
         password: payload.password,
         role: 'USER',
         nickname: payload.nickname || payload.username,
@@ -92,11 +95,15 @@ export class AuthService {
       throw new UnauthorizedException('Admin secret is required');
     }
 
+    const token = this.issueToken(user.id);
+
     return {
-      token: `mock-token-${user.id}`,
+      token,
       userId: user.id,
       role: user.role,
       nickname: user.nickname,
+      email: user.email,
+      bio: user.bio,
     };
   }
 
@@ -106,12 +113,15 @@ export class AuthService {
     }
 
     const adminUser = await this.ensureAdminUser();
+    const token = this.issueToken(adminUser.id);
 
     return {
-      token: `mock-token-${adminUser.id}`,
+      token,
       userId: adminUser.id,
       role: adminUser.role,
       nickname: adminUser.nickname,
+      email: adminUser.email,
+      bio: adminUser.bio,
     };
   }
 
@@ -166,9 +176,11 @@ export class AuthService {
         where: { id: existing.id },
         data: {
           username: payload.username,
-          email: payload.email,
+          email: existing.email,
           password: payload.password,
           role: 'USER',
+          ...(existing.nickname && { nickname: existing.nickname }),
+          ...(existing.bio && { bio: existing.bio }),
         },
       });
     }
@@ -184,20 +196,43 @@ export class AuthService {
     });
   }
 
+  async resetPasswordByEmail(username: string, email: string, newPassword: string) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        username,
+        email,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('用户名与邮箱不匹配');
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: user.id },
+      data: { password: newPassword },
+    });
+    this.activeSessionNonceByUserId.delete(updated.id);
+
+    return {
+      id: updated.id,
+      username: updated.username,
+      email: updated.email,
+    };
+  }
+
   async getCurrentUser(authHeader?: string) {
-    const token = authHeader?.replace('Bearer ', '').trim();
+    const parsed = this.parseToken(authHeader);
 
-    if (!token) {
+    if (!parsed) {
+      return null;
+    }
+    const activeSessionNonce = this.activeSessionNonceByUserId.get(parsed.userId);
+    if (!activeSessionNonce || activeSessionNonce !== parsed.sessionNonce) {
       return null;
     }
 
-    const userId = Number(token.replace('mock-token-', ''));
-
-    if (!Number.isFinite(userId)) {
-      return null;
-    }
-
-    return this.prisma.user.findUnique({ where: { id: userId } });
+    return this.prisma.user.findUnique({ where: { id: parsed.userId } });
   }
 
   async requireUser(authHeader?: string) {
@@ -208,5 +243,34 @@ export class AuthService {
     }
 
     return user;
+  }
+
+  private issueToken(userId: number) {
+    const sessionNonce = randomUUID();
+    this.activeSessionNonceByUserId.set(userId, sessionNonce);
+    return `mock-token-${userId}-${sessionNonce}`;
+  }
+
+  private parseToken(authHeader?: string) {
+    const token = authHeader?.replace('Bearer ', '').trim();
+
+    if (!token) {
+      return null;
+    }
+
+    const match = /^mock-token-(\d+)-(.+)$/.exec(token);
+
+    if (!match) {
+      return null;
+    }
+
+    const userId = Number(match[1]);
+    const sessionNonce = match[2];
+
+    if (!Number.isFinite(userId) || !sessionNonce) {
+      return null;
+    }
+
+    return { userId, sessionNonce };
   }
 }

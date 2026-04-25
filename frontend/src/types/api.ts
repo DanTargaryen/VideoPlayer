@@ -9,6 +9,7 @@ export interface LoginResponse {
   userId: number;
   role: 'USER' | 'ADMIN';
   nickname: string;
+  email: string;
 }
 
 export interface RegisterResponse {
@@ -115,7 +116,7 @@ export interface CommentReply {
   replies: CommentReply[];
 }
 
-export interface CommentItem extends CommentReply {}
+export type CommentItem = CommentReply;
 
 export interface CommentListResponse {
   videoId: number;
@@ -221,6 +222,8 @@ export interface CreatorDashboardData {
   username: string;
   nickname: string;
   avatarUrl?: string | null;
+  bio?: string | null;
+  email: string;
   role: 'USER' | 'ADMIN';
   totalVideos: number;
   pendingReviews: number;
@@ -348,4 +351,19 @@ export interface MyVideoItem {
   creator: { id: number; nickname: string };
   favoritedAt?: string;
   likedAt?: string;
+}
+
+export interface VideoAiSummaryResult {
+  success: boolean;
+  videoId: number;
+  summary: string;
+  frameCount: number;
+  cached: boolean;
+}
+
+export interface VideoAiChatResult {
+  success: boolean;
+  videoId: number;
+  reply: string;
+  frameCount: number;
 }
