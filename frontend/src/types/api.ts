@@ -9,6 +9,15 @@ export interface LoginResponse {
   userId: number;
   role: 'USER' | 'ADMIN';
   nickname: string;
+  email: string;
+}
+
+export interface RegisterResponse {
+  id: number;
+  username: string;
+  email: string;
+  role: 'USER' | 'ADMIN';
+  nickname: string;
 }
 
 export interface VideoCard {
@@ -21,16 +30,20 @@ export interface VideoCard {
   likeCount: number;
   favoriteCount: number;
   commentCount: number;
+  coinCount?: number;
   creatorId?: number;
   creator?: {
     id: number;
     nickname: string;
+    avatarUrl?: string | null;
   };
+  publishedAt?: string | null;
+  createdAt?: string;
 }
 
 export interface CreatorVideo extends VideoCard {
   creatorId: number;
-  categoryId: number;
+  category: string;
   uploadToken: string;
   rejectReason?: string | null;
   submittedAt?: string | null;
@@ -44,6 +57,12 @@ export interface ReviewQueueItem {
   videoId: number;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   reason?: string | null;
+  createdAt: string;
+  reviewedAt?: string | null;
+  reviewer?: {
+    id: number;
+    nickname: string;
+  } | null;
   video: CreatorVideo | null;
 }
 
@@ -64,12 +83,45 @@ export interface VideoDetail extends CreatorVideo {
   creator: {
     id: number;
     nickname: string;
+    avatarUrl?: string | null;
     role: 'USER' | 'ADMIN';
     followerCount: number;
   };
   isFollowingCreator: boolean;
   isLiked: boolean;
   isFavorited: boolean;
+  myCoinCount: number;
+  myCoinLimit: number;
+}
+
+export interface CoinWallet {
+  balance: number;
+  totalClaimed: number;
+  totalSpent: number;
+  claimedToday: boolean;
+  todayClaimAmount: number;
+}
+
+export interface DailyClaimResponse {
+  claimed: boolean;
+  amount: number;
+  balance: number;
+  claimedToday: boolean;
+}
+
+export interface VideoCoinResponse {
+  videoId: number;
+  amount: number;
+  userVideoCoinCount: number;
+  videoCoinCount: number;
+  balance: number;
+}
+
+export interface VideoWatchProgressPayload {
+  watchedSeconds: number;
+  currentTimeSeconds: number;
+  videoDurationSeconds?: number;
+  event: 'pause' | 'leave' | 'ended';
 }
 
 export interface CommentReply {
@@ -87,11 +139,10 @@ export interface CommentReply {
     id: number;
     nickname: string;
   };
-}
-
-export interface CommentItem extends CommentReply {
   replies: CommentReply[];
 }
+
+export type CommentItem = CommentReply;
 
 export interface CommentListResponse {
   videoId: number;
@@ -139,6 +190,7 @@ export interface UserHomepage {
   following: number;
   videos: number;
   isFollowing: boolean;
+  coinBalance?: number;
   items: VideoCard[];
 }
 
@@ -167,7 +219,7 @@ export interface ReportItem {
 export interface SearchResultResponse {
   keyword: string;
   tab: 'video' | 'live' | 'user';
-  sortBy: 'hot' | 'latest';
+  sortBy: 'best' | 'hot' | 'latest';
   categoryCode: string;
   page: number;
   pageSize: number;
@@ -188,17 +240,28 @@ export interface LiveMessage {
   };
 }
 
+export interface SearchSuggestResponse {
+  list: string[];
+}
+
 export interface CreatorDashboardData {
+  id: number;
+  username: string;
   nickname: string;
+  avatarUrl?: string | null;
+  bio?: string | null;
+  email: string;
   role: 'USER' | 'ADMIN';
   totalVideos: number;
   pendingReviews: number;
   publishedVideos: number;
   rejectedVideos: number;
   followerCount: number;
+  followingCount: number;
   totalLikes: number;
   totalFavorites: number;
   totalComments: number;
+  coinBalance: number;
   recentRejectedVideos: Array<{
     id: number;
     title: string;
@@ -211,7 +274,7 @@ export interface LiveRoomInfo {
   id: number;
   sessionId?: number;
   title: string;
-  categoryId: number;
+  category: string;
   coverUrl?: string;
   sourceMode?: 'camera' | 'screen' | string;
   streamKey: string;
@@ -295,4 +358,41 @@ export interface LiveViewerAnswerResponse {
   ready: boolean;
   answer: SessionDescriptionPayload | null;
   updatedAt: string;
+}
+
+export interface FollowUserItem {
+  id: number;
+  nickname: string;
+  avatarUrl?: string | null;
+  followedAt: string;
+}
+
+export interface MyVideoItem {
+  id: number;
+  title: string;
+  description: string;
+  coverUrl: string;
+  category: string;
+  likeCount: number;
+  favoriteCount: number;
+  commentCount: number;
+  coinCount?: number;
+  creator: { id: number; nickname: string };
+  favoritedAt?: string;
+  likedAt?: string;
+}
+
+export interface VideoAiSummaryResult {
+  success: boolean;
+  videoId: number;
+  summary: string;
+  frameCount: number;
+  cached: boolean;
+}
+
+export interface VideoAiChatResult {
+  success: boolean;
+  videoId: number;
+  reply: string;
+  frameCount: number;
 }

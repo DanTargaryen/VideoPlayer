@@ -102,4 +102,38 @@ export class FollowService {
       where: { followingId: targetUserId },
     });
   }
+
+  async getFollowers(targetUserId: number) {
+    const relations = await this.prisma.followRelation.findMany({
+      where: { followingId: targetUserId },
+      include: {
+        follower: { select: { id: true, nickname: true, avatarUrl: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return relations.map((r) => ({
+      id: r.follower.id,
+      nickname: r.follower.nickname,
+      avatarUrl: r.follower.avatarUrl,
+      followedAt: r.createdAt,
+    }));
+  }
+
+  async getFollowing(targetUserId: number) {
+    const relations = await this.prisma.followRelation.findMany({
+      where: { followerId: targetUserId },
+      include: {
+        following: { select: { id: true, nickname: true, avatarUrl: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return relations.map((r) => ({
+      id: r.following.id,
+      nickname: r.following.nickname,
+      avatarUrl: r.following.avatarUrl,
+      followedAt: r.createdAt,
+    }));
+  }
 }

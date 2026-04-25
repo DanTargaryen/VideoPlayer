@@ -1,50 +1,25 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
-import { IsInt, IsString } from 'class-validator';
+import { Controller, Get, Headers, Post } from '@nestjs/common';
 
 import { ok } from '../../common/dto/api-response.dto';
-
-class SendGiftDto {
-  @IsInt()
-  sessionId!: number;
-
-  @IsInt()
-  receiverId!: number;
-
-  @IsString()
-  giftName!: string;
-
-  @IsInt()
-  giftCost!: number;
-
-  @IsInt()
-  quantity!: number;
-}
+import { AuthService } from '../auth/auth.service';
+import { GiftService } from './gift.service';
 
 @Controller('gift-coins')
 export class GiftController {
+  constructor(
+    private readonly authService: AuthService,
+    private readonly giftService: GiftService,
+  ) {}
+
   @Get('wallet')
-  getWallet() {
-    return ok({
-      balance: 100,
-      totalClaimed: 100,
-      totalSpent: 0,
-    });
+  async getWallet(@Headers('authorization') authorization: string | undefined) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.giftService.getWallet(user.id));
   }
 
   @Post('daily-claim')
-  claimDaily() {
-    return ok({
-      claimed: true,
-      amount: 10,
-      balance: 110,
-    });
-  }
-
-  @Post('send')
-  sendGift(@Body() dto: SendGiftDto) {
-    return ok({
-      ...dto,
-      balance: 90,
-    });
+  async claimDaily(@Headers('authorization') authorization: string | undefined) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.giftService.claimDaily(user.id));
   }
 }
