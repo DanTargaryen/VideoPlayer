@@ -8,6 +8,7 @@ export class CommentAiWorkerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(CommentAiWorkerService.name);
   private timer: ReturnType<typeof setInterval> | null = null;
   private polling = false;
+  private disabled = false;
 
   constructor(
     private readonly configService: ConfigService,
@@ -32,7 +33,7 @@ export class CommentAiWorkerService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async pollOnce() {
-    if (this.polling) {
+    if (this.polling || this.disabled) {
       return;
     }
 
@@ -40,11 +41,33 @@ export class CommentAiWorkerService implements OnModuleInit, OnModuleDestroy {
     try {
       await this.commentAiService.processPendingTasks(this.getBatchSize());
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Comment AI worker poll failed: ${message}`);
+      if (this.isMissingCommentAiTaskTable(error)) {
+        this.disabled = true;
+        if (this.timer) {
+          clearInterval(this.timer);
+          this.timer = null;
+        }
+        this.logger.warn('Comment AI worker disabled because table `CommentAiTask` does not exist yet');
+      } else {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.error(`Comment AI worker poll failed: ${message}`);
+      }
     } finally {
       this.polling = false;
     }
+  }
+
+  private isMissingCommentAiTaskTable(error: unknown) {
+    if (!error || typeof error !== 'object') {
+      return false;
+    }
+
+    const candidate = error as { code?: string; message?: string };
+    if (candidate.code === 'P2021') {
+      return true;
+    }
+
+    return typeof candidate.message === 'string' && candidate.message.includes('CommentAiTask');
   }
 
   private getPollIntervalMs() {
