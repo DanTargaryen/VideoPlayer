@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Express } from 'express';
 
 import { CATEGORY_DEFINITIONS, resolveCategoryCode, resolveCategoryId } from '../../common/constants/categories';
@@ -292,6 +292,11 @@ export class VideoService {
           }),
         )
       : false;
+    const myCoinCount = currentUserId
+      ? (await this.prisma.videoCoinContribution.findUnique({
+          where: { videoId_userId: { videoId: id, userId: currentUserId } },
+        }))?.amount ?? 0
+      : 0;
 
     return {
       ...video,
@@ -305,6 +310,8 @@ export class VideoService {
       isFollowingCreator,
       isLiked,
       isFavorited,
+      myCoinCount,
+      myCoinLimit: 5,
     };
   }
 
@@ -695,6 +702,81 @@ export class VideoService {
     }
 
     return { favorited: true };
+  }
+
+  async coinVideo(videoId: number, user: { id: number }, amount: number) {
+    if (!Number.isInteger(amount) || amount < 1 || amount > 5) {
+      throw new BadRequestException('投币数量必须是 1 到 5 的整数');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const video = await tx.video.findUnique({ where: { id: videoId } });
+
+      if (!video || video.status !== 'PUBLISHED') {
+        throw new NotFoundException('Video not found');
+      }
+
+      const existing = await tx.videoCoinContribution.findUnique({
+        where: { videoId_userId: { videoId, userId: user.id } },
+      });
+      const existingAmount = existing?.amount ?? 0;
+
+      if (existingAmount + amount > 5) {
+        throw new BadRequestException('每个视频最多投币 5 个');
+      }
+
+      const userUpdate = await tx.user.updateMany({
+        where: { id: user.id, coinBalance: { gte: amount } },
+        data: { coinBalance: { decrement: amount } },
+      });
+
+      if (userUpdate.count !== 1) {
+        throw new BadRequestException('余额不足，请每日打卡获取货币');
+      }
+
+      let userVideoCoinCount = amount;
+      if (existing) {
+        const contributionUpdate = await tx.videoCoinContribution.updateMany({
+          where: { id: existing.id, amount: { lte: 5 - amount } },
+          data: { amount: { increment: amount } },
+        });
+
+        if (contributionUpdate.count !== 1) {
+          throw new BadRequestException('每个视频最多投币 5 个');
+        }
+        userVideoCoinCount = existing.amount + amount;
+      } else {
+        await tx.videoCoinContribution.create({
+          data: { videoId, userId: user.id, amount },
+        });
+      }
+
+      const [updatedUser, updatedVideo] = await Promise.all([
+        tx.user.findUniqueOrThrow({ where: { id: user.id } }),
+        tx.video.update({
+          where: { id: videoId },
+          data: { coinCount: { increment: amount } },
+        }),
+      ]);
+
+      await tx.coinTransaction.create({
+        data: {
+          userId: user.id,
+          type: 'VIDEO_COIN',
+          amount: -amount,
+          balanceAfter: updatedUser.coinBalance,
+          videoId,
+        },
+      });
+
+      return {
+        videoId,
+        amount,
+        userVideoCoinCount,
+        videoCoinCount: updatedVideo.coinCount,
+        balance: updatedUser.coinBalance,
+      };
+    });
   }
 
   async recordPlay(
