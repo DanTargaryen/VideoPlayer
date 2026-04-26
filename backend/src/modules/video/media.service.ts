@@ -10,13 +10,13 @@ import { MinioService } from '../storage/minio.service';
 
 const execFileAsync = promisify(execFile);
 
-const FFMPEG_BIN = process.env.FFMPEG_PATH || 'ffmpeg';
-const FFPROBE_BIN = process.env.FFPROBE_PATH || 'ffprobe';
-
 @Injectable()
 export class MediaService {
   private readonly logger = new Logger(MediaService.name);
-  private ffmpegAvailable: boolean | null = null;
+  private ffmpegAvailable = false;
+  private ffmpegBin = 'ffmpeg';
+  private ffprobeBin = 'ffprobe';
+  private lastBinaryWarningAt = 0;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -24,24 +24,55 @@ export class MediaService {
   ) {}
 
   private async checkFfmpegAvailable(): Promise<boolean> {
-    if (this.ffmpegAvailable !== null) {
-      return this.ffmpegAvailable;
+    const ffmpegBin = await this.findWorkingBinary(
+      this.getBinaryCandidates('FFMPEG_PATH', 'ffmpeg'),
+    );
+    const ffprobeBin = await this.findWorkingBinary(
+      this.getBinaryCandidates('FFPROBE_PATH', 'ffprobe'),
+    );
+
+    if (ffmpegBin && ffprobeBin) {
+      const changed =
+        !this.ffmpegAvailable || this.ffmpegBin !== ffmpegBin || this.ffprobeBin !== ffprobeBin;
+      this.ffmpegAvailable = true;
+      this.ffmpegBin = ffmpegBin;
+      this.ffprobeBin = ffprobeBin;
+      if (changed) {
+        this.logger.log(`FFmpeg found: ${this.ffmpegBin}, FFprobe found: ${this.ffprobeBin}`);
+      }
+      return true;
     }
 
-    try {
-      await execFileAsync(FFPROBE_BIN, ['-version']);
-      this.ffmpegAvailable = true;
-      this.logger.log(`FFmpeg found: ${FFMPEG_BIN}, FFprobe found: ${FFPROBE_BIN}`);
-    } catch {
-      this.ffmpegAvailable = false;
+    this.ffmpegAvailable = false;
+    const now = Date.now();
+    if (now - this.lastBinaryWarningAt > 30_000) {
+      this.lastBinaryWarningAt = now;
       this.logger.warn(
-        `FFmpeg/FFprobe not found (ffmpeg=${FFMPEG_BIN}, ffprobe=${FFPROBE_BIN}). ` +
+        `FFmpeg/FFprobe not found (ffmpeg candidates=${this.getBinaryCandidates('FFMPEG_PATH', 'ffmpeg').join(', ')}, ` +
+          `ffprobe candidates=${this.getBinaryCandidates('FFPROBE_PATH', 'ffprobe').join(', ')}). ` +
           'Video processing (duration probe, cover generation, transcoding) will be skipped. ' +
           'Please install FFmpeg and ensure it is in PATH, or set FFMPEG_PATH / FFPROBE_PATH in .env.',
       );
     }
+    return false;
+  }
 
-    return this.ffmpegAvailable;
+  private getBinaryCandidates(envKey: 'FFMPEG_PATH' | 'FFPROBE_PATH', defaultName: 'ffmpeg' | 'ffprobe') {
+    const configured = process.env[envKey]?.trim();
+    const homebrewName = defaultName === 'ffmpeg' ? '/opt/homebrew/bin/ffmpeg' : '/opt/homebrew/bin/ffprobe';
+    const usrLocalName = defaultName === 'ffmpeg' ? '/usr/local/bin/ffmpeg' : '/usr/local/bin/ffprobe';
+    return Array.from(new Set([configured, defaultName, homebrewName, usrLocalName].filter(Boolean) as string[]));
+  }
+
+  private async findWorkingBinary(candidates: string[]) {
+    for (const candidate of candidates) {
+      try {
+        await execFileAsync(candidate, ['-version']);
+        return candidate;
+      } catch {}
+    }
+
+    return null;
   }
 
   async processVideo(videoId: number, originalAssetId: number, existingCoverAssetId?: number | null) {
@@ -122,14 +153,15 @@ export class MediaService {
         data: videoUpdate,
       });
     } catch (error) {
-      this.logger.warn(`Media processing skipped for video ${videoId}: ${String(error)}`);
+      const message = error instanceof Error ? (error.stack ?? error.message) : String(error);
+      this.logger.warn(`Media processing skipped for video ${videoId}: ${message}`);
     } finally {
       await rm(workDir, { recursive: true, force: true });
     }
   }
 
   private async probeDuration(inputPath: string) {
-    const { stdout } = await execFileAsync(FFPROBE_BIN, [
+    const { stdout } = await execFileAsync(this.ffprobeBin, [
       '-v',
       'error',
       '-show_entries',
@@ -145,14 +177,14 @@ export class MediaService {
 
   private async generateCover(inputPath: string, coverPath: string) {
     try {
-      await execFileAsync(FFMPEG_BIN, ['-y', '-i', inputPath, '-ss', '00:00:01', '-vframes', '1', coverPath]);
+      await execFileAsync(this.ffmpegBin, ['-y', '-i', inputPath, '-ss', '00:00:01', '-vframes', '1', coverPath]);
     } catch {
-      await execFileAsync(FFMPEG_BIN, ['-y', '-i', inputPath, '-vframes', '1', coverPath]);
+      await execFileAsync(this.ffmpegBin, ['-y', '-i', inputPath, '-vframes', '1', coverPath]);
     }
   }
 
   private async transcodeVideo(inputPath: string, outputPath: string) {
-    await execFileAsync(FFMPEG_BIN, [
+    await execFileAsync(this.ffmpegBin, [
       '-y',
       '-i',
       inputPath,

@@ -119,7 +119,6 @@ export class MinioService implements OnModuleInit {
     if (this.storageMode === 'minio' && this.client) {
       await this.client.putObject(this.bucket, input.objectKey, input.buffer, input.size, {
         'Content-Type': input.mimeType,
-        'X-Amz-Meta-Original-Name': input.originalName ?? '',
       });
 
       return {
@@ -160,7 +159,6 @@ export class MinioService implements OnModuleInit {
         fileStat.size,
         {
           'Content-Type': input.mimeType,
-          'X-Amz-Meta-Original-Name': input.originalName ?? '',
         },
       );
 

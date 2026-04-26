@@ -162,6 +162,15 @@ export class VideoController {
     return ok(await this.videoService.updateDraft(id, user, dto));
   }
 
+  @Delete(':id')
+  async deleteVideo(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.videoService.deleteVideo(id, user));
+  }
+
   @Post(':id/withdraw-review')
   async withdrawReview(
     @Headers('authorization') authorization: string | undefined,
@@ -212,7 +221,7 @@ export class VideoController {
     @Param('id', ParseIntPipe) id: number,
   ) {
     const user = await this.authService.getCurrentUser(authorization);
-    return ok(await this.videoService.getVideoDetail(id, user?.id));
+    return ok(await this.videoService.getVideoDetail(id, user));
   }
 
   @Get(':id/recommendations')
