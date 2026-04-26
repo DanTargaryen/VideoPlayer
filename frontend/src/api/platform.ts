@@ -322,6 +322,11 @@ export async function updateVideoDraft(
   return data.data;
 }
 
+export async function deleteVideoDraft(videoId: number) {
+  const { data } = await http.delete<ApiResponse<{ deleted: boolean }>>(`/videos/${videoId}`);
+  return data.data;
+}
+
 export async function fetchVideoReviews(videoId: number) {
   const { data } = await http.get<ApiResponse<ReviewHistoryItem[]>>(`/videos/${videoId}/reviews`);
   return data.data;

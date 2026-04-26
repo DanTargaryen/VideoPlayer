@@ -155,9 +155,9 @@ function captureVideoFrame(file: File, timeSeconds: number) {
 
 function handleUseAutoCover() {
   if (autoCoverPreview.value) {
-    autoCoverFile.value = null;
-    form.coverUrl = autoCoverPreview.value;
-    ElMessage.success('已使用截取封面');
+    selectedCoverFile.value = null;
+    form.coverUrl = '';
+    ElMessage.success('已选用截取封面，创建时会自动上传');
   }
 }
 
@@ -175,29 +175,44 @@ async function handleCreateDraft() {
   creating.value = true;
 
   try {
-    let coverUrl = form.coverUrl;
+    const uploadedVideo = await uploadVideo(selectedVideoFile.value, 'ORIGINAL');
+    let coverUrl = form.coverUrl.trim() || undefined;
+    let coverAssetId: number | undefined;
+    let coverUploadToken: string | undefined;
+    const coverToUpload = selectedCoverFile.value || autoCoverFile.value;
 
-    if (!coverUrl && selectedCoverFile.value) {
-      const coverResp = await uploadVideo(selectedCoverFile.value, 'COVER');
-      coverUrl = coverResp.url;
-    }
-
-    if (!coverUrl && autoCoverFile.value) {
-      const coverResp = await uploadVideo(autoCoverFile.value, 'COVER');
-      coverUrl = coverResp.url;
+    if (coverToUpload) {
+      const coverResp = await uploadVideo(coverToUpload, 'COVER');
+      coverUrl ??= coverResp.url;
+      coverAssetId = coverResp.assetId;
+      coverUploadToken = coverResp.uploadToken;
     }
 
     const resp = await createVideo({
+      assetId: uploadedVideo.assetId,
+      uploadToken: uploadedVideo.uploadToken,
       title: form.title,
       description: form.description,
       category: form.category,
       coverUrl,
+      coverAssetId,
+      coverUploadToken,
     });
 
+    selectedVideoFile.value = null;
+    selectedCoverFile.value = null;
+    autoCoverPreview.value = null;
+    autoCoverFile.value = null;
+    captureTimeSeconds.value = 1;
     ElMessage.success('稿件创建成功！');
-    router.push(`/video/${resp.id}`);
-  } catch {
-    ElMessage.error('创建稿件失败，请重试');
+    try {
+      await router.push(`/video/${resp.id}`);
+    } catch {
+      ElMessage.warning('稿件已创建，但跳转详情页失败');
+    }
+  } catch (error) {
+    const responseMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+    ElMessage.error(typeof responseMessage === 'string' && responseMessage ? responseMessage : '创建稿件失败，请重试');
   } finally {
     creating.value = false;
   }

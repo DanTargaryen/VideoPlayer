@@ -135,6 +135,14 @@
                 >
                   提交审核
                 </el-button>
+                <el-button
+                  type="danger"
+                  plain
+                  :loading="deletingVideoId === item.id"
+                  @click="handleDeleteVideo(item)"
+                >
+                  删除稿件
+                </el-button>
               </div>
             </article>
           </div>
@@ -214,11 +222,12 @@
     <el-dialog v-model="previewDialogVisible" :title="previewVideo?.title || '视频预览'" width="860px" top="6vh">
       <div v-if="previewVideo" class="preview-dialog-body">
         <video
+          ref="previewPlayerRef"
+          :key="`${previewVideo.id}-${previewVideo.playUrl}-${previewVideo.coverUrl}`"
           class="preview-player"
           :src="previewVideo.playUrl"
-          :poster="previewVideo.coverUrl"
           controls
-          preload="metadata"
+          preload="auto"
         />
         <p class="preview-description">{{ previewVideo.description || '暂无简介' }}</p>
       </div>
@@ -401,13 +410,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 
 import {
   createVideo,
   deleteAccount,
+  deleteVideoDraft,
   sendEmailCode,
   fetchCreatorDashboard,
   fetchCreatorVideos,
@@ -437,6 +447,7 @@ const pageLoading = ref(false);
 const creating = ref(false);
 const savingDraft = ref(false);
 const savingAvatar = ref(false);
+const deletingVideoId = ref<number | null>(null);
 const activeTab = ref<'home' | 'settings'>('home');
 const deleteAccountDialogVisible = ref(false);
 const deleteAccountPassword = ref('');
@@ -485,6 +496,7 @@ const editingVideoId = ref<number | null>(null);
 const editingVideoStatus = ref<CreatorVideo['status'] | ''>('');
 const previewDialogVisible = ref(false);
 const previewVideo = ref<CreatorVideo | null>(null);
+const previewPlayerRef = ref<HTMLVideoElement | null>(null);
 
 const avatarDraft = ref('');
 const avatarFile = ref<File | null>(null);
@@ -606,6 +618,17 @@ function openVideoPreview(video: CreatorVideo) {
 
   previewVideo.value = video;
   previewDialogVisible.value = true;
+}
+
+function resetPreviewPlayer() {
+  const player = previewPlayerRef.value;
+  if (!player) {
+    return;
+  }
+  player.pause();
+  try {
+    player.currentTime = 0;
+  } catch {}
 }
 
 async function refreshAll() {
@@ -886,7 +909,7 @@ async function handleCreateDraft() {
       coverAssetId = coverUpload.assetId;
       coverUploadToken = coverUpload.uploadToken;
     }
-    await createVideo({
+    const created = await createVideo({
       assetId: upload.assetId,
       uploadToken: upload.uploadToken,
       title: form.title,
@@ -902,9 +925,14 @@ async function handleCreateDraft() {
     autoCoverFile.value = null;
     captureTimeSeconds.value = 1;
     ElMessage.success({ message: '稿件创建成功', duration: 1500 });
-    await refreshAll();
-  } catch {
-    ElMessage.error({ message: '创建稿件失败，请确认 MinIO 服务已启动且已使用用户账号登录', duration: 4000 });
+    try {
+      await refreshAll();
+    } catch {
+      videos.value = [created, ...videos.value.filter((item) => item.id !== created.id)];
+      ElMessage.warning({ message: '稿件已创建，但列表刷新失败，请稍后手动刷新', duration: 3000 });
+    }
+  } catch (error) {
+    ElMessage.error({ message: getErrorMessage(error, '创建稿件失败'), duration: 4000 });
   } finally {
     creating.value = false;
   }
@@ -969,6 +997,47 @@ async function handleWithdrawReview(videoId: number) {
     ElMessage.error({ message: '撤回审核失败', duration: 3000 });
   }
 }
+
+async function handleDeleteVideo(video: CreatorVideo) {
+  try {
+    await ElMessageBox.confirm(
+      `确定删除稿件《${video.title}》吗？删除后无法恢复，相关封面、转码文件和审核记录也会一起移除。`,
+      '删除稿件',
+      {
+        confirmButtonText: '确认删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+      },
+    );
+  } catch {
+    return;
+  }
+
+  deletingVideoId.value = video.id;
+  try {
+    await deleteVideoDraft(video.id);
+    if (previewDialogVisible.value && previewVideo.value?.id === video.id) {
+      previewDialogVisible.value = false;
+      previewVideo.value = null;
+    }
+    ElMessage.success({ message: '稿件已删除', duration: 1500 });
+    await refreshAll();
+  } catch (error) {
+    ElMessage.error({ message: getErrorMessage(error, '删除稿件失败'), duration: 3000 });
+  } finally {
+    deletingVideoId.value = null;
+  }
+}
+
+watch(previewDialogVisible, async (visible) => {
+  if (!visible) {
+    resetPreviewPlayer();
+    return;
+  }
+
+  await nextTick();
+  previewPlayerRef.value?.load();
+});
 
 onMounted(async () => {
   // 根据 URL 参数设置初始标签页

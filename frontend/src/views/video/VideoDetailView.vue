@@ -9,9 +9,11 @@
             <video
               v-if="video?.playUrl"
               ref="videoRef"
+              :key="`${video.id}-${video.playUrl}-${video.coverUrl}`"
               class="video"
               controls
               :src="video.playUrl"
+              preload="auto"
               @timeupdate="onTimeUpdate"
               @loadedmetadata="onLoadedMetadata"
               @play="onVideoPlay"
@@ -416,6 +418,14 @@ function resetWatchTracking() {
   resolvedVideoDurationSeconds.value = 0;
 }
 
+function syncInitialDurationFromDetail() {
+  const fallbackDurationSeconds = Math.max(0, Math.round(video.value?.durationSeconds ?? 0));
+  if (fallbackDurationSeconds > 0) {
+    videoDurationMs.value = fallbackDurationSeconds * 1000;
+    resolvedVideoDurationSeconds.value = fallbackDurationSeconds;
+  }
+}
+
 function resolveCurrentVideoDurationSeconds() {
   const playerDuration = videoRef.value?.duration;
 
@@ -577,6 +587,7 @@ async function loadDetail() {
   loading.value = true;
   try {
     video.value = await fetchVideoDetail(Number(route.params.id));
+    syncInitialDurationFromDetail();
     coinAmount.value = Math.max(1, Math.min(coinAmount.value, remainingCoinLimit.value || 1));
   } catch {
     ElMessage.error('加载视频详情失败');
