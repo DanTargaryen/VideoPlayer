@@ -3,9 +3,11 @@ import type {
   ApiResponse,
   CommentListResponse,
   CommentReply,
+  CoinWallet,
   CreatorDashboardData,
   CreatorVideo,
   DanmakuItem,
+  DailyClaimResponse,
   LiveFrameResponse,
   LiveRoomInfo,
   LiveMessage,
@@ -31,6 +33,7 @@ import type {
   VideoCard,
   VideoAiSummaryResult,
   VideoDetail,
+  VideoCoinResponse,
   FollowUserItem,
   MyVideoItem,
   VideoWatchProgressPayload,
@@ -320,6 +323,11 @@ export async function updateVideoDraft(
   return data.data;
 }
 
+export async function deleteVideoDraft(videoId: number) {
+  const { data } = await http.delete<ApiResponse<{ deleted: boolean }>>(`/videos/${videoId}`);
+  return data.data;
+}
+
 export async function fetchVideoReviews(videoId: number) {
   const { data } = await http.get<ApiResponse<ReviewHistoryItem[]>>(`/videos/${videoId}/reviews`);
   return data.data;
@@ -332,6 +340,16 @@ export async function fetchCreatorDashboard() {
 
 export async function fetchCreatorVideos() {
   const { data } = await http.get<ApiResponse<CreatorVideo[]>>('/creator/videos');
+  return data.data;
+}
+
+export async function fetchCoinWallet() {
+  const { data } = await http.get<ApiResponse<CoinWallet>>('/gift-coins/wallet');
+  return data.data;
+}
+
+export async function claimDailyCoins() {
+  const { data } = await http.post<ApiResponse<DailyClaimResponse>>('/gift-coins/daily-claim');
   return data.data;
 }
 
@@ -460,6 +478,11 @@ export async function unlikeVideo(videoId: number) {
 
 export async function favoriteVideo(videoId: number) {
   const { data } = await http.post<ApiResponse<{ favorited: boolean }>>(`/videos/${videoId}/favorite`);
+  return data.data;
+}
+
+export async function coinVideo(videoId: number, payload: { amount: number }) {
+  const { data } = await http.post<ApiResponse<VideoCoinResponse>>(`/videos/${videoId}/coin`, payload);
   return data.data;
 }
 

@@ -55,11 +55,12 @@
     <el-dialog v-model="previewDialogVisible" :title="previewItem?.video?.title || '视频预览'" width="860px" top="6vh">
       <div v-if="previewItem?.video" class="preview-dialog-body">
         <video
+          ref="previewPlayerRef"
+          :key="`${previewItem.video.id}-${previewItem.video.playUrl}-${previewItem.video.coverUrl}`"
           class="preview-player"
           :src="previewItem.video.playUrl"
-          :poster="previewItem.video.coverUrl"
           controls
-          preload="metadata"
+          preload="auto"
         />
         <p class="preview-description">{{ previewItem.video.description || '暂无简介' }}</p>
       </div>
@@ -116,7 +117,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 
 import {
@@ -137,6 +138,7 @@ const reports = ref<ReportItem[]>([]);
 const textFilter = ref<'ALL' | 'COMMENT' | 'VIDEO_DANMAKU'>('ALL');
 const previewDialogVisible = ref(false);
 const previewItem = ref<ReviewQueueItem | null>(null);
+const previewPlayerRef = ref<HTMLVideoElement | null>(null);
 
 const statCards = computed(() => [
   { label: '总视频数', value: dashboard.value.totalVideos ?? 0 },
@@ -176,6 +178,17 @@ function openVideoPreview(item: ReviewQueueItem) {
 
   previewItem.value = item;
   previewDialogVisible.value = true;
+}
+
+function resetPreviewPlayer() {
+  const player = previewPlayerRef.value;
+  if (!player) {
+    return;
+  }
+  player.pause();
+  try {
+    player.currentTime = 0;
+  } catch {}
 }
 
 async function handleReview(id: number, action: 'APPROVE' | 'REJECT') {
@@ -235,6 +248,16 @@ async function handleReportAction(id: number, action: 'KEEP' | 'HIDE' | 'DELETE'
 
 watch(textFilter, () => {
   void loadTextReviews();
+});
+
+watch(previewDialogVisible, async (visible) => {
+  if (!visible) {
+    resetPreviewPlayer();
+    return;
+  }
+
+  await nextTick();
+  previewPlayerRef.value?.load();
 });
 
 onMounted(async () => {

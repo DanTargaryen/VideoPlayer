@@ -6,7 +6,7 @@
     </div>
 
     <RouterLink to="/" class="brand-wrap">
-      <span class="brand-mark">G</span>
+      <img src="/assets/guanlan-brand-logo.jpg" alt="观澜视频" class="brand-mark" />
       <div>
         <div class="brand">{{ siteName }}</div>
         <p class="subtitle">视频、直播与创作者社区</p>
@@ -222,15 +222,15 @@ function startHeaderSync() {
 }
 
 .brand-mark {
-  display: grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+  padding: 3px;
   border-radius: 14px;
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  color: #fff;
-  font-size: 20px;
-  font-weight: 800;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .brand {

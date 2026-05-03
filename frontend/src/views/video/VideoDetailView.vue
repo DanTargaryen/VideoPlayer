@@ -9,9 +9,11 @@
             <video
               v-if="video?.playUrl"
               ref="videoRef"
+              :key="`${video.id}-${video.playUrl}-${video.coverUrl}`"
               class="video"
               controls
               :src="video.playUrl"
+              preload="auto"
               @timeupdate="onTimeUpdate"
               @loadedmetadata="onLoadedMetadata"
               @play="onVideoPlay"
@@ -61,6 +63,14 @@
               <el-icon :size="26"><ChatDotRound /></el-icon>
               <span>{{ video.commentCount }}</span>
             </button>
+            <div class="coin-action">
+              <button class="action-icon-btn coin-btn" :class="{ active: video.myCoinCount > 0 }" :disabled="remainingCoinLimit === 0 || coiningVideo" @click="handleCoinVideo">
+                <el-icon :size="26"><Coin /></el-icon>
+                <span>{{ video.coinCount }}</span>
+              </button>
+              <el-input-number v-model="coinAmount" :min="1" :max="Math.max(1, remainingCoinLimit)" size="small" :disabled="remainingCoinLimit === 0 || coiningVideo" />
+              <span class="coin-progress">我的投币 {{ video.myCoinCount }}/{{ video.myCoinLimit }}</span>
+            </div>
             <el-button
               v-if="canFollow"
               :type="video.isFollowingCreator ? 'default' : 'primary'"
@@ -88,6 +98,7 @@
             :rows="3"
             placeholder="输入评论内容"
           />
+          <p class="comment-tip">输入 <strong>@grok</strong> + 问题，可召唤智能体回复</p>
           <div class="comment-actions">
             <el-button type="primary" @click="submitRootComment">发表评论</el-button>
           </div>
@@ -271,12 +282,13 @@
 import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { onBeforeRouteLeave, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { StarFilled, ChatDotRound, Warning, ArrowRight } from '@element-plus/icons-vue';
+import { StarFilled, ChatDotRound, Warning, ArrowRight, Coin } from '@element-plus/icons-vue';
 
 import {
   createVideoAiChat,
   createComment,
   createDanmaku,
+  coinVideo,
   favoriteVideo,
   fetchComments,
   fetchDanmakus,
@@ -357,6 +369,9 @@ let agentMessageSeed = 0;
 const canFollow = computed(
   () => appStore.isLoggedIn && video.value && video.value.creator.id !== appStore.userId,
 );
+const remainingCoinLimit = computed(() => Math.max(0, (video.value?.myCoinLimit ?? 5) - (video.value?.myCoinCount ?? 0)));
+const coinAmount = ref(1);
+const coiningVideo = ref(false);
 
 function formatMs(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);
@@ -401,6 +416,14 @@ function resetWatchTracking() {
   sessionWatchedSeconds.value = 0;
   reportedWatchSeconds.value = 0;
   resolvedVideoDurationSeconds.value = 0;
+}
+
+function syncInitialDurationFromDetail() {
+  const fallbackDurationSeconds = Math.max(0, Math.round(video.value?.durationSeconds ?? 0));
+  if (fallbackDurationSeconds > 0) {
+    videoDurationMs.value = fallbackDurationSeconds * 1000;
+    resolvedVideoDurationSeconds.value = fallbackDurationSeconds;
+  }
 }
 
 function resolveCurrentVideoDurationSeconds() {
@@ -564,6 +587,8 @@ async function loadDetail() {
   loading.value = true;
   try {
     video.value = await fetchVideoDetail(Number(route.params.id));
+    syncInitialDurationFromDetail();
+    coinAmount.value = Math.max(1, Math.min(coinAmount.value, remainingCoinLimit.value || 1));
   } catch {
     ElMessage.error('加载视频详情失败');
   } finally {
@@ -790,6 +815,32 @@ async function toggleFavoriteAction() {
     await loadDetail();
   } catch {
     ElMessage.error('操作失败，请确认已登录');
+  }
+}
+
+async function handleCoinVideo() {
+  if (!video.value) {
+    return;
+  }
+
+  if (remainingCoinLimit.value === 0) {
+    ElMessage.info('该视频已达投币上限 5 个');
+    return;
+  }
+
+  coiningVideo.value = true;
+  try {
+    const amount = Math.min(coinAmount.value, remainingCoinLimit.value);
+    const result = await coinVideo(video.value.id, { amount });
+    video.value.coinCount = result.videoCoinCount;
+    video.value.myCoinCount = result.userVideoCoinCount;
+    coinAmount.value = Math.max(1, Math.min(coinAmount.value, remainingCoinLimit.value || 1));
+    ElMessage.success(`投币成功，已投 ${result.amount} 个`);
+  } catch (error) {
+    const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+    ElMessage.error(message || '投币失败，请确认已登录且余额充足');
+  } finally {
+    coiningVideo.value = false;
   }
 }
 
@@ -1346,6 +1397,27 @@ onBeforeUnmount(() => {
 
 .action-icon-btn.active {
   color: #2563eb;
+}
+
+.action-icon-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.coin-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.coin-btn.active {
+  color: #f59e0b;
+}
+
+.coin-progress {
+  color: #6b7280;
+  font-size: 13px;
+  white-space: nowrap;
 }
 
 .action-icon {
