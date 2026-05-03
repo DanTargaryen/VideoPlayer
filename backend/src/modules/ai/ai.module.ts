@@ -19,5 +19,6 @@ import { AiVideoService } from './video.service';
     VideoAiSummaryRepository,
     VideoAiSummaryService,
   ],
+  exports: [AiSummaryService, VideoAiSummaryService],
 })
 export class AiModule {}

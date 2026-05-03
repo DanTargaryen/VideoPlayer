@@ -21,6 +21,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
   Min,
   ValidateIf,
@@ -112,6 +113,13 @@ class RecordPlayDto {
   videoDurationSeconds?: number;
 }
 
+class CoinVideoDto {
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  amount!: number;
+}
+
 class ReportWatchProgressDto {
   @IsInt()
   @Min(0)
@@ -152,6 +160,15 @@ export class VideoController {
   ) {
     const user = await this.authService.requireUser(authorization);
     return ok(await this.videoService.updateDraft(id, user, dto));
+  }
+
+  @Delete(':id')
+  async deleteVideo(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.videoService.deleteVideo(id, user));
   }
 
   @Post(':id/withdraw-review')
@@ -204,7 +221,7 @@ export class VideoController {
     @Param('id', ParseIntPipe) id: number,
   ) {
     const user = await this.authService.getCurrentUser(authorization);
-    return ok(await this.videoService.getVideoDetail(id, user?.id));
+    return ok(await this.videoService.getVideoDetail(id, user));
   }
 
   @Get(':id/recommendations')
@@ -250,6 +267,16 @@ export class VideoController {
   ) {
     const user = await this.authService.requireUser(authorization);
     return ok(await this.videoService.favoriteVideo(id, user));
+  }
+
+  @Post(':id/coin')
+  async coinVideo(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CoinVideoDto,
+  ) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.videoService.coinVideo(id, user, dto.amount));
   }
 
   @Post(':id/play')

@@ -174,29 +174,35 @@ async function handleCreateDraft() {
   creating.value = true;
 
   try {
-    ElMessage.info('正在上传视频文件，请稍候...');
+    const uploadedVideo = await uploadVideo(selectedVideoFile.value, 'ORIGINAL');
+    let coverUrl = form.coverUrl.trim() || undefined;
+    let coverAssetId: number | undefined;
+    let coverUploadToken: string | undefined;
+    const coverToUpload = selectedCoverFile.value || autoCoverFile.value;
 
-    const videoResp = await uploadVideo(selectedVideoFile.value, 'ORIGINAL');
-
-    let coverUrl = form.coverUrl;
-
-    if (!coverUrl && selectedCoverFile.value) {
-      const coverResp = await uploadVideo(selectedCoverFile.value, 'COVER');
-      coverUrl = coverResp.url;
-    } else if (!coverUrl && autoCoverFile.value) {
-      const coverResp = await uploadVideo(autoCoverFile.value, 'COVER');
-      coverUrl = coverResp.url;
+    if (coverToUpload) {
+      const coverResp = await uploadVideo(coverToUpload, 'COVER');
+      coverUrl ??= coverResp.url;
+      coverAssetId = coverResp.assetId;
+      coverUploadToken = coverResp.uploadToken;
     }
 
     const resp = await createVideo({
-      assetId: videoResp.assetId,
-      uploadToken: videoResp.uploadToken,
+      assetId: uploadedVideo.assetId,
+      uploadToken: uploadedVideo.uploadToken,
       title: form.title,
       description: form.description,
       category: form.category,
       coverUrl,
+      coverAssetId,
+      coverUploadToken,
     });
 
+    selectedVideoFile.value = null;
+    selectedCoverFile.value = null;
+    autoCoverPreview.value = null;
+    autoCoverFile.value = null;
+    captureTimeSeconds.value = 1;
     ElMessage.success('稿件创建成功！');
     router.push('/user/dashboard');
   } catch (error: unknown) {

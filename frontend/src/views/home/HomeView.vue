@@ -1,82 +1,87 @@
 <template>
   <section class="page">
-    <div class="section-head">
-      <h2>推荐视频</h2>
-      <el-button type="primary" size="small" @click="loadFeed">刷新推荐</el-button>
-    </div>
+    <template v-if="loading">
+      <LoadingSplash fullPage />
+    </template>
+    <template v-else>
+      <div class="section-head">
+        <h2>推荐视频</h2>
+        <el-button type="primary" size="small" @click="loadFeed">刷新推荐</el-button>
+      </div>
 
-    <template v-if="cards.length > 0">
-      <div class="featured-row" v-if="carousel.length > 0">
-        <div class="carousel-area">
-          <div class="carousel-wrapper">
-            <transition name="carousel-fade" mode="out-in">
-              <RouterLink
-                :to="`/video/${carousel[carouselIndex].id}`"
-                :key="carousel[carouselIndex].id"
-                class="carousel-slide"
-              >
-                <img
-                  :src="carousel[carouselIndex].coverUrl"
-                  :alt="carousel[carouselIndex].title"
-                  class="carousel-cover"
-                  crossorigin="anonymous"
-                  @load="(e) => extractColor(e)"
-                />
-                <div
-                  class="carousel-gradient"
-                  :style="{ background: gradientStyles[carousel[carouselIndex].id] || defaultGradient }"
+      <template v-if="cards.length > 0">
+        <div class="featured-row" v-if="carousel.length > 0">
+          <div class="carousel-area">
+            <div class="carousel-wrapper">
+              <transition name="carousel-fade" mode="out-in">
+                <RouterLink
+                  :to="`/video/${carousel[carouselIndex].id}`"
+                  :key="carousel[carouselIndex].id"
+                  class="carousel-slide"
                 >
-                  <div class="carousel-info">
-                    <h3 class="carousel-title">{{ carousel[carouselIndex].title }}</h3>
-                    <p class="carousel-desc">{{ carousel[carouselIndex].description }}</p>
-                    <div class="carousel-meta">
-                      <span class="meta-creator">{{ carousel[carouselIndex].creator?.nickname ?? '匿名' }}</span>
-                      <span class="meta-stats">
-                        <svg class="stat-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M7 22V11L10.5 3.5C10.78 2.87 11.41 2.5 12.1 2.5C13.1 2.5 13.85 3.42 13.65 4.4L12.8 9H20c1.1 0 2 0.9 2 2v1c0 .15-.02.3-.05.44l-2.19 8C19.5 21.35 18.68 22 17.73 22H7ZM7 13v8M3 22h2V11H3v11Z"/></svg>
-                        {{ carousel[carouselIndex].likeCount }}
-                      </span>
-                      <span class="meta-stats">
-                        <svg class="stat-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                        {{ carousel[carouselIndex].favoriteCount }}
-                      </span>
+                  <img
+                    :src="carousel[carouselIndex].coverUrl"
+                    :alt="carousel[carouselIndex].title"
+                    class="carousel-cover"
+                    crossorigin="anonymous"
+                    @load="(e) => extractColor(e)"
+                  />
+                  <div
+                    class="carousel-gradient"
+                    :style="{ background: gradientStyles[carousel[carouselIndex].id] || defaultGradient }"
+                  >
+                    <div class="carousel-info">
+                      <h3 class="carousel-title">{{ carousel[carouselIndex].title }}</h3>
+                      <p class="carousel-desc">{{ carousel[carouselIndex].description }}</p>
+                      <div class="carousel-meta">
+                        <span class="meta-creator">{{ carousel[carouselIndex].creator?.nickname ?? '匿名' }}</span>
+                        <span class="meta-stats">
+                          <svg class="stat-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M7 22V11L10.5 3.5C10.78 2.87 11.41 2.5 12.1 2.5C13.1 2.5 13.85 3.42 13.65 4.4L12.8 9H20c1.1 0 2 0.9 2 2v1c0 .15-.02.3-.05.44l-2.19 8C19.5 21.35 18.68 22 17.73 22H7ZM7 13v8M3 22h2V11H3v11Z"/></svg>
+                          {{ carousel[carouselIndex].likeCount }}
+                        </span>
+                        <span class="meta-stats">
+                          <svg class="stat-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                          {{ carousel[carouselIndex].favoriteCount }}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </RouterLink>
-            </transition>
-            <div class="carousel-dots" v-if="carousel.length > 1">
-              <span
-                v-for="(_, idx) in carousel"
-                :key="idx"
-                class="dot"
-                :class="{ active: idx === carouselIndex }"
-                @click="carouselIndex = idx"
-              ></span>
+                </RouterLink>
+              </transition>
+              <div class="carousel-dots" v-if="carousel.length > 1">
+                <span
+                  v-for="(_, idx) in carousel"
+                  :key="idx"
+                  class="dot"
+                  :class="{ active: idx === carouselIndex }"
+                  @click="carouselIndex = idx"
+                ></span>
+              </div>
+              <button
+                v-if="carousel.length > 1"
+                class="carousel-btn prev"
+                @click="prevCarousel"
+              >‹</button>
+              <button
+                v-if="carousel.length > 1"
+                class="carousel-btn next"
+                @click="nextCarousel"
+              >›</button>
             </div>
-            <button
-              v-if="carousel.length > 1"
-              class="carousel-btn prev"
-              @click="prevCarousel"
-            >‹</button>
-            <button
-              v-if="carousel.length > 1"
-              class="carousel-btn next"
-              @click="nextCarousel"
-            >›</button>
+          </div>
+
+          <div class="featured-cards">
+            <VideoMediaCard v-for="card in topRightCards" :key="card.id" :item="card" />
           </div>
         </div>
 
-        <div class="featured-cards">
-          <VideoMediaCard v-for="card in topRightCards" :key="card.id" :item="card" />
+        <div class="cards">
+          <VideoMediaCard v-for="card in restCards" :key="card.id" :item="card" />
         </div>
-      </div>
+      </template>
 
-      <div class="cards">
-        <VideoMediaCard v-for="card in restCards" :key="card.id" :item="card" />
-      </div>
+      <el-empty v-else description="当前条件下没有找到相关视频" />
     </template>
-
-    <el-empty v-else description="当前条件下没有找到相关视频" />
   </section>
 </template>
 
@@ -84,10 +89,12 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 
+import LoadingSplash from '@/components/LoadingSplash.vue';
 import VideoMediaCard from '@/components/VideoMediaCard.vue';
 import { fetchRecommendFeed } from '@/api/platform';
 import type { VideoCard } from '@/types/api';
 
+const loading = ref(true);
 const cards = ref<VideoCard[]>([]);
 const carousel = ref<VideoCard[]>([]);
 const carouselIndex = ref(0);
@@ -176,6 +183,7 @@ function stopCarouselTimer() {
 }
 
 async function loadFeed() {
+  loading.value = true;
   try {
     stopCarouselTimer();
     gradientStyles.value = {};
@@ -186,6 +194,8 @@ async function loadFeed() {
     startCarouselTimer();
   } catch {
     ElMessage.error('加载推荐流失败');
+  } finally {
+    loading.value = false;
   }
 }
 

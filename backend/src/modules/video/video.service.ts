@@ -1,5 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Express } from 'express';
 
 import { CATEGORY_DEFINITIONS, resolveCategoryCode, resolveCategoryId } from '../../common/constants/categories';
@@ -58,16 +57,17 @@ export class VideoService {
   ) {}
 
   async uploadFile(file: Express.Multer.File, assetType: 'ORIGINAL' | 'COVER' | 'RECORDING' = 'ORIGINAL') {
+    const normalizedOriginalName = this.normalizeUploadedOriginalName(file.originalname);
     const datePrefix = new Date().toISOString().slice(0, 10).replace(/-/g, '/');
     const folder =
       assetType === 'COVER' ? 'videos/covers' : assetType === 'RECORDING' ? 'videos/recordings' : 'videos/original';
-    const objectKey = `${folder}/${datePrefix}/${this.buildStorageFileName(file.originalname)}`;
+    const objectKey = `${folder}/${datePrefix}/${this.buildStorageFileName(normalizedOriginalName)}`;
     const uploaded = await this.minioService.uploadObject({
       objectKey,
       buffer: file.buffer,
       size: file.size,
       mimeType: file.mimetype,
-      originalName: file.originalname,
+      originalName: normalizedOriginalName,
     });
 
     const asset = await this.prisma.videoAsset.create({
@@ -76,7 +76,7 @@ export class VideoService {
         objectKey: uploaded.objectKey,
         bucket: uploaded.bucket,
         mimeType: file.mimetype,
-        originalName: file.originalname,
+        originalName: normalizedOriginalName,
         fileSize: file.size,
         url: uploaded.url,
       },
@@ -208,6 +208,58 @@ export class VideoService {
     });
   }
 
+  async deleteVideo(videoId: number, user: { id: number; role: 'USER' | 'ADMIN' }) {
+    const video = await this.prisma.video.findUnique({
+      where: { id: videoId },
+      include: {
+        assets: {
+          select: {
+            bucket: true,
+            objectKey: true,
+          },
+        },
+      },
+    });
+
+    if (!video) {
+      throw new NotFoundException('Video not found');
+    }
+
+    if (video.creatorId !== user.id && user.role !== 'ADMIN') {
+      throw new ForbiddenException('Cannot delete others videos');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.notification.deleteMany({
+        where: {
+          relatedType: 'VIDEO',
+          relatedId: videoId,
+        },
+      });
+      await tx.userVideoWatch.deleteMany({ where: { videoId } });
+      await tx.coinTransaction.updateMany({ where: { videoId }, data: { videoId: null } });
+      await tx.videoCoinContribution.deleteMany({ where: { videoId } });
+      await tx.videoLike.deleteMany({ where: { videoId } });
+      await tx.favorite.deleteMany({ where: { videoId } });
+      await tx.reportRecord.deleteMany({ where: { videoId } });
+      await tx.videoDanmaku.deleteMany({ where: { videoId } });
+      await tx.comment.deleteMany({ where: { videoId } });
+      await tx.videoReview.deleteMany({ where: { videoId } });
+      await tx.videoAsset.deleteMany({ where: { videoId } });
+      await tx.video.delete({ where: { id: videoId } });
+    });
+
+    await Promise.all(
+      video.assets.map(async (asset) => {
+        try {
+          await this.minioService.deleteFile(asset.bucket, asset.objectKey);
+        } catch {}
+      }),
+    );
+
+    return { deleted: true };
+  }
+
   async withdrawReview(videoId: number, user: { id: number; role: 'USER' | 'ADMIN' }) {
     const video = await this.prisma.video.findUnique({ where: { id: videoId } });
 
@@ -267,9 +319,9 @@ export class VideoService {
     });
   }
 
-  async getVideoDetail(id: number, currentUserId?: number) {
+  async getVideoDetail(id: number, currentUser?: { id: number; role: 'USER' | 'ADMIN' } | null) {
     const video = await this.prisma.video.findFirst({
-      where: { id, status: 'PUBLISHED' },
+      where: { id },
       include: { creator: true },
     });
 
@@ -277,22 +329,34 @@ export class VideoService {
       throw new NotFoundException('Video not found');
     }
 
-    const isFollowingCreator = await this.followService.isFollowing(video.creator.id, currentUserId);
+    const canViewUnpublished =
+      Boolean(currentUser) && (currentUser!.role === 'ADMIN' || video.creatorId === currentUser!.id);
+
+    if (video.status !== 'PUBLISHED' && !canViewUnpublished) {
+      throw new NotFoundException('Video not found');
+    }
+
+    const isFollowingCreator = await this.followService.isFollowing(video.creator.id, currentUser?.id);
     const followerCount = await this.followService.getFollowerCount(video.creator.id);
-    const isLiked = currentUserId
+    const isLiked = currentUser?.id
       ? Boolean(
           await this.prisma.videoLike.findUnique({
-            where: { videoId_userId: { videoId: id, userId: currentUserId } },
+            where: { videoId_userId: { videoId: id, userId: currentUser.id } },
           }),
         )
       : false;
-    const isFavorited = currentUserId
+    const isFavorited = currentUser?.id
       ? Boolean(
           await this.prisma.favorite.findUnique({
-            where: { videoId_userId: { videoId: id, userId: currentUserId } },
+            where: { videoId_userId: { videoId: id, userId: currentUser.id } },
           }),
         )
       : false;
+    const myCoinCount = currentUser?.id
+      ? (await this.prisma.videoCoinContribution.findUnique({
+          where: { videoId_userId: { videoId: id, userId: currentUser.id } },
+        }))?.amount ?? 0
+      : 0;
 
     return {
       ...video,
@@ -306,6 +370,8 @@ export class VideoService {
       isFollowingCreator,
       isLiked,
       isFavorited,
+      myCoinCount,
+      myCoinLimit: 5,
     };
   }
 
@@ -696,6 +762,81 @@ export class VideoService {
     }
 
     return { favorited: true };
+  }
+
+  async coinVideo(videoId: number, user: { id: number }, amount: number) {
+    if (!Number.isInteger(amount) || amount < 1 || amount > 5) {
+      throw new BadRequestException('投币数量必须是 1 到 5 的整数');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const video = await tx.video.findUnique({ where: { id: videoId } });
+
+      if (!video || video.status !== 'PUBLISHED') {
+        throw new NotFoundException('Video not found');
+      }
+
+      const existing = await tx.videoCoinContribution.findUnique({
+        where: { videoId_userId: { videoId, userId: user.id } },
+      });
+      const existingAmount = existing?.amount ?? 0;
+
+      if (existingAmount + amount > 5) {
+        throw new BadRequestException('每个视频最多投币 5 个');
+      }
+
+      const userUpdate = await tx.user.updateMany({
+        where: { id: user.id, coinBalance: { gte: amount } },
+        data: { coinBalance: { decrement: amount } },
+      });
+
+      if (userUpdate.count !== 1) {
+        throw new BadRequestException('余额不足，请每日打卡获取货币');
+      }
+
+      let userVideoCoinCount = amount;
+      if (existing) {
+        const contributionUpdate = await tx.videoCoinContribution.updateMany({
+          where: { id: existing.id, amount: { lte: 5 - amount } },
+          data: { amount: { increment: amount } },
+        });
+
+        if (contributionUpdate.count !== 1) {
+          throw new BadRequestException('每个视频最多投币 5 个');
+        }
+        userVideoCoinCount = existing.amount + amount;
+      } else {
+        await tx.videoCoinContribution.create({
+          data: { videoId, userId: user.id, amount },
+        });
+      }
+
+      const [updatedUser, updatedVideo] = await Promise.all([
+        tx.user.findUniqueOrThrow({ where: { id: user.id } }),
+        tx.video.update({
+          where: { id: videoId },
+          data: { coinCount: { increment: amount } },
+        }),
+      ]);
+
+      await tx.coinTransaction.create({
+        data: {
+          userId: user.id,
+          type: 'VIDEO_COIN',
+          amount: -amount,
+          balanceAfter: updatedUser.coinBalance,
+          videoId,
+        },
+      });
+
+      return {
+        videoId,
+        amount,
+        userVideoCoinCount,
+        videoCoinCount: updatedVideo.coinCount,
+        balance: updatedUser.coinBalance,
+      };
+    });
   }
 
   async recordPlay(
@@ -1278,6 +1419,21 @@ export class VideoService {
     }
 
     return Math.min(50, Math.floor(pageSize));
+  }
+
+  private normalizeUploadedOriginalName(originalName: string) {
+    if (!originalName || /^[\x00-\x7F]*$/.test(originalName)) {
+      return originalName;
+    }
+
+    const rawBytes = Buffer.from(originalName, 'latin1');
+    const decoded = rawBytes.toString('utf8');
+
+    if (decoded.includes('\uFFFD')) {
+      return originalName;
+    }
+
+    return Buffer.from(decoded, 'utf8').equals(rawBytes) ? decoded : originalName;
   }
 
   private buildStorageFileName(originalName: string) {
