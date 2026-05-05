@@ -5,9 +5,13 @@ import type {
   CommentReply,
   CoinWallet,
   CreatorDashboardData,
+  CreatorFollowerTrendPoint,
+  CreatorPlayTrendPoint,
   CreatorVideo,
   DanmakuItem,
   DailyClaimResponse,
+  DirectMessageConversationDetail,
+  DirectMessageConversationSummary,
   LiveFrameResponse,
   LiveRoomInfo,
   LiveMessage,
@@ -35,6 +39,8 @@ import type {
   VideoDetail,
   VideoCoinResponse,
   FollowUserItem,
+  FavoriteFolderSummary,
+  FavoriteVideoResult,
   MyVideoItem,
   VideoWatchProgressPayload,
 } from '@/types/api';
@@ -322,6 +328,11 @@ export async function updateVideoDraft(
   return data.data;
 }
 
+export async function deleteCreatorVideo(videoId: number) {
+  const { data } = await http.delete<ApiResponse<{ deleted: boolean; videoId: number }>>(`/videos/${videoId}`);
+  return data.data;
+}
+
 export async function fetchVideoReviews(videoId: number) {
   const { data } = await http.get<ApiResponse<ReviewHistoryItem[]>>(`/videos/${videoId}/reviews`);
   return data.data;
@@ -334,6 +345,16 @@ export async function fetchCreatorDashboard() {
 
 export async function fetchCreatorVideos() {
   const { data } = await http.get<ApiResponse<CreatorVideo[]>>('/creator/videos');
+  return data.data;
+}
+
+export async function fetchCreatorPlayTrend() {
+  const { data } = await http.get<ApiResponse<CreatorPlayTrendPoint[]>>('/creator/videos/play-trend');
+  return data.data;
+}
+
+export async function fetchCreatorFollowerTrend() {
+  const { data } = await http.get<ApiResponse<CreatorFollowerTrendPoint[]>>('/creator/followers/trend');
   return data.data;
 }
 
@@ -470,8 +491,8 @@ export async function unlikeVideo(videoId: number) {
   return data.data;
 }
 
-export async function favoriteVideo(videoId: number) {
-  const { data } = await http.post<ApiResponse<{ favorited: boolean }>>(`/videos/${videoId}/favorite`);
+export async function favoriteVideo(videoId: number, payload?: { folderId?: number }) {
+  const { data } = await http.post<ApiResponse<FavoriteVideoResult>>(`/videos/${videoId}/favorite`, payload ?? {});
   return data.data;
 }
 
@@ -481,7 +502,7 @@ export async function coinVideo(videoId: number, payload: { amount: number }) {
 }
 
 export async function reportVideoPlay(videoId: number, payload?: { videoDurationSeconds?: number }) {
-  const { data } = await http.post<ApiResponse<Record<string, unknown>>>(`/videos/${videoId}/play`, payload ?? {});
+  const { data } = await http.post<ApiResponse<{ videoId: number; playCount: number }>>(`/videos/${videoId}/play`, payload ?? {});
   return data.data;
 }
 
@@ -541,13 +562,82 @@ export async function fetchMyFavorites() {
   return data.data;
 }
 
+export async function fetchMyFavoritesByFolder(folderId?: number) {
+  const { data } = await http.get<ApiResponse<MyVideoItem[]>>('/videos/my/favorites', {
+    params: folderId ? { folderId } : undefined,
+  });
+  return data.data;
+}
+
+export async function fetchMyFavoriteFolders() {
+  const { data } = await http.get<ApiResponse<FavoriteFolderSummary[]>>('/videos/my/favorite-folders');
+  return data.data;
+}
+
+export async function createMyFavoriteFolder(payload: { name: string }) {
+  const { data } = await http.post<ApiResponse<FavoriteFolderSummary>>('/videos/my/favorite-folders', payload);
+  return data.data;
+}
+
+export async function deleteMyFavoriteFolder(folderId: number) {
+  const { data } = await http.delete<ApiResponse<{ deleted: boolean; folderId: number; movedToFolderId: number }>>(
+    `/videos/my/favorite-folders/${folderId}`,
+  );
+  return data.data;
+}
+
 export async function fetchMyLikes() {
   const { data } = await http.get<ApiResponse<MyVideoItem[]>>('/videos/my/likes');
   return data.data;
 }
 
-export async function updateProfile(payload: { nickname?: string; avatarUrl?: string; bio?: string; email?: string }) {
-  const { data } = await http.put<ApiResponse<{ id: number; nickname: string; avatarUrl?: string; bio?: string; email?: string }>>('/users/profile', payload);
+export async function fetchMyHistory() {
+  const { data } = await http.get<ApiResponse<MyVideoItem[]>>('/videos/my/history');
+  return data.data;
+}
+
+export async function updateProfile(payload: {
+  nickname?: string;
+  avatarUrl?: string;
+  bio?: string;
+  email?: string;
+  messagePrivacy?: 'ALLOW_ALL' | 'FOLLOWING_ONLY' | 'DISABLED';
+}) {
+  const { data } = await http.put<ApiResponse<{
+    id: number;
+    nickname: string;
+    avatarUrl?: string;
+    bio?: string;
+    email?: string;
+    messagePrivacy?: 'ALLOW_ALL' | 'FOLLOWING_ONLY' | 'DISABLED';
+  }>>('/users/profile', payload);
+  return data.data;
+}
+
+export async function fetchDirectMessageConversations() {
+  const { data } = await http.get<ApiResponse<DirectMessageConversationSummary[]>>('/messages/conversations');
+  return data.data;
+}
+
+export async function fetchDirectMessageConversation(targetUserId: number) {
+  const { data } = await http.get<ApiResponse<DirectMessageConversationDetail>>(`/messages/conversations/${targetUserId}`);
+  return data.data;
+}
+
+export async function sendDirectMessage(targetUserId: number, content: string) {
+  const { data } = await http.post<ApiResponse<{
+    message: DirectMessageConversationDetail['messages'][number];
+    canSend: boolean;
+    messagePrivacy: 'ALLOW_ALL' | 'FOLLOWING_ONLY' | 'DISABLED';
+    senderFollowsRecipient: boolean;
+    recipientFollowsSender: boolean;
+    reason?: string;
+  }>>(`/messages/conversations/${targetUserId}`, { content });
+  return data.data;
+}
+
+export async function fetchUnreadDirectMessageCount() {
+  const { data } = await http.get<ApiResponse<{ unreadCount: number }>>('/messages/unread-count');
   return data.data;
 }
 

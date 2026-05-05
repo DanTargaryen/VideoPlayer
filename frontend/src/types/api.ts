@@ -27,6 +27,7 @@ export interface VideoCard {
   coverUrl: string;
   description: string;
   playUrl?: string;
+  playCount?: number;
   likeCount: number;
   favoriteCount: number;
   commentCount: number;
@@ -186,12 +187,56 @@ export interface UserHomepage {
   nickname: string;
   avatarUrl?: string | null;
   bio?: string | null;
+  messagePrivacy?: DirectMessagePrivacy;
   followers: number;
   following: number;
   videos: number;
   isFollowing: boolean;
   coinBalance?: number;
   items: VideoCard[];
+}
+
+export type DirectMessagePrivacy = 'ALLOW_ALL' | 'FOLLOWING_ONLY' | 'DISABLED';
+
+export interface DirectMessageUser {
+  id: number;
+  nickname: string;
+  avatarUrl?: string | null;
+}
+
+export interface DirectMessagePermission {
+  canSend: boolean;
+  messagePrivacy: DirectMessagePrivacy;
+  senderFollowsRecipient: boolean;
+  recipientFollowsSender: boolean;
+  reason?: string;
+}
+
+export interface DirectMessageItem {
+  id: number;
+  senderId: number;
+  recipientId: number;
+  content: string;
+  isRead: boolean;
+  readAt?: string | null;
+  createdAt: string;
+  sender: DirectMessageUser;
+}
+
+export interface DirectMessageConversationSummary extends DirectMessagePermission {
+  user: DirectMessageUser;
+  unreadCount: number;
+  lastMessage: {
+    id: number;
+    content: string;
+    createdAt: string;
+    senderId: number;
+  };
+}
+
+export interface DirectMessageConversationDetail extends DirectMessagePermission {
+  targetUser: DirectMessageUser & { messagePrivacy: DirectMessagePrivacy };
+  messages: DirectMessageItem[];
 }
 
 export interface TextReviewItem {
@@ -251,6 +296,7 @@ export interface CreatorDashboardData {
   avatarUrl?: string | null;
   bio?: string | null;
   email: string;
+  messagePrivacy: DirectMessagePrivacy;
   role: 'USER' | 'ADMIN';
   totalVideos: number;
   pendingReviews: number;
@@ -360,11 +406,36 @@ export interface LiveViewerAnswerResponse {
   updatedAt: string;
 }
 
+export interface CreatorPlayTrendPoint {
+  date: string;
+  playCount: number;
+}
+
+export interface CreatorFollowerTrendPoint {
+  date: string;
+  followerCount: number;
+}
+
 export interface FollowUserItem {
   id: number;
   nickname: string;
   avatarUrl?: string | null;
   followedAt: string;
+}
+
+export interface FavoriteFolderSummary {
+  id: number;
+  name: string;
+  isDefault: boolean;
+  videoCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FavoriteVideoResult {
+  favorited: boolean;
+  folderId?: number;
+  folderName?: string;
 }
 
 export interface MyVideoItem {
@@ -379,7 +450,9 @@ export interface MyVideoItem {
   coinCount?: number;
   creator: { id: number; nickname: string };
   favoritedAt?: string;
+  folderId?: number | null;
   likedAt?: string;
+  watchedAt?: string | null;
 }
 
 export interface VideoAiSummaryResult {

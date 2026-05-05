@@ -120,6 +120,19 @@ class CoinVideoDto {
   amount!: number;
 }
 
+class FavoriteVideoDto {
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  folderId?: number;
+}
+
+class CreateFavoriteFolderDto {
+  @IsString()
+  @MaxLength(64)
+  name!: string;
+}
+
 class ReportWatchProgressDto {
   @IsInt()
   @Min(0)
@@ -162,6 +175,15 @@ export class VideoController {
     return ok(await this.videoService.updateDraft(id, user, dto));
   }
 
+  @Delete(':id')
+  async deleteVideo(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.videoService.deleteCreatorVideo(id, user));
+  }
+
   @Post(':id/withdraw-review')
   async withdrawReview(
     @Headers('authorization') authorization: string | undefined,
@@ -172,15 +194,52 @@ export class VideoController {
   }
 
   @Get('my/favorites')
-  async getMyFavorites(@Headers('authorization') authorization: string | undefined) {
+  async getMyFavorites(
+    @Headers('authorization') authorization: string | undefined,
+    @Query('folderId') folderId?: string,
+  ) {
     const user = await this.authService.requireUser(authorization);
-    return ok(await this.videoService.getUserFavorites(user.id));
+    const resolvedFolderId = folderId === undefined ? undefined : Number(folderId);
+    if (resolvedFolderId !== undefined && (!Number.isInteger(resolvedFolderId) || resolvedFolderId < 1)) {
+      throw new BadRequestException('folderId must be a positive integer');
+    }
+    return ok(await this.videoService.getUserFavorites(user.id, resolvedFolderId));
+  }
+
+  @Get('my/favorite-folders')
+  async getMyFavoriteFolders(@Headers('authorization') authorization: string | undefined) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.videoService.listFavoriteFolders(user.id));
+  }
+
+  @Post('my/favorite-folders')
+  async createFavoriteFolder(
+    @Headers('authorization') authorization: string | undefined,
+    @Body() dto: CreateFavoriteFolderDto,
+  ) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.videoService.createFavoriteFolder(user.id, dto.name));
+  }
+
+  @Delete('my/favorite-folders/:folderId')
+  async deleteFavoriteFolder(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('folderId', ParseIntPipe) folderId: number,
+  ) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.videoService.deleteFavoriteFolder(user.id, folderId));
   }
 
   @Get('my/likes')
   async getMyLikes(@Headers('authorization') authorization: string | undefined) {
     const user = await this.authService.requireUser(authorization);
     return ok(await this.videoService.getUserLikes(user.id));
+  }
+
+  @Get('my/history')
+  async getMyHistory(@Headers('authorization') authorization: string | undefined) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.videoService.getUserHistory(user.id));
   }
 
   @Get(':id/reviews')
@@ -255,9 +314,10 @@ export class VideoController {
   async favoriteVideo(
     @Headers('authorization') authorization: string | undefined,
     @Param('id', ParseIntPipe) id: number,
+    @Body() dto: FavoriteVideoDto,
   ) {
     const user = await this.authService.requireUser(authorization);
-    return ok(await this.videoService.favoriteVideo(id, user));
+    return ok(await this.videoService.favoriteVideo(id, user, dto));
   }
 
   @Post(':id/coin')
@@ -276,7 +336,7 @@ export class VideoController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: RecordPlayDto,
   ) {
-    const user = await this.authService.requireUser(authorization);
+    const user = await this.authService.getCurrentUser(authorization);
     return ok(await this.videoService.recordPlay(id, user, dto));
   }
 
