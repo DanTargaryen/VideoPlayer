@@ -6,55 +6,60 @@
     <template v-else>
       <div class="section-head">
         <h2>推荐视频</h2>
-        <el-button type="primary" size="small" @click="loadFeed">刷新推荐</el-button>
+        <el-button type="primary" size="small" :loading="refreshingFeed" @click="loadFeed">刷新推荐</el-button>
       </div>
 
       <template v-if="cards.length > 0">
         <div class="featured-row" v-if="carousel.length > 0">
           <div class="carousel-area">
             <div class="carousel-wrapper">
-              <transition name="carousel-fade" mode="out-in">
+              <div class="carousel-track" :style="carouselTrackStyle" @transitionend="handleCarouselTransitionEnd">
                 <RouterLink
-                  :to="`/video/${carousel[carouselIndex].id}`"
-                  :key="carousel[carouselIndex].id"
+                  v-for="(item, idx) in carouselViewportItems"
+                  :key="`${item.id}-${idx}`"
+                  :to="`/video/${item.id}`"
                   class="carousel-slide"
                 >
                   <img
-                    :src="carousel[carouselIndex].coverUrl"
-                    :alt="carousel[carouselIndex].title"
+                    :src="item.coverUrl"
+                    :alt="item.title"
                     class="carousel-cover"
                     crossorigin="anonymous"
-                    @load="(e) => extractColor(e)"
+                    @load="(e) => extractColor(item.id, e)"
                   />
                   <div
                     class="carousel-gradient"
-                    :style="{ background: gradientStyles[carousel[carouselIndex].id] || defaultGradient }"
+                    :style="{ background: gradientStyles[item.id] || defaultGradient }"
                   >
                     <div class="carousel-info">
-                      <h3 class="carousel-title">{{ carousel[carouselIndex].title }}</h3>
-                      <p class="carousel-desc">{{ carousel[carouselIndex].description }}</p>
+                      <h3 class="carousel-title">{{ item.title }}</h3>
+                      <p class="carousel-desc">{{ item.description }}</p>
                       <div class="carousel-meta">
-                        <span class="meta-creator">{{ carousel[carouselIndex].creator?.nickname ?? '匿名' }}</span>
+                        <span class="meta-creator">{{ item.creator?.nickname ?? '匿名' }}</span>
+                        <span class="meta-stats">
+                          <svg class="stat-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5C6.79 5 3.1 8.26 1.82 12c1.28 3.74 4.97 7 10.18 7s8.9-3.26 10.18-7C20.9 8.26 17.21 5 12 5Zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm0-2.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/></svg>
+                          {{ item.playCount ?? 0 }}
+                        </span>
                         <span class="meta-stats">
                           <svg class="stat-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M7 22V11L10.5 3.5C10.78 2.87 11.41 2.5 12.1 2.5C13.1 2.5 13.85 3.42 13.65 4.4L12.8 9H20c1.1 0 2 0.9 2 2v1c0 .15-.02.3-.05.44l-2.19 8C19.5 21.35 18.68 22 17.73 22H7ZM7 13v8M3 22h2V11H3v11Z"/></svg>
-                          {{ carousel[carouselIndex].likeCount }}
+                          {{ item.likeCount }}
                         </span>
                         <span class="meta-stats">
                           <svg class="stat-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                          {{ carousel[carouselIndex].favoriteCount }}
+                          {{ item.favoriteCount }}
                         </span>
                       </div>
                     </div>
                   </div>
                 </RouterLink>
-              </transition>
+              </div>
               <div class="carousel-dots" v-if="carousel.length > 1">
                 <span
                   v-for="(_, idx) in carousel"
                   :key="idx"
                   class="dot"
                   :class="{ active: idx === carouselIndex }"
-                  @click="carouselIndex = idx"
+                  @click="goToCarousel(idx)"
                 ></span>
               </div>
               <button
@@ -71,22 +76,27 @@
           </div>
 
           <div class="featured-cards">
-            <VideoMediaCard v-for="card in topRightCards" :key="card.id" :item="card" />
+            <VideoMediaCard v-for="card in topRightCards" :key="card.id" :item="card" hover-preview show-play-count disable-author-link />
           </div>
         </div>
 
         <div class="cards">
-          <VideoMediaCard v-for="card in restCards" :key="card.id" :item="card" />
+          <VideoMediaCard v-for="card in restCards" :key="card.id" :item="card" hover-preview show-play-count disable-author-link />
         </div>
       </template>
 
       <el-empty v-else description="当前条件下没有找到相关视频" />
+
+      <div v-if="cards.length > 0" ref="loadMoreTrigger" class="load-more-trigger">
+        <span v-if="loadingMore">正在加载更多视频...</span>
+        <span v-else>继续下拉，加载更多推荐视频</span>
+      </div>
     </template>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 
 import LoadingSplash from '@/components/LoadingSplash.vue';
@@ -98,12 +108,39 @@ const loading = ref(true);
 const cards = ref<VideoCard[]>([]);
 const carousel = ref<VideoCard[]>([]);
 const carouselIndex = ref(0);
+const carouselTrackIndex = ref(0);
+const carouselTransitionEnabled = ref(false);
+const loadMoreTrigger = ref<HTMLDivElement | null>(null);
+const refreshingFeed = ref(false);
+const loadingMore = ref(false);
+const currentFeedPage = ref(1);
 let carouselTimer: number | null = null;
+let loadMoreObserver: IntersectionObserver | null = null;
+
+const FEED_PAGE_SIZE = 20;
 
 const gradientStyles = ref<Record<number, string>>({});
 const defaultGradient = 'linear-gradient(to bottom, transparent 0%, rgba(30, 30, 30, 0.95) 100%)';
 
-function extractColor(event: Event) {
+const carouselViewportItems = computed(() => {
+  if (carousel.value.length <= 1) {
+    return carousel.value;
+  }
+
+  const first = carousel.value[0];
+  const last = carousel.value[carousel.value.length - 1];
+  return [last, ...carousel.value, first];
+});
+
+const carouselTrackStyle = computed(() => ({
+  transform: `translateX(-${carouselTrackIndex.value * 100}%)`,
+  transition:
+    carousel.value.length > 1 && carouselTransitionEnabled.value
+      ? 'transform 0.45s ease'
+      : 'none',
+}));
+
+function extractColor(videoId: number, event: Event) {
   const img = event.target as HTMLImageElement;
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
@@ -134,10 +171,7 @@ function extractColor(event: Event) {
     const darkG = darken(g);
     const darkB = darken(b);
 
-    const videoId = carousel.value[carouselIndex.value]?.id;
-    if (videoId) {
-      gradientStyles.value[videoId] = `linear-gradient(to bottom, transparent 0%, rgba(${r}, ${g}, ${b}, 0.85) 40%, rgba(${darkR}, ${darkG}, ${darkB}, 0.98) 100%)`;
-    }
+    gradientStyles.value[videoId] = `linear-gradient(to bottom, transparent 0%, rgba(${r}, ${g}, ${b}, 0.85) 40%, rgba(${darkR}, ${darkG}, ${darkB}, 0.98) 100%)`;
   } catch {
     // CORS or other error, use default gradient
   }
@@ -156,15 +190,53 @@ function pickCarousel(videos: VideoCard[], count: number): VideoCard[] {
 const topRightCards = computed(() => cards.value.slice(0, 4));
 const restCards = computed(() => cards.value.slice(4));
 
+function resetCarouselPosition() {
+  carouselIndex.value = 0;
+  carouselTransitionEnabled.value = false;
+  carouselTrackIndex.value = carousel.value.length > 1 ? 1 : 0;
+}
+
 function nextCarousel() {
-  if (carousel.value.length <= 1) return;
-  carouselIndex.value = (carouselIndex.value + 1) % carousel.value.length;
+  const total = carousel.value.length;
+  if (total <= 1) return;
+
+  carouselTransitionEnabled.value = true;
+  carouselTrackIndex.value += 1;
+  carouselIndex.value = (carouselIndex.value + 1) % total;
 }
 
 function prevCarousel() {
-  if (carousel.value.length <= 1) return;
-  carouselIndex.value =
-    (carouselIndex.value - 1 + carousel.value.length) % carousel.value.length;
+  const total = carousel.value.length;
+  if (total <= 1) return;
+
+  carouselTransitionEnabled.value = true;
+  carouselTrackIndex.value -= 1;
+  carouselIndex.value = (carouselIndex.value - 1 + total) % total;
+}
+
+function goToCarousel(index: number) {
+  const total = carousel.value.length;
+  if (total <= 1 || index === carouselIndex.value || index < 0 || index >= total) return;
+
+  carouselTransitionEnabled.value = true;
+  carouselIndex.value = index;
+  carouselTrackIndex.value = index + 1;
+}
+
+function handleCarouselTransitionEnd() {
+  const total = carousel.value.length;
+  if (total <= 1) return;
+
+  if (carouselTrackIndex.value === 0) {
+    carouselTransitionEnabled.value = false;
+    carouselTrackIndex.value = total;
+    return;
+  }
+
+  if (carouselTrackIndex.value === total + 1) {
+    carouselTransitionEnabled.value = false;
+    carouselTrackIndex.value = 1;
+  }
 }
 
 function startCarouselTimer() {
@@ -182,25 +254,106 @@ function stopCarouselTimer() {
   }
 }
 
+async function fetchFeedPage(page: number) {
+  return fetchRecommendFeed({ page, pageSize: FEED_PAGE_SIZE });
+}
+
+async function loadMoreFeed() {
+  if (loadingMore.value || refreshingFeed.value || cards.value.length === 0) {
+    return;
+  }
+
+  loadingMore.value = true;
+  try {
+    let nextPage = currentFeedPage.value;
+    let videos = await fetchFeedPage(nextPage);
+
+    if (videos.length === 0) {
+      nextPage = 1;
+      videos = await fetchFeedPage(nextPage);
+      if (videos.length === 0) {
+        return;
+      }
+      currentFeedPage.value = 2;
+    } else {
+      currentFeedPage.value = nextPage + 1;
+    }
+
+    cards.value = [...cards.value, ...videos];
+  } catch {
+    ElMessage.error('加载更多推荐视频失败');
+  } finally {
+    loadingMore.value = false;
+  }
+}
+
 async function loadFeed() {
-  loading.value = true;
+  if (refreshingFeed.value) {
+    return;
+  }
+
+  refreshingFeed.value = true;
   try {
     stopCarouselTimer();
     gradientStyles.value = {};
-    const videos = await fetchRecommendFeed();
+    const videos = await fetchFeedPage(1);
     cards.value = videos;
     carousel.value = pickCarousel(videos, Math.min(5, Math.max(3, videos.length)));
-    carouselIndex.value = 0;
+    resetCarouselPosition();
+    currentFeedPage.value = 2;
     startCarouselTimer();
   } catch {
     ElMessage.error('加载推荐流失败');
   } finally {
     loading.value = false;
+    refreshingFeed.value = false;
   }
 }
 
-onMounted(loadFeed);
-onUnmounted(stopCarouselTimer);
+function stopLoadMoreObserver() {
+  if (loadMoreObserver) {
+    loadMoreObserver.disconnect();
+    loadMoreObserver = null;
+  }
+}
+
+function setupLoadMoreObserver() {
+  stopLoadMoreObserver();
+
+  if (!loadMoreTrigger.value || typeof IntersectionObserver === 'undefined') {
+    return;
+  }
+
+  loadMoreObserver = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        void loadMoreFeed();
+      }
+    },
+    {
+      rootMargin: '240px 0px',
+    },
+  );
+
+  loadMoreObserver.observe(loadMoreTrigger.value);
+}
+
+watch(loadMoreTrigger, () => {
+  void nextTick(() => {
+    setupLoadMoreObserver();
+  });
+});
+
+onMounted(async () => {
+  await loadFeed();
+  await nextTick();
+  setupLoadMoreObserver();
+});
+
+onUnmounted(() => {
+  stopCarouselTimer();
+  stopLoadMoreObserver();
+});
 </script>
 
 <style scoped>
@@ -244,11 +397,19 @@ onUnmounted(stopCarouselTimer);
   aspect-ratio: 4 / 3;
 }
 
+.carousel-track {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
 .carousel-slide {
   display: block;
   text-decoration: none;
   position: relative;
   width: 100%;
+  min-width: 100%;
+  flex: 0 0 100%;
   height: 100%;
 }
 
@@ -375,16 +536,6 @@ onUnmounted(stopCarouselTimer);
   right: 12px;
 }
 
-.carousel-fade-enter-active,
-.carousel-fade-leave-active {
-  transition: opacity 0.4s ease;
-}
-
-.carousel-fade-enter-from,
-.carousel-fade-leave-to {
-  opacity: 0;
-}
-
 .featured-cards {
   display: contents;
 }
@@ -393,5 +544,14 @@ onUnmounted(stopCarouselTimer);
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 18px;
+}
+
+.load-more-trigger {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 56px;
+  color: #6b7280;
+  font-size: 14px;
 }
 </style>

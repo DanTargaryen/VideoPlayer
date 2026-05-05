@@ -12,6 +12,7 @@ export const useAppStore = defineStore('app', () => {
   const avatarUrl = ref(localStorage.getItem('vp_avatar') ?? '');
   const email = ref(localStorage.getItem('vp_email') ?? '');
   const unreadNotificationCount = ref(0);
+  const unreadDirectMessageCount = ref(0);
   const adminAccessGranted = ref(localStorage.getItem('vp_admin_access') === 'true');
 
   const isLoggedIn = computed(() => Boolean(token.value));
@@ -59,6 +60,10 @@ export const useAppStore = defineStore('app', () => {
     unreadNotificationCount.value = Math.max(0, count);
   }
 
+  function setUnreadDirectMessageCount(count: number) {
+    unreadDirectMessageCount.value = Math.max(0, count);
+  }
+
   function logout() {
     token.value = '';
     userId.value = 0;
@@ -67,6 +72,7 @@ export const useAppStore = defineStore('app', () => {
     avatarUrl.value = '';
     email.value = '';
     unreadNotificationCount.value = 0;
+    unreadDirectMessageCount.value = 0;
     revokeAdminAccess();
 
     localStorage.removeItem('vp_token');
@@ -86,11 +92,13 @@ export const useAppStore = defineStore('app', () => {
     avatarUrl,
     email,
     unreadNotificationCount,
+    unreadDirectMessageCount,
     adminAccessGranted,
     isLoggedIn,
     isAdmin,
     setAuth,
     setUnreadNotificationCount,
+    setUnreadDirectMessageCount,
     logout,
     grantAdminAccess,
     revokeAdminAccess,

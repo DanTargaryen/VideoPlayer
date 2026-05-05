@@ -49,6 +49,12 @@
 
         <div class="action-bar">
           <div class="action-left">
+            <div class="action-icon-btn action-stat-btn">
+              <svg class="action-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 5C6.79 5 3.1 8.26 1.82 12c1.28 3.74 4.97 7 10.18 7s8.9-3.26 10.18-7C20.9 8.26 17.21 5 12 5Zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm0-2.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/>
+              </svg>
+              <span>{{ video.playCount ?? 0 }}</span>
+            </div>
             <button class="action-icon-btn" :class="{ active: video.isLiked }" @click="toggleLikeAction">
               <svg class="action-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M7 22V11L10.5 3.5C10.78 2.87 11.41 2.5 12.1 2.5C13.1 2.5 13.85 3.42 13.65 4.4L12.8 9H20c1.1 0 2 0.9 2 2v1c0 .15-.02.3-.05.44l-2.19 8C19.5 21.35 18.68 22 17.73 22H7ZM7 13v8M3 22h2V11H3v11Z" fill="currentColor"/>
@@ -216,19 +222,48 @@
             <el-button type="primary" text @click="loadRecommendations">刷新</el-button>
           </div>
           <div class="recommend-list">
-            <article v-for="item in recommendations" :key="item.id" class="recommend-card">
+            <RouterLink v-for="item in recommendations" :key="item.id" :to="`/video/${item.id}`" class="recommend-card">
               <img :src="item.coverUrl" :alt="item.title" class="recommend-cover" />
               <div class="recommend-meta">
                 <strong>{{ item.title }}</strong>
                 <span>{{ item.creator?.nickname ?? '推荐视频' }}</span>
-                <RouterLink :to="`/video/${item.id}`" class="secondary-link">立即观看</RouterLink>
               </div>
-            </article>
+            </RouterLink>
             <el-empty v-if="recommendations.length === 0" description="暂无相关推荐" />
           </div>
         </div>
       </aside>
     </div>
+
+    <el-dialog v-model="favoriteDialogVisible" title="选择收藏夹" width="420px" :close-on-click-modal="false">
+      <div class="favorite-dialog-body" v-loading="favoriteFolderLoading">
+        <div v-if="favoriteFolderOptions.length > 0" class="favorite-dialog-list">
+          <label
+            v-for="folder in favoriteFolderOptions"
+            :key="folder.id"
+            class="favorite-dialog-item"
+            :class="{ active: selectedFavoriteFolderId === folder.id }"
+          >
+            <el-radio v-model="selectedFavoriteFolderId" :label="folder.id">
+              {{ folder.name }}
+            </el-radio>
+            <span class="favorite-dialog-count">{{ folder.videoCount }} 个视频</span>
+          </label>
+        </div>
+        <el-empty v-else description="暂无可用收藏夹" :image-size="60" />
+      </div>
+      <template #footer>
+        <el-button @click="favoriteDialogVisible = false">取消</el-button>
+        <el-button
+          type="primary"
+          :loading="favoritingVideo"
+          :disabled="favoriteFolderLoading || !selectedFavoriteFolderId"
+          @click="confirmFavoriteVideo"
+        >
+          确认收藏
+        </el-button>
+      </template>
+    </el-dialog>
 
     <el-dialog v-model="reportDialogVisible" title="举报弹幕" width="440px" :close-on-click-modal="false">
       <div class="report-dialog-body" v-if="reportTarget">
@@ -292,6 +327,7 @@ import {
   favoriteVideo,
   fetchComments,
   fetchDanmakus,
+  fetchMyFavoriteFolders,
   fetchRelatedVideos,
   fetchVideoDetail,
   followUser,
@@ -307,7 +343,14 @@ import {
 import CommentThread from '@/components/CommentThread.vue';
 import DanmakuOverlay from '@/components/DanmakuOverlay.vue';
 import { useAppStore } from '@/stores/app';
-import type { CommentItem, DanmakuItem, VideoCard, VideoDetail, VideoWatchProgressPayload } from '@/types/api';
+import type {
+  CommentItem,
+  DanmakuItem,
+  FavoriteFolderSummary,
+  VideoCard,
+  VideoDetail,
+  VideoWatchProgressPayload,
+} from '@/types/api';
 
 const WATCH_PROGRESS_MIN_REPORT_SECONDS = 10;
 const WATCH_PROGRESS_LEAVE_MIN_REPORT_SECONDS = 5;
@@ -330,6 +373,11 @@ const danmakus = ref<DanmakuItem[]>([]);
 const commentForm = ref('');
 const replyForm = ref('');
 const replyTargetId = ref<number | null>(null);
+const favoriteDialogVisible = ref(false);
+const favoriteFolderOptions = ref<FavoriteFolderSummary[]>([]);
+const favoriteFolderLoading = ref(false);
+const favoritingVideo = ref(false);
+const selectedFavoriteFolderId = ref<number | null>(null);
 
 const currentVideoTimeMs = ref(0);
 const videoDurationMs = ref(0);
@@ -553,16 +601,20 @@ async function handleVideoPlay() {
   lastPlaybackPositionSeconds.value = player.currentTime;
   resolvedVideoDurationSeconds.value = resolveCurrentVideoDurationSeconds();
 
-  if (!appStore.isLoggedIn || !video.value || hasReportedPlay.value) {
+  if (!video.value || hasReportedPlay.value) {
     return;
   }
 
   hasReportedPlay.value = true;
 
   try {
-    await reportVideoPlay(video.value.id, {
+    const result = await reportVideoPlay(video.value.id, {
       videoDurationSeconds: resolvedVideoDurationSeconds.value || undefined,
     });
+
+    if (video.value) {
+      video.value.playCount = result.playCount;
+    }
   } catch (error) {
     hasReportedPlay.value = false;
     console.warn('report play failed', error);
@@ -808,13 +860,49 @@ async function toggleFavoriteAction() {
   }
 
   try {
-    const result = video.value.isFavorited
-      ? await unfavoriteVideo(video.value.id)
-      : await favoriteVideo(video.value.id);
-    ElMessage.success(result.favorited ? '收藏成功' : '已取消收藏');
-    await loadDetail();
+    if (video.value.isFavorited) {
+      const result = await unfavoriteVideo(video.value.id);
+      ElMessage.success(result.favorited ? '收藏成功' : '已取消收藏');
+      await loadDetail();
+      return;
+    }
+
+    await openFavoriteDialog();
   } catch {
     ElMessage.error('操作失败，请确认已登录');
+  }
+}
+
+async function openFavoriteDialog() {
+  favoriteFolderLoading.value = true;
+  try {
+    const folders = await fetchMyFavoriteFolders();
+    favoriteFolderOptions.value = folders;
+    selectedFavoriteFolderId.value = folders.find((folder) => folder.isDefault)?.id ?? folders[0]?.id ?? null;
+    favoriteDialogVisible.value = true;
+  } catch {
+    ElMessage.error('加载收藏夹失败，请确认已登录');
+  } finally {
+    favoriteFolderLoading.value = false;
+  }
+}
+
+async function confirmFavoriteVideo() {
+  if (!video.value || !selectedFavoriteFolderId.value) {
+    ElMessage.warning('请选择一个收藏夹');
+    return;
+  }
+
+  favoritingVideo.value = true;
+  try {
+    await favoriteVideo(video.value.id, { folderId: selectedFavoriteFolderId.value });
+    favoriteDialogVisible.value = false;
+    ElMessage.success('收藏成功');
+    await loadDetail();
+  } catch {
+    ElMessage.error('收藏失败，请确认已登录');
+  } finally {
+    favoritingVideo.value = false;
   }
 }
 
@@ -1395,6 +1483,15 @@ onBeforeUnmount(() => {
   color: #374151;
 }
 
+.action-stat-btn {
+  cursor: default;
+}
+
+.action-stat-btn:hover {
+  background: transparent;
+  color: #6b7280;
+}
+
 .action-icon-btn.active {
   color: #2563eb;
 }
@@ -1527,6 +1624,14 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-columns: 120px 1fr;
   gap: 12px;
+  text-decoration: none;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.recommend-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(37, 99, 235, 0.18);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
 }
 
 .recommend-cover {
@@ -1547,6 +1652,42 @@ onBeforeUnmount(() => {
 
 .recommend-meta span {
   color: #6b7280;
+}
+
+.favorite-dialog-body {
+  min-height: 120px;
+}
+
+.favorite-dialog-list {
+  display: grid;
+  gap: 10px;
+}
+
+.favorite-dialog-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 12px;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.favorite-dialog-item.active {
+  border-color: rgba(37, 99, 235, 0.4);
+  background: rgba(37, 99, 235, 0.06);
+}
+
+.favorite-dialog-item :deep(.el-radio) {
+  margin-right: 0;
+}
+
+.favorite-dialog-count {
+  color: #6b7280;
+  font-size: 12px;
 }
 
 .report-dialog-body {

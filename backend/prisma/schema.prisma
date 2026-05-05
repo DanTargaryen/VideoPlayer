@@ -12,6 +12,12 @@ enum UserRole {
   ADMIN
 }
 
+enum DirectMessagePrivacy {
+  ALLOW_ALL
+  FOLLOWING_ONLY
+  DISABLED
+}
+
 enum VideoStatus {
   DRAFT
   PENDING_REVIEW
@@ -83,6 +89,7 @@ model User {
   bio                   String?          @db.VarChar(255)
   phone                 String?          @unique @db.VarChar(20)
   coinBalance           Int              @default(0)
+  messagePrivacy        DirectMessagePrivacy @default(ALLOW_ALL)
   createdAt             DateTime         @default(now())
   updatedAt             DateTime         @updatedAt
   createdVideos         Video[]          @relation("CreatedVideos")
@@ -94,6 +101,7 @@ model User {
   actorNotifications    Notification[]   @relation("NotificationActors")
   videoLikes            VideoLike[]
   favorites             Favorite[]
+  favoriteFolders       FavoriteFolder[]
   danmakus              VideoDanmaku[]
   reports               ReportRecord[]   @relation("ReportCreators")
   handledReports        ReportRecord[]   @relation("ReportHandlers")
@@ -106,6 +114,27 @@ model User {
   dailyCoinClaims       DailyCoinClaim[]
   videoCoinContributions VideoCoinContribution[]
   commentAiTasks        CommentAiTask[]         @relation("CommentAiTaskRequester")
+  sentDirectMessages    DirectMessage[]         @relation("DirectMessageSender")
+  receivedDirectMessages DirectMessage[]        @relation("DirectMessageRecipient")
+  creatorPlayDaily       CreatorPlayDaily[]
+  creatorFollowerDaily   CreatorFollowerDaily[]
+}
+
+model DirectMessage {
+  id          Int      @id @default(autoincrement())
+  senderId    Int
+  sender      User     @relation("DirectMessageSender", fields: [senderId], references: [id])
+  recipientId Int
+  recipient   User     @relation("DirectMessageRecipient", fields: [recipientId], references: [id])
+  content     String   @db.VarChar(1000)
+  isRead      Boolean  @default(false)
+  readAt      DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([senderId, createdAt])
+  @@index([recipientId, isRead, createdAt])
+  @@index([senderId, recipientId, createdAt])
 }
 
 model UserProfileSummary {
@@ -164,6 +193,7 @@ model Video {
   rejectReason    String?       @db.VarChar(255)
   submittedAt     DateTime?
   publishedAt     DateTime?
+  playCount       Int           @default(0)
   likeCount       Int           @default(0)
   favoriteCount   Int           @default(0)
   commentCount    Int           @default(0)
@@ -383,10 +413,27 @@ model Favorite {
   video      Video    @relation(fields: [videoId], references: [id])
   userId     Int
   user       User     @relation(fields: [userId], references: [id])
+  folderId   Int?
+  folder     FavoriteFolder? @relation(fields: [folderId], references: [id])
   createdAt  DateTime @default(now())
 
   @@unique([videoId, userId])
   @@index([userId, createdAt])
+  @@index([folderId, createdAt])
+}
+
+model FavoriteFolder {
+  id         Int        @id @default(autoincrement())
+  userId     Int
+  user       User       @relation(fields: [userId], references: [id])
+  name       String     @db.VarChar(64)
+  isDefault  Boolean    @default(false)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  favorites  Favorite[]
+
+  @@unique([userId, name])
+  @@index([userId, isDefault])
 }
 
 model VideoDanmaku {
@@ -426,4 +473,31 @@ model ReportRecord {
 
   @@index([status, createdAt])
   @@index([targetType, createdAt])
+}
+
+
+model CreatorPlayDaily {
+  id        Int      @id @default(autoincrement())
+  creatorId Int
+  creator   User     @relation(fields: [creatorId], references: [id])
+  statDate  String   @db.VarChar(10)
+  playCount Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([creatorId, statDate])
+  @@index([creatorId, statDate])
+}
+
+model CreatorFollowerDaily {
+  id            Int      @id @default(autoincrement())
+  creatorId     Int
+  creator       User     @relation(fields: [creatorId], references: [id])
+  statDate      String   @db.VarChar(10)
+  followerCount Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([creatorId, statDate])
+  @@index([creatorId, statDate])
 }
