@@ -13,13 +13,23 @@
           <span v-if="isOwnHomepage" class="meta coin-meta">平台货币 {{ homepage.coinBalance ?? 0 }}</span>
         </div>
       </div>
-      <el-button
-        v-if="canFollow"
-        :type="homepage.isFollowing ? 'default' : 'primary'"
-        @click="toggleFollow"
-      >
-        {{ homepage.isFollowing ? '取消关注' : '关注用户' }}
-      </el-button>
+      <div class="hero-actions">
+        <el-button
+          v-if="canOpenDirectMessage"
+          type="primary"
+          plain
+          @click="openDirectMessage"
+        >
+          发私信
+        </el-button>
+        <el-button
+          v-if="canFollow"
+          :type="homepage.isFollowing ? 'default' : 'primary'"
+          @click="toggleFollow"
+        >
+          {{ homepage.isFollowing ? '取消关注' : '关注用户' }}
+        </el-button>
+      </div>
     </div>
 
     <div class="cards" v-if="homepage">
@@ -62,6 +72,7 @@ const canFollow = computed(
   () => homepage.value && store.isLoggedIn && homepage.value.id !== store.userId,
 );
 const isOwnHomepage = computed(() => Boolean(homepage.value && store.userId === homepage.value.id));
+const canOpenDirectMessage = computed(() => Boolean(homepage.value && store.isLoggedIn && homepage.value.id !== store.userId));
 
 async function loadHomepage() {
   loading.value = true;
@@ -91,6 +102,17 @@ async function toggleFollow() {
   } catch {
     ElMessage.error('操作失败，请确认已登录');
   }
+}
+
+function openDirectMessage() {
+  if (!homepage.value) {
+    return;
+  }
+
+  void router.push({
+    path: '/messages',
+    query: { userId: String(homepage.value.id) },
+  });
 }
 
 watch(
@@ -178,6 +200,12 @@ watch(
   display: block;
   color: #f59e0b;
   font-weight: 700;
+}
+
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .cards {

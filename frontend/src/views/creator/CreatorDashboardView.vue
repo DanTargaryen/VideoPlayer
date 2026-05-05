@@ -69,6 +69,9 @@
 
     <div class="tab-bar">
       <button class="tab-btn" :class="{ active: activeTab === 'home' }" @click="activeTab = 'home'">主页</button>
+      <button class="tab-btn" :class="{ active: activeTab === 'favorites' }" @click="activeTab = 'favorites'">我的收藏</button>
+      <button class="tab-btn" :class="{ active: activeTab === 'likes' }" @click="activeTab = 'likes'">最近点赞</button>
+      <button class="tab-btn" :class="{ active: activeTab === 'history' }" @click="activeTab = 'history'">历史记录</button>
       <button class="tab-btn" :class="{ active: activeTab === 'settings' }" @click="activeTab = 'settings'">账号设置</button>
     </div>
 
@@ -89,85 +92,233 @@
         </div>
       </section>
 
-        <section class="panel">
-          <h2>我的作品</h2>
-          <div class="video-list">
-            <article v-for="item in videos" :key="item.id" class="video-card">
-              <button class="video-cover-button" type="button" @click="openVideoPreview(item)">
-                <img :src="item.coverUrl" :alt="item.title" class="video-cover-thumb" />
-                <span class="video-cover-overlay">查看完整视频</span>
-              </button>
-              <div class="video-main">
-                <h3>{{ item.title }}</h3>
-                <p>{{ item.description }}</p>
-                <span class="status">状态：{{ item.status }}</span>
-                <span class="reason">时长：{{ item.durationSeconds ?? 0 }} 秒</span>
-                <span v-if="item.rejectReason" class="reason">驳回原因：{{ item.rejectReason }}</span>
-              </div>
-              <div class="actions-block">
-                <el-button plain @click="openVideoPreview(item)">预览视频</el-button>
-                <el-button plain @click="openReviewDialog(item)">审核记录</el-button>
-                <el-button
-                  type="warning"
-                  plain
-                  :disabled="item.status !== 'PENDING_REVIEW'"
-                  @click="handleWithdrawReview(item.id)"
-                >
-                  撤回审核
-                </el-button>
-                <el-button
-                  plain
-                  :disabled="
-                    item.status !== 'DRAFT' &&
-                    item.status !== 'REJECTED' &&
-                    item.status !== 'PENDING_REVIEW' &&
-                    item.status !== 'PUBLISHED'
-                  "
-                  @click="openEditDialog(item)"
-                >
-                  编辑稿件
-                </el-button>
-                <el-button
-                  type="primary"
-                  plain
-                  :disabled="item.status !== 'DRAFT' && item.status !== 'REJECTED'"
-                  @click="handleSubmitReview(Number(item.id))"
-                >
-                  提交审核
-                </el-button>
-                <el-button
-                  type="danger"
-                  plain
-                  :loading="deletingVideoId === item.id"
-                  @click="handleDeleteVideo(item)"
-                >
-                  删除稿件
-                </el-button>
-              </div>
-            </article>
+      <section class="panel play-trend-panel">
+        <div class="panel-head play-trend-head">
+          <div class="play-trend-heading">
+            <h2>{{ activeTrendTitle }}</h2>
+            <span class="subtle">{{ activeTrendDescription }}</span>
           </div>
-        </section>
-    </template>
-
-    <template v-if="activeTab === 'home'">
-      <section class="panel">
-        <h2>我的收藏</h2>
-        <div class="video-grid" v-if="favoriteVideos.length > 0">
-          <RouterLink v-for="v in favoriteVideos" :key="v.id" :to="`/video/${v.id}`" class="grid-card">
-            <img :src="v.coverUrl" :alt="v.title" class="grid-cover" />
-            <div class="grid-body">
-              <h3>{{ v.title }}</h3>
-              <span class="grid-meta">{{ v.creator.nickname }} · <svg class="meta-icon" viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></svg> {{ v.likeCount }} <svg class="meta-icon" viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg> {{ v.favoriteCount }}</span>
+          <div class="play-trend-side">
+            <div class="play-trend-switch">
+              <button
+                class="play-trend-switch-btn"
+                :class="{ active: trendMode === 'play' }"
+                type="button"
+                @click="trendMode = 'play'"
+              >
+                播放量
+              </button>
+              <button
+                class="play-trend-switch-btn"
+                :class="{ active: trendMode === 'follower' }"
+                type="button"
+                @click="trendMode = 'follower'"
+              >
+                粉丝量
+              </button>
             </div>
-          </RouterLink>
+            <div class="play-trend-summary">
+              <span>{{ activeTrendSummaryLabel }}</span>
+              <strong>{{ activeTrendSummaryValue }}</strong>
+            </div>
+          </div>
         </div>
-        <el-empty v-else description="还没有收藏视频" />
+
+        <div class="play-trend-chart">
+          <svg
+            class="play-trend-svg"
+            :viewBox="`0 0 ${playTrendChartWidth} ${playTrendChartHeight}`"
+            preserveAspectRatio="none"
+            role="img"
+            :aria-label="activeTrendTitle"
+          >
+            <g v-for="tick in playTrendYAxisTicks" :key="`tick-${tick.y}`">
+              <line
+                class="play-trend-grid"
+                :x1="playTrendYAxisX"
+                :x2="playTrendChartRight"
+                :y1="tick.y"
+                :y2="tick.y"
+              />
+              <text class="play-trend-axis-text" :x="playTrendYAxisX - 10" :y="tick.y + 4">{{ tick.value }}</text>
+            </g>
+
+            <line
+              class="play-trend-axis"
+              :x1="playTrendYAxisX"
+              :x2="playTrendChartRight"
+              :y1="playTrendXAxisY"
+              :y2="playTrendXAxisY"
+            />
+
+            <path v-if="playTrendAreaPath" class="play-trend-area" :d="playTrendAreaPath" />
+            <path v-if="playTrendLinePath" class="play-trend-line" :d="playTrendLinePath" />
+
+            <g v-for="point in playTrendChartPoints" :key="point.date">
+              <circle class="play-trend-point" :cx="point.x" :cy="point.y" r="4.5" />
+              <text class="play-trend-point-value" :x="point.x" :y="point.valueY">{{ point.value }}</text>
+              <text class="play-trend-label" :x="point.x" :y="playTrendChartHeight - 10">{{ point.label }}</text>
+            </g>
+          </svg>
+        </div>
       </section>
 
       <section class="panel">
-        <h2>最近点赞</h2>
-        <div class="video-grid" v-if="likedVideos.length > 0">
-          <RouterLink v-for="v in likedVideos" :key="v.id" :to="`/video/${v.id}`" class="grid-card">
+        <h2>我的作品</h2>
+        <div class="video-list">
+          <article v-for="item in videos" :key="item.id" class="video-card">
+            <button class="video-cover-button" type="button" @click="openVideoPreview(item)">
+              <img :src="item.coverUrl" :alt="item.title" class="video-cover-thumb" />
+              <span class="video-cover-overlay">查看完整视频</span>
+            </button>
+            <div class="video-main">
+              <h3>{{ item.title }}</h3>
+              <p>{{ item.description }}</p>
+              <span class="status">状态：{{ item.status }}</span>
+              <span class="reason">时长：{{ item.durationSeconds ?? 0 }} 秒</span>
+              <span v-if="item.rejectReason" class="reason">驳回原因：{{ item.rejectReason }}</span>
+            </div>
+            <div class="actions-block">
+              <el-button plain @click="openVideoPreview(item)">预览视频</el-button>
+              <el-button plain @click="openReviewDialog(item)">审核记录</el-button>
+              <el-button
+                type="warning"
+                plain
+                :disabled="item.status !== 'PENDING_REVIEW'"
+                @click="handleWithdrawReview(item.id)"
+              >
+                撤回审核
+              </el-button>
+              <el-button
+                plain
+                :disabled="
+                  item.status !== 'DRAFT' &&
+                  item.status !== 'REJECTED' &&
+                  item.status !== 'PENDING_REVIEW' &&
+                  item.status !== 'PUBLISHED'
+                "
+                @click="openEditDialog(item)"
+              >
+                编辑稿件
+              </el-button>
+              <el-button
+                type="primary"
+                plain
+                :disabled="item.status !== 'DRAFT' && item.status !== 'REJECTED'"
+                @click="handleSubmitReview(Number(item.id))"
+              >
+                提交审核
+              </el-button>
+              <el-button
+                type="danger"
+                plain
+                :loading="deletingVideoId === item.id"
+                @click="handleDeleteVideo(item)"
+              >
+                删除视频
+              </el-button>
+            </div>
+          </article>
+        </div>
+      </section>
+    </template>
+
+    <template v-if="activeTab === 'favorites'">
+      <section class="panel favorite-panel">
+        <div class="favorite-panel-head">
+          <div>
+            <h2>我的收藏夹</h2>
+            <span class="subtle">默认收藏夹会保留你之前已有的收藏，也可以新建自己的收藏夹。</span>
+          </div>
+        </div>
+
+        <div class="favorite-layout">
+          <aside class="favorite-sidebar">
+            <div class="favorite-create-row">
+              <el-input
+                v-model="favoriteFolderName"
+                maxlength="64"
+                placeholder="输入新收藏夹名称"
+                @keyup.enter="handleCreateFavoriteFolder"
+              />
+              <el-button type="primary" :loading="creatingFavoriteFolder" @click="handleCreateFavoriteFolder">
+                创建
+              </el-button>
+            </div>
+
+            <div class="favorite-folder-list" v-if="favoriteFolders.length > 0">
+              <article
+                v-for="folder in favoriteFolders"
+                :key="folder.id"
+                class="favorite-folder-card"
+                :class="{ active: selectedFavoriteFolderId === folder.id }"
+              >
+                <button class="favorite-folder-select" type="button" @click="handleSelectFavoriteFolder(folder.id)">
+                  <div class="favorite-folder-title-row">
+                    <strong>{{ folder.name }}</strong>
+                    <span v-if="folder.isDefault" class="favorite-folder-tag">默认</span>
+                  </div>
+                  <span class="favorite-folder-meta">{{ folder.videoCount }} 个视频</span>
+                </button>
+                <button
+                  v-if="!folder.isDefault"
+                  class="favorite-folder-delete"
+                  type="button"
+                  :disabled="deletingFavoriteFolderId === folder.id"
+                  @click.stop="handleDeleteFavoriteFolder(folder)"
+                >
+                  {{ deletingFavoriteFolderId === folder.id ? '删除中...' : '删除' }}
+                </button>
+              </article>
+            </div>
+            <el-empty v-else description="还没有收藏夹" />
+          </aside>
+
+          <div class="favorite-content">
+            <div class="favorite-content-head" v-if="activeFavoriteFolder">
+              <div>
+                <h3>{{ activeFavoriteFolder.name }}</h3>
+                <span class="subtle">共 {{ activeFavoriteFolder.videoCount }} 个视频</span>
+              </div>
+              <el-input
+                v-model="favoriteSearchKeyword"
+                class="video-search-input"
+                clearable
+                placeholder="在当前收藏夹中搜索视频"
+              />
+            </div>
+
+            <div class="video-grid" v-if="filteredFavoriteVideos.length > 0">
+              <RouterLink v-for="v in filteredFavoriteVideos" :key="v.id" :to="`/video/${v.id}`" class="grid-card">
+                <img :src="v.coverUrl" :alt="v.title" class="grid-cover" />
+                <div class="grid-body">
+                  <h3>{{ v.title }}</h3>
+                  <span class="grid-meta">{{ v.creator.nickname }} · <svg class="meta-icon" viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></svg> {{ v.likeCount }} <svg class="meta-icon" viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg> {{ v.favoriteCount }}</span>
+                </div>
+              </RouterLink>
+            </div>
+            <el-empty
+              v-else
+              :description="favoriteVideos.length > 0 ? '当前收藏夹中没有匹配的视频' : activeFavoriteFolder ? '这个收藏夹还没有视频' : '还没有收藏视频'"
+            />
+          </div>
+        </div>
+      </section>
+    </template>
+
+    <template v-if="activeTab === 'likes'">
+      <section class="panel">
+        <div class="collection-head">
+          <h2>最近点赞</h2>
+          <el-input
+            v-model="likesSearchKeyword"
+            class="video-search-input"
+            clearable
+            placeholder="搜索点赞视频"
+          />
+        </div>
+        <div class="video-grid" v-if="filteredLikedVideos.length > 0">
+          <RouterLink v-for="v in filteredLikedVideos" :key="v.id" :to="`/video/${v.id}`" class="grid-card">
             <img :src="v.coverUrl" :alt="v.title" class="grid-cover" />
             <div class="grid-body">
               <h3>{{ v.title }}</h3>
@@ -175,7 +326,31 @@
             </div>
           </RouterLink>
         </div>
-        <el-empty v-else description="还没有点赞视频" />
+        <el-empty v-else :description="likedVideos.length > 0 ? '没有匹配的点赞视频' : '还没有点赞视频'" />
+      </section>
+    </template>
+
+    <template v-if="activeTab === 'history'">
+      <section class="panel">
+        <div class="collection-head">
+          <h2>历史记录</h2>
+          <el-input
+            v-model="historySearchKeyword"
+            class="video-search-input"
+            clearable
+            placeholder="搜索历史记录"
+          />
+        </div>
+        <div class="video-grid" v-if="filteredHistoryVideos.length > 0">
+          <RouterLink v-for="v in filteredHistoryVideos" :key="`${v.id}-${v.watchedAt ?? ''}`" :to="`/video/${v.id}`" class="grid-card">
+            <img :src="v.coverUrl" :alt="v.title" class="grid-cover" />
+            <div class="grid-body">
+              <h3>{{ v.title }}</h3>
+              <span class="grid-meta">{{ v.creator.nickname }} · 最近观看 {{ formatTime(v.watchedAt) }}</span>
+            </div>
+          </RouterLink>
+        </div>
+        <el-empty v-else :description="historyVideos.length > 0 ? '没有匹配的历史记录' : '还没有观看记录'" />
       </section>
     </template>
 
@@ -226,6 +401,7 @@
           :key="`${previewVideo.id}-${previewVideo.playUrl}-${previewVideo.coverUrl}`"
           class="preview-player"
           :src="previewVideo.playUrl"
+          :poster="previewVideo.coverUrl"
           controls
           preload="auto"
         />
@@ -319,6 +495,16 @@
                 </el-input>
                 <el-button @click="cancelEmail">取消</el-button>
               </div>
+            </div>
+          </el-form-item>
+          <el-form-item label="私信权限">
+            <div class="form-row privacy-row">
+              <el-radio-group v-model="messagePrivacyDraft">
+                <el-radio-button label="ALLOW_ALL">允许所有人</el-radio-button>
+                <el-radio-button label="FOLLOWING_ONLY">仅我关注的人</el-radio-button>
+                <el-radio-button label="DISABLED">禁止私信</el-radio-button>
+              </el-radio-group>
+              <el-button type="primary" @click="saveMessagePrivacy">保存</el-button>
             </div>
           </el-form-item>
         </el-form>
@@ -415,16 +601,22 @@ import { useRouter, useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 
 import {
+  createMyFavoriteFolder,
   createVideo,
   deleteAccount,
-  deleteVideoDraft,
+  deleteCreatorVideo,
+  deleteMyFavoriteFolder,
   sendEmailCode,
   fetchCreatorDashboard,
+  fetchCreatorFollowerTrend,
+  fetchMyFavoriteFolders,
+  fetchCreatorPlayTrend,
   fetchCreatorVideos,
   claimDailyCoins,
   fetchFollowers,
   fetchFollowing,
-  fetchMyFavorites,
+  fetchMyFavoritesByFolder,
+  fetchMyHistory,
   fetchMyLikes,
   fetchVideoReviews,
   submitReview,
@@ -437,7 +629,17 @@ import {
 } from '@/api/platform';
 import { videoCategoryOptions } from '@/constants/categories';
 import { useAppStore } from '@/stores/app';
-import type { CreatorDashboardData, CreatorVideo, FollowUserItem, MyVideoItem, ReviewHistoryItem } from '@/types/api';
+import type {
+  CreatorDashboardData,
+  CreatorFollowerTrendPoint,
+  CreatorPlayTrendPoint,
+  CreatorVideo,
+  DirectMessagePrivacy,
+  FavoriteFolderSummary,
+  FollowUserItem,
+  MyVideoItem,
+  ReviewHistoryItem,
+} from '@/types/api';
 
 const fallbackAvatar = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=320&q=80';
 const store = useAppStore();
@@ -447,12 +649,12 @@ const pageLoading = ref(false);
 const creating = ref(false);
 const savingDraft = ref(false);
 const savingAvatar = ref(false);
-const deletingVideoId = ref<number | null>(null);
-const activeTab = ref<'home' | 'settings'>('home');
+const activeTab = ref<'home' | 'favorites' | 'likes' | 'history' | 'settings'>('home');
 const deleteAccountDialogVisible = ref(false);
 const deleteAccountPassword = ref('');
 const deletingAccount = ref(false);
 const claimingDaily = ref(false);
+const deletingVideoId = ref<number | null>(null);
 
 const dashboard = ref<CreatorDashboardData>({
   id: 0,
@@ -461,6 +663,7 @@ const dashboard = ref<CreatorDashboardData>({
   avatarUrl: null,
   bio: null,
   email: '',
+  messagePrivacy: 'ALLOW_ALL',
   role: 'USER',
   totalVideos: 0,
   pendingReviews: 0,
@@ -477,7 +680,19 @@ const dashboard = ref<CreatorDashboardData>({
 const videos = ref<CreatorVideo[]>([]);
 const reviewHistory = ref<ReviewHistoryItem[]>([]);
 const favoriteVideos = ref<MyVideoItem[]>([]);
+const favoriteFolders = ref<FavoriteFolderSummary[]>([]);
 const likedVideos = ref<MyVideoItem[]>([]);
+const historyVideos = ref<MyVideoItem[]>([]);
+const creatorFollowerTrend = ref<CreatorFollowerTrendPoint[]>([]);
+const creatorPlayTrend = ref<CreatorPlayTrendPoint[]>([]);
+const trendMode = ref<'play' | 'follower'>('play');
+const selectedFavoriteFolderId = ref<number | null>(null);
+const favoriteFolderName = ref('');
+const favoriteSearchKeyword = ref('');
+const likesSearchKeyword = ref('');
+const historySearchKeyword = ref('');
+const creatingFavoriteFolder = ref(false);
+const deletingFavoriteFolderId = ref<number | null>(null);
 const followersList = ref<FollowUserItem[]>([]);
 const followingList = ref<FollowUserItem[]>([]);
 const followingCount = ref(0);
@@ -508,11 +723,23 @@ const bioDraft = ref('');
 const editingEmail = ref(false);
 const emailDraft = ref('');
 const emailCode = ref('');
+const messagePrivacyDraft = ref<DirectMessagePrivacy>('ALLOW_ALL');
 const sendingEmailCode = ref(false);
 const countdown = ref(0);
 let countdownTimer: number | null = null;
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const playTrendChartWidth = 640;
+const playTrendChartHeight = 240;
+const playTrendPaddingTop = 20;
+const playTrendPaddingRight = 16;
+const playTrendPaddingBottom = 36;
+const playTrendPaddingLeft = 48;
+const playTrendYAxisX = playTrendPaddingLeft;
+const playTrendChartRight = playTrendChartWidth - playTrendPaddingRight;
+const playTrendXAxisY = playTrendChartHeight - playTrendPaddingBottom;
+const playTrendPlotWidth = playTrendChartRight - playTrendYAxisX;
+const playTrendPlotHeight = playTrendXAxisY - playTrendPaddingTop;
 
 function getErrorMessage(error: unknown, fallback: string) {
   const responseMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -526,6 +753,83 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 const profileAvatarUrl = computed(() => dashboard.value.avatarUrl || fallbackAvatar);
+const activeTrendTitle = computed(() =>
+  trendMode.value === 'play' ? '所属视频的播放量变化曲线' : '粉丝数量变化曲线',
+);
+const activeTrendDescription = computed(() =>
+  trendMode.value === 'play'
+    ? '仅展示最近 7 天内，该账号下全部视频每天新增播放量之和。'
+    : '仅展示最近 7 天内，该账号每天的粉丝总数。',
+);
+const activeTrendSummaryLabel = computed(() =>
+  trendMode.value === 'play' ? '7 日累计播放量' : '当前粉丝数',
+);
+const activeTrendSeries = computed(() =>
+  trendMode.value === 'play'
+    ? creatorPlayTrend.value.map((item) => ({ date: item.date, value: item.playCount }))
+    : creatorFollowerTrend.value.map((item) => ({ date: item.date, value: item.followerCount })),
+);
+const activeTrendSummaryValue = computed(() => {
+  if (trendMode.value === 'play') {
+    return activeTrendSeries.value.reduce((total, item) => total + item.value, 0);
+  }
+
+  return activeTrendSeries.value[activeTrendSeries.value.length - 1]?.value ?? dashboard.value.followerCount;
+});
+const activeFavoriteFolder = computed(
+  () => favoriteFolders.value.find((folder) => folder.id === selectedFavoriteFolderId.value) ?? null,
+);
+const filteredFavoriteVideos = computed(() => filterVideosByKeyword(favoriteVideos.value, favoriteSearchKeyword.value));
+const filteredLikedVideos = computed(() => filterVideosByKeyword(likedVideos.value, likesSearchKeyword.value));
+const filteredHistoryVideos = computed(() => filterVideosByKeyword(historyVideos.value, historySearchKeyword.value));
+const playTrendMax = computed(() => activeTrendSeries.value.reduce((max, item) => Math.max(max, item.value), 0));
+const playTrendScaleMax = computed(() => {
+  const max = playTrendMax.value;
+
+  if (max <= 0) return 1;
+  if (max <= 5) return 5;
+
+  const magnitude = 10 ** Math.floor(Math.log10(max));
+  return Math.ceil(max / magnitude) * magnitude;
+});
+const playTrendYAxisTicks = computed(() => {
+  const divisions = 4;
+
+  return Array.from({ length: divisions + 1 }, (_, index) => {
+    const ratio = index / divisions;
+    return {
+      y: playTrendPaddingTop + playTrendPlotHeight * ratio,
+      value: Math.round(playTrendScaleMax.value * (1 - ratio)),
+    };
+  });
+});
+const playTrendChartPoints = computed(() => {
+  const scaleMax = playTrendScaleMax.value;
+  const pointCount = activeTrendSeries.value.length;
+
+  return activeTrendSeries.value.map((item, index) => {
+    const x = pointCount <= 1 ? playTrendYAxisX + playTrendPlotWidth / 2 : playTrendYAxisX + (playTrendPlotWidth * index) / (pointCount - 1);
+    const yRatio = scaleMax <= 0 ? 0 : item.value / scaleMax;
+    const y = playTrendPaddingTop + playTrendPlotHeight * (1 - yRatio);
+
+    return {
+      ...item,
+      x,
+      y,
+      valueY: Math.max(y - 10, playTrendPaddingTop + 12),
+      label: item.date.slice(5),
+    };
+  });
+});
+const playTrendLinePath = computed(() => playTrendChartPoints.value.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' '));
+const playTrendAreaPath = computed(() => {
+  const points = playTrendChartPoints.value;
+
+  if (!points.length) return '';
+
+  const commands = points.map((point) => `L ${point.x} ${point.y}`).join(' ');
+  return `M ${points[0].x} ${playTrendXAxisY} ${commands} L ${points[points.length - 1].x} ${playTrendXAxisY} Z`;
+});
 
 const form = reactive({
   title: '新的演示投稿',
@@ -543,6 +847,26 @@ const editForm = reactive({
 function formatTime(value?: string | null) {
   if (!value) return '暂无';
   return new Date(value).toLocaleString('zh-CN');
+}
+
+function normalizeSearchKeyword(value: string) {
+  return value.trim().toLocaleLowerCase();
+}
+
+function filterVideosByKeyword(items: MyVideoItem[], keyword: string) {
+  const normalizedKeyword = normalizeSearchKeyword(keyword);
+
+  if (!normalizedKeyword) {
+    return items;
+  }
+
+  return items.filter((item) => {
+    const searchText = [item.title, item.description, item.category, item.creator.nickname]
+      .filter(Boolean)
+      .join(' ')
+      .toLocaleLowerCase();
+    return searchText.includes(normalizedKeyword);
+  });
 }
 
 function handleVideoFileChange(event: Event) {
@@ -637,6 +961,7 @@ async function refreshAll() {
   nicknameDraft.value = dashboardData.nickname;
   bioDraft.value = dashboardData.bio || '';
   emailDraft.value = dashboardData.email || '';
+  messagePrivacyDraft.value = dashboardData.messagePrivacy;
   videos.value = videoList;
 }
 
@@ -657,14 +982,133 @@ async function handleDailyClaim() {
   }
 }
 
-async function loadHomeData() {
+async function loadFavoriteVideos() {
+  if (!selectedFavoriteFolderId.value) {
+    favoriteVideos.value = [];
+    return;
+  }
+
   try {
-    const [fav, likes] = await Promise.all([fetchMyFavorites(), fetchMyLikes()]);
-    favoriteVideos.value = fav;
-    likedVideos.value = likes;
+    favoriteVideos.value = await fetchMyFavoritesByFolder(selectedFavoriteFolderId.value);
   } catch {
     favoriteVideos.value = [];
+  }
+}
+
+function resolveFavoriteFolderId(folders: FavoriteFolderSummary[], preferredFolderId?: number | null) {
+  if (preferredFolderId && folders.some((folder) => folder.id === preferredFolderId)) {
+    return preferredFolderId;
+  }
+
+  if (selectedFavoriteFolderId.value && folders.some((folder) => folder.id === selectedFavoriteFolderId.value)) {
+    return selectedFavoriteFolderId.value;
+  }
+
+  return folders.find((folder) => folder.isDefault)?.id ?? folders[0]?.id ?? null;
+}
+
+async function loadFavoriteFolders(preferredFolderId?: number | null) {
+  try {
+    const folders = await fetchMyFavoriteFolders();
+    favoriteFolders.value = folders;
+    selectedFavoriteFolderId.value = resolveFavoriteFolderId(folders, preferredFolderId);
+    await loadFavoriteVideos();
+  } catch {
+    favoriteFolders.value = [];
+    favoriteVideos.value = [];
+    selectedFavoriteFolderId.value = null;
+  }
+}
+
+async function handleSelectFavoriteFolder(folderId: number) {
+  if (selectedFavoriteFolderId.value === folderId) {
+    return;
+  }
+
+  selectedFavoriteFolderId.value = folderId;
+  await loadFavoriteVideos();
+}
+
+async function handleCreateFavoriteFolder() {
+  const name = favoriteFolderName.value.trim();
+
+  if (!name) {
+    ElMessage.warning('请输入收藏夹名称');
+    return;
+  }
+
+  creatingFavoriteFolder.value = true;
+  try {
+    const folder = await createMyFavoriteFolder({ name });
+    favoriteFolderName.value = '';
+    ElMessage.success('收藏夹已创建');
+    await loadFavoriteFolders(folder.id);
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error, '创建收藏夹失败'));
+  } finally {
+    creatingFavoriteFolder.value = false;
+  }
+}
+
+async function handleDeleteFavoriteFolder(folder: FavoriteFolderSummary) {
+  try {
+    await ElMessageBox.confirm(
+      `确认删除收藏夹“${folder.name}”吗？其中的视频会自动移动到默认收藏夹。`,
+      '删除收藏夹',
+      {
+        confirmButtonText: '确认删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+      },
+    );
+  } catch {
+    return;
+  }
+
+  deletingFavoriteFolderId.value = folder.id;
+  try {
+    const result = await deleteMyFavoriteFolder(folder.id);
+    ElMessage.success('收藏夹已删除');
+    const preferredFolderId = selectedFavoriteFolderId.value === folder.id ? result.movedToFolderId : selectedFavoriteFolderId.value;
+    await loadFavoriteFolders(preferredFolderId);
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error, '删除收藏夹失败'));
+  } finally {
+    if (deletingFavoriteFolderId.value === folder.id) {
+      deletingFavoriteFolderId.value = null;
+    }
+  }
+}
+
+async function loadLikedVideos() {
+  try {
+    likedVideos.value = await fetchMyLikes();
+  } catch {
     likedVideos.value = [];
+  }
+}
+
+async function loadHistoryVideos() {
+  try {
+    historyVideos.value = await fetchMyHistory();
+  } catch {
+    historyVideos.value = [];
+  }
+}
+
+async function loadCreatorPlayTrend() {
+  try {
+    creatorPlayTrend.value = await fetchCreatorPlayTrend();
+  } catch {
+    creatorPlayTrend.value = [];
+  }
+}
+
+async function loadCreatorFollowerTrend() {
+  try {
+    creatorFollowerTrend.value = await fetchCreatorFollowerTrend();
+  } catch {
+    creatorFollowerTrend.value = [];
   }
 }
 
@@ -816,6 +1260,17 @@ async function saveEmail() {
   }
 }
 
+async function saveMessagePrivacy() {
+  try {
+    const result = await updateProfile({ messagePrivacy: messagePrivacyDraft.value });
+    dashboard.value.messagePrivacy = result.messagePrivacy || messagePrivacyDraft.value;
+    messagePrivacyDraft.value = dashboard.value.messagePrivacy;
+    ElMessage.success('私信权限已更新');
+  } catch {
+    ElMessage.error('更新私信权限失败');
+  }
+}
+
 function openAvatarEdit() {
   avatarDraft.value = dashboard.value.avatarUrl || '';
   avatarFile.value = null;
@@ -909,7 +1364,7 @@ async function handleCreateDraft() {
       coverAssetId = coverUpload.assetId;
       coverUploadToken = coverUpload.uploadToken;
     }
-    const created = await createVideo({
+    await createVideo({
       assetId: upload.assetId,
       uploadToken: upload.uploadToken,
       title: form.title,
@@ -925,14 +1380,9 @@ async function handleCreateDraft() {
     autoCoverFile.value = null;
     captureTimeSeconds.value = 1;
     ElMessage.success({ message: '稿件创建成功', duration: 1500 });
-    try {
-      await refreshAll();
-    } catch {
-      videos.value = [created, ...videos.value.filter((item) => item.id !== created.id)];
-      ElMessage.warning({ message: '稿件已创建，但列表刷新失败，请稍后手动刷新', duration: 3000 });
-    }
-  } catch (error) {
-    ElMessage.error({ message: getErrorMessage(error, '创建稿件失败'), duration: 4000 });
+    await refreshAll();
+  } catch {
+    ElMessage.error({ message: '创建稿件失败，请确认 MinIO 服务已启动且已使用用户账号登录', duration: 4000 });
   } finally {
     creating.value = false;
   }
@@ -1001,8 +1451,8 @@ async function handleWithdrawReview(videoId: number) {
 async function handleDeleteVideo(video: CreatorVideo) {
   try {
     await ElMessageBox.confirm(
-      `确定删除稿件《${video.title}》吗？删除后无法恢复，相关封面、转码文件和审核记录也会一起移除。`,
-      '删除稿件',
+      `确认删除《${video.title}》吗？删除后将同时移除播放、评论、弹幕、点赞与收藏等相关数据，且无法恢复。`,
+      '删除视频',
       {
         confirmButtonText: '确认删除',
         cancelButtonText: '取消',
@@ -1015,17 +1465,24 @@ async function handleDeleteVideo(video: CreatorVideo) {
 
   deletingVideoId.value = video.id;
   try {
-    await deleteVideoDraft(video.id);
-    if (previewDialogVisible.value && previewVideo.value?.id === video.id) {
+    await deleteCreatorVideo(video.id);
+    if (previewVideo.value?.id === video.id) {
       previewDialogVisible.value = false;
       previewVideo.value = null;
     }
-    ElMessage.success({ message: '稿件已删除', duration: 1500 });
+    if (editingVideoId.value === video.id) {
+      editDialogVisible.value = false;
+      editingVideoId.value = null;
+      editingVideoStatus.value = '';
+    }
+    ElMessage.success('视频已删除');
     await refreshAll();
   } catch (error) {
-    ElMessage.error({ message: getErrorMessage(error, '删除稿件失败'), duration: 3000 });
+    ElMessage.error(getErrorMessage(error, '删除视频失败'));
   } finally {
-    deletingVideoId.value = null;
+    if (deletingVideoId.value === video.id) {
+      deletingVideoId.value = null;
+    }
   }
 }
 
@@ -1040,9 +1497,14 @@ watch(previewDialogVisible, async (visible) => {
 });
 
 onMounted(async () => {
-  // 根据 URL 参数设置初始标签页
   const tabParam = route.query.tab as string;
-  if (tabParam === 'settings') {
+  if (tabParam === 'collections' || tabParam === 'favorites') {
+    activeTab.value = 'favorites';
+  } else if (tabParam === 'likes') {
+    activeTab.value = 'likes';
+  } else if (tabParam === 'history') {
+    activeTab.value = 'history';
+  } else if (tabParam === 'settings') {
     activeTab.value = 'settings';
   }
 
@@ -1050,7 +1512,15 @@ onMounted(async () => {
   try {
     await refreshAll();
     followingCount.value = dashboard.value.followingCount;
-    await loadHomeData();
+    if (activeTab.value === 'home') {
+      await Promise.all([loadCreatorPlayTrend(), loadCreatorFollowerTrend()]);
+    } else if (activeTab.value === 'favorites') {
+      await loadFavoriteFolders();
+    } else if (activeTab.value === 'likes') {
+      await loadLikedVideos();
+    } else if (activeTab.value === 'history') {
+      await loadHistoryVideos();
+    }
   } catch {
     ElMessage.warning({ message: '请先登录用户账号查看此页面', duration: 2500 });
   } finally {
@@ -1060,7 +1530,13 @@ onMounted(async () => {
 
 watch(activeTab, (tab) => {
   if (tab === 'home') {
-    void loadHomeData();
+    void Promise.all([loadCreatorPlayTrend(), loadCreatorFollowerTrend()]);
+  } else if (tab === 'favorites') {
+    void loadFavoriteFolders();
+  } else if (tab === 'likes') {
+    void loadLikedVideos();
+  } else if (tab === 'history') {
+    void loadHistoryVideos();
   }
 });
 
@@ -1253,6 +1729,11 @@ async function handleDeleteAccount() {
 
 .form-row.bio-row {
   align-items: flex-start;
+}
+
+.privacy-row {
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .form-row .el-input,
@@ -1500,6 +1981,131 @@ async function handleDeleteAccount() {
   margin-bottom: 8px;
 }
 
+.play-trend-panel {
+  gap: 18px;
+}
+
+.play-trend-head {
+  align-items: flex-start;
+}
+
+.play-trend-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.play-trend-side {
+  display: grid;
+  justify-items: end;
+  gap: 12px;
+}
+
+.play-trend-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+  border-radius: 999px;
+  background: #eff6ff;
+}
+
+.play-trend-switch-btn {
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.play-trend-switch-btn.active {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.play-trend-summary {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+  min-width: 120px;
+}
+
+.play-trend-summary span {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.play-trend-summary strong {
+  color: #111827;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.play-trend-chart {
+  width: 100%;
+  min-height: 260px;
+}
+
+.play-trend-svg {
+  width: 100%;
+  height: 260px;
+  overflow: visible;
+}
+
+.play-trend-grid {
+  stroke: rgba(148, 163, 184, 0.28);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.play-trend-axis {
+  stroke: rgba(100, 116, 139, 0.5);
+  stroke-width: 1.5;
+}
+
+.play-trend-area {
+  fill: rgba(37, 99, 235, 0.12);
+}
+
+.play-trend-line {
+  fill: none;
+  stroke: #2563eb;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.play-trend-point {
+  fill: #ffffff;
+  stroke: #2563eb;
+  stroke-width: 3;
+}
+
+.play-trend-axis-text,
+.play-trend-label,
+.play-trend-point-value {
+  fill: #6b7280;
+  font-size: 12px;
+}
+
+.play-trend-axis-text {
+  text-anchor: end;
+}
+
+.play-trend-label,
+.play-trend-point-value {
+  text-anchor: middle;
+}
+
+.play-trend-point-value {
+  fill: #111827;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .preview-dialog-body {
   display: grid;
   gap: 16px;
@@ -1540,6 +2146,137 @@ async function handleDeleteAccount() {
   grid-template-columns: repeat(auto-fill, 220px);
   gap: 16px;
   justify-content: center;
+}
+
+.favorite-panel {
+  gap: 20px;
+}
+
+.favorite-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.favorite-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.favorite-sidebar,
+.favorite-content {
+  display: grid;
+  gap: 16px;
+}
+
+.favorite-create-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.favorite-folder-list {
+  display: grid;
+  gap: 10px;
+}
+
+.favorite-folder-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 12px;
+  background: #f8fafc;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.favorite-folder-card.active {
+  border-color: rgba(37, 99, 235, 0.4);
+  background: rgba(37, 99, 235, 0.06);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.08);
+}
+
+.favorite-folder-select,
+.favorite-folder-delete {
+  border: 0;
+  background: transparent;
+}
+
+.favorite-folder-select {
+  display: grid;
+  gap: 6px;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+}
+
+.favorite-folder-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.favorite-folder-title-row strong {
+  color: #111827;
+  font-size: 14px;
+}
+
+.favorite-folder-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.12);
+  color: #2563eb;
+  font-size: 12px;
+}
+
+.favorite-folder-meta {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.favorite-folder-delete {
+  color: #ef4444;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
+.favorite-folder-delete:disabled {
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.favorite-content-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.collection-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.video-search-input {
+  width: min(320px, 100%);
+}
+
+.favorite-content-head h3 {
+  margin: 0;
+  color: #111827;
+  font-size: 18px;
 }
 
 .grid-card {

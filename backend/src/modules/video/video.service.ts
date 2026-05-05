@@ -57,17 +57,16 @@ export class VideoService {
   ) {}
 
   async uploadFile(file: Express.Multer.File, assetType: 'ORIGINAL' | 'COVER' | 'RECORDING' = 'ORIGINAL') {
-    const normalizedOriginalName = this.normalizeUploadedOriginalName(file.originalname);
     const datePrefix = new Date().toISOString().slice(0, 10).replace(/-/g, '/');
     const folder =
       assetType === 'COVER' ? 'videos/covers' : assetType === 'RECORDING' ? 'videos/recordings' : 'videos/original';
-    const objectKey = `${folder}/${datePrefix}/${this.buildStorageFileName(normalizedOriginalName)}`;
+    const objectKey = `${folder}/${datePrefix}/${this.buildStorageFileName(file.originalname)}`;
     const uploaded = await this.minioService.uploadObject({
       objectKey,
       buffer: file.buffer,
       size: file.size,
       mimeType: file.mimetype,
-      originalName: normalizedOriginalName,
+      originalName: file.originalname,
     });
 
     const asset = await this.prisma.videoAsset.create({
@@ -76,7 +75,7 @@ export class VideoService {
         objectKey: uploaded.objectKey,
         bucket: uploaded.bucket,
         mimeType: file.mimetype,
-        originalName: normalizedOriginalName,
+        originalName: file.originalname,
         fileSize: file.size,
         url: uploaded.url,
       },
@@ -208,7 +207,7 @@ export class VideoService {
     });
   }
 
-  async deleteVideo(videoId: number, user: { id: number; role: 'USER' | 'ADMIN' }) {
+  async deleteCreatorVideo(videoId: number, user: { id: number; role: 'USER' | 'ADMIN' }) {
     const video = await this.prisma.video.findUnique({
       where: { id: videoId },
       include: {
@@ -216,6 +215,16 @@ export class VideoService {
           select: {
             bucket: true,
             objectKey: true,
+          },
+        },
+        comments: {
+          select: {
+            id: true,
+          },
+        },
+        danmakus: {
+          select: {
+            id: true,
           },
         },
       },
@@ -229,6 +238,16 @@ export class VideoService {
       throw new ForbiddenException('Cannot delete others videos');
     }
 
+    const commentIds = video.comments.map((item) => item.id);
+    const danmakuIds = video.danmakus.map((item) => item.id);
+    const reportWhere = {
+      OR: [
+        { videoId },
+        ...(commentIds.length > 0 ? [{ commentId: { in: commentIds } }] : []),
+        ...(danmakuIds.length > 0 ? [{ danmakuId: { in: danmakuIds } }] : []),
+      ],
+    };
+
     await this.prisma.$transaction(async (tx) => {
       await tx.notification.deleteMany({
         where: {
@@ -241,7 +260,9 @@ export class VideoService {
       await tx.videoCoinContribution.deleteMany({ where: { videoId } });
       await tx.videoLike.deleteMany({ where: { videoId } });
       await tx.favorite.deleteMany({ where: { videoId } });
-      await tx.reportRecord.deleteMany({ where: { videoId } });
+      await tx.reportRecord.deleteMany({ where: reportWhere });
+      await tx.commentAiTask.deleteMany({ where: { videoId } });
+      await tx.videoAiSummary.deleteMany({ where: { videoId } });
       await tx.videoDanmaku.deleteMany({ where: { videoId } });
       await tx.comment.deleteMany({ where: { videoId } });
       await tx.videoReview.deleteMany({ where: { videoId } });
@@ -249,15 +270,17 @@ export class VideoService {
       await tx.video.delete({ where: { id: videoId } });
     });
 
-    await Promise.all(
-      video.assets.map(async (asset) => {
-        try {
-          await this.minioService.deleteFile(asset.bucket, asset.objectKey);
-        } catch {}
-      }),
-    );
+    for (const asset of video.assets) {
+      try {
+        await this.minioService.deleteFile(asset.bucket, asset.objectKey);
+      } catch {
+      }
+    }
 
-    return { deleted: true };
+    return {
+      deleted: true,
+      videoId,
+    };
   }
 
   async withdrawReview(videoId: number, user: { id: number; role: 'USER' | 'ADMIN' }) {
@@ -319,9 +342,9 @@ export class VideoService {
     });
   }
 
-  async getVideoDetail(id: number, currentUser?: { id: number; role: 'USER' | 'ADMIN' } | null) {
+  async getVideoDetail(id: number, currentUserId?: number) {
     const video = await this.prisma.video.findFirst({
-      where: { id },
+      where: { id, status: 'PUBLISHED' },
       include: { creator: true },
     });
 
@@ -329,32 +352,25 @@ export class VideoService {
       throw new NotFoundException('Video not found');
     }
 
-    const canViewUnpublished =
-      Boolean(currentUser) && (currentUser!.role === 'ADMIN' || video.creatorId === currentUser!.id);
-
-    if (video.status !== 'PUBLISHED' && !canViewUnpublished) {
-      throw new NotFoundException('Video not found');
-    }
-
-    const isFollowingCreator = await this.followService.isFollowing(video.creator.id, currentUser?.id);
+    const isFollowingCreator = await this.followService.isFollowing(video.creator.id, currentUserId);
     const followerCount = await this.followService.getFollowerCount(video.creator.id);
-    const isLiked = currentUser?.id
+    const isLiked = currentUserId
       ? Boolean(
           await this.prisma.videoLike.findUnique({
-            where: { videoId_userId: { videoId: id, userId: currentUser.id } },
+            where: { videoId_userId: { videoId: id, userId: currentUserId } },
           }),
         )
       : false;
-    const isFavorited = currentUser?.id
+    const isFavorited = currentUserId
       ? Boolean(
           await this.prisma.favorite.findUnique({
-            where: { videoId_userId: { videoId: id, userId: currentUser.id } },
+            where: { videoId_userId: { videoId: id, userId: currentUserId } },
           }),
         )
       : false;
-    const myCoinCount = currentUser?.id
+    const myCoinCount = currentUserId
       ? (await this.prisma.videoCoinContribution.findUnique({
-          where: { videoId_userId: { videoId: id, userId: currentUser.id } },
+          where: { videoId_userId: { videoId: id, userId: currentUserId } },
         }))?.amount ?? 0
       : 0;
 
@@ -731,15 +747,33 @@ export class VideoService {
     return { liked: false };
   }
 
-  async favoriteVideo(videoId: number, user: { id: number; nickname: string }) {
+  async favoriteVideo(
+    videoId: number,
+    user: { id: number; nickname: string },
+    payload: { folderId?: number } = {},
+  ) {
     const video = await this.requirePublishedVideo(videoId);
+    const defaultFolder = await this.ensureDefaultFavoriteFolder(user.id);
+    await this.migrateLegacyFavoritesToDefaultFolder(user.id, defaultFolder.id);
+    const targetFolderId = payload.folderId ?? defaultFolder.id;
+    const targetFolder = await this.prisma.favoriteFolder.findFirst({
+      where: {
+        id: targetFolderId,
+        userId: user.id,
+      },
+    });
+
+    if (!targetFolder) {
+      throw new NotFoundException('Favorite folder not found');
+    }
+
     const existing = await this.prisma.favorite.findUnique({
       where: { videoId_userId: { videoId, userId: user.id } },
     });
 
     if (!existing) {
       await this.prisma.favorite.create({
-        data: { videoId, userId: user.id },
+        data: { videoId, userId: user.id, folderId: targetFolder.id },
       });
       await this.prisma.video.update({
         where: { id: videoId },
@@ -759,9 +793,18 @@ export class VideoService {
           },
         });
       }
+    } else if (existing.folderId !== targetFolder.id) {
+      await this.prisma.favorite.update({
+        where: { id: existing.id },
+        data: { folderId: targetFolder.id },
+      });
     }
 
-    return { favorited: true };
+    return {
+      favorited: true,
+      folderId: targetFolder.id,
+      folderName: targetFolder.name,
+    };
   }
 
   async coinVideo(videoId: number, user: { id: number }, amount: number) {
@@ -841,11 +884,12 @@ export class VideoService {
 
   async recordPlay(
     videoId: number,
-    user: { id: number },
+    user: { id: number } | null,
     payload: { videoDurationSeconds?: number } = {},
   ) {
     const video = await this.requirePublishedVideo(videoId);
     const now = new Date();
+    const statDate = this.formatStatDate(now);
     const resolvedDurationSeconds = this.resolveWatchDurationSeconds(
       video.durationSeconds,
       payload.videoDurationSeconds,
@@ -858,31 +902,71 @@ export class VideoService {
           }
         : {};
 
-    const record = await this.prisma.userVideoWatch.upsert({
+    const updatedVideo = await this.prisma.video.update({
+      where: { id: videoId },
+      data: {
+        playCount: {
+          increment: 1,
+        },
+      },
+      select: {
+        playCount: true,
+      },
+    });
+
+    await this.prisma.creatorPlayDaily.upsert({
       where: {
-        userId_videoId: {
-          userId: user.id,
-          videoId,
+        creatorId_statDate: {
+          creatorId: video.creatorId,
+          statDate,
         },
       },
       create: {
-        userId: user.id,
-        videoId,
+        creatorId: video.creatorId,
+        statDate,
         playCount: 1,
-        lastWatchedAt: now,
-        ...durationData,
       },
       update: {
         playCount: {
           increment: 1,
         },
-        lastWatchedAt: now,
-        ...durationData,
       },
     });
 
-    await this.userProfileService.buildAndSaveProfile(user.id);
-    return record;
+    let record = null;
+
+    if (user) {
+      record = await this.prisma.userVideoWatch.upsert({
+        where: {
+          userId_videoId: {
+            userId: user.id,
+            videoId,
+          },
+        },
+        create: {
+          userId: user.id,
+          videoId,
+          playCount: 1,
+          lastWatchedAt: now,
+          ...durationData,
+        },
+        update: {
+          playCount: {
+            increment: 1,
+          },
+          lastWatchedAt: now,
+          ...durationData,
+        },
+      });
+
+      await this.userProfileService.buildAndSaveProfile(user.id);
+    }
+
+    return {
+      videoId,
+      playCount: updatedVideo.playCount,
+      watchRecord: record,
+    };
   }
 
   async recordWatchProgress(
@@ -975,10 +1059,25 @@ export class VideoService {
     return { favorited: false };
   }
 
-  async getUserFavorites(userId: number) {
+  async getUserFavorites(userId: number, folderId?: number) {
+    const defaultFolder = await this.ensureDefaultFavoriteFolder(userId);
+    await this.migrateLegacyFavoritesToDefaultFolder(userId, defaultFolder.id);
+    const resolvedFolderId = folderId ?? defaultFolder.id;
+    const folder = await this.prisma.favoriteFolder.findFirst({
+      where: {
+        id: resolvedFolderId,
+        userId,
+      },
+    });
+
+    if (!folder) {
+      throw new NotFoundException('Favorite folder not found');
+    }
+
     const favorites = await this.prisma.favorite.findMany({
       where: {
         userId,
+        folderId: resolvedFolderId,
         video: {
           status: 'PUBLISHED',
         },
@@ -1004,7 +1103,121 @@ export class VideoService {
       commentCount: f.video.commentCount,
       creator: f.video.creator,
       favoritedAt: f.createdAt,
+      folderId: f.folderId,
     }));
+  }
+
+  async listFavoriteFolders(userId: number) {
+    const defaultFolder = await this.ensureDefaultFavoriteFolder(userId);
+    await this.migrateLegacyFavoritesToDefaultFolder(userId, defaultFolder.id);
+
+    const folders = await this.prisma.favoriteFolder.findMany({
+      where: { userId },
+      include: {
+        _count: {
+          select: {
+            favorites: true,
+          },
+        },
+      },
+      orderBy: [{ isDefault: 'desc' }, { updatedAt: 'desc' }, { createdAt: 'asc' }],
+    });
+
+    return folders.map((folder) => ({
+      id: folder.id,
+      name: folder.name,
+      isDefault: folder.isDefault,
+      videoCount: folder._count.favorites,
+      createdAt: folder.createdAt,
+      updatedAt: folder.updatedAt,
+    }));
+  }
+
+  async createFavoriteFolder(userId: number, name: string) {
+    const trimmedName = name.trim();
+
+    if (!trimmedName) {
+      throw new BadRequestException('Favorite folder name is required');
+    }
+
+    if (trimmedName.length > 64) {
+      throw new BadRequestException('Favorite folder name is too long');
+    }
+
+    await this.ensureDefaultFavoriteFolder(userId);
+
+    if (trimmedName === '默认收藏夹') {
+      throw new BadRequestException('Default favorite folder name is reserved');
+    }
+
+    const existing = await this.prisma.favoriteFolder.findFirst({
+      where: {
+        userId,
+        name: trimmedName,
+      },
+    });
+
+    if (existing) {
+      throw new BadRequestException('Favorite folder name already exists');
+    }
+
+    const folder = await this.prisma.favoriteFolder.create({
+      data: {
+        userId,
+        name: trimmedName,
+      },
+    });
+
+    return {
+      id: folder.id,
+      name: folder.name,
+      isDefault: folder.isDefault,
+      videoCount: 0,
+      createdAt: folder.createdAt,
+      updatedAt: folder.updatedAt,
+    };
+  }
+
+  async deleteFavoriteFolder(userId: number, folderId: number) {
+    const defaultFolder = await this.ensureDefaultFavoriteFolder(userId);
+    await this.migrateLegacyFavoritesToDefaultFolder(userId, defaultFolder.id);
+
+    const folder = await this.prisma.favoriteFolder.findFirst({
+      where: {
+        id: folderId,
+        userId,
+      },
+    });
+
+    if (!folder) {
+      throw new NotFoundException('Favorite folder not found');
+    }
+
+    if (folder.isDefault) {
+      throw new BadRequestException('Default favorite folder cannot be deleted');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.favorite.updateMany({
+        where: {
+          userId,
+          folderId: folder.id,
+        },
+        data: {
+          folderId: defaultFolder.id,
+        },
+      });
+
+      await tx.favoriteFolder.delete({
+        where: { id: folder.id },
+      });
+    });
+
+    return {
+      deleted: true,
+      folderId,
+      movedToFolderId: defaultFolder.id,
+    };
   }
 
   async getUserLikes(userId: number) {
@@ -1036,6 +1249,66 @@ export class VideoService {
       commentCount: l.video.commentCount,
       creator: l.video.creator,
       likedAt: l.createdAt,
+    }));
+  }
+
+  async getUserHistory(userId: number) {
+    const history = await this.prisma.userVideoWatch.findMany({
+      where: {
+        userId,
+        video: {
+          status: 'PUBLISHED',
+        },
+      },
+      include: {
+        video: {
+          include: {
+            creator: { select: { id: true, nickname: true } },
+          },
+        },
+      },
+      orderBy: [{ lastWatchedAt: 'desc' }, { updatedAt: 'desc' }],
+    });
+
+    return history.map((item) => ({
+      id: item.video.id,
+      title: item.video.title,
+      description: item.video.description,
+      coverUrl: item.video.coverUrl,
+      category: item.video.category,
+      likeCount: item.video.likeCount,
+      favoriteCount: item.video.favoriteCount,
+      commentCount: item.video.commentCount,
+      coinCount: item.video.coinCount,
+      creator: item.video.creator,
+      watchedAt: item.lastWatchedAt,
+    }));
+  }
+
+  async getCreatorPlayTrend(creatorId: number, days = 7) {
+    const normalizedDays = Math.max(1, Math.min(30, Math.floor(days)));
+    const dateKeys = Array.from({ length: normalizedDays }, (_, index) => {
+      const date = new Date();
+      date.setHours(0, 0, 0, 0);
+      date.setDate(date.getDate() - (normalizedDays - 1 - index));
+      return this.formatStatDate(date);
+    });
+
+    const stats = await this.prisma.creatorPlayDaily.findMany({
+      where: {
+        creatorId,
+        statDate: {
+          gte: dateKeys[0],
+          lte: dateKeys[dateKeys.length - 1],
+        },
+      },
+      orderBy: { statDate: 'asc' },
+    });
+
+    const statMap = new Map(stats.map((item) => [item.statDate, item.playCount] as const));
+    return dateKeys.map((date) => ({
+      date,
+      playCount: statMap.get(date) ?? 0,
     }));
   }
 
@@ -1405,6 +1678,60 @@ export class VideoService {
     return count;
   }
 
+  private async ensureDefaultFavoriteFolder(userId: number) {
+    const existingDefault = await this.prisma.favoriteFolder.findFirst({
+      where: {
+        userId,
+        isDefault: true,
+      },
+    });
+
+    if (existingDefault) {
+      return existingDefault;
+    }
+
+    const namedDefault = await this.prisma.favoriteFolder.findFirst({
+      where: {
+        userId,
+        name: '默认收藏夹',
+      },
+    });
+
+    if (namedDefault) {
+      return this.prisma.favoriteFolder.update({
+        where: { id: namedDefault.id },
+        data: { isDefault: true },
+      });
+    }
+
+    return this.prisma.favoriteFolder.create({
+      data: {
+        userId,
+        name: '默认收藏夹',
+        isDefault: true,
+      },
+    });
+  }
+
+  private async migrateLegacyFavoritesToDefaultFolder(userId: number, defaultFolderId: number) {
+    await this.prisma.favorite.updateMany({
+      where: {
+        userId,
+        folderId: null,
+      },
+      data: {
+        folderId: defaultFolderId,
+      },
+    });
+  }
+
+  private formatStatDate(value: Date) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
   private normalizePage(page?: number) {
     if (!page || !Number.isFinite(page) || page < 1) {
       return 1;
@@ -1419,21 +1746,6 @@ export class VideoService {
     }
 
     return Math.min(50, Math.floor(pageSize));
-  }
-
-  private normalizeUploadedOriginalName(originalName: string) {
-    if (!originalName || /^[\x00-\x7F]*$/.test(originalName)) {
-      return originalName;
-    }
-
-    const rawBytes = Buffer.from(originalName, 'latin1');
-    const decoded = rawBytes.toString('utf8');
-
-    if (decoded.includes('\uFFFD')) {
-      return originalName;
-    }
-
-    return Buffer.from(decoded, 'utf8').equals(rawBytes) ? decoded : originalName;
   }
 
   private buildStorageFileName(originalName: string) {

@@ -1,8 +1,32 @@
 <template>
   <article class="card">
-    <RouterLink :to="`/video/${item.id}`" class="cover-wrap">
+    <RouterLink
+      :to="`/video/${item.id}`"
+      class="cover-wrap"
+      :class="{ 'is-previewing': isPreviewing && previewReady }"
+      @mouseenter="startPreview"
+      @mouseleave="stopPreview"
+    >
       <img :src="item.coverUrl" :alt="item.title" class="cover" />
+      <video
+        v-if="hasHoverPreview"
+        ref="previewVideoRef"
+        class="cover-preview"
+        :src="item.playUrl"
+        :poster="item.coverUrl"
+        muted
+        loop
+        playsinline
+        preload="none"
+        @loadeddata="handlePreviewLoaded"
+      ></video>
       <div class="cover-stats">
+        <span v-if="showPlayCount" class="stat-item">
+          <svg class="stat-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 5C6.79 5 3.1 8.26 1.82 12c1.28 3.74 4.97 7 10.18 7s8.9-3.26 10.18-7C20.9 8.26 17.21 5 12 5Zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm0-2.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/>
+          </svg>
+          {{ item.playCount ?? 0 }}
+        </span>
         <span class="stat-item">
           <svg class="stat-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M7 22V11L10.5 3.5C10.78 2.87 11.41 2.5 12.1 2.5C13.1 2.5 13.85 3.42 13.65 4.4L12.8 9H20c1.1 0 2 0.9 2 2v1c0 .15-.02.3-.05.44l-2.19 8C19.5 21.35 18.68 22 17.73 22H7ZM7 13v8M3 22h2V11H3v11Z" fill="currentColor"/>
@@ -22,7 +46,7 @@
     <div class="card-info">
       <h3 class="title">{{ item.title }}</h3>
       <div class="meta">
-        <RouterLink v-if="creatorId" :to="`/users/${creatorId}`" class="author">{{ creatorLabel }}</RouterLink>
+        <RouterLink v-if="showAuthorLink" :to="`/users/${creatorId}`" class="author">{{ creatorLabel }}</RouterLink>
         <span v-else class="author static">{{ creatorLabel }}</span>
         <span class="time">{{ formattedTime }}</span>
       </div>
@@ -31,17 +55,26 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { StarFilled, ChatDotRound } from '@element-plus/icons-vue';
 
 import type { VideoCard } from '@/types/api';
 
 const props = defineProps<{
   item: VideoCard;
+  hoverPreview?: boolean;
+  showPlayCount?: boolean;
+  disableAuthorLink?: boolean;
 }>();
 
+const previewVideoRef = ref<HTMLVideoElement | null>(null);
+const isPreviewing = ref(false);
+const previewReady = ref(false);
+
+const hasHoverPreview = computed(() => Boolean(props.hoverPreview && props.item.playUrl));
 const creatorId = computed(() => props.item.creator?.id ?? props.item.creatorId ?? null);
 const creatorLabel = computed(() => props.item.creator?.nickname ?? `用户 #${creatorId.value ?? '-'}`);
+const showAuthorLink = computed(() => Boolean(creatorId.value) && !props.disableAuthorLink);
 
 const formattedTime = computed(() => {
   const raw = props.item.publishedAt ?? props.item.createdAt;
@@ -62,6 +95,44 @@ const formattedTime = computed(() => {
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 });
+
+function handlePreviewLoaded() {
+  previewReady.value = true;
+}
+
+async function startPreview() {
+  if (!hasHoverPreview.value || !previewVideoRef.value) return;
+
+  isPreviewing.value = true;
+
+  try {
+    previewVideoRef.value.currentTime = 0;
+  } catch {
+    // ignore seek errors before metadata is ready
+  }
+
+  try {
+    await previewVideoRef.value.play();
+  } catch {
+    isPreviewing.value = false;
+  }
+}
+
+function stopPreview() {
+  if (!previewVideoRef.value) {
+    isPreviewing.value = false;
+    return;
+  }
+
+  isPreviewing.value = false;
+  previewVideoRef.value.pause();
+
+  try {
+    previewVideoRef.value.currentTime = 0;
+  } catch {
+    // ignore seek errors before metadata is ready
+  }
+}
 </script>
 
 <style scoped>
@@ -76,6 +147,7 @@ const formattedTime = computed(() => {
   text-decoration: none;
   border-radius: 6px;
   overflow: hidden;
+  background: #000;
 }
 
 .cover {
@@ -83,6 +155,27 @@ const formattedTime = computed(() => {
   height: 200px;
   object-fit: cover;
   display: block;
+  transition: opacity 0.2s ease;
+}
+
+.cover-preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  display: block;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.cover-wrap.is-previewing .cover {
+  opacity: 0;
+}
+
+.cover-wrap.is-previewing .cover-preview {
+  opacity: 1;
 }
 
 .cover-stats {
