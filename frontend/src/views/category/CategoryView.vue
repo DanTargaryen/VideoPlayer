@@ -2,7 +2,7 @@
   <section class="page">
     <div class="section-head">
       <h2>{{ categoryLabel }}</h2>
-      <el-button type="primary" size="small" @click="loadFeed">刷新</el-button>
+      <el-button type="primary" size="small" :loading="refreshingFeed" @click="loadFeed">刷新</el-button>
     </div>
 
     <template v-if="cards.length > 0">
@@ -77,11 +77,16 @@
     </template>
 
     <el-empty v-else description="当前条件下没有找到相关视频" />
+
+    <div v-if="cards.length > 0" ref="loadMoreTrigger" class="load-more-trigger">
+      <span v-if="loadingMore">正在加载更多视频...</span>
+      <span v-else>继续下拉，加载更多 {{ categoryLabel }} 视频</span>
+    </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 
@@ -98,7 +103,14 @@ const route = useRoute();
 const cards = ref<VideoCard[]>([]);
 const carousel = ref<VideoCard[]>([]);
 const carouselIndex = ref(0);
+const loadMoreTrigger = ref<HTMLDivElement | null>(null);
+const refreshingFeed = ref(false);
+const loadingMore = ref(false);
+const currentFeedPage = ref(1);
 let carouselTimer: number | null = null;
+let loadMoreObserver: IntersectionObserver | null = null;
+
+const FEED_PAGE_SIZE = 20;
 
 const gradientStyles = ref<Record<number, string>>({});
 const defaultGradient = 'linear-gradient(to bottom, transparent 0%, rgba(30, 30, 30, 0.95) 100%)';
@@ -192,26 +204,113 @@ function stopCarouselTimer() {
   }
 }
 
-async function loadFeed() {
+async function fetchFeedPage(page: number) {
+  return fetchRecommendFeed({
+    categoryCode: categoryCode.value,
+    page,
+    pageSize: FEED_PAGE_SIZE,
+  });
+}
+
+async function loadMoreFeed() {
+  if (loadingMore.value || refreshingFeed.value || cards.value.length === 0) {
+    return;
+  }
+
+  loadingMore.value = true;
   try {
-    stopCarouselTimer();
-    gradientStyles.value = {};
-    const videos = await fetchRecommendFeed({ categoryCode: categoryCode.value });
-    cards.value = videos;
-    carousel.value = pickCarousel(videos, Math.min(5, Math.max(3, videos.length)));
-    carouselIndex.value = 0;
-    startCarouselTimer();
+    let nextPage = currentFeedPage.value;
+    let videos = await fetchFeedPage(nextPage);
+
+    if (videos.length === 0) {
+      nextPage = 1;
+      videos = await fetchFeedPage(nextPage);
+      if (videos.length === 0) {
+        return;
+      }
+      currentFeedPage.value = 2;
+    } else {
+      currentFeedPage.value = nextPage + 1;
+    }
+
+    cards.value = [...cards.value, ...videos];
   } catch {
-    ElMessage.error(`加载${categoryLabel.value}视频失败`);
+    ElMessage.error(`加载更多${categoryLabel.value}视频失败`);
+  } finally {
+    loadingMore.value = false;
   }
 }
 
-watch(() => props.category, () => {
+async function loadFeed() {
+  if (refreshingFeed.value) {
+    return;
+  }
+
+  refreshingFeed.value = true;
+  try {
+    stopCarouselTimer();
+    gradientStyles.value = {};
+    const videos = await fetchFeedPage(1);
+    cards.value = videos;
+    carousel.value = pickCarousel(videos, Math.min(5, Math.max(3, videos.length)));
+    carouselIndex.value = 0;
+    currentFeedPage.value = 2;
+    startCarouselTimer();
+  } catch {
+    ElMessage.error(`加载${categoryLabel.value}视频失败`);
+  } finally {
+    refreshingFeed.value = false;
+  }
+}
+
+function stopLoadMoreObserver() {
+  if (loadMoreObserver) {
+    loadMoreObserver.disconnect();
+    loadMoreObserver = null;
+  }
+}
+
+function setupLoadMoreObserver() {
+  stopLoadMoreObserver();
+
+  if (!loadMoreTrigger.value || typeof IntersectionObserver === 'undefined') {
+    return;
+  }
+
+  loadMoreObserver = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        void loadMoreFeed();
+      }
+    },
+    {
+      rootMargin: '240px 0px',
+    },
+  );
+
+  loadMoreObserver.observe(loadMoreTrigger.value);
+}
+
+watch(loadMoreTrigger, () => {
+  void nextTick(() => {
+    setupLoadMoreObserver();
+  });
+});
+
+watch(categoryCode, () => {
   void loadFeed();
 });
 
-onMounted(loadFeed);
-onUnmounted(stopCarouselTimer);
+onMounted(async () => {
+  await loadFeed();
+  await nextTick();
+  setupLoadMoreObserver();
+});
+
+onUnmounted(() => {
+  stopCarouselTimer();
+  stopLoadMoreObserver();
+});
 </script>
 
 <style scoped>
@@ -317,6 +416,15 @@ onUnmounted(stopCarouselTimer);
 
 .meta-creator {
   font-weight: 500;
+}
+
+.load-more-trigger {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 56px;
+  color: #6b7280;
+  font-size: 14px;
 }
 
 .meta-stats {

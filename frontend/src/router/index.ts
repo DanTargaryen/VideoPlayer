@@ -12,6 +12,7 @@ import LoginView from '@/views/auth/LoginView.vue';
 import RegisterView from '@/views/auth/RegisterView.vue';
 import NotificationsView from '@/views/notification/NotificationsView.vue';
 import FollowingFeedView from '@/views/following/FollowingFeedView.vue';
+import MessagesView from '@/views/message/MessagesView.vue';
 import UserHomepageView from '@/views/profile/UserHomepageView.vue';
 import UploadView from '@/views/upload/UploadView.vue';
 import { useAppStore } from '@/stores/app';
@@ -35,6 +36,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'login', name: 'login', component: LoginView },
       { path: 'register', name: 'register', component: RegisterView },
       { path: 'notifications', name: 'notifications', component: NotificationsView },
+      { path: 'messages', name: 'messages', component: MessagesView },
       { path: 'following', name: 'following-feed', component: FollowingFeedView },
       { path: 'upload', name: 'upload', component: UploadView },
       { path: 'users/:id', name: 'user-homepage', component: UserHomepageView },

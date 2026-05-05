@@ -35,9 +35,14 @@
           <el-icon :size="20"><Promotion /></el-icon>
           <span class="action-label">动态</span>
         </RouterLink>
+        <RouterLink to="/messages" class="action-icon-link" aria-label="私信">
+          <el-icon :size="20"><ChatDotRound /></el-icon>
+          <span class="action-label">私信</span>
+          <span v-if="unreadDirectMessageCount > 0" class="badge">{{ unreadDirectMessageCount }}</span>
+        </RouterLink>
         <RouterLink to="/notifications" class="action-icon-link" aria-label="消息通知">
           <el-icon :size="20"><Message /></el-icon>
-          <span class="action-label">消息</span>
+          <span class="action-label">通知</span>
           <span v-if="unreadNotificationCount > 0" class="badge">{{ unreadNotificationCount }}</span>
         </RouterLink>
         <RouterLink to="/upload" class="action-icon-link" aria-label="上传投稿">
@@ -62,17 +67,17 @@
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useRoute, useRouter } from 'vue-router';
-import { DocumentChecked, Upload, Promotion, Message, User } from '@element-plus/icons-vue';
+import { ChatDotRound, DocumentChecked, Upload, Promotion, Message, User } from '@element-plus/icons-vue';
 
 import SearchSuggestBox from '@/components/SearchSuggestBox.vue';
-import { fetchUnreadNotificationCount, fetchCurrentUser } from '@/api/platform';
+import { fetchCurrentUser, fetchUnreadDirectMessageCount, fetchUnreadNotificationCount } from '@/api/platform';
 import { useAppStore } from '@/stores/app';
 import { primaryNavItems as navItems } from '@/utils/navigation';
 
 const store = useAppStore();
 const router = useRouter();
 const route = useRoute();
-const { siteName, avatarUrl, isLoggedIn, isAdmin, token, unreadNotificationCount } = storeToRefs(store);
+const { siteName, avatarUrl, isLoggedIn, isAdmin, token, unreadNotificationCount, unreadDirectMessageCount } = storeToRefs(store);
 const searchKeyword = ref(String(route.query.keyword ?? ''));
 let headerSyncTimer: number | null = null;
 
@@ -91,14 +96,20 @@ function isNavActive(item: { path: string }) {
 async function syncUnreadCount() {
   if (!isLoggedIn.value) {
     store.setUnreadNotificationCount(0);
+    store.setUnreadDirectMessageCount(0);
     return;
   }
 
   try {
-    const result = await fetchUnreadNotificationCount();
-    store.setUnreadNotificationCount(result.unreadCount);
+    const [notificationResult, directMessageResult] = await Promise.all([
+      fetchUnreadNotificationCount(),
+      fetchUnreadDirectMessageCount(),
+    ]);
+    store.setUnreadNotificationCount(notificationResult.unreadCount);
+    store.setUnreadDirectMessageCount(directMessageResult.unreadCount);
   } catch {
     store.setUnreadNotificationCount(0);
+    store.setUnreadDirectMessageCount(0);
   }
 }
 
