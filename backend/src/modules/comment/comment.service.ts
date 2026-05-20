@@ -26,30 +26,37 @@ export class CommentService {
       orderBy: [{ createdAt: 'asc' }],
     });
 
-    type CommentNode = (typeof comments)[number] & { replies: CommentNode[] };
-
-    const nodeMap = new Map<number, CommentNode>();
-    for (const c of comments) {
-      nodeMap.set(c.id, { ...c, replies: [] });
-    }
-
-    const roots: CommentNode[] = [];
-    for (const c of comments) {
-      const node = nodeMap.get(c.id)!;
-      if (c.parentId === null) {
-        roots.push(node);
-      } else {
-        const parent = nodeMap.get(c.parentId);
-        if (parent) {
-          parent.replies.push(node);
-        }
-      }
-    }
-
     return {
       videoId,
-      items: roots,
+      items: this.buildCommentTree(comments),
     };
+  }
+
+  async getCommentThread(videoId: number, rootId: number) {
+    const comments = await this.prisma.comment.findMany({
+      where: {
+        videoId,
+        status: 'NORMAL',
+        OR: [{ id: rootId }, { rootId }],
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            nickname: true,
+          },
+        },
+      },
+      orderBy: [{ createdAt: 'asc' }],
+    });
+
+    const roots = this.buildCommentTree(comments);
+    const thread = roots.find((item) => item.id === rootId);
+    if (!thread) {
+      throw new NotFoundException('Comment thread not found');
+    }
+
+    return thread;
   }
 
   async createComment(
@@ -139,5 +146,29 @@ export class CommentService {
       });
 
     return created;
+  }
+
+  private buildCommentTree<T extends { id: number; parentId: number | null }>(comments: T[]) {
+    type CommentNode = T & { replies: CommentNode[] };
+
+    const nodeMap = new Map<number, CommentNode>();
+    for (const c of comments) {
+      nodeMap.set(c.id, { ...c, replies: [] });
+    }
+
+    const roots: CommentNode[] = [];
+    for (const c of comments) {
+      const node = nodeMap.get(c.id)!;
+      if (c.parentId === null) {
+        roots.push(node);
+      } else {
+        const parent = nodeMap.get(c.parentId);
+        if (parent) {
+          parent.replies.push(node);
+        }
+      }
+    }
+
+    return roots;
   }
 }

@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as Minio from 'minio';
 import * as path from 'path';
@@ -12,6 +12,7 @@ export function getStorageMode(): 'minio' | 'local' {
 
 @Injectable()
 export class MinioService implements OnModuleInit {
+  private readonly logger = new Logger(MinioService.name);
   private minioClient: Minio.Client | null = null;
   private storageMode: 'minio' | 'local';
 
@@ -19,15 +20,15 @@ export class MinioService implements OnModuleInit {
     this.storageMode = getStorageMode();
   }
 
-  onModuleInit() {
+  async onModuleInit() {
     if (this.storageMode === 'minio') {
-      this.initializeMinio();
+      await this.initializeMinio();
     } else {
       this.initializeLocalStorage();
     }
   }
 
-  private initializeMinio() {
+  private async initializeMinio() {
     const endPoint = this.configService.get('MINIO_ENDPOINT') || '127.0.0.1';
     const port = Number(this.configService.get('MINIO_PORT') || 9000);
     const useSSL = this.configService.get('MINIO_USE_SSL') === 'true';
@@ -42,7 +43,15 @@ export class MinioService implements OnModuleInit {
       secretKey,
     });
 
-    this.ensureBucketExists();
+    try {
+      await this.ensureBucketExists();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`MinIO unavailable, fallback to local storage: ${message}`);
+      this.minioClient = null;
+      this.storageMode = 'local';
+      this.initializeLocalStorage();
+    }
   }
 
   private initializeLocalStorage() {
