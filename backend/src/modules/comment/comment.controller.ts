@@ -32,6 +32,14 @@ export class CommentController {
     return ok(await this.commentService.listComments(id));
   }
 
+  @Get(':rootId/thread')
+  async getCommentThread(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('rootId', ParseIntPipe) rootId: number,
+  ) {
+    return ok(await this.commentService.getCommentThread(id, rootId));
+  }
+
   @Post()
   async createComment(
     @Headers('authorization') authorization: string | undefined,
