@@ -116,6 +116,7 @@
                 :root-id="item.id"
                 :active-reply-id="replyTargetId"
                 :reply-form-value="replyForm"
+                :expanded-comment-ids="expandedCommentIds"
                 @update:reply-form-value="replyForm = $event"
                 @toggle-reply="toggleReplyBox"
                 @submit-reply="handleSubmitReply"
@@ -325,6 +326,7 @@ import {
   createDanmaku,
   coinVideo,
   favoriteVideo,
+  fetchCommentThread,
   fetchComments,
   fetchDanmakus,
   fetchMyFavoriteFolders,
@@ -355,6 +357,9 @@ import type {
 const WATCH_PROGRESS_MIN_REPORT_SECONDS = 10;
 const WATCH_PROGRESS_LEAVE_MIN_REPORT_SECONDS = 5;
 const WATCH_PROGRESS_MAX_DELTA_SECONDS = 5;
+const GROK_MENTION_PATTERN = /@grok\b/i;
+const GROK_REPLY_POLL_INTERVAL_MS = 2000;
+const GROK_REPLY_POLL_MAX_ATTEMPTS = 30;
 
 interface AgentMessage {
   id: number;
@@ -373,6 +378,7 @@ const danmakus = ref<DanmakuItem[]>([]);
 const commentForm = ref('');
 const replyForm = ref('');
 const replyTargetId = ref<number | null>(null);
+const expandedCommentIds = ref<Set<number>>(new Set());
 const favoriteDialogVisible = ref(false);
 const favoriteFolderOptions = ref<FavoriteFolderSummary[]>([]);
 const favoriteFolderLoading = ref(false);
@@ -413,6 +419,8 @@ const agentLastFrameCount = ref(0);
 const agentMessagesRef = ref<HTMLElement | null>(null);
 const agentMessages = ref<AgentMessage[]>([]);
 let agentMessageSeed = 0;
+let grokReplyPollTimer: ReturnType<typeof setTimeout> | null = null;
+let grokReplyPollToken = 0;
 
 const canFollow = computed(
   () => appStore.isLoggedIn && video.value && video.value.creator.id !== appStore.userId,
@@ -665,6 +673,124 @@ async function loadComments() {
   }
 }
 
+function hasGrokMention(content: string) {
+  return GROK_MENTION_PATTERN.test(content);
+}
+
+function clearGrokReplyPolling() {
+  grokReplyPollToken += 1;
+  if (grokReplyPollTimer) {
+    clearTimeout(grokReplyPollTimer);
+    grokReplyPollTimer = null;
+  }
+}
+
+function findCommentNode(root: CommentItem, commentId: number): CommentItem | null {
+  if (root.id === commentId) {
+    return root;
+  }
+
+  for (const reply of root.replies) {
+    const matched = findCommentNode(reply, commentId);
+    if (matched) {
+      return matched;
+    }
+  }
+
+  return null;
+}
+
+function getDirectReplies(thread: CommentItem, commentId: number) {
+  const source = findCommentNode(thread, commentId);
+  return source?.replies ?? [];
+}
+
+function getDirectReplyIds(thread: CommentItem, commentId: number) {
+  return new Set(getDirectReplies(thread, commentId).map((reply) => reply.id));
+}
+
+function isLikelyGrokReply(comment: CommentItem) {
+  return /grok|机器人|智能体/i.test(comment.user.nickname);
+}
+
+function expandCommentPath(root: CommentItem, targetId: number) {
+  const path: number[] = [];
+
+  function visit(node: CommentItem): boolean {
+    path.push(node.id);
+    if (node.id === targetId) {
+      return true;
+    }
+
+    for (const reply of node.replies) {
+      if (visit(reply)) {
+        return true;
+      }
+    }
+
+    path.pop();
+    return false;
+  }
+
+  if (!visit(root)) {
+    return;
+  }
+
+  expandedCommentIds.value = new Set([...expandedCommentIds.value, ...path]);
+}
+
+function upsertCommentThread(thread: CommentItem) {
+  const nextComments = [...comments.value];
+  const index = nextComments.findIndex((item) => item.id === thread.id);
+  if (index >= 0) {
+    nextComments.splice(index, 1, thread);
+  } else {
+    nextComments.push(thread);
+  }
+  comments.value = nextComments;
+}
+
+function startGrokReplyPolling(input: { videoId: number; rootId: number; sourceCommentId: number }) {
+  clearGrokReplyPolling();
+
+  const token = grokReplyPollToken;
+  let attempts = 0;
+  const existingThread = comments.value.find((item) => item.id === input.rootId);
+  let knownReplyIds = existingThread ? getDirectReplyIds(existingThread, input.sourceCommentId) : new Set<number>();
+
+  const pollOnce = async () => {
+    if (token !== grokReplyPollToken || Number(route.params.id) !== input.videoId) {
+      return;
+    }
+
+    attempts += 1;
+
+    try {
+      const thread = await fetchCommentThread(input.videoId, input.rootId);
+      upsertCommentThread(thread);
+      expandCommentPath(thread, input.sourceCommentId);
+
+      const directReplies = getDirectReplies(thread, input.sourceCommentId);
+      const newReplies = directReplies.filter((reply) => !knownReplyIds.has(reply.id));
+      const replyIds = new Set(directReplies.map((reply) => reply.id));
+      if (newReplies.some(isLikelyGrokReply)) {
+        clearGrokReplyPolling();
+        await loadDetail();
+        return;
+      }
+      knownReplyIds = replyIds;
+    } catch {
+      // The task worker may still be creating the thread reply; retry quietly.
+    }
+
+    if (attempts < GROK_REPLY_POLL_MAX_ATTEMPTS && token === grokReplyPollToken) {
+      grokReplyPollTimer = setTimeout(pollOnce, GROK_REPLY_POLL_INTERVAL_MS);
+    }
+  };
+
+  grokReplyPollTimer = setTimeout(pollOnce, 800);
+}
+
 async function loadDanmakus() {
   try {
     danmakus.value = await fetchDanmakus(Number(route.params.id), 0, videoDurationMs.value || 600000);
@@ -774,16 +900,25 @@ async function askVideoAgent() {
 }
 
 async function submitRootComment() {
-  if (!commentForm.value.trim()) {
+  const content = commentForm.value.trim();
+  if (!content) {
     ElMessage.warning('请输入评论内容');
     return;
   }
 
   try {
-    await createComment(Number(route.params.id), { content: commentForm.value.trim() });
+    const videoId = Number(route.params.id);
+    const created = await createComment(videoId, { content });
     commentForm.value = '';
     ElMessage.success('评论成功');
     await Promise.all([loadComments(), loadDetail()]);
+    if (hasGrokMention(content)) {
+      startGrokReplyPolling({
+        videoId,
+        rootId: created.rootId ?? created.id,
+        sourceCommentId: created.id,
+      });
+    }
   } catch {
     ElMessage.error('评论失败，请确认已登录');
   }
@@ -799,14 +934,16 @@ function handleSubmitReply(payload: { parentId: number; rootId: number }) {
 }
 
 async function submitReply(parentId: number, rootId: number) {
-  if (!replyForm.value.trim()) {
+  const content = replyForm.value.trim();
+  if (!content) {
     ElMessage.warning('请输入回复内容');
     return;
   }
 
   try {
-    await createComment(Number(route.params.id), {
-      content: replyForm.value.trim(),
+    const videoId = Number(route.params.id);
+    const created = await createComment(videoId, {
+      content,
       parentId,
       rootId,
     });
@@ -814,6 +951,13 @@ async function submitReply(parentId: number, rootId: number) {
     replyTargetId.value = null;
     ElMessage.success('回复成功');
     await Promise.all([loadComments(), loadDetail()]);
+    if (hasGrokMention(content)) {
+      startGrokReplyPolling({
+        videoId,
+        rootId: created.rootId ?? rootId,
+        sourceCommentId: created.id,
+      });
+    }
   } catch {
     ElMessage.error('回复失败，请确认已登录');
   }
@@ -1073,6 +1217,8 @@ watch(
       resetWatchTracking();
     }
 
+    clearGrokReplyPolling();
+    expandedCommentIds.value = new Set();
     resetAgentState();
     await Promise.all([loadDetail(), loadRecommendations(), loadComments(), loadDanmakus()]);
   },
@@ -1087,6 +1233,7 @@ onBeforeRouteLeave(async () => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('pagehide', handlePageHide);
+  clearGrokReplyPolling();
   void flushWatchProgress('leave', { force: true });
   resetWatchTracking();
 });

@@ -40,6 +40,7 @@
         :root-id="rootId"
         :active-reply-id="activeReplyId"
         :reply-form-value="replyFormValue"
+        :expanded-comment-ids="expandedCommentIds"
         @update:reply-form-value="$emit('update:replyFormValue', $event)"
         @toggle-reply="$emit('toggle-reply', $event)"
         @submit-reply="$emit('submit-reply', $event)"
@@ -50,7 +51,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import type { CommentReply } from '@/types/api';
 
 const props = defineProps<{
@@ -58,6 +59,7 @@ const props = defineProps<{
   rootId: number;
   activeReplyId: number | null;
   replyFormValue: string;
+  expandedCommentIds: Set<number>;
 }>();
 
 const emit = defineEmits<{
@@ -67,7 +69,25 @@ const emit = defineEmits<{
   (e: 'update:replyFormValue', value: string): void;
 }>();
 
-const repliesExpanded = ref(false);
+const repliesExpanded = ref(props.expandedCommentIds.has(props.comment.id));
+
+watch(
+  () => props.expandedCommentIds.has(props.comment.id),
+  (shouldExpand) => {
+    if (shouldExpand) {
+      repliesExpanded.value = true;
+    }
+  },
+);
+
+watch(
+  () => props.comment.replies.length,
+  (nextLength, previousLength) => {
+    if (nextLength > previousLength) {
+      repliesExpanded.value = true;
+    }
+  },
+);
 
 function formatTime(value: string) {
   return new Date(value).toLocaleString('zh-CN');
