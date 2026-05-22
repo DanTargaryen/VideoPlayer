@@ -391,7 +391,7 @@ export class VideoService {
     };
   }
 
-  async getRelatedVideos(id: number, currentUserId?: number) {
+  async getRelatedVideos(id: number, currentUserId?: number, options: { limit?: number } = {}) {
     const current = await this.prisma.video.findUnique({ where: { id } });
 
     if (!current) {
@@ -438,6 +438,7 @@ export class VideoService {
 
     const candidates = [...primaryCandidates, ...fallbackCandidates];
     const now = new Date();
+    const limit = this.normalizeRelatedVideoLimit(options.limit);
 
     return candidates
       .map((video) => ({
@@ -450,8 +451,16 @@ export class VideoService {
           (right.video.publishedAt?.getTime() ?? 0) - (left.video.publishedAt?.getTime() ?? 0) ||
           right.video.id - left.video.id,
       )
-      .slice(0, 6)
+      .slice(0, limit)
       .map((item) => item.video);
+  }
+
+  private normalizeRelatedVideoLimit(limit?: number) {
+    if (!limit || !Number.isFinite(limit) || limit < 1) {
+      return 6;
+    }
+
+    return Math.min(36, Math.floor(limit));
   }
 
   async submitReview(id: number, user: { id: number; role: 'USER' | 'ADMIN' }) {

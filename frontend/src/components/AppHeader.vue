@@ -21,7 +21,10 @@
         class="nav-link"
         :class="{ active: isNavActive(item) }"
       >
-        {{ item.label }}
+        <el-icon :size="15" class="nav-icon">
+          <component :is="navIconFor(item)" />
+        </el-icon>
+        <span>{{ item.label }}</span>
       </RouterLink>
     </nav>
 
@@ -64,15 +67,30 @@
 </template>
 
 <script setup lang="ts">
+import type { Component } from 'vue';
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useRoute, useRouter } from 'vue-router';
-import { ChatDotRound, DocumentChecked, Upload, Promotion, Message, User } from '@element-plus/icons-vue';
+import {
+  ChatDotRound,
+  DocumentChecked,
+  MagicStick,
+  Message,
+  Monitor,
+  Promotion,
+  Reading,
+  StarFilled,
+  Trophy,
+  Upload,
+  User,
+  VideoCameraFilled,
+} from '@element-plus/icons-vue';
 
 import SearchSuggestBox from '@/components/SearchSuggestBox.vue';
 import { fetchCurrentUser, fetchUnreadDirectMessageCount, fetchUnreadNotificationCount } from '@/api/platform';
 import { useAppStore } from '@/stores/app';
 import { primaryNavItems as navItems } from '@/utils/navigation';
+import type { NavItem } from '@/types/menu';
 
 const store = useAppStore();
 const router = useRouter();
@@ -81,15 +99,35 @@ const { siteName, avatarUrl, isLoggedIn, isAdmin, token, unreadNotificationCount
 const searchKeyword = ref(String(route.query.keyword ?? ''));
 let headerSyncTimer: number | null = null;
 
-function isNavActive(item: { path: string }) {
+const navIconMap: Record<string, Component> = {
+  recommend: StarFilled,
+  entertainment: MagicStick,
+  study: Reading,
+  game: Trophy,
+  tech: Monitor,
+  live: VideoCameraFilled,
+};
+
+function navIconFor(item: NavItem) {
+  return item.code ? navIconMap[item.code] ?? StarFilled : StarFilled;
+}
+
+function isNavActive(item: NavItem) {
   if (item.path === '/') {
     return route.path === '/' && !route.query.category;
   }
+
   if (item.path === '/live') {
-    return route.path === '/live';
+    return route.path.startsWith('/live');
   }
+
   const url = new URL(item.path, window.location.origin);
   const itemCategory = url.searchParams.get('category');
+
+  if (!itemCategory) {
+    return route.path === url.pathname;
+  }
+
   return route.path === url.pathname && route.query.category === itemCategory;
 }
 
@@ -220,7 +258,7 @@ function startHeaderSync() {
 .header-bg-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.3));
+  background: var(--theme-header-overlay, linear-gradient(180deg, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.3)));
 }
 
 .brand-wrap {
@@ -270,8 +308,12 @@ function startHeaderSync() {
 }
 
 .nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 8px 16px;
   border-radius: 999px;
+  border: 1px solid transparent;
   color: rgba(255, 255, 255, 0.9);
   text-decoration: none;
   font-size: 14px;
@@ -279,10 +321,17 @@ function startHeaderSync() {
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
+.nav-icon {
+  flex-shrink: 0;
+}
+
 .nav-link:hover,
 .nav-link.active {
-  background: rgba(255, 255, 255, 0.2);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--theme-accent, #2563eb) 68%, #fff), color-mix(in srgb, var(--theme-accent-2, #14b8a6) 60%, #fff));
   color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.48);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--theme-accent, #2563eb) 30%, transparent);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.28);
 }
 
 .search-box {

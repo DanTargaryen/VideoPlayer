@@ -1,8 +1,19 @@
 <template>
   <section class="page">
     <div class="section-head">
-      <h2>{{ categoryLabel }}</h2>
-      <el-button type="primary" size="small" :loading="refreshingFeed" @click="loadFeed">刷新</el-button>
+      <div class="section-title-wrap">
+        <span class="section-icon">
+          <el-icon :size="22">
+            <component :is="categoryIcon" />
+          </el-icon>
+        </span>
+        <span class="section-eyebrow">{{ categoryEyebrow }}</span>
+        <h2 class="section-title">{{ categoryLabel }}</h2>
+      </div>
+      <el-button type="primary" size="small" :loading="refreshingFeed" @click="loadFeed">
+        <el-icon><RefreshRight /></el-icon>
+        <span>刷新</span>
+      </el-button>
     </div>
 
     <template v-if="cards.length > 0">
@@ -77,23 +88,22 @@
     </template>
 
     <el-empty v-else description="当前条件下没有找到相关视频" />
-
-    <div v-if="cards.length > 0" ref="loadMoreTrigger" class="load-more-trigger">
-      <span v-if="loadingMore">正在加载更多视频...</span>
-      <span v-else>继续下拉，加载更多 {{ categoryLabel }} 视频</span>
-    </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import type { Component } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
+import { MagicStick, Monitor, Reading, RefreshRight, Trophy } from '@element-plus/icons-vue';
 
 import VideoMediaCard from '@/components/VideoMediaCard.vue';
 import { fetchRecommendFeed } from '@/api/platform';
 import { videoCategoryOptions, type VideoCategoryCode } from '@/constants/categories';
 import type { VideoCard } from '@/types/api';
+import { mergeUniqueById, takeRandomItems } from '@/utils/randomVideos';
+import { sectionThemes } from '@/utils/sectionThemes';
 
 const props = defineProps<{
   category?: VideoCategoryCode;
@@ -103,14 +113,20 @@ const route = useRoute();
 const cards = ref<VideoCard[]>([]);
 const carousel = ref<VideoCard[]>([]);
 const carouselIndex = ref(0);
-const loadMoreTrigger = ref<HTMLDivElement | null>(null);
 const refreshingFeed = ref(false);
-const loadingMore = ref(false);
-const currentFeedPage = ref(1);
 let carouselTimer: number | null = null;
-let loadMoreObserver: IntersectionObserver | null = null;
 
 const FEED_PAGE_SIZE = 20;
+const FEED_DISPLAY_SIZE = 20;
+const FEED_CANDIDATE_PAGES = 6;
+const FEED_CAROUSEL_SIZE = 5;
+
+const categoryIconMap: Record<VideoCategoryCode, Component> = {
+  entertainment: MagicStick,
+  study: Reading,
+  game: Trophy,
+  tech: Monitor,
+};
 
 const gradientStyles = ref<Record<number, string>>({});
 const defaultGradient = 'linear-gradient(to bottom, transparent 0%, rgba(30, 30, 30, 0.95) 100%)';
@@ -165,15 +181,8 @@ const categoryLabel = computed(() => {
   return found ? found.label : '视频';
 });
 
-function pickCarousel(videos: VideoCard[], count: number): VideoCard[] {
-  if (videos.length <= count) return [...videos];
-  const shuffled = [...videos];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled.slice(0, count);
-}
+const categoryEyebrow = computed(() => sectionThemes[categoryCode.value]?.eyebrow ?? 'Channel');
+const categoryIcon = computed(() => categoryIconMap[categoryCode.value] ?? MagicStick);
 
 const topRightCards = computed(() => cards.value.slice(0, 4));
 const restCards = computed(() => cards.value.slice(4));
@@ -212,33 +221,10 @@ async function fetchFeedPage(page: number) {
   });
 }
 
-async function loadMoreFeed() {
-  if (loadingMore.value || refreshingFeed.value || cards.value.length === 0) {
-    return;
-  }
-
-  loadingMore.value = true;
-  try {
-    let nextPage = currentFeedPage.value;
-    let videos = await fetchFeedPage(nextPage);
-
-    if (videos.length === 0) {
-      nextPage = 1;
-      videos = await fetchFeedPage(nextPage);
-      if (videos.length === 0) {
-        return;
-      }
-      currentFeedPage.value = 2;
-    } else {
-      currentFeedPage.value = nextPage + 1;
-    }
-
-    cards.value = [...cards.value, ...videos];
-  } catch {
-    ElMessage.error(`加载更多${categoryLabel.value}视频失败`);
-  } finally {
-    loadingMore.value = false;
-  }
+async function fetchFeedCandidates() {
+  const pages = Array.from({ length: FEED_CANDIDATE_PAGES }, (_, index) => index + 1);
+  const groups = await Promise.all(pages.map((page) => fetchFeedPage(page)));
+  return mergeUniqueById(groups);
 }
 
 async function loadFeed() {
@@ -250,11 +236,10 @@ async function loadFeed() {
   try {
     stopCarouselTimer();
     gradientStyles.value = {};
-    const videos = await fetchFeedPage(1);
-    cards.value = videos;
-    carousel.value = pickCarousel(videos, Math.min(5, Math.max(3, videos.length)));
+    const candidates = await fetchFeedCandidates();
+    cards.value = takeRandomItems(candidates, FEED_DISPLAY_SIZE);
+    carousel.value = takeRandomItems(cards.value, Math.min(FEED_CAROUSEL_SIZE, Math.max(3, cards.value.length)));
     carouselIndex.value = 0;
-    currentFeedPage.value = 2;
     startCarouselTimer();
   } catch {
     ElMessage.error(`加载${categoryLabel.value}视频失败`);
@@ -263,53 +248,16 @@ async function loadFeed() {
   }
 }
 
-function stopLoadMoreObserver() {
-  if (loadMoreObserver) {
-    loadMoreObserver.disconnect();
-    loadMoreObserver = null;
-  }
-}
-
-function setupLoadMoreObserver() {
-  stopLoadMoreObserver();
-
-  if (!loadMoreTrigger.value || typeof IntersectionObserver === 'undefined') {
-    return;
-  }
-
-  loadMoreObserver = new IntersectionObserver(
-    (entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) {
-        void loadMoreFeed();
-      }
-    },
-    {
-      rootMargin: '240px 0px',
-    },
-  );
-
-  loadMoreObserver.observe(loadMoreTrigger.value);
-}
-
-watch(loadMoreTrigger, () => {
-  void nextTick(() => {
-    setupLoadMoreObserver();
-  });
-});
-
 watch(categoryCode, () => {
   void loadFeed();
 });
 
 onMounted(async () => {
   await loadFeed();
-  await nextTick();
-  setupLoadMoreObserver();
 });
 
 onUnmounted(() => {
   stopCarouselTimer();
-  stopLoadMoreObserver();
 });
 </script>
 
@@ -326,9 +274,47 @@ onUnmounted(() => {
   gap: 16px;
 }
 
-.section-head h2 {
+.section-title-wrap {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 12px;
+  align-items: center;
+}
+
+.section-icon {
+  grid-row: span 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  color: #fff;
+  background: var(--theme-title-gradient, linear-gradient(135deg, #2563eb, #14b8a6));
+  box-shadow: 0 12px 28px var(--theme-soft-strong, rgba(37, 99, 235, 0.18));
+}
+
+.section-title {
   margin: 0;
-  color: #111827;
+  width: fit-content;
+  color: transparent;
+  background: var(--theme-title-gradient, linear-gradient(135deg, #2563eb, #14b8a6));
+  -webkit-background-clip: text;
+  background-clip: text;
+  font-family: "STKaiti", "KaiTi", "Microsoft YaHei", sans-serif;
+  font-size: 30px;
+  font-weight: 900;
+  text-shadow: 0 10px 22px var(--theme-soft-strong, rgba(37, 99, 235, 0.18));
+}
+
+.section-eyebrow {
+  display: inline-flex;
+  margin-bottom: 4px;
+  color: var(--theme-accent, #2563eb);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .featured-row {
@@ -416,15 +402,6 @@ onUnmounted(() => {
 
 .meta-creator {
   font-weight: 500;
-}
-
-.load-more-trigger {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 56px;
-  color: #6b7280;
-  font-size: 14px;
 }
 
 .meta-stats {

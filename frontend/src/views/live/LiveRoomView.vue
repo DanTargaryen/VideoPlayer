@@ -2,8 +2,13 @@
   <section class="live-page">
     <header class="hero-panel">
       <div class="hero-copy">
-        <span class="eyebrow">Live</span>
-        <h1>直播</h1>
+        <div class="section-title-wrap">
+          <span class="section-icon">
+            <el-icon :size="24"><VideoCameraFilled /></el-icon>
+          </span>
+          <span class="eyebrow">On Air</span>
+          <h1 class="section-title">直播</h1>
+        </div>
         <p>顶部一键开播，下方直接逛直播广场。主播可选择摄像头或屏幕共享，观众进入后可实时观看并发送弹幕。</p>
         <div class="hero-stats">
           <article class="hero-stat">
@@ -23,7 +28,10 @@
 
       <div class="hero-actions">
         <el-button v-if="activeRoom" plain size="large" @click="goToMyRoom">进入我的直播间</el-button>
-        <el-button plain size="large" @click="loadHubRooms">刷新广场</el-button>
+        <el-button plain size="large" @click="loadHubRooms">
+          <el-icon><RefreshRight /></el-icon>
+          <span>刷新广场</span>
+        </el-button>
       </div>
     </header>
 
@@ -269,6 +277,7 @@ import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from
 import { ElMessage } from 'element-plus';
 import { storeToRefs } from 'pinia';
 import { useRoute, useRouter } from 'vue-router';
+import { RefreshRight, VideoCameraFilled } from '@element-plus/icons-vue';
 
 import {
   createLiveMessage,
@@ -427,9 +436,13 @@ onUnmounted(() => { closeRoomEventSource(); closePublisherEventSource(); closeVi
 <style scoped>
 .live-page { display: grid; gap: 24px; }
 .panel { border-radius: 28px; background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.98)); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 4px 24px rgba(15,23,42,.06); }
-.hero-panel { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; padding: 34px 36px; border-radius: 32px; background: radial-gradient(circle at top left, rgba(59,130,246,.12), transparent 28%), radial-gradient(circle at right center, rgba(37,99,235,.08), transparent 30%), linear-gradient(135deg, #eff6ff, #ffffff 40%, #f0f9ff 100%); border: 1px solid rgba(37,99,235,.12); }
-.eyebrow, .section-kicker { display: inline-block; margin-bottom: 10px; padding: 6px 10px; border-radius: 999px; background: rgba(37,99,235,.1); color: #2563eb; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
+.hero-panel { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; padding: 34px 36px; border-radius: 32px; background: radial-gradient(circle at top left, var(--theme-soft-strong, rgba(59,130,246,.12)), transparent 28%), radial-gradient(circle at right center, var(--theme-soft, rgba(37,99,235,.08)), transparent 30%), linear-gradient(135deg, #fff, color-mix(in srgb, var(--theme-accent, #2563eb) 8%, #fff) 100%); border: 1px solid var(--theme-soft-strong, rgba(37,99,235,.12)); }
+.section-title-wrap { display: grid; grid-template-columns: auto 1fr; column-gap: 14px; align-items: center; }
+.section-icon { grid-row: span 2; display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 16px; color: #fff; background: var(--theme-title-gradient, linear-gradient(135deg, #dc2626, #f59e0b)); box-shadow: 0 14px 32px var(--theme-soft-strong, rgba(220,38,38,.22)); }
+.eyebrow, .section-kicker { display: inline-block; margin-bottom: 10px; padding: 6px 10px; border-radius: 999px; background: var(--theme-soft, rgba(37,99,235,.1)); color: var(--theme-accent, #2563eb); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
+.section-title { width: fit-content; color: transparent; background: var(--theme-title-gradient, linear-gradient(135deg, #dc2626, #f59e0b)); -webkit-background-clip: text; background-clip: text; font-family: "STKaiti", "KaiTi", "Microsoft YaHei", sans-serif; font-size: 42px; font-weight: 900; text-shadow: 0 12px 28px var(--theme-soft-strong, rgba(220,38,38,.22)); }
 .hero-copy h1, .section-head h2, .room-head h2 { margin: 0; color: #111827; }
+.hero-copy h1.section-title { color: transparent; }
 .hero-copy p, .section-head p, .compact-head p, .muted { margin: 10px 0 0; color: #4b5563; line-height: 1.75; }
 .hero-stats { display: flex; gap: 14px; margin-top: 24px; flex-wrap: wrap; }
 .hero-stat { min-width: 120px; padding: 16px 18px; border-radius: 20px; background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.06); }

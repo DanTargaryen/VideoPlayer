@@ -5,7 +5,10 @@
         <h1>审核后台</h1>
         <p>这里统一处理视频审核、文本审核和举报记录。</p>
       </div>
-      <el-button type="primary" @click="refreshAll">刷新数据</el-button>
+      <el-button type="primary" @click="refreshAll">
+        <el-icon><RefreshRight /></el-icon>
+        <span>刷新数据</span>
+      </el-button>
     </div>
 
     <div class="stats-grid">
@@ -119,6 +122,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { RefreshRight } from '@element-plus/icons-vue';
 
 import {
   fetchAdminDashboard,

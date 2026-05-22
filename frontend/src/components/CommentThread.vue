@@ -1,16 +1,21 @@
 <template>
-  <article class="comment-node">
+  <article class="comment-node" :class="{ 'comment-node-pending': comment.isPendingGrok }">
     <div class="comment-main">
       <strong>{{ comment.user.nickname }}</strong>
-      <p>{{ comment.content }}</p>
+      <p>
+        {{ comment.content }}
+        <span v-if="comment.isPendingGrok" class="pending-dots" aria-hidden="true">
+          <i></i><i></i><i></i>
+        </span>
+      </p>
       <div class="comment-meta">
-        <span>{{ formatTime(comment.createdAt) }}</span>
-        <button class="link-btn" @click="toggleReplyBox">回复</button>
-        <button class="link-btn danger" @click="$emit('report', comment.id)">举报</button>
+        <span>{{ comment.isPendingGrok ? '等待回复中' : formatTime(comment.createdAt) }}</span>
+        <button v-if="!comment.isPendingGrok" class="link-btn" @click="toggleReplyBox">回复</button>
+        <button v-if="!comment.isPendingGrok" class="link-btn danger" @click="$emit('report', comment.id)">举报</button>
       </div>
     </div>
 
-    <div v-if="activeReplyId === comment.id" class="reply-box">
+    <div v-if="!comment.isPendingGrok && activeReplyId === comment.id" class="reply-box">
       <el-input
         :model-value="replyFormValue"
         type="textarea"
@@ -113,6 +118,12 @@ function handleSubmitReply() {
   gap: 8px;
 }
 
+.comment-node-pending {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(37, 99, 235, 0.05);
+}
+
 .comment-main strong {
   color: #111827;
 }
@@ -121,6 +132,43 @@ function handleSubmitReply() {
   margin: 0;
   color: #374151;
   line-height: 1.6;
+}
+
+.pending-dots {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.pending-dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #2563eb;
+  animation: pending-bounce 1s infinite ease-in-out;
+}
+
+.pending-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.pending-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes pending-bounce {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+
+  40% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
 }
 
 .comment-meta {

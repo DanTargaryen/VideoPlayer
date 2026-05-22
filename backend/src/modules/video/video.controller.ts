@@ -278,9 +278,14 @@ export class VideoController {
   async getRecommendations(
     @Headers('authorization') authorization: string | undefined,
     @Param('id', ParseIntPipe) id: number,
+    @Query('limit') limit?: string,
   ) {
     const user = await this.authService.getCurrentUser(authorization);
-    return ok(await this.videoService.getRelatedVideos(id, user?.id));
+    return ok(
+      await this.videoService.getRelatedVideos(id, user?.id, {
+        limit: limit !== undefined ? Number(limit) : undefined,
+      }),
+    );
   }
 
   @Post(':id/submit-review')

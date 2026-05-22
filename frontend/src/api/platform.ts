@@ -265,13 +265,17 @@ export async function createVideoAiChat(payload: { videoId: number; prompt: stri
   return data.data;
 }
 
-export async function fetchRelatedVideos(videoId: number) {
-  const { data } = await http.get<ApiResponse<VideoCard[]>>(`/videos/${videoId}/recommendations`);
+export async function fetchRelatedVideos(videoId: number, params?: { limit?: number }) {
+  const { data } = await http.get<ApiResponse<VideoCard[]>>(`/videos/${videoId}/recommendations`, {
+    params,
+  });
   return data.data;
 }
 
-export async function fetchUserHomepage(id: number) {
-  const { data } = await http.get<ApiResponse<UserHomepage>>(`/users/${id}/homepage`);
+export async function fetchUserHomepage(id: number, params?: { itemLimit?: number }) {
+  const { data } = await http.get<ApiResponse<UserHomepage>>(`/users/${id}/homepage`, {
+    params,
+  });
   return data.data;
 }
 
@@ -644,6 +648,11 @@ export async function sendDirectMessage(targetUserId: number, content: string) {
 
 export async function fetchUnreadDirectMessageCount() {
   const { data } = await http.get<ApiResponse<{ unreadCount: number }>>('/messages/unread-count');
+  return data.data;
+}
+
+export async function readAllDirectMessages() {
+  const { data } = await http.post<ApiResponse<{ success: boolean; updatedCount: number }>>('/messages/read-all');
   return data.data;
 }
 

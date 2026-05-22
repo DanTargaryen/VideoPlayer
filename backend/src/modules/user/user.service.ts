@@ -10,7 +10,7 @@ export class UserService {
     private readonly followService: FollowService,
   ) {}
 
-  async getHomepage(id: number, currentUserId?: number) {
+  async getHomepage(id: number, currentUserId?: number, options: { itemLimit?: number } = {}) {
     const user = await this.prisma.user.findUnique({ where: { id } });
 
     if (!user) {
@@ -24,7 +24,7 @@ export class UserService {
       this.prisma.video.findMany({
         where: { creatorId: id, status: 'PUBLISHED' },
         orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }],
-        take: 12,
+        take: this.normalizeHomepageItemLimit(options.itemLimit),
       }),
       this.followService.isFollowing(id, currentUserId),
     ]);
@@ -42,6 +42,14 @@ export class UserService {
       coinBalance: currentUserId === id ? user.coinBalance : undefined,
       items: videos,
     };
+  }
+
+  private normalizeHomepageItemLimit(itemLimit?: number) {
+    if (!itemLimit || !Number.isFinite(itemLimit) || itemLimit < 1) {
+      return 12;
+    }
+
+    return Math.min(60, Math.floor(itemLimit));
   }
 
   async deleteAccount(userId: number, password: string): Promise<void> {

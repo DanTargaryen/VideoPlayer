@@ -48,4 +48,10 @@ export class MessageController {
     const user = await this.authService.requireUser(authorization);
     return ok(await this.messageService.getUnreadCount(user.id));
   }
+
+  @Post('read-all')
+  async readAll(@Headers('authorization') authorization?: string) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.messageService.markAllAsRead(user.id));
+  }
 }
