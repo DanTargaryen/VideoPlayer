@@ -1,4 +1,18 @@
-import { BadRequestException, Body, Controller, Delete, Get, Headers, Param, ParseIntPipe, Post, Put, UploadedFile, UseInterceptors } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  Param,
+  ParseIntPipe,
+  Post,
+  Put,
+  Query,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Express } from 'express';
 import { IsEmail, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
@@ -113,8 +127,13 @@ export class UserController {
   async getHomepage(
     @Headers('authorization') authorization: string | undefined,
     @Param('id', ParseIntPipe) id: number,
+    @Query('itemLimit') itemLimit?: string,
   ) {
     const user = await this.authService.getCurrentUser(authorization);
-    return ok(await this.userService.getHomepage(id, user?.id));
+    return ok(
+      await this.userService.getHomepage(id, user?.id, {
+        itemLimit: itemLimit !== undefined ? Number(itemLimit) : undefined,
+      }),
+    );
   }
 }

@@ -136,6 +136,7 @@ export interface CommentReply {
   status: 'NORMAL' | 'HIDDEN' | 'DELETED';
   createdAt: string;
   updatedAt: string;
+  isPendingGrok?: boolean;
   user: {
     id: number;
     nickname: string;

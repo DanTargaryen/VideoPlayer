@@ -95,7 +95,10 @@
         <section class="comments" v-if="video">
           <div class="comments-head">
             <h2>评论</h2>
-            <el-button type="primary" plain @click="loadComments">刷新评论</el-button>
+            <el-button type="primary" plain @click="loadComments">
+              <el-icon><RefreshRight /></el-icon>
+              <span>刷新评论</span>
+            </el-button>
           </div>
 
           <el-input
@@ -220,7 +223,10 @@
         <div class="recommend-panel">
           <div class="panel-head">
             <h2>相关推荐</h2>
-            <el-button type="primary" text @click="loadRecommendations">刷新</el-button>
+            <el-button type="primary" text :loading="recommendationsLoading" @click="loadRecommendations">
+              <el-icon><RefreshRight /></el-icon>
+              <span>刷新</span>
+            </el-button>
           </div>
           <div class="recommend-list">
             <RouterLink v-for="item in recommendations" :key="item.id" :to="`/video/${item.id}`" class="recommend-card">
@@ -318,7 +324,7 @@
 import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { onBeforeRouteLeave, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { StarFilled, ChatDotRound, Warning, ArrowRight, Coin } from '@element-plus/icons-vue';
+import { StarFilled, ChatDotRound, Warning, ArrowRight, Coin, RefreshRight } from '@element-plus/icons-vue';
 
 import {
   createVideoAiChat,
@@ -345,6 +351,7 @@ import {
 import CommentThread from '@/components/CommentThread.vue';
 import DanmakuOverlay from '@/components/DanmakuOverlay.vue';
 import { useAppStore } from '@/stores/app';
+import { takeRandomItems } from '@/utils/randomVideos';
 import type {
   CommentItem,
   DanmakuItem,
@@ -360,6 +367,9 @@ const WATCH_PROGRESS_MAX_DELTA_SECONDS = 5;
 const GROK_MENTION_PATTERN = /@grok\b/i;
 const GROK_REPLY_POLL_INTERVAL_MS = 2000;
 const GROK_REPLY_POLL_MAX_ATTEMPTS = 30;
+const GROK_PENDING_REPLY_TEXT = 'Grok 正在生成回复，请稍候';
+const RELATED_DISPLAY_SIZE = 6;
+const RELATED_CANDIDATE_SIZE = 24;
 
 interface AgentMessage {
   id: number;
@@ -373,6 +383,7 @@ const loading = ref(false);
 const video = ref<VideoDetail | null>(null);
 const videoRef = ref<HTMLVideoElement | null>(null);
 const recommendations = ref<VideoCard[]>([]);
+const recommendationsLoading = ref(false);
 const comments = ref<CommentItem[]>([]);
 const danmakus = ref<DanmakuItem[]>([]);
 const commentForm = ref('');
@@ -421,6 +432,7 @@ const agentMessages = ref<AgentMessage[]>([]);
 let agentMessageSeed = 0;
 let grokReplyPollTimer: ReturnType<typeof setTimeout> | null = null;
 let grokReplyPollToken = 0;
+let grokPendingReplySeed = 0;
 
 const canFollow = computed(
   () => appStore.isLoggedIn && video.value && video.value.creator.id !== appStore.userId,
@@ -657,10 +669,20 @@ async function loadDetail() {
 }
 
 async function loadRecommendations() {
+  if (recommendationsLoading.value) {
+    return;
+  }
+
+  recommendationsLoading.value = true;
   try {
-    recommendations.value = await fetchRelatedVideos(Number(route.params.id));
+    const candidates = await fetchRelatedVideos(Number(route.params.id), {
+      limit: RELATED_CANDIDATE_SIZE,
+    });
+    recommendations.value = takeRandomItems(candidates, RELATED_DISPLAY_SIZE);
   } catch {
     ElMessage.error('加载相关推荐失败');
+  } finally {
+    recommendationsLoading.value = false;
   }
 }
 
@@ -709,6 +731,79 @@ function getDirectReplyIds(thread: CommentItem, commentId: number) {
   return new Set(getDirectReplies(thread, commentId).map((reply) => reply.id));
 }
 
+function createPendingGrokReply(input: { id: number; videoId: number; parentId: number; rootId: number }): CommentItem {
+  return {
+    id: input.id,
+    videoId: input.videoId,
+    userId: 0,
+    parentId: input.parentId,
+    rootId: input.rootId,
+    content: GROK_PENDING_REPLY_TEXT,
+    replyCount: 0,
+    status: 'NORMAL',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isPendingGrok: true,
+    user: {
+      id: 0,
+      nickname: 'Grok',
+    },
+    replies: [],
+  };
+}
+
+function removePendingGrokRepliesFromNode(node: CommentItem, pendingId?: number): CommentItem {
+  return {
+    ...node,
+    replies: node.replies
+      .filter((reply) => !reply.isPendingGrok && (pendingId === undefined || reply.id !== pendingId))
+      .map((reply) => removePendingGrokRepliesFromNode(reply, pendingId)),
+  };
+}
+
+function appendPendingGrokReply(node: CommentItem, sourceCommentId: number, pendingReply: CommentItem): CommentItem {
+  const nextNode = removePendingGrokRepliesFromNode(node, pendingReply.id);
+
+  if (nextNode.id === sourceCommentId) {
+    return {
+      ...nextNode,
+      replies: [...nextNode.replies, pendingReply],
+    };
+  }
+
+  return {
+    ...nextNode,
+    replies: nextNode.replies.map((reply) => appendPendingGrokReply(reply, sourceCommentId, pendingReply)),
+  };
+}
+
+function removePendingGrokReplies(pendingId?: number) {
+  comments.value = comments.value.map((item) => removePendingGrokRepliesFromNode(item, pendingId));
+}
+
+function insertPendingGrokReply(input: {
+  videoId: number;
+  rootId: number;
+  sourceCommentId: number;
+  pendingReplyId: number;
+}) {
+  const pendingReply = createPendingGrokReply({
+    id: input.pendingReplyId,
+    videoId: input.videoId,
+    parentId: input.sourceCommentId,
+    rootId: input.rootId,
+  });
+
+  comments.value = comments.value.map((item) =>
+    item.id === input.rootId ? appendPendingGrokReply(item, input.sourceCommentId, pendingReply) : item,
+  );
+
+  const root = comments.value.find((item) => item.id === input.rootId);
+  if (root) {
+    expandCommentPath(root, input.sourceCommentId);
+  }
+}
+
 function isLikelyGrokReply(comment: CommentItem) {
   return /grok|机器人|智能体/i.test(comment.user.nickname);
 }
@@ -752,11 +847,19 @@ function upsertCommentThread(thread: CommentItem) {
 
 function startGrokReplyPolling(input: { videoId: number; rootId: number; sourceCommentId: number }) {
   clearGrokReplyPolling();
+  removePendingGrokReplies();
 
   const token = grokReplyPollToken;
   let attempts = 0;
   const existingThread = comments.value.find((item) => item.id === input.rootId);
   let knownReplyIds = existingThread ? getDirectReplyIds(existingThread, input.sourceCommentId) : new Set<number>();
+  grokPendingReplySeed -= 1;
+  const pendingReplyId = grokPendingReplySeed;
+
+  insertPendingGrokReply({
+    ...input,
+    pendingReplyId,
+  });
 
   const pollOnce = async () => {
     if (token !== grokReplyPollToken || Number(route.params.id) !== input.videoId) {
@@ -767,17 +870,23 @@ function startGrokReplyPolling(input: { videoId: number; rootId: number; sourceC
 
     try {
       const thread = await fetchCommentThread(input.videoId, input.rootId);
-      upsertCommentThread(thread);
-      expandCommentPath(thread, input.sourceCommentId);
-
       const directReplies = getDirectReplies(thread, input.sourceCommentId);
       const newReplies = directReplies.filter((reply) => !knownReplyIds.has(reply.id));
       const replyIds = new Set(directReplies.map((reply) => reply.id));
       if (newReplies.some(isLikelyGrokReply)) {
+        upsertCommentThread(thread);
+        expandCommentPath(thread, input.sourceCommentId);
         clearGrokReplyPolling();
         await loadDetail();
         return;
       }
+
+      upsertCommentThread(thread);
+      expandCommentPath(thread, input.sourceCommentId);
+      insertPendingGrokReply({
+        ...input,
+        pendingReplyId,
+      });
       knownReplyIds = replyIds;
     } catch {
       // The task worker may still be creating the thread reply; retry quietly.
@@ -785,6 +894,13 @@ function startGrokReplyPolling(input: { videoId: number; rootId: number; sourceC
 
     if (attempts < GROK_REPLY_POLL_MAX_ATTEMPTS && token === grokReplyPollToken) {
       grokReplyPollTimer = setTimeout(pollOnce, GROK_REPLY_POLL_INTERVAL_MS);
+      return;
+    }
+
+    if (token === grokReplyPollToken) {
+      removePendingGrokReplies(pendingReplyId);
+      grokReplyPollTimer = null;
+      ElMessage.info('Grok 回复还在生成中，可稍后刷新评论');
     }
   };
 

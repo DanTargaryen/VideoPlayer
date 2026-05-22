@@ -216,6 +216,24 @@ export class MessageService {
     return { unreadCount };
   }
 
+  async markAllAsRead(userId: number) {
+    const result = await this.prisma.directMessage.updateMany({
+      where: {
+        recipientId: userId,
+        isRead: false,
+      },
+      data: {
+        isRead: true,
+        readAt: new Date(),
+      },
+    });
+
+    return {
+      success: true,
+      updatedCount: result.count,
+    };
+  }
+
   private async resolveSendPermission(
     senderId: number,
     recipientId: number,

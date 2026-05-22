@@ -5,15 +5,30 @@
         <h1>私信</h1>
         <p>与其他用户一对一聊天，并按对方设置遵守私信权限。</p>
       </div>
-      <el-button type="primary" plain @click="refreshAll">刷新</el-button>
+      <div class="hero-actions">
+        <el-button
+          type="primary"
+          plain
+          :loading="markingAllRead"
+          :disabled="totalUnreadCount === 0"
+          @click="handleReadAll"
+        >
+          <el-icon><Check /></el-icon>
+          <span>全部已读</span>
+        </el-button>
+        <el-button type="primary" plain :loading="refreshing" @click="refreshAll">
+          <el-icon><RefreshRight /></el-icon>
+          <span>刷新</span>
+        </el-button>
+      </div>
     </div>
 
     <div class="layout">
       <aside class="sidebar">
         <section class="sidebar-card">
           <div class="section-head">
-            <h2>我的关注</h2>
-            <span class="subtle">按最近对话排序</span>
+            <h2>会话</h2>
+            <span class="subtle">未读 {{ totalUnreadCount }}</span>
           </div>
           <div v-if="followingConversationList.length > 0" class="user-list">
             <button
@@ -31,11 +46,12 @@
                   <span v-if="item.lastMessage" class="time">{{ formatListTime(item.lastMessage.createdAt) }}</span>
                 </div>
                 <p class="preview">{{ formatSidebarPreview(item) }}</p>
+                <span v-if="item.source === 'conversation' && !item.isFollowing" class="source-tag">来信</span>
               </div>
               <span v-if="item.unreadCount > 0" class="unread-pill">{{ item.unreadCount }}</span>
             </button>
           </div>
-          <el-empty v-else description="你还没有关注任何人" />
+          <el-empty v-else description="暂无会话或关注联系人" />
         </section>
       </aside>
 
@@ -123,12 +139,14 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
+import { Check, RefreshRight } from '@element-plus/icons-vue';
 
 import {
   fetchDirectMessageConversation,
   fetchDirectMessageConversations,
   fetchFollowing,
   fetchUnreadDirectMessageCount,
+  readAllDirectMessages,
   sendDirectMessage,
 } from '@/api/platform';
 import { useAppStore } from '@/stores/app';
@@ -145,6 +163,8 @@ const activeConversation = ref<DirectMessageConversationDetail | null>(null);
 const activeTargetUserId = ref<number | null>(null);
 const messageDraft = ref('');
 const sendingMessage = ref(false);
+const refreshing = ref(false);
+const markingAllRead = ref(false);
 const messageListRef = ref<HTMLDivElement | null>(null);
 
 const initialTargetUserId = computed(() => {
@@ -160,24 +180,53 @@ const currentUserAvatar = computed(() => store.avatarUrl || fallbackAvatar);
 type FollowingConversationItem = FollowUserItem & {
   unreadCount: number;
   lastMessage: DirectMessageConversationSummary['lastMessage'] | null;
+  isFollowing: boolean;
+  source: 'conversation' | 'following';
 };
+
+const totalUnreadCount = computed(() =>
+  conversations.value.reduce((total, item) => total + item.unreadCount, 0),
+);
 
 const followingConversationList = computed<FollowingConversationItem[]>(() => {
   const conversationMap = new Map(conversations.value.map((item) => [item.user.id, item] as const));
+  const contactMap = new Map(followingContacts.value.map((item) => [item.id, item] as const));
+  const ids = new Set<number>([
+    ...conversations.value.map((item) => item.user.id),
+    ...followingContacts.value.map((item) => item.id),
+  ]);
 
-  return [...followingContacts.value]
-    .map((contact) => {
-      const conversation = conversationMap.get(contact.id);
-      return {
-        ...contact,
+  return Array.from(ids)
+    .reduce<FollowingConversationItem[]>((items, id) => {
+      const conversation = conversationMap.get(id);
+      const contact = contactMap.get(id);
+      const base = contact ?? conversation?.user;
+
+      if (!base) {
+        return items;
+      }
+
+      items.push({
+        id: base.id,
+        nickname: base.nickname,
+        avatarUrl: base.avatarUrl,
+        followedAt: contact?.followedAt ?? conversation?.lastMessage.createdAt ?? new Date(0).toISOString(),
         unreadCount: conversation?.unreadCount ?? 0,
         lastMessage: conversation?.lastMessage ?? null,
-      };
-    })
+        isFollowing: Boolean(contact),
+        source: conversation ? 'conversation' : 'following',
+      });
+
+      return items;
+    }, [])
     .sort((left, right) => {
-      const leftTime = left.lastMessage?.createdAt ?? left.followedAt;
-      const rightTime = right.lastMessage?.createdAt ?? right.followedAt;
-      return new Date(rightTime).getTime() - new Date(leftTime).getTime();
+      if (left.unreadCount !== right.unreadCount) {
+        return right.unreadCount - left.unreadCount;
+      }
+
+      const leftTime = new Date(left.lastMessage?.createdAt ?? left.followedAt).getTime();
+      const rightTime = new Date(right.lastMessage?.createdAt ?? right.followedAt).getTime();
+      return rightTime - leftTime;
     });
 });
 
@@ -263,6 +312,7 @@ async function refreshAll() {
     return;
   }
 
+  refreshing.value = true;
   try {
     await Promise.all([loadConversations(), loadFollowingContacts(), syncUnreadCount()]);
     const targetUserId = activeTargetUserId.value ?? initialTargetUserId.value;
@@ -271,6 +321,41 @@ async function refreshAll() {
     }
   } catch {
     ElMessage.error('加载私信数据失败');
+  } finally {
+    refreshing.value = false;
+  }
+}
+
+async function handleReadAll() {
+  if (!store.isLoggedIn || markingAllRead.value) {
+    return;
+  }
+
+  markingAllRead.value = true;
+  try {
+    const result = await readAllDirectMessages();
+    conversations.value = conversations.value.map((item) => ({
+      ...item,
+      unreadCount: 0,
+    }));
+    if (activeConversation.value) {
+      activeConversation.value.messages = activeConversation.value.messages.map((item) =>
+        item.recipientId === store.userId
+          ? {
+              ...item,
+              isRead: true,
+              readAt: item.readAt ?? new Date().toISOString(),
+            }
+          : item,
+      );
+    }
+    store.setUnreadDirectMessageCount(0);
+    ElMessage.success(result.updatedCount > 0 ? `已标记 ${result.updatedCount} 条私信为已读` : '没有未读私信');
+    await Promise.all([loadConversations(), syncUnreadCount()]);
+  } catch {
+    ElMessage.error('标记私信已读失败');
+  } finally {
+    markingAllRead.value = false;
   }
 }
 
@@ -338,6 +423,13 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+}
+
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .hero h1 {
@@ -492,6 +584,18 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.source-tag {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .unread-pill {
