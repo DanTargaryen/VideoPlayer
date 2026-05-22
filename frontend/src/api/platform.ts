@@ -1,6 +1,7 @@
 import http from './http';
 import type {
   ApiResponse,
+  CommentItem,
   CommentListResponse,
   CommentReply,
   CoinWallet,
@@ -431,6 +432,11 @@ export async function handleReport(reportId: number, action: 'KEEP' | 'HIDE' | '
 
 export async function fetchComments(videoId: number) {
   const { data } = await http.get<ApiResponse<CommentListResponse>>(`/videos/${videoId}/comments`);
+  return data.data;
+}
+
+export async function fetchCommentThread(videoId: number, rootId: number) {
+  const { data } = await http.get<ApiResponse<CommentItem>>(`/videos/${videoId}/comments/${rootId}/thread`);
   return data.data;
 }
 
