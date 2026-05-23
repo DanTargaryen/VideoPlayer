@@ -1,7 +1,15 @@
 <template>
   <div class="shell" :class="[theme.className, { 'shell--home': route.name === 'home', 'shell--video-detail': route.name === 'video-detail' }]">
     <AppHeader />
-    <main class="content" :class="{ 'content--home': route.name === 'home', 'content--video-detail': route.name === 'video-detail' }">
+    <main
+      class="content"
+      :class="{
+        'content--home': route.name === 'home',
+        'content--video-detail': route.name === 'video-detail',
+        'content--dynamic': route.name === 'notifications',
+        'content--live': route.name === 'live-room',
+      }"
+    >
       <RouterView />
     </main>
   </div>
@@ -65,8 +73,24 @@ const theme = computed(() => resolveSectionTheme(route));
   background: transparent;
 }
 
+.content--dynamic {
+  width: 100%;
+  max-width: none;
+  padding: 28px clamp(28px, 4vw, 72px) 38px;
+  background: transparent;
+}
+
+.content--live {
+  width: 100%;
+  max-width: none;
+  padding: 24px clamp(28px, 4vw, 72px) 40px;
+  background: transparent;
+}
+
 @media (max-width: 760px) {
-  .content--video-detail {
+  .content--video-detail,
+  .content--dynamic,
+  .content--live {
     padding: 18px 16px 30px;
   }
 }
@@ -111,8 +135,8 @@ const theme = computed(() => resolveSectionTheme(route));
   --theme-accent: var(--color-primary);
   --theme-accent-2: var(--color-primary);
   --theme-accent-3: var(--color-danger);
-  --theme-soft: rgba(220, 38, 38, 0.1);
-  --theme-soft-strong: rgba(220, 38, 38, 0.24);
+  --theme-soft: rgba(37, 99, 235, 0.08);
+  --theme-soft-strong: rgba(37, 99, 235, 0.16);
   --theme-page-bg: var(--color-bg-page);
 }
 </style>

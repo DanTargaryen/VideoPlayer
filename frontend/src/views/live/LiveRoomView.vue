@@ -1,98 +1,161 @@
 <template>
   <section class="live-page">
-    <header class="hero-panel">
+    <header v-if="!routeRoomId" class="live-hero">
       <div class="hero-copy">
-        <div class="section-title-wrap">
-          <span class="section-icon">
-            <el-icon :size="24"><VideoCameraFilled /></el-icon>
-          </span>
-          <span class="eyebrow">On Air</span>
-          <h1 class="section-title">直播</h1>
-        </div>
-        <p>顶部一键开播，下方直接逛直播广场。主播可选择摄像头或屏幕共享，观众进入后可实时观看并发送弹幕。</p>
-        <div class="hero-stats">
-          <article class="hero-stat">
-            <strong>{{ plazaRooms.length }}</strong>
-            <span>正在直播</span>
-          </article>
-          <article class="hero-stat">
-            <strong>{{ isLoggedIn ? '已登录' : '游客' }}</strong>
-            <span>当前身份</span>
-          </article>
-          <article class="hero-stat">
-            <strong>{{ activeRoom ? '1' : '0' }}</strong>
-            <span>我的直播间</span>
-          </article>
+        <span class="eyebrow">LIVE CENTER</span>
+        <h1>直播</h1>
+        <p>一键开播，和观众实时互动，分享你的内容。</p>
+        <div class="hero-actions">
+          <el-button type="primary" size="large" @click="scrollToStudio">
+            <el-icon><VideoCameraFilled /></el-icon>
+            <span>我要开播</span>
+          </el-button>
+          <el-button size="large" plain @click="scrollToPlaza">
+            <el-icon><VideoPlay /></el-icon>
+            <span>查看直播广场</span>
+          </el-button>
         </div>
       </div>
 
-      <div class="hero-actions">
-        <el-button v-if="activeRoom" plain size="large" @click="goToMyRoom">进入我的直播间</el-button>
-        <el-button plain size="large" @click="loadHubRooms">
-          <el-icon><RefreshRight /></el-icon>
-          <span>刷新广场</span>
-        </el-button>
+      <div class="hero-art" aria-hidden="true">
+        <div class="hero-orbit"></div>
+        <div class="hero-device">
+          <el-icon><VideoPlay /></el-icon>
+        </div>
       </div>
+
+      <section class="hero-metrics" aria-label="今日数据概览">
+        <h2>今日数据概览</h2>
+        <div class="metric-grid">
+          <article class="metric-card">
+            <span class="metric-icon"><el-icon><DataLine /></el-icon></span>
+            <strong>{{ centerMetrics.livingRoomCount }}</strong>
+            <span>个直播间</span>
+            <small>正在直播</small>
+          </article>
+          <article class="metric-card">
+            <span class="metric-icon metric-icon-purple"><el-icon><VideoCamera /></el-icon></span>
+            <strong>{{ centerMetrics.myLivingRoomCount }}</strong>
+            <span>个直播中</span>
+            <small>我的直播间</small>
+          </article>
+          <article class="metric-card">
+            <span class="metric-icon metric-icon-green"><el-icon><UserFilled /></el-icon></span>
+            <strong>{{ centerMetrics.identity.label }}</strong>
+            <span>{{ centerMetrics.identity.description }}</span>
+            <small>当前身份</small>
+          </article>
+          <article class="metric-card">
+            <span class="metric-icon metric-icon-orange"><el-icon><View /></el-icon></span>
+            <strong>{{ formatCompactNumber(centerMetrics.todayViewerCount) }}</strong>
+            <span>今日观看</span>
+            <small>观看人数</small>
+          </article>
+        </div>
+      </section>
     </header>
 
-    <section v-if="!routeRoomId" class="panel home-studio-panel">
-      <div class="section-head">
-        <div>
-          <span class="section-kicker">Studio</span>
-          <h2>我要直播</h2>
-          <p>填写标题、封面和直播形式，准备预览后即可开播。</p>
-        </div>
-        <el-button plain @click="openStudio">填写直播信息</el-button>
-      </div>
-
-      <div class="studio-grid">
-        <div class="stage-shell preview-shell">
-          <video v-if="hasPreview" ref="previewRef" class="stage-video" autoplay muted playsinline />
-          <div v-else class="stage-placeholder">
-            <strong>还没有准备直播画面</strong>
-            <p>点击“我要直播”后选择摄像头或屏幕共享，预览成功后会显示在这里。</p>
+    <section v-if="!routeRoomId" ref="studioSectionRef" class="live-console-grid">
+      <section class="panel studio-workbench">
+        <h2>我的直播工作台</h2>
+        <div class="studio-main">
+          <div class="stage-shell preview-shell">
+            <video v-if="hasPreview" ref="previewRef" class="stage-video" autoplay muted playsinline />
+            <div v-else class="stage-placeholder">
+              <span class="stage-placeholder-icon"><el-icon><VideoCamera /></el-icon></span>
+              <strong>还没有准备直播画面</strong>
+              <p>选择摄像头或屏幕共享后，可以在这里预览画面。</p>
+            </div>
+            <div class="stage-status">
+              <span :class="{ 'is-ready': hasVideoTrack }">
+                <el-icon><VideoCamera /></el-icon>
+                {{ hasVideoTrack ? `${videoControlLabel}已开启` : `${videoControlLabel}未开启` }}
+              </span>
+              <span :class="{ 'is-ready': hasAudioTrack }">
+                <el-icon><Microphone /></el-icon>
+                {{ hasAudioTrack ? '麦克风已开启' : '麦克风已关闭' }}
+              </span>
+            </div>
+            <div class="stage-tools">
+              <button type="button" aria-label="直播设置"><el-icon><Setting /></el-icon></button>
+              <button type="button" aria-label="全屏预览"><el-icon><FullScreen /></el-icon></button>
+            </div>
+            <div v-if="showPreviewToolbar" class="stage-toolbar">
+              <el-button class="stage-toolbar-button" size="small" plain :disabled="!hasVideoTrack" @click="handleToggleCamera">
+                {{ videoToggleText }}
+              </el-button>
+              <el-button class="stage-toolbar-button" size="small" plain :disabled="!hasAudioTrack" @click="handleToggleMicrophone">
+                {{ microphoneToggleText }}
+              </el-button>
+            </div>
           </div>
-          <div v-if="showPreviewToolbar" class="stage-toolbar">
-            <el-button class="stage-toolbar-button" size="small" plain :disabled="!hasVideoTrack" @click="handleToggleCamera">
-              {{ videoToggleText }}
-            </el-button>
-            <el-button class="stage-toolbar-button" size="small" plain :disabled="!hasAudioTrack" @click="handleToggleMicrophone">
-              {{ microphoneToggleText }}
-            </el-button>
-          </div>
-        </div>
 
-        <aside class="panel-side">
-          <section class="side-card">
-            <div class="meta-row">
+          <form class="live-settings" @submit.prevent="handleStartLive">
+            <h3>直播设置</h3>
+            <label class="form-field">
               <span>直播标题</span>
-              <strong>{{ studioForm.title || '未填写' }}</strong>
+              <el-input v-model="studioForm.title" maxlength="60" show-word-limit placeholder="输入一个吸引人的直播标题" />
+            </label>
+            <label class="form-field">
+              <span>直播分类</span>
+              <el-select v-model="studioForm.category" placeholder="选择直播分类">
+                <el-option v-for="item in streamCategories" :key="item.code" :label="item.label" :value="item.code" />
+              </el-select>
+            </label>
+            <div class="form-field">
+              <span>直播方式</span>
+              <div class="source-options">
+                <button type="button" :class="{ active: studioForm.mode === 'camera' }" @click="studioForm.mode = 'camera'">
+                  <el-icon><VideoCamera /></el-icon>
+                  <strong>摄像头直播</strong>
+                  <small>使用摄像头进行直播</small>
+                </button>
+                <button type="button" :class="{ active: studioForm.mode === 'screen' }" @click="studioForm.mode = 'screen'">
+                  <el-icon><Monitor /></el-icon>
+                  <strong>屏幕共享</strong>
+                  <small>分享屏幕内容直播</small>
+                </button>
+              </div>
             </div>
-            <div class="meta-row">
-              <span>直播形式</span>
-              <strong>{{ sourceModeLabel }}</strong>
+            <div class="form-field">
+              <span>直播封面</span>
+              <button type="button" class="cover-uploader" @click="studioCoverInputRef?.click()">
+                <img v-if="studioForm.coverUrl" :src="studioForm.coverUrl" alt="直播封面预览" />
+                <template v-else>
+                  <el-icon><UploadFilled /></el-icon>
+                  <strong>上传封面</strong>
+                  <small>推荐尺寸 16:9，大小不超过 5MB</small>
+                </template>
+              </button>
+              <input ref="studioCoverInputRef" type="file" accept="image/*" class="hidden-input" @change="handleStudioCoverChange" />
             </div>
-            <div class="meta-row">
-              <span>主播昵称</span>
-              <strong>{{ nickname }}</strong>
+            <div class="setting-actions">
+              <el-button :loading="preparing" @click="handlePreparePreview">准备预览</el-button>
+              <el-button type="primary" native-type="submit" :loading="starting" :disabled="!hasPreview">立即开播</el-button>
             </div>
-            <div class="meta-row">
-              <span>封面状态</span>
-              <strong>{{ studioForm.coverUrl ? '已上传封面' : '未设置封面' }}</strong>
-            </div>
-          </section>
+          </form>
+        </div>
+      </section>
 
-          <section class="side-card" v-if="studioForm.coverUrl">
-            <h3>直播封面</h3>
-            <img :src="studioForm.coverUrl" alt="直播封面" class="cover-preview" />
-          </section>
-
-          <section class="side-card actions-card">
-            <el-button :loading="preparing" @click="handlePreparePreview">准备预览</el-button>
-            <el-button type="danger" :loading="starting" :disabled="!hasPreview" @click="handleStartLive">立即开播</el-button>
-          </section>
-        </aside>
-      </div>
+      <aside class="live-side-rail">
+        <section class="panel checklist-card">
+          <h2>开播清单</h2>
+          <article v-for="item in openChecklist" :key="item.label" class="check-row">
+            <span :class="{ done: item.done }"><el-icon><CircleCheck /></el-icon></span>
+            <strong>{{ item.label }}</strong>
+            <em>{{ item.done ? '已完成' : '未完成' }}</em>
+          </article>
+        </section>
+        <section class="panel tips-card">
+          <h2>直播小提示</h2>
+          <ul>
+            <li v-for="tip in liveTips" :key="tip">{{ tip }}</li>
+          </ul>
+          <RouterLink class="text-link" to="/notifications">
+            查看直播规范 <el-icon><ArrowRight /></el-icon>
+          </RouterLink>
+        </section>
+      </aside>
     </section>
 
     <section v-else class="room-layout">
@@ -206,19 +269,60 @@
       </aside>
     </section>
 
-    <section class="panel plaza-panel">
-      <div class="section-head">
-        <div>
-          <span class="section-kicker">Square</span>
-          <h2>直播广场</h2>
-          <p>按顺序展示当前正在直播中的房间。</p>
+    <section v-if="!routeRoomId" ref="plazaSectionRef" class="live-bottom-grid">
+      <section class="panel plaza-panel">
+        <div class="section-head plaza-head">
+          <div>
+            <h2>直播广场</h2>
+            <p>发现正在直播的精彩内容</p>
+          </div>
+          <button class="refresh-link" type="button" :disabled="plazaLoading" @click="loadHubRooms">
+            <el-icon><RefreshRight /></el-icon>
+            刷新广场
+          </button>
         </div>
-      </div>
 
-      <div v-if="plazaRooms.length > 0" class="room-grid">
-        <LiveRoomCard v-for="room in plazaRooms" :key="room.id" :item="room" />
-      </div>
-      <el-empty v-else description="当前还没有正在直播中的房间" />
+        <div class="category-tabs" role="tablist" aria-label="直播分类">
+          <button
+            v-for="item in liveCategories"
+            :key="item.code"
+            type="button"
+            :class="{ active: selectedPlazaCategory === item.code }"
+            @click="selectedPlazaCategory = item.code"
+          >
+            {{ item.label }}
+          </button>
+        </div>
+
+        <div v-if="plazaLoading" class="live-card-row">
+          <article v-for="index in 4" :key="index" class="live-room-skeleton"></article>
+        </div>
+        <div v-else-if="plazaRooms.length > 0" class="live-card-row">
+          <LiveRoomCard v-for="room in plazaRooms" :key="room.id" :item="room" />
+        </div>
+        <div v-else class="empty-live">
+          <strong>当前还没有正在直播的房间</strong>
+          <span>你可以先开播，或稍后刷新广场。</span>
+        </div>
+      </section>
+
+      <aside class="panel hot-card">
+        <div class="section-head compact-head">
+          <h2>热门直播间</h2>
+          <RouterLink class="text-link" to="/live">更多 <el-icon><ArrowRight /></el-icon></RouterLink>
+        </div>
+        <div v-if="hotRooms.length > 0" class="hot-list">
+          <RouterLink v-for="room in hotRooms" :key="room.id" :to="`/live/${room.id}`" class="hot-item">
+            <img v-if="room.coverUrl" :src="room.coverUrl" :alt="room.title" />
+            <span v-else class="hot-cover-fallback"><el-icon><VideoPlay /></el-icon></span>
+            <span class="hot-info">
+              <strong>{{ room.title }}</strong>
+              <small>{{ room.category }} · {{ formatCompactNumber(room.viewerCount ?? 0) }}人观看</small>
+            </span>
+          </RouterLink>
+        </div>
+        <p v-else class="muted">暂无热门直播间</p>
+      </aside>
     </section>
 
     <el-dialog v-model="studioVisible" title="创建直播" width="620px">
@@ -277,14 +381,16 @@ import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from
 import { ElMessage } from 'element-plus';
 import { storeToRefs } from 'pinia';
 import { useRoute, useRouter } from 'vue-router';
-import { RefreshRight, VideoCameraFilled } from '@element-plus/icons-vue';
 
 import {
   createLiveMessage,
   createLiveRoom,
   createLiveViewer,
+  fetchHotLiveRooms,
+  fetchLiveCenterOverview,
   fetchLiveFrame,
   fetchLiveMessages,
+  fetchLivePlaza,
   fetchLiveRoom,
   fetchLiveRooms,
   fetchLiveSession,
@@ -299,7 +405,23 @@ import {
 } from '@/api/platform';
 import LiveRoomCard from '@/components/live/LiveRoomCard.vue';
 import { useAppStore } from '@/stores/app';
-import type { LiveMessage, LiveRoomInfo, LiveSessionInfo } from '@/types/api';
+import type { LiveCategoryItem, LiveCenterOverview, LiveMessage, LiveRoomInfo, LiveSessionInfo } from '@/types/api';
+import {
+  ArrowRight,
+  CircleCheck,
+  DataLine,
+  FullScreen,
+  Microphone,
+  Monitor,
+  RefreshRight,
+  Setting,
+  UploadFilled,
+  UserFilled,
+  VideoCamera,
+  VideoCameraFilled,
+  VideoPlay,
+  View,
+} from '@element-plus/icons-vue';
 
 type CaptureMode = 'camera' | 'screen';
 type RoomSnapshotPayload = { session: LiveSessionInfo; messages: LiveMessage[] };
@@ -312,15 +434,17 @@ const appStore = useAppStore();
 const { isLoggedIn, nickname, userId } = storeToRefs(appStore);
 const studioVisible = ref(false), saveReplayVisible = ref(false), preparing = ref(false), starting = ref(false), joining = ref(false), stopping = ref(false), sendingMessage = ref(false), savingReplay = ref(false), uploadingStudioCover = ref(false), uploadingReplayCover = ref(false);
 const previewRef = ref<HTMLVideoElement | null>(null), viewerRef = ref<HTMLVideoElement | null>(null), studioCoverInputRef = ref<HTMLInputElement | null>(null), replayCoverInputRef = ref<HTMLInputElement | null>(null);
+const studioSectionRef = ref<HTMLElement | null>(null), plazaSectionRef = ref<HTMLElement | null>(null);
 const previewStream = ref<MediaStream | null>(null), remoteStream = ref<MediaStream | null>(null), mediaRecorder = ref<MediaRecorder | null>(null), recordedBlob = ref<Blob | null>(null), recordingPreviewUrl = ref(''), liveFrameUrl = ref(''), liveFrameUpdatedAt = ref<string | null>(null);
 const cameraEnabled = ref(false), microphoneEnabled = ref(false);
 const activeRoom = ref<LiveRoomInfo | null>(null), liveSession = ref<LiveSessionInfo | null>(null), fetchedSession = ref<LiveSessionInfo | null>(null), hubRooms = ref<LiveRoomInfo[]>([]), liveMessages = ref<LiveMessage[]>([]), activeDanmaku = ref<DanmakuOverlayItem[]>([]), chatDraft = ref('');
+const centerOverview = ref<LiveCenterOverview | null>(null), hotRooms = ref<LiveRoomInfo[]>([]), liveCategories = ref<LiveCategoryItem[]>([]), selectedPlazaCategory = ref('all'), plazaLoading = ref(false);
 const viewerPeer = ref<RTCPeerConnection | null>(null), viewerRoomId = ref<number | null>(null), viewerId = ref<number | null>(null);
 const publisherPeers = new Map<number, RTCPeerConnection>(), displayedDanmakuIds = new Set<number>(), danmakuTimers = new Map<number, number>();
 let nextDanmakuUid = 1, nextDanmakuTrack = 0, nextOptimisticMessageId = -1, danmakuRoomId: number | null = null, hubPollTimer: ReturnType<typeof setInterval> | null = null, publisherPollTimer: ReturnType<typeof setInterval> | null = null, viewerAnswerPollTimer: ReturnType<typeof setInterval> | null = null, framePublishTimer: ReturnType<typeof setInterval> | null = null, framePollTimer: ReturnType<typeof setInterval> | null = null, roomEventSource: EventSource | null = null, publisherEventSource: EventSource | null = null, viewerEventSource: EventSource | null = null, recordedChunks: Blob[] = [];
 let frameCanvas: HTMLCanvasElement | null = null, frameUploading = false, viewerCompatNotifiedRoomId: number | null = null;
 
-const studioForm = reactive({ title: '一起聊聊今天的内容', coverUrl: '', mode: 'camera' as CaptureMode });
+const studioForm = reactive({ title: '一起聊聊今天的内容', category: 'study', coverUrl: '', mode: 'camera' as CaptureMode });
 const replayForm = reactive({ title: '', description: '', coverUrl: '' });
 
 const routeRoomId = computed<number | null>(() => { const id = Number(route.params.id); return Number.isFinite(id) && id > 0 ? id : null; });
@@ -356,11 +480,35 @@ const placeholderTitle = computed(() => isViewerMode.value ? (displayedSession.v
 const placeholderDescription = computed(() => isViewerMode.value ? (displayedSession.value?.status === 'LIVING' ? '页面会先尝试 RTC，若失败将自动切换为兼容画面模式。' : '主播结束后，你仍然可以在右侧查看弹幕记录。') : '完成摄像头或屏幕共享预览后，即可开始直播。');
 const showQuickSaveActions = computed(() => Boolean(isCurrentHostRoom.value && recordedBlob.value && displayedSession.value?.status === 'ENDED'));
 const viewerActionText = computed(() => hasRemotePlayback.value ? '重新连接 RTC' : hasFramePlayback.value ? '刷新连接' : '进入观看');
+const centerMetrics = computed(() => centerOverview.value?.metrics ?? {
+  livingRoomCount: plazaRooms.value.length,
+  myLivingRoomCount: activeRoom.value?.status === 'LIVING' ? 1 : 0,
+  identity: {
+    label: isLoggedIn.value ? '主播' : '游客',
+    description: isLoggedIn.value ? '已认证' : '未登录',
+  },
+  todayViewerCount: plazaRooms.value.reduce((sum, room) => sum + Number(room.viewerCount ?? 0), 0),
+});
+const liveTips = computed(() => centerOverview.value?.tips?.length ? centerOverview.value.tips : [
+  '保持网络稳定，推荐使用有线网络',
+  '开播前检查摄像头和麦克风',
+  '标题越清晰，越容易被观众发现',
+  '遵守平台规则，营造良好直播环境',
+]);
+const streamCategories = computed(() => liveCategories.value.filter((item) => !['all', 'following'].includes(item.code)));
+const openChecklist = computed(() => [
+  { label: '填写直播标题', done: Boolean(studioForm.title.trim()) },
+  { label: '选择直播分类', done: Boolean(studioForm.category) },
+  { label: '选择直播方式', done: Boolean(studioForm.mode) },
+  { label: '准备预览画面', done: hasPreview.value },
+  { label: '开始直播', done: isLive.value },
+]);
 
-const openStudio = () => { if (!isLoggedIn.value) { ElMessage.warning('请先登录用户账号'); router.push('/login'); return; } studioVisible.value = true; };
-const goToMyRoom = () => { if (activeRoom.value) void router.push(`/live/${activeRoom.value.id}`); };
 const createPeerConnection = () => new RTCPeerConnection(WEBRTC_CONFIG);
 const formatTime = (value?: string | null) => value ? new Date(value).toLocaleString('zh-CN') : '暂无';
+const formatCompactNumber = (value: number) => value >= 10000 ? `${(value / 10000).toFixed(value >= 100000 ? 0 : 1)}万` : String(value);
+const scrollToStudio = () => { studioSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+const scrollToPlaza = () => { plazaSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
 const parseSse = <T,>(event: MessageEvent<string>) => JSON.parse(event.data) as T;
 function buildApiUrl(path: string, params?: Record<string, string | number | undefined>) { const apiBase = (import.meta.env.VITE_API_BASE_URL ?? '/api/v1').replace(/\/$/, ''); const url = new URL(`${apiBase}${path}`, window.location.origin); Object.entries(params ?? {}).forEach(([key, value]) => { if (value !== undefined && value !== '') url.searchParams.set(key, String(value)); }); return url.toString(); }
 function resetDanmaku(roomId: number | null) { danmakuRoomId = roomId; activeDanmaku.value = []; displayedDanmakuIds.clear(); nextDanmakuTrack = 0; danmakuTimers.forEach((timer) => window.clearTimeout(timer)); danmakuTimers.clear(); }
@@ -407,7 +555,7 @@ function applySessionUpdate(session: LiveSessionInfo) { if (activeRoom.value?.id
 function openRoomEventSourceFor(roomId: number) { closeRoomEventSource(); roomEventSource = new EventSource(buildApiUrl(`/lives/rooms/${roomId}/events`)); roomEventSource.addEventListener('snapshot', (event) => { const payload = parseSse<RoomSnapshotPayload>(event as MessageEvent<string>); applySessionUpdate(payload.session); liveMessages.value = payload.messages.slice(-80); if (danmakuRoomId !== roomId) resetDanmaku(roomId); seedDanmaku(payload.messages); }); roomEventSource.addEventListener('session', (event) => applySessionUpdate(parseSse<LiveSessionInfo>(event as MessageEvent<string>))); roomEventSource.addEventListener('chat-message', (event) => appendLiveMessage(parseSse<LiveMessage>(event as MessageEvent<string>))); roomEventSource.addEventListener('system-message', (event) => appendLiveMessage(parseSse<LiveMessage>(event as MessageEvent<string>))); }
 async function startPublisherTransport(roomId: number) { if (!previewStream.value) throw new Error('预览流不存在'); const peer = createPeerConnection(); publisherPeers.set(0, peer); previewStream.value.getTracks().forEach((track) => peer.addTrack(track, previewStream.value!)); peer.addEventListener('connectionstatechange', () => { if (['closed', 'failed', 'disconnected'].includes(peer.connectionState)) { publisherPeers.delete(0); peer.close(); } }); const offer = await peer.createOffer(); await peer.setLocalDescription(offer); await waitForIceGatheringComplete(peer); if (!peer.localDescription) throw new Error('主播 offer 生成失败'); const answer = await publishLiveRoom(roomId, { type: 'offer', sdp: peer.localDescription.sdp ?? '' }); await peer.setRemoteDescription(new RTCSessionDescription(answer)); }
 async function handlePreparePreview() { if (!isLoggedIn.value) { ElMessage.warning('请先登录用户账号'); return; } preparing.value = true; try { stopPreviewStream(); const stream = await requestStream(studioForm.mode); stream.getVideoTracks().forEach((track) => track.addEventListener('ended', () => { syncPreviewControlState(); if (studioForm.mode === 'screen' && isLive.value) void handleStopLive(); })); previewStream.value = stream; bindPreviewTrackState(stream); await attachPreviewStream(); studioVisible.value = false; ElMessage.success(`${sourceModeLabel.value}预览已就绪`); } catch (error) { ElMessage.error(error instanceof Error ? error.message : '获取直播画面失败'); } finally { preparing.value = false; } }
-async function handleStartLive() { if (!previewStream.value) { ElMessage.warning('请先准备预览画面'); return; } starting.value = true; try { cleanupPublisherPeers(); stopFramePublishing(); resetRecordedContent(); saveReplayVisible.value = false; const room = await createLiveRoom({ title: studioForm.title, coverUrl: studioForm.coverUrl || undefined, sourceMode: studioForm.mode }); const session = await startLiveRoom(room.id); let rtcReady = true; try { await startPublisherTransport(room.id); } catch { rtcReady = false; cleanupPublisherPeers(); } activeRoom.value = room; liveSession.value = { id: session.sessionId, roomId: room.id, title: room.title, status: session.status, playUrl: room.playUrl, coverUrl: room.coverUrl, sourceMode: room.sourceMode, broadcaster: room.broadcaster, viewerCount: 0, startedAt: new Date().toISOString(), endedAt: null }; fetchedSession.value = null; liveMessages.value = []; resetDanmaku(room.id); await router.replace(`/live/${room.id}`); startLocalRecording(); startFramePublishing(room.id); await loadHubRooms(); ElMessage[rtcReady ? 'success' : 'warning'](rtcReady ? '直播已开始，观众已可进入观看。' : '直播已开始，RTC 未连通，已自动切换为兼容模式直播。'); } catch (error) { cleanupPublisherPeers(); stopFramePublishing(); ElMessage.error(error instanceof Error ? error.message : '开启直播失败'); } finally { starting.value = false; } }
+async function handleStartLive() { if (!previewStream.value) { ElMessage.warning('请先准备预览画面'); return; } starting.value = true; try { cleanupPublisherPeers(); stopFramePublishing(); resetRecordedContent(); saveReplayVisible.value = false; const room = await createLiveRoom({ title: studioForm.title, category: studioForm.category, coverUrl: studioForm.coverUrl || undefined, sourceMode: studioForm.mode }); const session = await startLiveRoom(room.id); let rtcReady = true; try { await startPublisherTransport(room.id); } catch { rtcReady = false; cleanupPublisherPeers(); } activeRoom.value = room; liveSession.value = { id: session.sessionId, roomId: room.id, title: room.title, status: session.status, playUrl: room.playUrl, coverUrl: room.coverUrl, sourceMode: room.sourceMode, broadcaster: room.broadcaster, viewerCount: 0, startedAt: new Date().toISOString(), endedAt: null }; fetchedSession.value = null; liveMessages.value = []; resetDanmaku(room.id); await router.replace(`/live/${room.id}`); startLocalRecording(); startFramePublishing(room.id); await loadHubRooms(); await loadLiveCenter(); ElMessage[rtcReady ? 'success' : 'warning'](rtcReady ? '直播已开始，观众已可进入观看。' : '直播已开始，RTC 未连通，已自动切换为兼容模式直播。'); } catch (error) { cleanupPublisherPeers(); stopFramePublishing(); ElMessage.error(error instanceof Error ? error.message : '开启直播失败'); } finally { starting.value = false; } }
 async function handleStopLive() { stopping.value = true; try { if (activeRoom.value && isLive.value) await stopLiveRoom(activeRoom.value.id); await stopLocalRecording(); } catch { ElMessage.warning('直播已结束，但远端状态同步失败'); } finally { cleanupPublisherPeers(); stopFramePublishing(); stopPreviewStream(); if (liveSession.value) liveSession.value = { ...liveSession.value, status: 'ENDED', endedAt: new Date().toISOString() }; void loadHubRooms(); stopping.value = false; if (recordedBlob.value) { prepareReplayForm(); saveReplayVisible.value = true; } ElMessage.success('直播已结束'); } }
 async function ensureViewerConnection(roomId: number, silentFallback = false) { if (joining.value || (viewerRoomId.value === roomId && (viewerPeer.value || viewerId.value))) return; joining.value = true; cleanupViewerPeer(); startFramePolling(roomId); try { const ticket = await createLiveViewer(roomId); const peer = createPeerConnection(); const inboundStream = new MediaStream(); viewerPeer.value = peer; viewerRoomId.value = roomId; viewerId.value = ticket.viewerId; peer.addTransceiver('video', { direction: 'recvonly' }); peer.addTransceiver('audio', { direction: 'recvonly' }); peer.addEventListener('track', (event) => { const incomingTrack = event.track; if (!inboundStream.getTracks().some((track) => track.id === incomingTrack.id)) inboundStream.addTrack(incomingTrack); remoteStream.value = inboundStream; void attachViewerStream(); }); peer.addEventListener('connectionstatechange', () => { if (['closed', 'failed', 'disconnected'].includes(peer.connectionState) && viewerPeer.value === peer) { viewerPeer.value = null; clearRemoteStream(); } }); const offer = await peer.createOffer(); await peer.setLocalDescription(offer); await waitForIceGatheringComplete(peer); if (!peer.localDescription) throw new Error('观众 offer 生成失败'); const answer = await playLiveRoom(roomId, { type: 'offer', sdp: peer.localDescription.sdp ?? '' }); await peer.setRemoteDescription(new RTCSessionDescription(answer)); } catch { viewerPeer.value?.close(); viewerPeer.value = null; clearRemoteStream(); if (!silentFallback && viewerCompatNotifiedRoomId !== roomId) { viewerCompatNotifiedRoomId = roomId; ElMessage.warning('RTC 观看链路未连通，已自动切换为兼容模式画面。'); } } finally { joining.value = false; } }
 const handleJoinViewer = async () => { if (routeRoomId.value) { viewerCompatNotifiedRoomId = null; await ensureViewerConnection(routeRoomId.value); } };
@@ -424,74 +572,874 @@ async function handleSendMessage() { const roomId = currentRoomId.value; if (!ca
 async function handleStudioCoverChange(event: Event) { const input = event.target as HTMLInputElement; const file = input.files?.[0]; input.value = ''; if (!file) return; uploadingStudioCover.value = true; try { const uploaded = await uploadVideo(file, 'COVER'); studioForm.coverUrl = uploaded.url; ElMessage.success('直播封面上传成功'); } catch { ElMessage.error('直播封面上传失败'); } finally { uploadingStudioCover.value = false; } }
 async function handleReplayCoverChange(event: Event) { const input = event.target as HTMLInputElement; const file = input.files?.[0]; input.value = ''; if (!file) return; uploadingReplayCover.value = true; try { const uploaded = await uploadVideo(file, 'COVER'); replayForm.coverUrl = uploaded.url; ElMessage.success('稿件封面上传成功'); } catch { ElMessage.error('稿件封面上传失败'); } finally { uploadingReplayCover.value = false; } }
 async function syncRouteSession() { const roomId = routeRoomId.value; if (!roomId) { fetchedSession.value = null; liveMessages.value = []; closeRoomEventSource(); cleanupViewerPeer(); stopFramePolling(true); resetDanmaku(null); return; } try { const session = await fetchLiveSession(roomId); applySessionUpdate(session); if (session.broadcaster?.id === userId.value) activeRoom.value = await fetchLiveRoom(roomId); const messages = await fetchLiveMessages(roomId); liveMessages.value = messages; resetDanmaku(roomId); seedDanmaku(messages); openRoomEventSourceFor(roomId); if (session.status === 'LIVING' && activeRoom.value?.id !== roomId) { startFramePolling(roomId); await ensureViewerConnection(roomId, true); } if (session.status !== 'LIVING' && activeRoom.value?.id !== roomId) { cleanupViewerPeer(false); stopFramePolling(true); } } catch { fetchedSession.value = null; liveMessages.value = []; closeRoomEventSource(); cleanupViewerPeer(false); stopFramePolling(true); resetDanmaku(null); } }
-async function loadHubRooms() { try { hubRooms.value = await fetchLiveRooms({ status: 'LIVING', limit: 18 }); } catch { hubRooms.value = []; } }
+async function loadLiveCenter() {
+  try {
+    const overview = await fetchLiveCenterOverview();
+    centerOverview.value = overview;
+    liveCategories.value = overview.categories;
+    if (!routeRoomId.value && overview.myRoom && !activeRoom.value) {
+      activeRoom.value = overview.myRoom;
+    }
+  } catch {
+    centerOverview.value = null;
+    if (liveCategories.value.length === 0) {
+      liveCategories.value = [
+        { code: 'all', label: '全部' },
+        { code: 'following', label: '关注' },
+        { code: 'study', label: '学习' },
+        { code: 'game', label: '游戏' },
+        { code: 'tech', label: '科技' },
+        { code: 'entertainment', label: '娱乐' },
+      ];
+    }
+  }
+}
+async function loadHubRooms() {
+  plazaLoading.value = true;
+  try {
+    const [plaza, hot] = await Promise.all([
+      fetchLivePlaza({ category: selectedPlazaCategory.value, limit: 12 }),
+      fetchHotLiveRooms({ limit: 6 }),
+    ]);
+    hubRooms.value = plaza.list;
+    hotRooms.value = hot.list;
+    if (plaza.categories.length > 0) {
+      liveCategories.value = plaza.categories;
+    }
+  } catch {
+    try {
+      hubRooms.value = await fetchLiveRooms({ status: 'LIVING', limit: 18 });
+    } catch {
+      hubRooms.value = [];
+    }
+    hotRooms.value = hubRooms.value.slice(0, 6);
+  } finally {
+    plazaLoading.value = false;
+  }
+}
 function startHubPolling() { clearHubPolling(); hubPollTimer = setInterval(() => { void loadHubRooms(); }, 5000); }
 watch(previewRef, () => { void attachPreviewStream(); });
 watch(viewerRef, () => { void attachViewerStream(); });
 watch(() => route.params.id, () => { if (activeRoom.value && routeRoomId.value !== activeRoom.value.id) closePublisherEventSource(); void syncRouteSession(); void loadHubRooms(); });
+watch(selectedPlazaCategory, () => { void loadHubRooms(); });
 watch(() => [isCurrentHostRoom.value, isLive.value, Boolean(previewStream.value)] as const, () => undefined);
-onMounted(() => { void syncRouteSession(); void loadHubRooms(); startHubPolling(); });
+onMounted(() => { void syncRouteSession(); void loadLiveCenter(); void loadHubRooms(); startHubPolling(); });
 onUnmounted(() => { closeRoomEventSource(); closePublisherEventSource(); closeViewerEventSource(); clearHubPolling(); stopPublisherPolling(); stopViewerAnswerPolling(); stopFramePublishing(); stopFramePolling(true); cleanupPublisherPeers(); cleanupViewerPeer(); void stopLocalRecording(); stopPreviewStream(); clearRecordingPreviewUrl(); resetDanmaku(null); });
 </script>
 <style scoped>
-.live-page { display: grid; gap: 24px; }
-.panel { border-radius: 28px; background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.98)); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 4px 24px rgba(15,23,42,.06); }
-.hero-panel { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; padding: 34px 36px; border-radius: 32px; background: radial-gradient(circle at top left, var(--theme-soft-strong, rgba(59,130,246,.12)), transparent 28%), radial-gradient(circle at right center, var(--theme-soft, rgba(37,99,235,.08)), transparent 30%), linear-gradient(135deg, #fff, color-mix(in srgb, var(--theme-accent, #2563eb) 8%, #fff) 100%); border: 1px solid var(--theme-soft-strong, rgba(37,99,235,.12)); }
-.section-title-wrap { display: grid; grid-template-columns: auto 1fr; column-gap: 14px; align-items: center; }
-.section-icon { grid-row: span 2; display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 16px; color: #fff; background: var(--theme-title-gradient, linear-gradient(135deg, #dc2626, #f59e0b)); box-shadow: 0 14px 32px var(--theme-soft-strong, rgba(220,38,38,.22)); }
-.eyebrow, .section-kicker { display: inline-block; margin-bottom: 10px; padding: 6px 10px; border-radius: 999px; background: var(--theme-soft, rgba(37,99,235,.1)); color: var(--theme-accent, #2563eb); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
-.section-title { width: fit-content; color: transparent; background: var(--theme-title-gradient, linear-gradient(135deg, #dc2626, #f59e0b)); -webkit-background-clip: text; background-clip: text; font-family: "STKaiti", "KaiTi", "Microsoft YaHei", sans-serif; font-size: 42px; font-weight: 900; text-shadow: 0 12px 28px var(--theme-soft-strong, rgba(220,38,38,.22)); }
-.hero-copy h1, .section-head h2, .room-head h2 { margin: 0; color: #111827; }
-.hero-copy h1.section-title { color: transparent; }
-.hero-copy p, .section-head p, .compact-head p, .muted { margin: 10px 0 0; color: #4b5563; line-height: 1.75; }
-.hero-stats { display: flex; gap: 14px; margin-top: 24px; flex-wrap: wrap; }
-.hero-stat { min-width: 120px; padding: 16px 18px; border-radius: 20px; background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.06); }
-.hero-stat strong { display: block; color: #111827; font-size: 24px; }
-.hero-stat span { color: #6b7280; font-size: 13px; }
-.hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
-.home-studio-panel, .plaza-panel, .stage-panel, .side-panel { padding: 28px; }
-.section-head, .compact-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
-.section-head h2, .compact-head h3 { margin: 0; }
-.studio-grid, .room-layout { display: grid; gap: 20px; grid-template-columns: minmax(0,2fr) minmax(320px,.95fr); }
-.stage-shell { position: relative; overflow: hidden; border-radius: 26px; min-height: 420px; background: linear-gradient(135deg, #111827, #0f172a); }
-.stage-video { width: 100%; height: 100%; min-height: 420px; object-fit: cover; background: #111827; }
-.stage-placeholder { display: grid; place-items: center; gap: 10px; height: 100%; padding: 32px; color: rgba(255,255,255,.88); text-align: center; }
-.stage-toolbar { position: absolute; top: 18px; right: 18px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; z-index: 3; }
-.stage-toolbar-button { border-radius: 999px; border: 1px solid rgba(255,255,255,.14); background: rgba(15,23,42,.48); color: #fff; backdrop-filter: blur(12px); box-shadow: 0 8px 24px rgba(15,23,42,.18); }
-.stage-toolbar-button { --el-button-bg-color: rgba(15,23,42,.48); --el-button-border-color: rgba(255,255,255,.14); --el-button-text-color: #fff; --el-button-hover-bg-color: rgba(37,99,235,.72); --el-button-hover-border-color: rgba(147,197,253,.88); --el-button-hover-text-color: #fff; --el-button-disabled-bg-color: rgba(15,23,42,.26); --el-button-disabled-border-color: rgba(255,255,255,.12); --el-button-disabled-text-color: rgba(255,255,255,.56); }
-.preview-shell { min-height: 440px; }
-.panel-side, .side-panel { display: grid; gap: 16px; align-content: start; }
-.side-card { display: grid; gap: 12px; padding: 18px; border-radius: 22px; background: rgba(15,23,42,.03); border: 1px solid rgba(15,23,42,.06); }
-.meta-row { display: flex; justify-content: space-between; gap: 12px; color: #111827; }
-.meta-row span { color: #6b7280; }
-.cover-preview, .dialog-cover-preview, .dialog-video-preview { width: 100%; border-radius: 18px; object-fit: cover; }
-.cover-preview, .dialog-cover-preview { max-height: 180px; }
-.dialog-video-preview { max-height: 260px; background: #111827; }
-.room-head { margin-bottom: 18px; }
-.head-tags { display: flex; gap: 10px; flex-wrap: wrap; }
-.tag { padding: 8px 14px; border-radius: 999px; background: rgba(15,23,42,.06); color: #334155; font-size: 13px; }
-.tag-live { background: rgba(239,68,68,.14); color: #dc2626; }
-.tag-ended { background: rgba(100,116,139,.14); color: #475569; }
-.tag-idle { background: rgba(59,130,246,.14); color: #2563eb; }
-.tag-compat { background: rgba(245,158,11,.16); color: #b45309; }
-.room-stage-shell { min-height: 520px; }
-.danmaku-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-.danmaku-item { position: absolute; right: -120%; display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; background: rgba(17,24,39,.68); color: #fff; white-space: nowrap; box-shadow: 0 10px 28px rgba(0,0,0,.22); animation-name: danmaku-fly; animation-timing-function: linear; animation-fill-mode: forwards; }
-.danmaku-sender { color: #93c5fd; font-weight: 700; }
-.control-bar { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
-.message-count { display: inline-grid; place-items: center; min-width: 36px; height: 36px; padding: 0 12px; border-radius: 999px; background: rgba(37,99,235,.1); color: #2563eb; font-weight: 700; }
-.message-list { display: grid; gap: 10px; max-height: 400px; overflow-y: auto; padding-right: 4px; }
-.message-item { display: grid; gap: 8px; padding: 12px 14px; border-radius: 18px; background: #fff; border: 1px solid rgba(15,23,42,.05); }
-.message-item-system { background: rgba(37,99,235,.04); border-color: rgba(37,99,235,.1); }
-.message-meta { display: flex; justify-content: space-between; gap: 12px; color: #111827; font-size: 12px; }
-.message-meta span { color: #6b7280; }
-.message-item p { margin: 0; color: #374151; line-height: 1.6; word-break: break-word; }
-.message-compose, .upload-row { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 10px; }
-.save-actions-inline { display: flex; gap: 12px; flex-wrap: wrap; }
-.room-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap: 18px; }
-.replay-dialog-body { display: grid; gap: 18px; }
-.hidden-input { display: none; }
-@keyframes danmaku-fly { from { transform: translateX(0); } to { transform: translateX(calc(-100vw - 360px)); } }
-@media (max-width: 1080px) { .hero-panel, .section-head, .compact-head { flex-direction: column; } .studio-grid, .room-layout { grid-template-columns: 1fr; } }
-@media (max-width: 720px) { .hero-panel, .home-studio-panel, .plaza-panel, .stage-panel, .side-panel { padding: 20px; } .message-compose, .upload-row { grid-template-columns: 1fr; } }
+.live-page {
+  display: grid;
+  gap: 20px;
+  max-width: 1680px;
+  margin: 0 auto;
+}
+
+.panel,
+.live-hero {
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: var(--color-bg-card);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+}
+
+.live-hero {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(220px, 0.55fr) minmax(520px, 1.15fr);
+  gap: 24px;
+  min-height: 260px;
+  padding: 28px 38px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 42% 12%, rgba(37, 99, 235, 0.1), transparent 28%),
+    linear-gradient(135deg, #fff 0%, #fff 48%, #f5f9ff 100%);
+}
+
+.eyebrow {
+  display: inline-flex;
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+}
+
+.hero-copy {
+  align-self: center;
+}
+
+.hero-copy h1 {
+  margin: 14px 0 10px;
+  color: var(--color-text-main);
+  font-size: 44px;
+  line-height: 1;
+}
+
+.hero-copy p,
+.section-head p,
+.compact-head p,
+.muted {
+  margin: 0;
+  color: var(--color-text-secondary);
+  line-height: 1.7;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 28px;
+}
+
+.hero-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 200px;
+}
+
+.hero-orbit {
+  position: absolute;
+  width: min(260px, 100%);
+  aspect-ratio: 1.9;
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  border-radius: 999px;
+  transform: rotate(-14deg);
+}
+
+.hero-device {
+  display: grid;
+  place-items: center;
+  width: 138px;
+  height: 92px;
+  border-radius: 28px;
+  color: var(--color-primary);
+  background: linear-gradient(145deg, #fff, #eaf2ff);
+  box-shadow: 0 22px 50px rgba(37, 99, 235, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  transform: rotate(-8deg);
+}
+
+.hero-device .el-icon {
+  font-size: 44px;
+}
+
+.hero-metrics {
+  align-self: center;
+}
+
+.hero-metrics h2,
+.studio-workbench h2,
+.checklist-card h2,
+.tips-card h2,
+.plaza-panel h2,
+.hot-card h2,
+.live-settings h3 {
+  margin: 0;
+  color: var(--color-text-main);
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.metric-card {
+  display: grid;
+  gap: 7px;
+  min-height: 128px;
+  padding: 18px;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.metric-card strong {
+  color: var(--color-text-main);
+  font-size: 31px;
+  line-height: 1;
+}
+
+.metric-card span,
+.metric-card small {
+  color: var(--color-text-secondary);
+}
+
+.metric-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.metric-icon-purple { color: #4f46e5; background: #eef2ff; }
+.metric-icon-green { color: #10b981; background: #ecfdf5; }
+.metric-icon-orange { color: #f59e0b; background: #fff7ed; }
+
+.live-console-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 20px;
+  align-items: start;
+}
+
+.studio-workbench,
+.plaza-panel,
+.hot-card,
+.checklist-card,
+.tips-card,
+.stage-panel,
+.side-panel {
+  padding: 24px;
+}
+
+.studio-main {
+  display: grid;
+  grid-template-columns: minmax(480px, 1.15fr) minmax(340px, 0.78fr);
+  gap: 18px;
+  margin-top: 16px;
+}
+
+.stage-shell {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  background: radial-gradient(circle at center, #1e293b 0%, #111827 46%, #0b1120 100%);
+}
+
+.preview-shell {
+  min-height: 390px;
+}
+
+.room-stage-shell {
+  min-height: 520px;
+}
+
+.stage-video {
+  width: 100%;
+  height: 100%;
+  min-height: 390px;
+  object-fit: cover;
+  background: #111827;
+}
+
+.room-stage-shell .stage-video {
+  min-height: 520px;
+}
+
+.stage-placeholder {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  height: 100%;
+  min-height: inherit;
+  padding: 32px;
+  color: rgba(255, 255, 255, 0.9);
+  text-align: center;
+}
+
+.stage-placeholder p {
+  max-width: 340px;
+  margin: 0;
+  color: rgba(226, 232, 240, 0.86);
+  line-height: 1.7;
+}
+
+.stage-placeholder-icon {
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 34px;
+}
+
+.stage-status,
+.stage-tools,
+.stage-toolbar {
+  position: absolute;
+  z-index: 2;
+}
+
+.stage-status {
+  left: 18px;
+  bottom: 18px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.stage-status span,
+.stage-tools button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.62);
+  color: #e2e8f0;
+  backdrop-filter: blur(12px);
+}
+
+.stage-status span {
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.stage-status .is-ready {
+  color: #bfdbfe;
+}
+
+.stage-tools {
+  right: 18px;
+  bottom: 18px;
+  display: flex;
+  gap: 10px;
+}
+
+.stage-tools button {
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  cursor: pointer;
+}
+
+.stage-toolbar {
+  top: 18px;
+  right: 18px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.stage-toolbar-button {
+  --el-button-bg-color: rgba(15, 23, 42, 0.48);
+  --el-button-border-color: rgba(255, 255, 255, 0.14);
+  --el-button-text-color: #fff;
+  --el-button-hover-bg-color: rgba(37, 99, 235, 0.72);
+  --el-button-hover-border-color: rgba(147, 197, 253, 0.88);
+  --el-button-hover-text-color: #fff;
+  border-radius: 999px;
+}
+
+.live-settings {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fff, #fbfdff);
+}
+
+.form-field {
+  display: grid;
+  gap: 8px;
+}
+
+.form-field > span {
+  color: var(--color-text-main);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.source-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.source-options button,
+.cover-uploader {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--color-text-main);
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.source-options button {
+  display: grid;
+  gap: 5px;
+  justify-items: start;
+  min-height: 78px;
+  padding: 12px;
+}
+
+.source-options button.active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.source-options small,
+.cover-uploader small {
+  color: var(--color-text-secondary);
+}
+
+.cover-uploader {
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  min-height: 78px;
+  padding: 12px;
+  text-align: center;
+}
+
+.cover-uploader img {
+  width: 100%;
+  max-height: 118px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.setting-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.live-side-rail {
+  display: grid;
+  gap: 16px;
+}
+
+.check-row {
+  display: grid;
+  grid-template-columns: 26px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  color: var(--color-text-secondary);
+}
+
+.check-row + .check-row {
+  border-top: 1px solid var(--color-border-soft);
+}
+
+.check-row strong {
+  color: var(--color-text-main);
+  font-size: 14px;
+}
+
+.check-row span {
+  color: var(--color-text-muted);
+}
+
+.check-row span.done {
+  color: var(--color-primary);
+}
+
+.check-row em {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--color-bg-muted);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.tips-card ul {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0 0;
+  padding-left: 18px;
+  color: var(--color-text-secondary);
+  line-height: 1.7;
+}
+
+.text-link,
+.refresh-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--color-primary);
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.live-bottom-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 20px;
+  align-items: start;
+}
+
+.section-head,
+.compact-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.category-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 18px 0;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.category-tabs button {
+  flex: 0 0 auto;
+  min-width: 64px;
+  height: 36px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-main);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.category-tabs button.active {
+  border-color: #bfdbfe;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.live-card-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.live-card-row :deep(.card) {
+  min-width: 0;
+}
+
+.live-room-skeleton {
+  height: 220px;
+  border-radius: 14px;
+  background: linear-gradient(90deg, #f1f5f9 0%, #e8eef6 45%, #f8fafc 100%);
+  background-size: 220% 100%;
+  animation: shimmer 1.2s ease-in-out infinite;
+}
+
+.empty-live {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  min-height: 190px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 14px;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.empty-live strong {
+  color: var(--color-text-main);
+}
+
+.hot-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.hot-item {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 12px;
+  align-items: center;
+  color: inherit;
+  text-decoration: none;
+}
+
+.hot-item img,
+.hot-cover-fallback {
+  width: 92px;
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #0f172a;
+}
+
+.hot-cover-fallback {
+  display: grid;
+  place-items: center;
+  color: #fff;
+}
+
+.hot-info {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.hot-info strong {
+  overflow: hidden;
+  color: var(--color-text-main);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hot-info small {
+  color: var(--color-text-secondary);
+}
+
+.side-panel {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+.side-card {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.meta-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--color-text-main);
+}
+
+.meta-row span {
+  color: var(--color-text-secondary);
+}
+
+.dialog-cover-preview,
+.dialog-video-preview {
+  width: 100%;
+  border-radius: 14px;
+  object-fit: cover;
+}
+
+.dialog-cover-preview {
+  max-height: 180px;
+}
+
+.dialog-video-preview {
+  max-height: 260px;
+  background: #111827;
+}
+
+.room-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+}
+
+.room-head {
+  margin-bottom: 18px;
+}
+
+.head-tags {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tag {
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--color-bg-muted);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.tag-live {
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+}
+
+.tag-ended {
+  background: rgba(100, 116, 139, 0.14);
+  color: #475569;
+}
+
+.tag-idle {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.tag-compat {
+  background: rgba(245, 158, 11, 0.16);
+  color: #b45309;
+}
+
+.danmaku-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.danmaku-item {
+  position: absolute;
+  right: -120%;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.68);
+  color: #fff;
+  white-space: nowrap;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+  animation-name: danmaku-fly;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+.danmaku-sender {
+  color: #93c5fd;
+  font-weight: 700;
+}
+
+.control-bar,
+.save-actions-inline {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.message-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.message-list {
+  display: grid;
+  gap: 10px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.message-item {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.message-item-system {
+  border-color: #bfdbfe;
+  background: var(--color-primary-light);
+}
+
+.message-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--color-text-main);
+  font-size: 12px;
+}
+
+.message-meta span,
+.message-item p {
+  color: var(--color-text-secondary);
+}
+
+.message-item p {
+  margin: 0;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.message-compose,
+.upload-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.replay-dialog-body {
+  display: grid;
+  gap: 18px;
+}
+
+.hidden-input {
+  display: none;
+}
+
+@keyframes danmaku-fly {
+  from { transform: translateX(0); }
+  to { transform: translateX(calc(-100vw - 360px)); }
+}
+
+@keyframes shimmer {
+  0% { background-position: 180% 0; }
+  100% { background-position: -40% 0; }
+}
+
+@media (max-width: 1320px) {
+  .live-hero,
+  .live-console-grid,
+  .live-bottom-grid,
+  .room-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-art {
+    display: none;
+  }
+
+  .live-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .studio-main {
+    grid-template-columns: 1fr;
+  }
+
+  .live-card-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .live-hero,
+  .studio-workbench,
+  .plaza-panel,
+  .hot-card,
+  .checklist-card,
+  .tips-card,
+  .stage-panel,
+  .side-panel {
+    padding: 18px;
+  }
+
+  .hero-copy h1 {
+    font-size: 36px;
+  }
+
+  .metric-grid,
+  .source-options,
+  .setting-actions,
+  .live-card-row,
+  .message-compose,
+  .upload-row {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

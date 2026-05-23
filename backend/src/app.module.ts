@@ -21,6 +21,7 @@ import { AiModule } from './modules/ai/ai.module';
 import { CaptchaModule } from './modules/captcha/captcha.module';
 import { EmailModule } from './modules/email/email.module';
 import { MessageModule } from './modules/message/message.module';
+import { FeedModule } from './modules/feed/feed.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { MessageModule } from './modules/message/message.module';
     CaptchaModule,
     EmailModule,
     MessageModule,
+    FeedModule,
   ],
 })
 export class AppModule {}
