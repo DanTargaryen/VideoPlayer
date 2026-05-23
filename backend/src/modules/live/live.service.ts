@@ -23,6 +23,8 @@ type AuthUser = {
 
 type LiveSourceMode = 'camera' | 'screen';
 
+type LiveCategoryCode = 'all' | 'following' | 'study' | 'game' | 'tech' | 'life' | 'entertainment' | 'chat' | 'beauty';
+
 type LiveMessage = {
   id: number;
   roomId: number;
@@ -151,6 +153,101 @@ export class LiveService {
       .sort((left, right) => this.compareRooms(left, right))
       .slice(0, limit)
       .map((room) => this.serializeRoom(room));
+  }
+
+  async getCenterOverview(currentUser?: AuthUser | null) {
+    const rooms = Array.from(this.rooms.values());
+    const livingRooms = rooms.filter((room) => room.status === 'LIVING');
+    const myRooms = currentUser ? rooms.filter((room) => room.broadcasterId === currentUser.id) : [];
+    const myActiveRoom =
+      myRooms.find((room) => room.status === 'LIVING') ??
+      myRooms.find((room) => room.status === 'IDLE') ??
+      myRooms.sort((left, right) => this.getRoomTimestamp(right) - this.getRoomTimestamp(left))[0] ??
+      null;
+    const dayStart = new Date();
+    dayStart.setHours(0, 0, 0, 0);
+    const todayViewerCount = rooms
+      .filter((room) => this.getRoomTimestamp(room) >= dayStart.getTime())
+      .reduce((sum, room) => sum + room.viewers.size, 0);
+    const [myRoom] = myActiveRoom ? await this.serializeRoomsWithAvatars([myActiveRoom]) : [null];
+
+    return {
+      metrics: {
+        livingRoomCount: livingRooms.length,
+        myLivingRoomCount: myRooms.filter((room) => room.status === 'LIVING').length,
+        identity: {
+          label: currentUser ? '主播' : '游客',
+          description: currentUser ? '已认证' : '未登录',
+        },
+        todayViewerCount,
+      },
+      myRoom,
+      categories: this.getLiveCategories(),
+      tips: [
+        '保持网络稳定，推荐使用有线网络',
+        '开播前检查摄像头和麦克风',
+        '标题越清晰，越容易被观众发现',
+        '遵守平台规则，营造良好直播环境',
+      ],
+    };
+  }
+
+  async getPlazaRooms(
+    options?: {
+      category?: LiveCategoryCode | string;
+      keyword?: string;
+      limit?: number;
+    },
+    currentUser?: AuthUser | null,
+  ) {
+    const category = options?.category ?? 'all';
+    const followingIds = category === 'following' && currentUser ? await this.getFollowingIds(currentUser.id) : [];
+    const followingIdSet = new Set(followingIds);
+    const keyword = options?.keyword?.trim().toLowerCase();
+    const limit = this.normalizeLimit(options?.limit);
+    const rooms = Array.from(this.rooms.values())
+      .filter((room) => room.status === 'LIVING')
+      .filter((room) => category !== 'following' || followingIdSet.has(room.broadcasterId))
+      .filter((room) => category === 'all' || category === 'following' || room.category === category)
+      .filter((room) => {
+        if (!keyword) {
+          return true;
+        }
+
+        return `${room.title} ${room.broadcasterNickname} ${room.category}`.toLowerCase().includes(keyword);
+      })
+      .sort((left, right) => this.compareLiveDiscoveryRooms(left, right));
+
+    return {
+      list: await this.serializeRoomsWithAvatars(rooms.slice(0, limit)),
+      total: rooms.length,
+      categories: this.getLiveCategories(),
+    };
+  }
+
+  async getHotRooms(limit?: number) {
+    const rooms = Array.from(this.rooms.values())
+      .filter((room) => room.status === 'LIVING')
+      .sort((left, right) => this.compareLiveDiscoveryRooms(left, right))
+      .slice(0, this.normalizeLimit(limit ?? 8));
+
+    return {
+      list: await this.serializeRoomsWithAvatars(rooms),
+    };
+  }
+
+  getLiveCategories() {
+    return [
+      { code: 'all', label: '全部' },
+      { code: 'following', label: '关注' },
+      { code: 'study', label: '学习' },
+      { code: 'game', label: '游戏' },
+      { code: 'tech', label: '科技' },
+      { code: 'life', label: '生活' },
+      { code: 'entertainment', label: '娱乐' },
+      { code: 'chat', label: '聊天' },
+      { code: 'beauty', label: '颜值' },
+    ];
   }
 
   getRoom(roomId: number) {
@@ -536,6 +633,36 @@ export class LiveService {
     };
   }
 
+  private async serializeRoomsWithAvatars(rooms: LiveRoomState[]) {
+    const broadcasterIds = Array.from(new Set(rooms.map((room) => room.broadcasterId)));
+    const users =
+      broadcasterIds.length > 0
+        ? await this.prisma.user.findMany({
+            where: { id: { in: broadcasterIds } },
+            select: { id: true, avatarUrl: true },
+          })
+        : [];
+    const avatarIndex = new Map(users.map((user) => [user.id, user.avatarUrl] as const));
+
+    return rooms.map((room) => ({
+      ...this.serializeRoom(room),
+      broadcaster: {
+        id: room.broadcasterId,
+        nickname: room.broadcasterNickname,
+        avatarUrl: avatarIndex.get(room.broadcasterId) ?? null,
+      },
+    }));
+  }
+
+  private async getFollowingIds(userId: number) {
+    const relations = await this.prisma.followRelation.findMany({
+      where: { followerId: userId },
+      select: { followingId: true },
+    });
+
+    return relations.map((relation) => relation.followingId);
+  }
+
   private async resolveAsset(assetId?: number, uploadToken?: string) {
     if (assetId !== undefined) {
       const asset = await this.prisma.videoAsset.findUnique({ where: { id: assetId } });
@@ -633,6 +760,15 @@ export class LiveService {
     const statusDiff = statusPriority[left.status] - statusPriority[right.status];
     if (statusDiff !== 0) {
       return statusDiff;
+    }
+
+    return this.getRoomTimestamp(right) - this.getRoomTimestamp(left);
+  }
+
+  private compareLiveDiscoveryRooms(left: LiveRoomState, right: LiveRoomState) {
+    const viewerDiff = right.viewers.size - left.viewers.size;
+    if (viewerDiff !== 0) {
+      return viewerDiff;
     }
 
     return this.getRoomTimestamp(right) - this.getRoomTimestamp(left);

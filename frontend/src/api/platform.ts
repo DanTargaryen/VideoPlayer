@@ -14,8 +14,11 @@ import type {
   DirectMessageConversationDetail,
   DirectMessageConversationSummary,
   LiveFrameResponse,
+  LiveCenterOverview,
+  LiveCategoryItem,
   LiveRoomInfo,
   LiveMessage,
+  LivePlazaResponse,
   LiveRtcExchangeResponse,
   LiveReplaySaveResponse,
   LiveSessionInfo,
@@ -125,6 +128,34 @@ export async function fetchLiveRooms(params?: {
   const { data } = await http.get<ApiResponse<LiveRoomInfo[]>>('/lives/rooms', {
     params,
   });
+  return data.data;
+}
+
+export async function fetchLiveCenterOverview() {
+  const { data } = await http.get<ApiResponse<LiveCenterOverview>>('/lives/center/overview');
+  return data.data;
+}
+
+export async function fetchLivePlaza(params?: {
+  category?: string;
+  keyword?: string;
+  limit?: number;
+}) {
+  const { data } = await http.get<ApiResponse<LivePlazaResponse>>('/lives/plaza', {
+    params,
+  });
+  return data.data;
+}
+
+export async function fetchHotLiveRooms(params?: { limit?: number }) {
+  const { data } = await http.get<ApiResponse<{ list: LiveRoomInfo[] }>>('/lives/hot', {
+    params,
+  });
+  return data.data;
+}
+
+export async function fetchLiveCategories() {
+  const { data } = await http.get<ApiResponse<LiveCategoryItem[]>>('/lives/categories');
   return data.data;
 }
 

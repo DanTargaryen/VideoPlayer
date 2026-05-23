@@ -3,234 +3,331 @@
     <template v-if="loading">
       <LoadingSplash fullPage />
     </template>
+
     <template v-else>
+      <section
+        v-if="carousel.length > 0"
+        class="hero-shell"
+        aria-label="热门推荐轮播"
+        @mouseenter="stopCarouselTimer"
+        @mouseleave="startCarouselTimer"
+      >
+        <div class="hero-main">
+          <article v-if="activeCarouselItem" :key="activeCarouselItem.id" class="hero-card">
+            <RouterLink :to="`/video/${activeCarouselItem.id}`" class="hero-media" :aria-label="activeCarouselItem.title">
+              <video
+                v-if="activeCarouselItem.playUrl"
+                class="hero-video"
+                :src="activeCarouselItem.playUrl"
+                :poster="activeCarouselItem.coverUrl"
+                muted
+                loop
+                autoplay
+                playsinline
+                preload="metadata"
+              ></video>
+              <img v-else :src="activeCarouselItem.coverUrl" :alt="activeCarouselItem.title" class="hero-cover" />
+            </RouterLink>
+
+            <div class="hero-wash"></div>
+            <div class="hero-copy">
+              <span class="hero-badge">热门推荐</span>
+              <h1 class="hero-title">{{ activeCarouselItem.title }}</h1>
+              <p class="hero-desc">
+                {{ activeCarouselItem.description || '发现创作者带来的精选视频内容，开启沉浸式观看体验。' }}
+              </p>
+              <div class="hero-tags" aria-label="内容标签">
+                <span v-for="tag in heroTags" :key="tag">{{ tag }}</span>
+              </div>
+              <div class="hero-actions">
+                <RouterLink :to="`/video/${activeCarouselItem.id}`" class="hero-play">
+                  <span class="play-triangle"></span>
+                  <span>立即播放</span>
+                </RouterLink>
+                <button type="button" class="hero-add" aria-label="加入稍后看">
+                  <el-icon :size="23"><Plus /></el-icon>
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <button
+            v-if="carousel.length > 1"
+            type="button"
+            class="carousel-btn prev"
+            aria-label="上一条推荐"
+            @click="prevCarousel"
+          >
+            <el-icon :size="20"><ArrowLeft /></el-icon>
+          </button>
+          <button
+            v-if="carousel.length > 1"
+            type="button"
+            class="carousel-btn next"
+            aria-label="下一条推荐"
+            @click="nextCarousel"
+          >
+            <el-icon :size="20"><ArrowRight /></el-icon>
+          </button>
+
+          <div v-if="carousel.length > 1" class="carousel-dots">
+            <button
+              v-for="(_, idx) in carousel"
+              :key="idx"
+              type="button"
+              class="dot"
+              :class="{ active: idx === carouselIndex }"
+              :aria-label="`切换到第 ${idx + 1} 条推荐`"
+              @click="goToCarousel(idx)"
+            ></button>
+          </div>
+        </div>
+
+        <aside class="hero-side-list" aria-label="右侧推荐列表">
+          <button
+            v-for="item in sideRecommendationCards"
+            :key="item.id"
+            type="button"
+            class="side-card"
+            :class="{ active: item.id === activeCarouselItem?.id }"
+            @click="goToCarouselById(item.id)"
+          >
+            <span class="side-cover-wrap">
+              <img :src="item.coverUrl" :alt="item.title" class="side-cover" />
+              <span v-if="formatDuration(item.durationSeconds)" class="side-duration">
+                {{ formatDuration(item.durationSeconds) }}
+              </span>
+            </span>
+            <span class="side-info">
+              <strong>{{ item.title }}</strong>
+              <span>{{ item.creator?.nickname ?? '观澜创作者' }}</span>
+              <span class="side-meta">
+                <span class="mini-play"></span>
+                {{ formatCount(item.playCount ?? 0) }}
+              </span>
+            </span>
+          </button>
+        </aside>
+      </section>
+
+      <section class="category-shell" aria-label="内容分类">
+        <div class="category-rail">
+          <button
+            v-for="category in categoryTabs"
+            :key="category.code"
+            type="button"
+            class="category-pill"
+            :class="{ active: category.code === activeCategoryCode }"
+            @click="selectCategory(category.code)"
+          >
+            {{ category.label }}
+          </button>
+        </div>
+        <el-dropdown trigger="click" @command="handleMoreCategory">
+          <button type="button" class="more-category">
+            <span>更多分类</span>
+            <el-icon :size="14"><ArrowDown /></el-icon>
+          </button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item
+                v-for="category in moreCategories"
+                :key="category.code"
+                :command="category.code"
+              >
+                {{ category.label }}
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </section>
+
       <div class="section-head">
         <div class="section-title-wrap">
-          <span class="section-icon">
-            <el-icon :size="22"><StarFilled /></el-icon>
-          </span>
-          <span class="section-eyebrow">For You</span>
-          <h2 class="section-title">推荐视频</h2>
+          <span class="section-rule"></span>
+          <h2 class="section-title">为你推荐</h2>
+          <span class="section-subtitle">根据你的观看兴趣持续更新</span>
         </div>
-        <el-button type="primary" size="small" :loading="refreshingFeed" @click="loadFeed">
-          <el-icon><RefreshRight /></el-icon>
-          <span>刷新推荐</span>
-        </el-button>
+        <button type="button" class="refresh-btn" :disabled="refreshingFeed" @click="refreshFeed">
+          <span>换一换</span>
+          <el-icon :size="15" :class="{ spinning: refreshingFeed }"><RefreshRight /></el-icon>
+        </button>
       </div>
 
       <template v-if="cards.length > 0">
-        <div class="featured-row" v-if="carousel.length > 0">
-          <div class="carousel-area">
-            <div class="carousel-wrapper">
-              <div class="carousel-track" :style="carouselTrackStyle" @transitionend="handleCarouselTransitionEnd">
-                <RouterLink
-                  v-for="(item, idx) in carouselViewportItems"
-                  :key="`${item.id}-${idx}`"
-                  :to="`/video/${item.id}`"
-                  class="carousel-slide"
-                >
-                  <img
-                    :src="item.coverUrl"
-                    :alt="item.title"
-                    class="carousel-cover"
-                    crossorigin="anonymous"
-                    @load="(e) => extractColor(item.id, e)"
-                  />
-                  <div
-                    class="carousel-gradient"
-                    :style="{ background: gradientStyles[item.id] || defaultGradient }"
-                  >
-                    <div class="carousel-info">
-                      <h3 class="carousel-title">{{ item.title }}</h3>
-                      <p class="carousel-desc">{{ item.description }}</p>
-                      <div class="carousel-meta">
-                        <span class="meta-creator">{{ item.creator?.nickname ?? '匿名' }}</span>
-                        <span class="meta-stats">
-                          <svg class="stat-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5C6.79 5 3.1 8.26 1.82 12c1.28 3.74 4.97 7 10.18 7s8.9-3.26 10.18-7C20.9 8.26 17.21 5 12 5Zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm0-2.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/></svg>
-                          {{ item.playCount ?? 0 }}
-                        </span>
-                        <span class="meta-stats">
-                          <svg class="stat-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M7 22V11L10.5 3.5C10.78 2.87 11.41 2.5 12.1 2.5C13.1 2.5 13.85 3.42 13.65 4.4L12.8 9H20c1.1 0 2 0.9 2 2v1c0 .15-.02.3-.05.44l-2.19 8C19.5 21.35 18.68 22 17.73 22H7ZM7 13v8M3 22h2V11H3v11Z"/></svg>
-                          {{ item.likeCount }}
-                        </span>
-                        <span class="meta-stats">
-                          <svg class="stat-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                          {{ item.favoriteCount }}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </RouterLink>
-              </div>
-              <div class="carousel-dots" v-if="carousel.length > 1">
-                <span
-                  v-for="(_, idx) in carousel"
-                  :key="idx"
-                  class="dot"
-                  :class="{ active: idx === carouselIndex }"
-                  @click="goToCarousel(idx)"
-                ></span>
-              </div>
-              <button
-                v-if="carousel.length > 1"
-                class="carousel-btn prev"
-                @click="prevCarousel"
-              >‹</button>
-              <button
-                v-if="carousel.length > 1"
-                class="carousel-btn next"
-                @click="nextCarousel"
-              >›</button>
-            </div>
-          </div>
-
-          <div class="featured-cards">
-            <VideoMediaCard v-for="card in topRightCards" :key="card.id" :item="card" hover-preview show-play-count disable-author-link />
-          </div>
+        <div class="cards" aria-label="为你推荐视频流">
+          <VideoMediaCard
+            v-for="card in cards"
+            :key="card.id"
+            :item="card"
+            hover-preview
+            show-play-count
+            disable-author-link
+          />
         </div>
 
-        <div class="cards">
-          <VideoMediaCard v-for="card in restCards" :key="card.id" :item="card" hover-preview show-play-count disable-author-link />
+        <div ref="loadMoreSentinel" class="feed-status" aria-live="polite">
+          <template v-if="loadingMore">
+            <span class="loading-mark"></span>
+            <span>正在加载更多精彩内容...</span>
+          </template>
+          <template v-else-if="!hasMore">
+            <span>没有更多内容啦</span>
+          </template>
+          <template v-else>
+            <span>继续下滑发现更多推荐</span>
+          </template>
         </div>
       </template>
 
-      <el-empty v-else description="当前条件下没有找到相关视频" />
+      <div v-else class="home-empty">
+        <el-empty description="当前分类下暂时没有找到视频" />
+        <button type="button" class="empty-reset" @click="selectCategory('all')">返回全部推荐</button>
+      </div>
     </template>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { ElMessage } from 'element-plus';
-import { RefreshRight, StarFilled } from '@element-plus/icons-vue';
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  Plus,
+  RefreshRight,
+} from '@element-plus/icons-vue';
 
 import LoadingSplash from '@/components/LoadingSplash.vue';
 import VideoMediaCard from '@/components/VideoMediaCard.vue';
-import { fetchRecommendFeed } from '@/api/platform';
+import { fetchRecommendFeed, searchAll } from '@/api/platform';
 import type { VideoCard } from '@/types/api';
 import { mergeUniqueById, takeRandomItems } from '@/utils/randomVideos';
+
+interface HomeCategory {
+  code: string;
+  label: string;
+  apiCode?: string;
+  keyword?: string;
+}
+
+const categoryTabs: HomeCategory[] = [
+  { code: 'all', label: '全部' },
+  { code: 'tech', label: '科技', apiCode: 'tech' },
+  { code: 'animation', label: '动画', keyword: '动画' },
+  { code: 'game', label: '游戏', apiCode: 'game' },
+  { code: 'life', label: '生活', keyword: '生活' },
+  { code: 'study', label: '学习', apiCode: 'study' },
+  { code: 'music', label: '音乐', keyword: '音乐' },
+  { code: 'film', label: '影视', keyword: '影视' },
+  { code: 'sports', label: '运动', keyword: '运动' },
+  { code: 'funny', label: '搞笑', keyword: '搞笑' },
+  { code: 'food', label: '美食', keyword: '美食' },
+  { code: 'travel', label: '旅行', keyword: '旅行' },
+  { code: 'live', label: '直播', apiCode: 'live' },
+];
+
+const moreCategories: HomeCategory[] = [
+  { code: 'entertainment', label: '娱乐', apiCode: 'entertainment' },
+  { code: 'china-animation', label: '国创', keyword: '国创' },
+  { code: 'knowledge', label: '知识', keyword: '知识' },
+];
 
 const loading = ref(true);
 const cards = ref<VideoCard[]>([]);
 const carousel = ref<VideoCard[]>([]);
 const carouselIndex = ref(0);
-const carouselTrackIndex = ref(0);
-const carouselTransitionEnabled = ref(false);
 const refreshingFeed = ref(false);
-let carouselTimer: number | null = null;
+const loadingMore = ref(false);
+const hasMore = ref(true);
+const activeCategoryCode = ref('all');
+const currentPage = ref(0);
+const loadMoreSentinel = ref<HTMLElement | null>(null);
 
-const FEED_PAGE_SIZE = 20;
-const FEED_DISPLAY_SIZE = 20;
-const FEED_CANDIDATE_PAGES = 6;
+const FEED_PAGE_SIZE = 12;
+const INITIAL_PAGE_COUNT = 2;
 const FEED_CAROUSEL_SIZE = 5;
 
-const gradientStyles = ref<Record<number, string>>({});
-const defaultGradient = 'linear-gradient(to bottom, transparent 0%, rgba(30, 30, 30, 0.95) 100%)';
+let carouselTimer: number | null = null;
+let feedRequestId = 0;
+let observer: IntersectionObserver | null = null;
 
-const carouselViewportItems = computed(() => {
-  if (carousel.value.length <= 1) {
-    return carousel.value;
-  }
-
-  const first = carousel.value[0];
-  const last = carousel.value[carousel.value.length - 1];
-  return [last, ...carousel.value, first];
+const activeCategory = computed(() => {
+  return [...categoryTabs, ...moreCategories].find((item) => item.code === activeCategoryCode.value) ?? categoryTabs[0];
 });
 
-const carouselTrackStyle = computed(() => ({
-  transform: `translateX(-${carouselTrackIndex.value * 100}%)`,
-  transition:
-    carousel.value.length > 1 && carouselTransitionEnabled.value
-      ? 'transform 0.45s ease'
-      : 'none',
-}));
+const activeCarouselItem = computed(() => carousel.value[carouselIndex.value] ?? carousel.value[0]);
 
-function extractColor(videoId: number, event: Event) {
-  const img = event.target as HTMLImageElement;
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-
-  canvas.width = 100;
-  canvas.height = 50;
-
-  try {
-    ctx.drawImage(img, 0, img.naturalHeight - 100, img.naturalWidth, 100, 0, 0, 100, 50);
-    const imageData = ctx.getImageData(0, 40, 100, 10);
-    const data = imageData.data;
-
-    let r = 0, g = 0, b = 0, count = 0;
-    for (let i = 0; i < data.length; i += 4) {
-      r += data[i];
-      g += data[i + 1];
-      b += data[i + 2];
-      count++;
-    }
-
-    r = Math.round(r / count);
-    g = Math.round(g / count);
-    b = Math.round(b / count);
-
-    const darken = (v: number) => Math.max(0, Math.round(v * 0.6));
-    const darkR = darken(r);
-    const darkG = darken(g);
-    const darkB = darken(b);
-
-    gradientStyles.value[videoId] = `linear-gradient(to bottom, transparent 0%, rgba(${r}, ${g}, ${b}, 0.85) 40%, rgba(${darkR}, ${darkG}, ${darkB}, 0.98) 100%)`;
-  } catch {
-    // CORS or other error, use default gradient
+const heroTags = computed(() => {
+  const label = activeCategory.value.label;
+  if (activeCategory.value.code === 'tech') {
+    return ['科技', '机器人', 'AI', '未来世界'];
   }
+  if (activeCategory.value.code === 'all') {
+    return ['精选', '创作者', '热门内容', '持续更新'];
+  }
+  return [label, '精选内容', '热门视频', '观澜推荐'];
+});
+
+const sideRecommendationCards = computed(() => {
+  const active = activeCarouselItem.value;
+  const activeId = active?.id;
+  const withoutActive = carousel.value.filter((item) => item.id !== activeId);
+  return (active ? [active, ...withoutActive] : withoutActive).slice(0, 4);
+});
+
+function formatCount(value: number) {
+  if (value >= 10000) {
+    return `${(value / 10000).toFixed(value >= 100000 ? 0 : 1)}万`;
+  }
+
+  return String(value);
 }
 
-const topRightCards = computed(() => cards.value.slice(0, 4));
-const restCards = computed(() => cards.value.slice(4));
+function formatDuration(value?: number | null) {
+  if (!value || value <= 0) {
+    return '';
+  }
+
+  const total = Math.floor(value);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
 
 function resetCarouselPosition() {
   carouselIndex.value = 0;
-  carouselTransitionEnabled.value = false;
-  carouselTrackIndex.value = carousel.value.length > 1 ? 1 : 0;
 }
 
 function nextCarousel() {
   const total = carousel.value.length;
   if (total <= 1) return;
-
-  carouselTransitionEnabled.value = true;
-  carouselTrackIndex.value += 1;
   carouselIndex.value = (carouselIndex.value + 1) % total;
 }
 
 function prevCarousel() {
   const total = carousel.value.length;
   if (total <= 1) return;
-
-  carouselTransitionEnabled.value = true;
-  carouselTrackIndex.value -= 1;
   carouselIndex.value = (carouselIndex.value - 1 + total) % total;
 }
 
 function goToCarousel(index: number) {
   const total = carousel.value.length;
-  if (total <= 1 || index === carouselIndex.value || index < 0 || index >= total) return;
-
-  carouselTransitionEnabled.value = true;
+  if (total <= 1 || index < 0 || index >= total) return;
   carouselIndex.value = index;
-  carouselTrackIndex.value = index + 1;
 }
 
-function handleCarouselTransitionEnd() {
-  const total = carousel.value.length;
-  if (total <= 1) return;
-
-  if (carouselTrackIndex.value === 0) {
-    carouselTransitionEnabled.value = false;
-    carouselTrackIndex.value = total;
-    return;
-  }
-
-  if (carouselTrackIndex.value === total + 1) {
-    carouselTransitionEnabled.value = false;
-    carouselTrackIndex.value = 1;
+function goToCarouselById(id: number) {
+  const index = carousel.value.findIndex((item) => item.id === id);
+  if (index >= 0) {
+    goToCarousel(index);
   }
 }
 
@@ -239,7 +336,7 @@ function startCarouselTimer() {
   if (carousel.value.length <= 1) return;
   carouselTimer = window.setInterval(() => {
     nextCarousel();
-  }, 5000);
+  }, 5200);
 }
 
 function stopCarouselTimer() {
@@ -249,272 +346,843 @@ function stopCarouselTimer() {
   }
 }
 
-async function fetchFeedPage(page: number) {
-  return fetchRecommendFeed({ page, pageSize: FEED_PAGE_SIZE });
-}
+async function fetchCategoryPage(page: number) {
+  const category = activeCategory.value;
 
-async function fetchFeedCandidates() {
-  const pages = Array.from({ length: FEED_CANDIDATE_PAGES }, (_, index) => index + 1);
-  const groups = await Promise.all(pages.map((page) => fetchFeedPage(page)));
-  return mergeUniqueById(groups);
-}
-
-async function loadFeed() {
-  if (refreshingFeed.value) {
-    return;
+  if (category.keyword && !category.apiCode) {
+    const result = await searchAll({
+      keyword: category.keyword,
+      tab: 'video',
+      sortBy: 'best',
+      page,
+      pageSize: FEED_PAGE_SIZE,
+    });
+    return result.video;
   }
 
+  return fetchRecommendFeed({
+    categoryCode: category.apiCode,
+    page,
+    pageSize: FEED_PAGE_SIZE,
+  });
+}
+
+async function loadInitialFeed() {
+  const requestId = ++feedRequestId;
   refreshingFeed.value = true;
+  stopCarouselTimer();
+
   try {
-    stopCarouselTimer();
-    gradientStyles.value = {};
-    const candidates = await fetchFeedCandidates();
-    cards.value = takeRandomItems(candidates, FEED_DISPLAY_SIZE);
-    carousel.value = takeRandomItems(cards.value, Math.min(FEED_CAROUSEL_SIZE, Math.max(3, cards.value.length)));
+    const pages = Array.from({ length: INITIAL_PAGE_COUNT }, (_, index) => index + 1);
+    const groups = await Promise.all(pages.map((page) => fetchCategoryPage(page)));
+    if (requestId !== feedRequestId) return;
+
+    const candidates = mergeUniqueById(groups);
+    cards.value = takeRandomItems(candidates, candidates.length);
+    carousel.value = takeRandomItems(candidates, Math.min(FEED_CAROUSEL_SIZE, candidates.length));
+    currentPage.value = INITIAL_PAGE_COUNT;
+    hasMore.value = groups.some((group) => group.length >= FEED_PAGE_SIZE);
     resetCarouselPosition();
     startCarouselTimer();
   } catch {
-    ElMessage.error('加载推荐流失败');
+    if (requestId === feedRequestId) {
+      ElMessage.error('加载推荐流失败');
+      cards.value = [];
+      carousel.value = [];
+      hasMore.value = false;
+    }
   } finally {
-    loading.value = false;
-    refreshingFeed.value = false;
+    if (requestId === feedRequestId) {
+      loading.value = false;
+      refreshingFeed.value = false;
+      await nextTick();
+      setupInfiniteObserver();
+    }
   }
 }
 
+async function loadMore() {
+  if (loadingMore.value || refreshingFeed.value || !hasMore.value) {
+    return;
+  }
+
+  const requestId = feedRequestId;
+  loadingMore.value = true;
+  try {
+    const nextPage = currentPage.value + 1;
+    const nextItems = await fetchCategoryPage(nextPage);
+    if (requestId !== feedRequestId) return;
+
+    const existingIds = new Set(cards.value.map((item) => item.id));
+    const uniqueNextItems = nextItems.filter((item) => !existingIds.has(item.id));
+    cards.value = [...cards.value, ...uniqueNextItems];
+    currentPage.value = nextPage;
+    hasMore.value = nextItems.length >= FEED_PAGE_SIZE && uniqueNextItems.length > 0;
+  } catch {
+    ElMessage.error('加载更多失败');
+  } finally {
+    if (requestId === feedRequestId) {
+      loadingMore.value = false;
+    }
+  }
+}
+
+async function selectCategory(code: string) {
+  if (activeCategoryCode.value === code && !refreshingFeed.value) {
+    return;
+  }
+
+  activeCategoryCode.value = code;
+  cards.value = [];
+  carousel.value = [];
+  hasMore.value = true;
+  currentPage.value = 0;
+  await loadInitialFeed();
+}
+
+async function handleMoreCategory(command: string | number | object) {
+  if (typeof command === 'string') {
+    await selectCategory(command);
+  }
+}
+
+async function refreshFeed() {
+  await loadInitialFeed();
+}
+
+function setupInfiniteObserver() {
+  if (observer) {
+    observer.disconnect();
+    observer = null;
+  }
+
+  if (!loadMoreSentinel.value) {
+    return;
+  }
+
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        void loadMore();
+      }
+    },
+    { rootMargin: '420px 0px 420px 0px' },
+  );
+
+  observer.observe(loadMoreSentinel.value);
+}
+
 onMounted(async () => {
-  await loadFeed();
+  await loadInitialFeed();
 });
 
 onUnmounted(() => {
   stopCarouselTimer();
+  if (observer) {
+    observer.disconnect();
+    observer = null;
+  }
 });
 </script>
 
 <style scoped>
 .page {
+  --home-blue: #2f6fed;
+  --home-ink: #111827;
+  --home-muted: #7b8797;
+  --home-line: #e9eef6;
   display: grid;
-  gap: 24px;
+  gap: 18px;
+  max-width: 1760px;
+  margin: 0 auto;
+  overflow-x: clip;
+}
+
+.hero-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 2.15fr) minmax(300px, 0.98fr);
+  gap: 18px;
+  min-height: 398px;
+}
+
+.hero-main,
+.hero-side-list {
+  border: 1px solid var(--home-line);
+  background: #ffffff;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+}
+
+.hero-main {
+  position: relative;
+  min-width: 0;
+  min-height: 398px;
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.hero-card,
+.hero-media,
+.hero-cover,
+.hero-video {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hero-card {
+  animation: heroFade 0.36s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hero-cover,
+.hero-video {
+  object-fit: cover;
+  object-position: center;
+}
+
+.hero-wash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(247, 251, 255, 0.96) 0%, rgba(247, 251, 255, 0.82) 35%, rgba(247, 251, 255, 0.26) 62%, rgba(247, 251, 255, 0) 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0.1));
+}
+
+.hero-copy {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: min(560px, 56%);
+  min-height: 100%;
+  padding: clamp(46px, 4vw, 66px) clamp(48px, 4.8vw, 74px);
+  color: var(--home-ink);
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: var(--home-blue);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 12px 24px rgba(47, 111, 237, 0.2);
+}
+
+.hero-title {
+  margin: 18px 0 0;
+  color: #101725;
+  font-size: clamp(34px, 3vw, 50px);
+  font-weight: 900;
+  line-height: 1.08;
+  letter-spacing: 0;
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.hero-desc {
+  margin: 12px 0 0;
+  max-width: 560px;
+  color: #344054;
+  font-size: clamp(15px, 1.05vw, 18px);
+  font-weight: 650;
+  line-height: 1.58;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.hero-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.hero-tags span {
+  height: 30px;
+  padding: 0 15px;
+  border-radius: 999px;
+  background: rgba(239, 244, 251, 0.92);
+  color: #5d6b7e;
+  font-size: 13px;
+  font-weight: 760;
+  line-height: 30px;
+}
+
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.hero-play,
+.hero-add,
+.carousel-btn,
+.side-card,
+.category-pill,
+.more-category,
+.refresh-btn,
+.empty-reset {
+  transition:
+    transform 0.26s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.26s cubic-bezier(0.16, 1, 0.3, 1),
+    background 0.22s ease,
+    border-color 0.22s ease,
+    color 0.22s ease;
+}
+
+.hero-play {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-width: 196px;
+  height: 54px;
+  padding: 0 26px;
+  border-radius: 999px;
+  background: var(--home-blue);
+  color: #ffffff;
+  font-size: 17px;
+  font-weight: 850;
+  text-decoration: none;
+  box-shadow: 0 16px 30px rgba(47, 111, 237, 0.24);
+}
+
+.hero-play:hover {
+  transform: translateY(-2px);
+  background: #255fd7;
+}
+
+.hero-play:active,
+.hero-add:active,
+.carousel-btn:active,
+.side-card:active,
+.category-pill:active,
+.more-category:active,
+.refresh-btn:active,
+.empty-reset:active {
+  transform: translateY(-1px) scale(0.98);
+}
+
+.play-triangle {
+  width: 0;
+  height: 0;
+  border-top: 9px solid transparent;
+  border-bottom: 9px solid transparent;
+  border-left: 13px solid currentColor;
+}
+
+.hero-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 1px solid #dce5f2;
+  background: rgba(255, 255, 255, 0.86);
+  color: #26364c;
+  cursor: pointer;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+}
+
+.hero-add:hover {
+  border-color: #cbdaf0;
+  color: var(--home-blue);
+  transform: translateY(-2px);
+}
+
+.carousel-btn {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid #e0e7f1;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.78);
+  color: #5f6b7a;
+  cursor: pointer;
+  transform: translateY(-50%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(12px);
+}
+
+.carousel-btn:hover {
+  color: var(--home-blue);
+  background: #ffffff;
+  transform: translateY(-50%) scale(1.04);
+}
+
+.carousel-btn.prev {
+  left: 18px;
+}
+
+.carousel-btn.next {
+  right: 18px;
+}
+
+.carousel-dots {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: 24px;
+  display: flex;
+  gap: 9px;
+  transform: translateX(-50%);
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(120, 139, 165, 0.35);
+  cursor: pointer;
+  transition: width 0.22s ease, background 0.22s ease;
+}
+
+.dot.active {
+  width: 28px;
+  background: var(--home-blue);
+}
+
+.hero-side-list {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+  padding: 16px;
+  border-radius: 18px;
+}
+
+.side-card {
+  display: grid;
+  grid-template-columns: 144px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  height: 76px;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.side-card:hover,
+.side-card.active {
+  background: #f3f7ff;
+  border-color: #e3ecff;
+  transform: translateX(-2px);
+}
+
+.side-cover-wrap {
+  position: relative;
+  display: block;
+  width: 144px;
+  aspect-ratio: 16 / 9;
+  border-radius: 9px;
+  overflow: hidden;
+  background: #eef2f7;
+}
+
+.side-cover {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.side-duration {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  min-width: 42px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 7px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 22px;
+  text-align: center;
+}
+
+.side-info {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.side-info strong {
+  color: #171f2d;
+  font-size: 15px;
+  font-weight: 820;
+  line-height: 1.24;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.side-info span {
+  min-width: 0;
+  color: #7b8797;
+  font-size: 12px;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.side-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.mini-play {
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 7px solid currentColor;
+}
+
+.category-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+}
+
+.category-rail {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 2px 2px 5px;
+  scrollbar-width: none;
+}
+
+.category-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.category-pill,
+.more-category {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  padding: 0 22px;
+  border: 1px solid #e3e9f2;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #253044;
+  font-size: 14px;
+  font-weight: 760;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.035);
+}
+
+.category-pill:hover,
+.more-category:hover {
+  color: var(--home-blue);
+  border-color: #cfe0ff;
+}
+
+.category-pill.active {
+  color: #ffffff;
+  background: var(--home-blue);
+  border-color: var(--home-blue);
+  box-shadow: 0 12px 24px rgba(47, 111, 237, 0.2);
+}
+
+.more-category {
+  gap: 8px;
+  padding: 0 18px;
 }
 
 .section-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 18px;
+  margin-top: 2px;
 }
 
 .section-title-wrap {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  column-gap: 12px;
-  align-items: center;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
 }
 
-.section-icon {
-  grid-row: span 2;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
-  color: #fff;
-  background: var(--theme-title-gradient, linear-gradient(135deg, #2563eb, #14b8a6));
-  box-shadow: 0 12px 28px var(--theme-soft-strong, rgba(37, 99, 235, 0.18));
+.section-rule {
+  align-self: center;
+  width: 4px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--home-blue);
 }
 
 .section-title {
   margin: 0;
-  width: fit-content;
-  color: transparent;
-  background: var(--theme-title-gradient, linear-gradient(135deg, #2563eb, #14b8a6));
-  -webkit-background-clip: text;
-  background-clip: text;
-  font-family: "STKaiti", "KaiTi", "Microsoft YaHei", sans-serif;
-  font-size: 30px;
+  color: #111827;
+  font-size: 26px;
   font-weight: 900;
-  text-shadow: 0 10px 22px var(--theme-soft-strong, rgba(37, 99, 235, 0.18));
-}
-
-.section-eyebrow {
-  display: inline-flex;
-  margin-bottom: 4px;
-  color: var(--theme-accent, #2563eb);
-  font-size: 12px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.featured-row {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 18px;
-}
-
-.carousel-area {
-  grid-column: 1 / 3;
-  grid-row: 1 / 3;
-  position: relative;
-  align-self: center;
-}
-
-.carousel-wrapper {
-  position: relative;
-  overflow: hidden;
-  border-radius: 9px;
-  background: #1a1a1a;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
-  aspect-ratio: 4 / 3;
-}
-
-.carousel-track {
-  display: flex;
-  width: 100%;
-  height: 100%;
-}
-
-.carousel-slide {
-  display: block;
-  text-decoration: none;
-  position: relative;
-  width: 100%;
-  min-width: 100%;
-  flex: 0 0 100%;
-  height: 100%;
-}
-
-.carousel-cover {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.carousel-gradient {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 60px 28px 28px;
-  color: #fff;
-}
-
-.carousel-info {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.carousel-title {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: #fff;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.carousel-desc {
-  margin: 0;
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.8);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  line-height: 1.5;
-}
-
-.carousel-meta {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.75);
-  margin-top: 4px;
-}
-
-.meta-creator {
-  font-weight: 500;
-}
-
-.meta-stats {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.stat-icon {
-  width: 14px;
-  height: 14px;
-  opacity: 0.9;
-}
-
-.carousel-dots {
-  position: absolute;
-  bottom: 14px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 8px;
-  z-index: 5;
-}
-
-.dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.4);
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.dot.active {
-  background: #fff;
-}
-
-.carousel-btn {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(255, 255, 255, 0.7);
-  color: #374151;
-  font-size: 20px;
   line-height: 1;
-  cursor: pointer;
-  z-index: 5;
-  transition: background 0.2s;
-  display: flex;
+  letter-spacing: 0;
+}
+
+.section-subtitle {
+  color: #8a95a8;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.refresh-btn {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: #26364c;
+  font-size: 14px;
+  font-weight: 760;
+  cursor: pointer;
 }
 
-.carousel-btn:hover {
-  background: rgba(255, 255, 255, 0.95);
+.refresh-btn:hover {
+  color: var(--home-blue);
+  background: #f3f7ff;
 }
 
-.carousel-btn.prev {
-  left: 12px;
+.refresh-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
 }
 
-.carousel-btn.next {
-  right: 12px;
-}
-
-.featured-cards {
-  display: contents;
+.spinning {
+  animation: spin 0.9s linear infinite;
 }
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 18px;
+}
+
+.feed-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 48px;
+  color: #8a95a8;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.loading-mark {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #d8e5ff;
+  border-top-color: var(--home-blue);
+  border-radius: 50%;
+  animation: spin 0.85s linear infinite;
+}
+
+.home-empty {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 56px 0 72px;
+}
+
+.empty-reset {
+  height: 38px;
+  padding: 0 18px;
+  border: 1px solid #dce7f8;
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--home-blue);
+  font-weight: 760;
+  cursor: pointer;
+}
+
+.empty-reset:hover {
+  background: #f3f7ff;
+  transform: translateY(-2px);
+}
+
+@keyframes heroFade {
+  from {
+    opacity: 0.2;
+    transform: scale(1.01);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 1320px) {
+  .hero-shell {
+    grid-template-columns: minmax(0, 1.7fr) minmax(300px, 0.9fr);
+  }
+
+  .side-card {
+    grid-template-columns: 124px minmax(0, 1fr);
+  }
+
+  .side-cover-wrap {
+    width: 124px;
+  }
+}
+
+@media (max-width: 1080px) {
+  .hero-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-side-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .page {
+    gap: 16px;
+  }
+
+  .hero-shell {
+    min-height: auto;
+  }
+
+  .hero-main {
+    min-height: 372px;
+    border-radius: 14px;
+  }
+
+  .hero-wash {
+    background:
+      linear-gradient(180deg, rgba(247, 251, 255, 0.96) 0%, rgba(247, 251, 255, 0.78) 58%, rgba(247, 251, 255, 0.3) 100%),
+      linear-gradient(90deg, rgba(247, 251, 255, 0.92), rgba(247, 251, 255, 0.2));
+  }
+
+  .hero-cover,
+  .hero-video {
+    object-position: center bottom;
+  }
+
+  .hero-copy {
+    width: 100%;
+    padding: 32px 26px;
+  }
+
+  .hero-title {
+    font-size: 31px;
+  }
+
+  .hero-desc {
+    font-size: 15px;
+  }
+
+  .hero-play {
+    min-width: 156px;
+    height: 48px;
+    font-size: 15px;
+  }
+
+  .hero-add {
+    width: 48px;
+    height: 48px;
+  }
+
+  .hero-side-list {
+    grid-template-columns: 1fr;
+    padding: 12px;
+    border-radius: 14px;
+  }
+
+  .category-shell {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .more-category {
+    justify-self: start;
+  }
+
+  .section-head {
+    align-items: flex-start;
+  }
+
+  .section-title-wrap {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+
+  .section-subtitle {
+    flex-basis: 100%;
+    padding-left: 16px;
+  }
+}
+
+@media (max-width: 560px) {
+  .cards {
+    grid-template-columns: 1fr;
+  }
+
+  .side-card {
+    grid-template-columns: 118px minmax(0, 1fr);
+  }
+
+  .side-cover-wrap {
+    width: 118px;
+  }
+
+  .category-pill {
+    padding: 0 17px;
+  }
 }
 </style>
