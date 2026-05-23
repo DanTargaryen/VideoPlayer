@@ -84,7 +84,6 @@ interface HeaderNavItem {
 
 const headerNavItems: HeaderNavItem[] = [
   { label: '推荐', path: '/' },
-  { label: '关注', path: '/following' },
   { label: '探索', path: '/search?tab=video' },
   { label: '直播', path: '/live' },
   { label: '动态', path: '/notifications' },

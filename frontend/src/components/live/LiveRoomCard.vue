@@ -12,12 +12,13 @@
     </RouterLink>
 
     <div class="card-body">
-      <div class="avatar-chip">{{ broadcasterInitial }}</div>
+      <img v-if="item.broadcaster?.avatarUrl" :src="item.broadcaster.avatarUrl" :alt="broadcasterLabel" class="avatar-chip avatar-image" />
+      <div v-else class="avatar-chip">{{ broadcasterInitial }}</div>
       <div class="content-block">
         <h3>{{ item.title }}</h3>
         <p class="broadcaster">{{ broadcasterLabel }}</p>
         <div class="meta-row">
-          <span>{{ sourceModeLabel }}</span>
+          <span>{{ categoryLabel }}</span>
           <span>{{ timeLabel }}</span>
         </div>
       </div>
@@ -37,6 +38,19 @@ const props = defineProps<{
 const broadcasterLabel = computed(() => props.item.broadcaster?.nickname ?? `用户 #${props.item.broadcaster?.id ?? '-'}`);
 const broadcasterInitial = computed(() => broadcasterLabel.value.slice(0, 1));
 const sourceModeLabel = computed(() => (props.item.sourceMode === 'screen' ? '屏幕共享' : '摄像头直播'));
+const categoryLabel = computed(() => {
+  const labels: Record<string, string> = {
+    study: '学习',
+    game: '游戏',
+    tech: '科技',
+    life: '生活',
+    entertainment: '娱乐',
+    chat: '聊天',
+    beauty: '颜值',
+    live: '直播',
+  };
+  return labels[props.item.category] ?? props.item.category ?? sourceModeLabel.value;
+});
 const statusLabel = computed(() => {
   if (props.item.status === 'LIVING') {
     return '直播中';
@@ -64,16 +78,16 @@ const timeLabel = computed(() => {
 <style scoped>
 .card {
   overflow: hidden;
-  border-radius: 22px;
+  border-radius: 14px;
   background: #fff;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--color-border);
+  box-shadow: none;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 22px 48px rgba(15, 23, 42, 0.12);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
 }
 
 .cover-link {
@@ -83,7 +97,8 @@ const timeLabel = computed(() => {
 
 .cover {
   width: 100%;
-  height: 210px;
+  aspect-ratio: 16 / 9;
+  height: auto;
   object-fit: cover;
   background: #111827;
 }
@@ -108,9 +123,10 @@ const timeLabel = computed(() => {
 
 .status-badge,
 .viewer-pill {
-  padding: 6px 12px;
-  border-radius: 999px;
-  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
   color: #fff;
   backdrop-filter: blur(8px);
 }
@@ -134,8 +150,8 @@ const timeLabel = computed(() => {
 .card-body {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 14px;
-  padding: 18px;
+  gap: 10px;
+  padding: 12px 10px 14px;
 }
 
 .avatar-chip {
@@ -143,9 +159,10 @@ const timeLabel = computed(() => {
   place-items: center;
   width: 42px;
   height: 42px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #93c5fd, #3b82f6);
-  color: #fff;
+  border-radius: 50%;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  object-fit: cover;
   font-size: 18px;
   font-weight: 800;
 }
@@ -162,21 +179,25 @@ const timeLabel = computed(() => {
 }
 
 .content-block h3 {
-  color: #111827;
-  font-size: 17px;
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--color-text-main);
+  font-size: 15px;
   line-height: 1.4;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .broadcaster {
-  color: #4b5563;
-  font-size: 14px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
 }
 
 .meta-row {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  color: #6b7280;
+  color: var(--color-text-secondary);
   font-size: 12px;
 }
 </style>

@@ -95,6 +95,42 @@ export class LiveController {
     private readonly authService: AuthService,
   ) {}
 
+  @Get('center/overview')
+  async getLiveCenterOverview(@Headers('authorization') authorization: string | undefined) {
+    const user = await this.authService.getCurrentUser(authorization);
+    return ok(await this.liveService.getCenterOverview(user));
+  }
+
+  @Get('plaza')
+  async getLivePlaza(
+    @Headers('authorization') authorization: string | undefined,
+    @Query('category') category?: string,
+    @Query('keyword') keyword?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const user = await this.authService.getCurrentUser(authorization);
+    return ok(
+      await this.liveService.getPlazaRooms(
+        {
+          category,
+          keyword,
+          limit: limit !== undefined ? Number(limit) : undefined,
+        },
+        user,
+      ),
+    );
+  }
+
+  @Get('hot')
+  async getHotRooms(@Query('limit') limit?: string) {
+    return ok(await this.liveService.getHotRooms(limit !== undefined ? Number(limit) : undefined));
+  }
+
+  @Get('categories')
+  getLiveCategories() {
+    return ok(this.liveService.getLiveCategories());
+  }
+
   @Post('rooms')
   async createRoom(@Headers('authorization') authorization: string | undefined, @Body() dto: CreateRoomDto) {
     const user = await this.authService.requireUser(authorization);

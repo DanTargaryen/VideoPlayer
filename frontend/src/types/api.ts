@@ -26,6 +26,7 @@ export interface VideoCard {
   status: string;
   coverUrl: string;
   description: string;
+  category?: string;
   playUrl?: string;
   durationSeconds?: number | null;
   playCount?: number;
@@ -338,7 +339,34 @@ export interface LiveRoomInfo {
   broadcaster?: {
     id: number;
     nickname: string;
+    avatarUrl?: string | null;
   };
+}
+
+export interface LiveCategoryItem {
+  code: string;
+  label: string;
+}
+
+export interface LiveCenterOverview {
+  metrics: {
+    livingRoomCount: number;
+    myLivingRoomCount: number;
+    identity: {
+      label: string;
+      description: string;
+    };
+    todayViewerCount: number;
+  };
+  myRoom: LiveRoomInfo | null;
+  categories: LiveCategoryItem[];
+  tips: string[];
+}
+
+export interface LivePlazaResponse {
+  list: LiveRoomInfo[];
+  total: number;
+  categories: LiveCategoryItem[];
 }
 
 export interface LiveStartResponse {
@@ -363,6 +391,7 @@ export interface LiveSessionInfo {
   broadcaster?: {
     id: number;
     nickname: string;
+    avatarUrl?: string | null;
   };
 }
 
@@ -423,6 +452,84 @@ export interface FollowUserItem {
   nickname: string;
   avatarUrl?: string | null;
   followedAt: string;
+}
+
+export type DynamicFeedType = 'all' | 'video' | 'post' | 'live';
+export type DynamicFeedSource = 'following' | 'recommended';
+
+export interface DynamicFeedAuthor {
+  id: string;
+  username: string;
+  avatar: string | null;
+}
+
+export interface DynamicFeedItem {
+  id: string;
+  type: 'video' | 'post' | 'live';
+  source: DynamicFeedSource;
+  author: DynamicFeedAuthor;
+  actionText: string;
+  title: string;
+  description?: string;
+  cover?: string;
+  images?: string[];
+  duration?: number;
+  category?: string;
+  createdAt: string;
+  stats?: {
+    views?: number;
+    likes?: number;
+    comments?: number;
+    favorites?: number;
+  };
+  live?: {
+    isLive: boolean;
+    roomId?: string;
+    viewerCount?: number;
+  };
+}
+
+export interface DynamicFeedResponse {
+  list: DynamicFeedItem[];
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+  meta: {
+    isGuest: boolean;
+    followingCount: number;
+    followingItemCount: number;
+    recommendedItemCount: number;
+  };
+}
+
+export interface SidebarLiveItem {
+  id: string;
+  roomId: string;
+  title: string;
+  cover: string;
+  authorName: string;
+  avatar: string | null;
+  viewerCount: number;
+  category: string;
+  isLive: boolean;
+}
+
+export interface SidebarRecentUpdateItem {
+  userId: string;
+  username: string;
+  avatar: string | null;
+  lastActionText: string;
+  lastUpdateAt: string;
+}
+
+export interface SidebarRecommendedUser {
+  userId: string;
+  username: string;
+  avatar: string | null;
+  bio?: string;
+  followerCount?: number;
+  reason?: string;
+  followed: boolean;
 }
 
 export interface FavoriteFolderSummary {
