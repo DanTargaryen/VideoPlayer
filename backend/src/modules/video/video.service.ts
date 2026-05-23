@@ -410,6 +410,7 @@ export class VideoService {
           select: {
             id: true,
             nickname: true,
+            avatarUrl: true,
           },
         },
       },
@@ -429,6 +430,7 @@ export class VideoService {
           select: {
             id: true,
             nickname: true,
+            avatarUrl: true,
           },
         },
       },
@@ -553,6 +555,7 @@ export class VideoService {
           select: {
             id: true,
             nickname: true,
+            avatarUrl: true,
           },
         },
       },
@@ -579,6 +582,7 @@ export class VideoService {
           select: {
             id: true,
             nickname: true,
+            avatarUrl: true,
           },
         },
       },
@@ -629,6 +633,7 @@ export class VideoService {
             select: {
               id: true,
               nickname: true,
+              avatarUrl: true,
             },
           },
         },
@@ -680,6 +685,7 @@ export class VideoService {
           select: {
             id: true,
             nickname: true,
+            avatarUrl: true,
           },
         },
       },
@@ -1094,7 +1100,7 @@ export class VideoService {
       include: {
         video: {
           include: {
-            creator: { select: { id: true, nickname: true } },
+            creator: { select: { id: true, nickname: true, avatarUrl: true } },
           },
         },
       },
@@ -1240,7 +1246,7 @@ export class VideoService {
       include: {
         video: {
           include: {
-            creator: { select: { id: true, nickname: true } },
+            creator: { select: { id: true, nickname: true, avatarUrl: true } },
           },
         },
       },
@@ -1272,7 +1278,7 @@ export class VideoService {
       include: {
         video: {
           include: {
-            creator: { select: { id: true, nickname: true } },
+            creator: { select: { id: true, nickname: true, avatarUrl: true } },
           },
         },
       },

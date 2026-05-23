@@ -33,9 +33,9 @@ defineEmits<{
   gap: 8px;
   overflow-x: auto;
   padding: 4px;
-  border: 1px solid var(--gl-border);
+  border: 1px solid var(--color-border);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.72);
+  background: var(--color-bg-card);
   scrollbar-width: none;
 }
 
@@ -49,7 +49,7 @@ defineEmits<{
   border: 0;
   border-radius: 12px;
   background: transparent;
-  color: var(--gl-text-secondary);
+  color: var(--color-text-secondary);
   cursor: pointer;
   font-size: 14px;
   font-weight: 700;
@@ -57,8 +57,8 @@ defineEmits<{
 }
 
 .tab:hover {
-  color: var(--gl-primary);
-  background: var(--gl-primary-soft);
+  color: var(--color-primary);
+  background: var(--color-primary-light);
 }
 
 .tab:active {
@@ -66,7 +66,7 @@ defineEmits<{
 }
 
 .tab.active {
-  color: var(--gl-primary);
-  background: var(--gl-primary-soft);
+  color: var(--color-primary);
+  background: var(--color-primary-light);
 }
 </style>
