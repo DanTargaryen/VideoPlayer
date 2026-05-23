@@ -94,6 +94,7 @@ export class FollowService {
           select: {
             id: true,
             nickname: true,
+            avatarUrl: true,
           },
         },
       },
