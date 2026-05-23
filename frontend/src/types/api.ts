@@ -27,6 +27,7 @@ export interface VideoCard {
   coverUrl: string;
   description: string;
   playUrl?: string;
+  durationSeconds?: number | null;
   playCount?: number;
   likeCount: number;
   favoriteCount: number;
@@ -449,7 +450,7 @@ export interface MyVideoItem {
   favoriteCount: number;
   commentCount: number;
   coinCount?: number;
-  creator: { id: number; nickname: string };
+  creator: { id: number; nickname: string; avatarUrl?: string | null };
   favoritedAt?: string;
   folderId?: number | null;
   likedAt?: string;
