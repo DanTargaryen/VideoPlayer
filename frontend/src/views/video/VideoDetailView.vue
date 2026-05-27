@@ -1,10 +1,62 @@
 <template>
-  <section class="page" v-loading="loading">
-    <div class="top-layout" v-if="video">
-      <div class="main-column">
-        <h1 class="video-title">{{ video.title }}</h1>
+  <section class="video-detail-page" v-loading="loading">
+    <div class="video-detail-shell" v-if="video">
+      <main class="main-column">
+        <header class="video-header">
+          <h1 class="video-title">{{ video.title }}</h1>
 
-        <div class="player-section">
+          <div class="author-meta-card">
+            <RouterLink :to="`/users/${video.creator.id}`" class="creator-inline">
+              <span class="creator-avatar">
+                <img
+                  v-if="video.creator.avatarUrl"
+                  :src="video.creator.avatarUrl"
+                  :alt="video.creator.nickname"
+                  class="creator-avatar-img"
+                />
+                <span v-else>{{ creatorInitial }}</span>
+              </span>
+              <span class="creator-text">
+                <strong>
+                  {{ video.creator.nickname }}
+                  <el-icon class="verified-icon" :size="15"><CircleCheckFilled /></el-icon>
+                </strong>
+              </span>
+            </RouterLink>
+
+            <el-button
+              v-if="canFollow"
+              class="follow-btn"
+              :class="{ followed: video.isFollowingCreator }"
+              size="small"
+              @click="toggleFollow"
+            >
+              {{ video.isFollowingCreator ? '已关注' : '+ 关注' }}
+            </el-button>
+
+            <div class="meta-strip">
+              <span class="meta-item">粉丝 {{ formatCompactNumber(video.creator.followerCount) }}</span>
+              <span class="meta-item">
+                <el-icon :size="15"><VideoPlay /></el-icon>
+                {{ formatCompactNumber(video.playCount ?? 0) }}
+              </span>
+              <span class="meta-item">
+                <el-icon :size="15"><ChatLineRound /></el-icon>
+                {{ formatCompactNumber(danmakus.length) }}
+              </span>
+              <span class="meta-item">
+                <el-icon :size="15"><Clock /></el-icon>
+                {{ publishDateText }}
+              </span>
+              <span class="meta-item rights-note">
+                <el-icon :size="15"><CircleCloseFilled /></el-icon>
+                未经作者授权，禁止转载
+              </span>
+            </div>
+          </div>
+        </header>
+
+        <section class="watch-panel">
           <div class="player-wrapper">
             <video
               v-if="video?.playUrl"
@@ -20,7 +72,7 @@
               @pause="onVideoPause"
               @ended="handleVideoEnded"
             ></video>
-            <span v-else>视频播放器占位</span>
+            <div v-else class="player-empty">视频暂不可播放</div>
             <DanmakuOverlay
               v-if="video?.playUrl"
               :danmakus="danmakus"
@@ -35,200 +87,175 @@
           </div>
 
           <div class="danmaku-bar" v-if="video?.playUrl">
-            <el-switch v-model="danmakuVisible" active-text="弹幕" inactive-text="关" size="small" />
+            <label class="danmaku-switch">
+              <span>弹</span>
+              <el-switch v-model="danmakuVisible" size="small" />
+            </label>
             <el-input
               v-model="danmakuForm.content"
-              placeholder="输入弹幕内容"
+              class="danmaku-input"
+              placeholder="发个友善的弹幕见证当下"
               @keyup.enter="submitDanmaku"
-              style="flex: 1"
             />
-            <span class="time-badge">{{ formatMs(currentVideoTimeMs) }}</span>
-            <el-button type="primary" size="small" @click="submitDanmaku">发送</el-button>
+            <span class="danmaku-counter">{{ formatMs(currentVideoTimeMs) }} / {{ formatMs(videoDurationMs) }}</span>
+            <button class="danmaku-face" type="button" aria-label="弹幕表情">
+              <el-icon :size="17"><ChatDotRound /></el-icon>
+            </button>
+            <el-button class="danmaku-send" type="primary" @click="submitDanmaku">发送</el-button>
           </div>
-        </div>
+        </section>
 
-        <div class="action-bar">
-          <div class="action-left">
-            <button class="action-icon-btn" :class="{ active: video.isLiked }" @click="toggleLikeAction">
-              <svg class="action-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M7 22V11L10.5 3.5C10.78 2.87 11.41 2.5 12.1 2.5C13.1 2.5 13.85 3.42 13.65 4.4L12.8 9H20c1.1 0 2 0.9 2 2v1c0 .15-.02.3-.05.44l-2.19 8C19.5 21.35 18.68 22 17.73 22H7ZM7 13v8M3 22h2V11H3v11Z" fill="currentColor"/>
-              </svg>
-              <span>{{ video.likeCount }}</span>
-            </button>
-            <button class="action-icon-btn" :class="{ active: video.isFavorited }" @click="toggleFavoriteAction">
-              <el-icon :size="26"><StarFilled /></el-icon>
-              <span>{{ video.favoriteCount }}</span>
-            </button>
-            <button class="action-icon-btn" @click="scrollToComments">
-              <el-icon :size="26"><ChatDotRound /></el-icon>
-              <span>{{ video.commentCount }}</span>
-            </button>
-            <div class="coin-action">
-              <button class="action-icon-btn coin-btn" :class="{ active: video.myCoinCount > 0 }" :disabled="remainingCoinLimit === 0 || coiningVideo" @click="handleCoinVideo">
-                <el-icon :size="26"><Coin /></el-icon>
-                <span>{{ video.coinCount }}</span>
-              </button>
-              <el-input-number v-model="coinAmount" :min="1" :max="Math.max(1, remainingCoinLimit)" size="small" :disabled="remainingCoinLimit === 0 || coiningVideo" />
-              <span class="coin-progress">我的投币 {{ video.myCoinCount }}/{{ video.myCoinLimit }}</span>
-            </div>
-            <el-button
-              v-if="canFollow"
-              :type="video.isFollowingCreator ? 'default' : 'primary'"
-              size="small"
-              @click="toggleFollow"
-            >
-              {{ video.isFollowingCreator ? '取消关注' : '关注' }}
-            </el-button>
-          </div>
-          <button class="report-btn" @click="openVideoReportDialog">
-            <el-icon :size="18"><Warning /></el-icon>
-            举报视频
-          </button>
-        </div>
+        <VideoActionBar
+          :video="video"
+          :remaining-coin-limit="remainingCoinLimit"
+          :coining-video="coiningVideo"
+          @like="toggleLikeAction"
+          @favorite="toggleFavoriteAction"
+          @coin="handleCoinVideo"
+          @comments="scrollToComments"
+          @share="handleShareVideo"
+          @more="openAgentPanel"
+          @report="openVideoReportDialog"
+        />
+
+        <VideoIntroCard :video="video" />
 
         <section class="comments" v-if="video">
           <div class="comments-head">
-            <h2>评论</h2>
-            <el-button type="primary" plain @click="loadComments">刷新评论</el-button>
+            <div>
+              <h2>评论 <span>{{ formatCompactNumber(video.commentCount) }}</span></h2>
+            </div>
+            <el-button type="primary" plain @click="loadComments">
+              <el-icon><RefreshRight /></el-icon>
+              <span>刷新评论</span>
+            </el-button>
           </div>
 
-          <el-input
-            v-model="commentForm"
-            type="textarea"
-            :rows="3"
-            placeholder="输入评论内容"
-          />
-          <p class="comment-tip">输入 <strong>@grok</strong> + 问题，可召唤智能体回复</p>
-          <div class="comment-actions">
-            <el-button type="primary" @click="submitRootComment">发表评论</el-button>
+          <div class="comment-composer">
+            <span class="viewer-avatar">
+              <img v-if="appStore.avatarUrl" :src="appStore.avatarUrl" :alt="appStore.nickname" />
+              <span v-else>{{ currentUserInitial }}</span>
+            </span>
+            <div class="composer-main">
+              <el-input
+                v-model="commentForm"
+                type="textarea"
+                :autosize="{ minRows: 1, maxRows: 4 }"
+                resize="none"
+                placeholder="发一条友善的评论......"
+              />
+              <div class="composer-footer">
+                <p>输入 <strong>@grok</strong> + 问题，可召唤智能体回复</p>
+                <el-button type="primary" @click="submitRootComment">发表评论</el-button>
+              </div>
+            </div>
+          </div>
+
+          <div class="comment-tabs" role="tablist" aria-label="评论排序">
+            <button
+              type="button"
+              :class="{ active: commentSortTab === 'hot' }"
+              @click="commentSortTab = 'hot'"
+            >
+              热门
+            </button>
+            <button
+              type="button"
+              :class="{ active: commentSortTab === 'latest' }"
+              @click="commentSortTab = 'latest'"
+            >
+              最新
+            </button>
           </div>
 
           <div class="comment-list">
-            <article v-for="item in comments" :key="item.id" class="comment-card">
+            <article v-for="item in sortedComments" :key="item.id" class="comment-card">
               <CommentThread
                 :comment="item"
                 :root-id="item.id"
                 :active-reply-id="replyTargetId"
                 :reply-form-value="replyForm"
+                :expanded-comment-ids="expandedCommentIds"
                 @update:reply-form-value="replyForm = $event"
                 @toggle-reply="toggleReplyBox"
                 @submit-reply="handleSubmitReply"
                 @report="reportComment"
               />
             </article>
+            <el-empty v-if="comments.length === 0" description="还没有评论，来发第一条吧" :image-size="80" />
           </div>
         </section>
-      </div>
+      </main>
 
       <aside class="side-column">
-        <div class="agent-entry">
-          <el-popover
-            v-model:visible="agentPanelVisible"
-            placement="bottom-end"
-            :width="360"
-            trigger="click"
-            popper-class="video-agent-popper"
-          >
-            <template #reference>
-              <el-button type="primary" plain class="agent-entry-btn">
-                <el-icon :size="16"><ChatDotRound /></el-icon>
-                智能体
-              </el-button>
-            </template>
-
-            <div class="agent-panel">
-              <div class="agent-panel-head">
-                <strong>视频智能体</strong>
-                <span v-if="agentLastFrameCount > 0">分析帧数：{{ agentLastFrameCount }}</span>
-              </div>
-              <div ref="agentMessagesRef" class="agent-messages">
-                <div
-                  v-for="item in agentMessages"
-                  :key="item.id"
-                  class="agent-message"
-                  :class="item.role === 'user' ? 'agent-message-user' : 'agent-message-assistant'"
-                >
-                  <p>{{ item.content }}</p>
-                </div>
-                <div v-if="agentLoading" class="agent-loading">智能体思考中...</div>
-              </div>
-              <p v-if="agentError" class="agent-error">{{ agentError }}</p>
-              <div class="agent-input-wrap">
-                <el-input
-                  v-model="agentDraft"
-                  placeholder="输入你的问题，例如：这个视频里人物在做什么？"
-                  :disabled="agentLoading"
-                  @keydown.enter.exact.prevent="askVideoAgent"
-                />
-                <el-button type="primary" :loading="agentLoading" @click="askVideoAgent">发送</el-button>
-              </div>
-            </div>
-          </el-popover>
-        </div>
-
-        <RouterLink :to="`/users/${video.creator.id}`" class="creator-card">
-          <div class="creator-avatar">
-            <img v-if="video.creator.avatarUrl" :src="video.creator.avatarUrl" :alt="video.creator.nickname" class="creator-avatar-img" />
-            <span v-else>{{ video.creator.nickname.charAt(0) }}</span>
-          </div>
-          <div class="creator-info">
-            <strong class="creator-name">{{ video.creator.nickname }}</strong>
-            <span class="creator-fans">粉丝 {{ video.creator.followerCount }}</span>
-          </div>
-          <el-icon :size="16" color="#9ca3af"><ArrowRight /></el-icon>
-        </RouterLink>
-
-        <div class="video-desc-card">
-          <p class="video-desc-text">{{ video.description || '暂无简介' }}</p>
-        </div>
-
-        <div class="danmaku-panel">
-          <button class="danmaku-panel-toggle" @click="danmakuListExpanded = !danmakuListExpanded">
-            <span>弹幕列表</span>
-            <span class="danmaku-count">{{ danmakus.length }}</span>
-            <el-icon :size="14" class="toggle-arrow" :class="{ expanded: danmakuListExpanded }"><ArrowRight /></el-icon>
-          </button>
-          <div class="danmaku-panel-body" v-if="danmakuListExpanded">
-            <div class="danmaku-scroll">
-              <div v-for="item in danmakus" :key="item.id" class="danmaku-row" @click="onDanmakuRowClick(item)">
-                <span class="danmaku-time">{{ formatMs(item.timeOffsetMs) }}</span>
-                <span class="danmaku-user" :style="{ color: item.color || '#6b7280' }">{{ item.user.nickname }}</span>
-                <span class="danmaku-text">{{ item.content }}</span>
-                <span class="danmaku-row-actions">
-                  <button class="danmaku-action-btn" :class="{ liked: likedDanmakuIds.has(item.id) }" @click.stop="toggleDanmakuLike(item)">
-                    <svg class="danmaku-action-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M7 22V11L10.5 3.5C10.78 2.87 11.41 2.5 12.1 2.5C13.1 2.5 13.85 3.42 13.65 4.4L12.8 9H20c1.1 0 2 0.9 2 2v1c0 .15-.02.3-.05.44l-2.19 8C19.5 21.35 18.68 22 17.73 22H7ZM7 13v8M3 22h2V11H3v11Z" fill="currentColor"/>
-                    </svg>
-                  </button>
-                  <button class="danmaku-action-btn report" @click.stop="openReportDialog(item)">
-                    <el-icon :size="12"><Warning /></el-icon>
-                  </button>
-                </span>
-              </div>
-              <el-empty v-if="danmakus.length === 0" description="暂无弹幕" :image-size="60" />
-            </div>
-          </div>
-        </div>
-
-        <div class="recommend-panel">
-          <div class="panel-head">
-            <h2>相关推荐</h2>
-            <el-button type="primary" text @click="loadRecommendations">刷新</el-button>
-          </div>
-          <div class="recommend-list">
-            <article v-for="item in recommendations" :key="item.id" class="recommend-card">
-              <img :src="item.coverUrl" :alt="item.title" class="recommend-cover" />
-              <div class="recommend-meta">
-                <strong>{{ item.title }}</strong>
-                <span>{{ item.creator?.nickname ?? '推荐视频' }}</span>
-                <RouterLink :to="`/video/${item.id}`" class="secondary-link">立即观看</RouterLink>
-              </div>
-            </article>
-            <el-empty v-if="recommendations.length === 0" description="暂无相关推荐" />
-          </div>
-        </div>
+        <VideoRecommendationsPanel
+          v-model:autoplay="autoPlayNext"
+          :recommendations="recommendations"
+          :loading="recommendationsLoading"
+          @refresh="loadRecommendations"
+        />
       </aside>
     </div>
+
+    <el-dialog v-model="favoriteDialogVisible" title="选择收藏夹" width="420px" :close-on-click-modal="false">
+      <div class="favorite-dialog-body" v-loading="favoriteFolderLoading">
+        <div v-if="favoriteFolderOptions.length > 0" class="favorite-dialog-list">
+          <label
+            v-for="folder in favoriteFolderOptions"
+            :key="folder.id"
+            class="favorite-dialog-item"
+            :class="{ active: selectedFavoriteFolderId === folder.id }"
+          >
+            <el-radio v-model="selectedFavoriteFolderId" :label="folder.id">
+              {{ folder.name }}
+            </el-radio>
+            <span class="favorite-dialog-count">{{ folder.videoCount }} 个视频</span>
+          </label>
+        </div>
+        <el-empty v-else description="暂无可用收藏夹" :image-size="60" />
+      </div>
+      <template #footer>
+        <el-button @click="favoriteDialogVisible = false">取消</el-button>
+        <el-button
+          type="primary"
+          :loading="favoritingVideo"
+          :disabled="favoriteFolderLoading || !selectedFavoriteFolderId"
+          @click="confirmFavoriteVideo"
+        >
+          确认收藏
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="agentPanelVisible" title="视频智能体" width="520px" :close-on-click-modal="false">
+      <div class="agent-panel">
+        <div class="agent-panel-head">
+          <strong>和当前视频对话</strong>
+          <span v-if="agentLastFrameCount > 0">分析帧数：{{ agentLastFrameCount }}</span>
+        </div>
+        <div ref="agentMessagesRef" class="agent-messages">
+          <div
+            v-for="item in agentMessages"
+            :key="item.id"
+            class="agent-message"
+            :class="item.role === 'user' ? 'agent-message-user' : 'agent-message-assistant'"
+          >
+            <p>{{ item.content }}</p>
+          </div>
+          <div v-if="agentLoading" class="agent-loading">智能体思考中...</div>
+        </div>
+        <p v-if="agentError" class="agent-error">{{ agentError }}</p>
+        <div class="agent-input-wrap">
+          <el-input
+            v-model="agentDraft"
+            placeholder="输入你的问题，例如：这个视频里人物在做什么？"
+            :disabled="agentLoading"
+            @keydown.enter.exact.prevent="askVideoAgent"
+          />
+          <el-button type="primary" :loading="agentLoading" @click="askVideoAgent">发送</el-button>
+        </div>
+      </div>
+    </el-dialog>
 
     <el-dialog v-model="reportDialogVisible" title="举报弹幕" width="440px" :close-on-click-modal="false">
       <div class="report-dialog-body" v-if="reportTarget">
@@ -280,9 +307,17 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
-import { onBeforeRouteLeave, useRoute } from 'vue-router';
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { StarFilled, ChatDotRound, Warning, ArrowRight, Coin } from '@element-plus/icons-vue';
+import {
+  ChatDotRound,
+  ChatLineRound,
+  CircleCheckFilled,
+  CircleCloseFilled,
+  Clock,
+  RefreshRight,
+  VideoPlay,
+} from '@element-plus/icons-vue';
 
 import {
   createVideoAiChat,
@@ -290,8 +325,10 @@ import {
   createDanmaku,
   coinVideo,
   favoriteVideo,
+  fetchCommentThread,
   fetchComments,
   fetchDanmakus,
+  fetchMyFavoriteFolders,
   fetchRelatedVideos,
   fetchVideoDetail,
   followUser,
@@ -306,12 +343,29 @@ import {
 } from '@/api/platform';
 import CommentThread from '@/components/CommentThread.vue';
 import DanmakuOverlay from '@/components/DanmakuOverlay.vue';
+import VideoActionBar from '@/components/video/VideoActionBar.vue';
+import VideoIntroCard from '@/components/video/VideoIntroCard.vue';
+import VideoRecommendationsPanel from '@/components/video/VideoRecommendationsPanel.vue';
 import { useAppStore } from '@/stores/app';
-import type { CommentItem, DanmakuItem, VideoCard, VideoDetail, VideoWatchProgressPayload } from '@/types/api';
+import { takeRandomItems } from '@/utils/randomVideos';
+import type {
+  CommentItem,
+  DanmakuItem,
+  FavoriteFolderSummary,
+  VideoCard,
+  VideoDetail,
+  VideoWatchProgressPayload,
+} from '@/types/api';
 
 const WATCH_PROGRESS_MIN_REPORT_SECONDS = 10;
 const WATCH_PROGRESS_LEAVE_MIN_REPORT_SECONDS = 5;
 const WATCH_PROGRESS_MAX_DELTA_SECONDS = 5;
+const GROK_MENTION_PATTERN = /@grok\b/i;
+const GROK_REPLY_POLL_INTERVAL_MS = 2000;
+const GROK_REPLY_POLL_MAX_ATTEMPTS = 30;
+const GROK_PENDING_REPLY_TEXT = 'Grok 正在生成回复，请稍候';
+const RELATED_DISPLAY_SIZE = 6;
+const RELATED_CANDIDATE_SIZE = 24;
 
 interface AgentMessage {
   id: number;
@@ -320,23 +374,32 @@ interface AgentMessage {
 }
 
 const route = useRoute();
+const router = useRouter();
 const appStore = useAppStore();
 const loading = ref(false);
 const video = ref<VideoDetail | null>(null);
 const videoRef = ref<HTMLVideoElement | null>(null);
 const recommendations = ref<VideoCard[]>([]);
+const recommendationsLoading = ref(false);
 const comments = ref<CommentItem[]>([]);
 const danmakus = ref<DanmakuItem[]>([]);
 const commentForm = ref('');
 const replyForm = ref('');
 const replyTargetId = ref<number | null>(null);
+const commentSortTab = ref<'hot' | 'latest'>('hot');
+const expandedCommentIds = ref<Set<number>>(new Set());
+const favoriteDialogVisible = ref(false);
+const favoriteFolderOptions = ref<FavoriteFolderSummary[]>([]);
+const favoriteFolderLoading = ref(false);
+const favoritingVideo = ref(false);
+const selectedFavoriteFolderId = ref<number | null>(null);
 
 const currentVideoTimeMs = ref(0);
 const videoDurationMs = ref(0);
 const danmakuVisible = ref(true);
-const danmakuListExpanded = ref(false);
 const videoPaused = ref(true);
 const likedDanmakuIds = ref<Set<number>>(new Set());
+const autoPlayNext = ref(true);
 
 const hasReportedPlay = ref(false);
 const hasReportedEnded = ref(false);
@@ -365,11 +428,44 @@ const agentLastFrameCount = ref(0);
 const agentMessagesRef = ref<HTMLElement | null>(null);
 const agentMessages = ref<AgentMessage[]>([]);
 let agentMessageSeed = 0;
+let grokReplyPollTimer: ReturnType<typeof setTimeout> | null = null;
+let grokReplyPollToken = 0;
+let grokPendingReplySeed = 0;
 
 const canFollow = computed(
   () => appStore.isLoggedIn && video.value && video.value.creator.id !== appStore.userId,
 );
 const remainingCoinLimit = computed(() => Math.max(0, (video.value?.myCoinLimit ?? 5) - (video.value?.myCoinCount ?? 0)));
+const creatorInitial = computed(() => video.value?.creator.nickname.trim().charAt(0).toUpperCase() || '观');
+const currentUserInitial = computed(() => appStore.nickname.trim().charAt(0).toUpperCase() || '游');
+const publishDateText = computed(() => {
+  const value = video.value?.publishedAt ?? video.value?.createdAt;
+  if (!value) {
+    return '发布时间未知';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '发布时间未知';
+  }
+
+  const pad = (input: number) => String(input).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+});
+const sortedComments = computed(() => {
+  const items = [...comments.value];
+  if (commentSortTab.value === 'latest') {
+    return items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  return items.sort((a, b) => {
+    const replyDelta = (b.replyCount + b.replies.length) - (a.replyCount + a.replies.length);
+    if (replyDelta !== 0) {
+      return replyDelta;
+    }
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+});
 const coinAmount = ref(1);
 const coiningVideo = ref(false);
 
@@ -378,6 +474,14 @@ function formatMs(ms: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function formatCompactNumber(value?: number | null) {
+  const count = Number(value ?? 0);
+  if (count >= 10000) {
+    return `${(count / 10000).toFixed(count >= 100000 ? 0 : 1)}万`;
+  }
+  return String(count);
 }
 
 function onTimeUpdate() {
@@ -553,16 +657,20 @@ async function handleVideoPlay() {
   lastPlaybackPositionSeconds.value = player.currentTime;
   resolvedVideoDurationSeconds.value = resolveCurrentVideoDurationSeconds();
 
-  if (!appStore.isLoggedIn || !video.value || hasReportedPlay.value) {
+  if (!video.value || hasReportedPlay.value) {
     return;
   }
 
   hasReportedPlay.value = true;
 
   try {
-    await reportVideoPlay(video.value.id, {
+    const result = await reportVideoPlay(video.value.id, {
       videoDurationSeconds: resolvedVideoDurationSeconds.value || undefined,
     });
+
+    if (video.value) {
+      video.value.playCount = result.playCount;
+    }
   } catch (error) {
     hasReportedPlay.value = false;
     console.warn('report play failed', error);
@@ -581,6 +689,9 @@ async function handleVideoPause() {
 
 async function handleVideoEnded() {
   await flushWatchProgress('ended', { force: true });
+  if (autoPlayNext.value && recommendations.value.length > 0) {
+    await router.push(`/video/${recommendations.value[0].id}`);
+  }
 }
 
 async function loadDetail() {
@@ -597,10 +708,20 @@ async function loadDetail() {
 }
 
 async function loadRecommendations() {
+  if (recommendationsLoading.value) {
+    return;
+  }
+
+  recommendationsLoading.value = true;
   try {
-    recommendations.value = await fetchRelatedVideos(Number(route.params.id));
+    const candidates = await fetchRelatedVideos(Number(route.params.id), {
+      limit: RELATED_CANDIDATE_SIZE,
+    });
+    recommendations.value = takeRandomItems(candidates, RELATED_DISPLAY_SIZE);
   } catch {
     ElMessage.error('加载相关推荐失败');
+  } finally {
+    recommendationsLoading.value = false;
   }
 }
 
@@ -611,6 +732,218 @@ async function loadComments() {
   } catch {
     ElMessage.error('加载评论失败');
   }
+}
+
+function hasGrokMention(content: string) {
+  return GROK_MENTION_PATTERN.test(content);
+}
+
+function clearGrokReplyPolling() {
+  grokReplyPollToken += 1;
+  if (grokReplyPollTimer) {
+    clearTimeout(grokReplyPollTimer);
+    grokReplyPollTimer = null;
+  }
+}
+
+function findCommentNode(root: CommentItem, commentId: number): CommentItem | null {
+  if (root.id === commentId) {
+    return root;
+  }
+
+  for (const reply of root.replies) {
+    const matched = findCommentNode(reply, commentId);
+    if (matched) {
+      return matched;
+    }
+  }
+
+  return null;
+}
+
+function getDirectReplies(thread: CommentItem, commentId: number) {
+  const source = findCommentNode(thread, commentId);
+  return source?.replies ?? [];
+}
+
+function getDirectReplyIds(thread: CommentItem, commentId: number) {
+  return new Set(getDirectReplies(thread, commentId).map((reply) => reply.id));
+}
+
+function createPendingGrokReply(input: { id: number; videoId: number; parentId: number; rootId: number }): CommentItem {
+  return {
+    id: input.id,
+    videoId: input.videoId,
+    userId: 0,
+    parentId: input.parentId,
+    rootId: input.rootId,
+    content: GROK_PENDING_REPLY_TEXT,
+    replyCount: 0,
+    status: 'NORMAL',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isPendingGrok: true,
+    user: {
+      id: 0,
+      nickname: 'Grok',
+    },
+    replies: [],
+  };
+}
+
+function removePendingGrokRepliesFromNode(node: CommentItem, pendingId?: number): CommentItem {
+  return {
+    ...node,
+    replies: node.replies
+      .filter((reply) => !reply.isPendingGrok && (pendingId === undefined || reply.id !== pendingId))
+      .map((reply) => removePendingGrokRepliesFromNode(reply, pendingId)),
+  };
+}
+
+function appendPendingGrokReply(node: CommentItem, sourceCommentId: number, pendingReply: CommentItem): CommentItem {
+  const nextNode = removePendingGrokRepliesFromNode(node, pendingReply.id);
+
+  if (nextNode.id === sourceCommentId) {
+    return {
+      ...nextNode,
+      replies: [...nextNode.replies, pendingReply],
+    };
+  }
+
+  return {
+    ...nextNode,
+    replies: nextNode.replies.map((reply) => appendPendingGrokReply(reply, sourceCommentId, pendingReply)),
+  };
+}
+
+function removePendingGrokReplies(pendingId?: number) {
+  comments.value = comments.value.map((item) => removePendingGrokRepliesFromNode(item, pendingId));
+}
+
+function insertPendingGrokReply(input: {
+  videoId: number;
+  rootId: number;
+  sourceCommentId: number;
+  pendingReplyId: number;
+}) {
+  const pendingReply = createPendingGrokReply({
+    id: input.pendingReplyId,
+    videoId: input.videoId,
+    parentId: input.sourceCommentId,
+    rootId: input.rootId,
+  });
+
+  comments.value = comments.value.map((item) =>
+    item.id === input.rootId ? appendPendingGrokReply(item, input.sourceCommentId, pendingReply) : item,
+  );
+
+  const root = comments.value.find((item) => item.id === input.rootId);
+  if (root) {
+    expandCommentPath(root, input.sourceCommentId);
+  }
+}
+
+function isLikelyGrokReply(comment: CommentItem) {
+  return /grok|机器人|智能体/i.test(comment.user.nickname);
+}
+
+function expandCommentPath(root: CommentItem, targetId: number) {
+  const path: number[] = [];
+
+  function visit(node: CommentItem): boolean {
+    path.push(node.id);
+    if (node.id === targetId) {
+      return true;
+    }
+
+    for (const reply of node.replies) {
+      if (visit(reply)) {
+        return true;
+      }
+    }
+
+    path.pop();
+    return false;
+  }
+
+  if (!visit(root)) {
+    return;
+  }
+
+  expandedCommentIds.value = new Set([...expandedCommentIds.value, ...path]);
+}
+
+function upsertCommentThread(thread: CommentItem) {
+  const nextComments = [...comments.value];
+  const index = nextComments.findIndex((item) => item.id === thread.id);
+  if (index >= 0) {
+    nextComments.splice(index, 1, thread);
+  } else {
+    nextComments.push(thread);
+  }
+  comments.value = nextComments;
+}
+
+function startGrokReplyPolling(input: { videoId: number; rootId: number; sourceCommentId: number }) {
+  clearGrokReplyPolling();
+  removePendingGrokReplies();
+
+  const token = grokReplyPollToken;
+  let attempts = 0;
+  const existingThread = comments.value.find((item) => item.id === input.rootId);
+  let knownReplyIds = existingThread ? getDirectReplyIds(existingThread, input.sourceCommentId) : new Set<number>();
+  grokPendingReplySeed -= 1;
+  const pendingReplyId = grokPendingReplySeed;
+
+  insertPendingGrokReply({
+    ...input,
+    pendingReplyId,
+  });
+
+  const pollOnce = async () => {
+    if (token !== grokReplyPollToken || Number(route.params.id) !== input.videoId) {
+      return;
+    }
+
+    attempts += 1;
+
+    try {
+      const thread = await fetchCommentThread(input.videoId, input.rootId);
+      const directReplies = getDirectReplies(thread, input.sourceCommentId);
+      const newReplies = directReplies.filter((reply) => !knownReplyIds.has(reply.id));
+      const replyIds = new Set(directReplies.map((reply) => reply.id));
+      if (newReplies.some(isLikelyGrokReply)) {
+        upsertCommentThread(thread);
+        expandCommentPath(thread, input.sourceCommentId);
+        clearGrokReplyPolling();
+        await loadDetail();
+        return;
+      }
+
+      upsertCommentThread(thread);
+      expandCommentPath(thread, input.sourceCommentId);
+      insertPendingGrokReply({
+        ...input,
+        pendingReplyId,
+      });
+      knownReplyIds = replyIds;
+    } catch {
+      // The task worker may still be creating the thread reply; retry quietly.
+    }
+
+    if (attempts < GROK_REPLY_POLL_MAX_ATTEMPTS && token === grokReplyPollToken) {
+      grokReplyPollTimer = setTimeout(pollOnce, GROK_REPLY_POLL_INTERVAL_MS);
+      return;
+    }
+
+    if (token === grokReplyPollToken) {
+      removePendingGrokReplies(pendingReplyId);
+      grokReplyPollTimer = null;
+      ElMessage.info('Grok 回复还在生成中，可稍后刷新评论');
+    }
+  };
+
+  grokReplyPollTimer = setTimeout(pollOnce, 800);
 }
 
 async function loadDanmakus() {
@@ -722,16 +1055,25 @@ async function askVideoAgent() {
 }
 
 async function submitRootComment() {
-  if (!commentForm.value.trim()) {
+  const content = commentForm.value.trim();
+  if (!content) {
     ElMessage.warning('请输入评论内容');
     return;
   }
 
   try {
-    await createComment(Number(route.params.id), { content: commentForm.value.trim() });
+    const videoId = Number(route.params.id);
+    const created = await createComment(videoId, { content });
     commentForm.value = '';
     ElMessage.success('评论成功');
     await Promise.all([loadComments(), loadDetail()]);
+    if (hasGrokMention(content)) {
+      startGrokReplyPolling({
+        videoId,
+        rootId: created.rootId ?? created.id,
+        sourceCommentId: created.id,
+      });
+    }
   } catch {
     ElMessage.error('评论失败，请确认已登录');
   }
@@ -747,14 +1089,16 @@ function handleSubmitReply(payload: { parentId: number; rootId: number }) {
 }
 
 async function submitReply(parentId: number, rootId: number) {
-  if (!replyForm.value.trim()) {
+  const content = replyForm.value.trim();
+  if (!content) {
     ElMessage.warning('请输入回复内容');
     return;
   }
 
   try {
-    await createComment(Number(route.params.id), {
-      content: replyForm.value.trim(),
+    const videoId = Number(route.params.id);
+    const created = await createComment(videoId, {
+      content,
       parentId,
       rootId,
     });
@@ -762,6 +1106,13 @@ async function submitReply(parentId: number, rootId: number) {
     replyTargetId.value = null;
     ElMessage.success('回复成功');
     await Promise.all([loadComments(), loadDetail()]);
+    if (hasGrokMention(content)) {
+      startGrokReplyPolling({
+        videoId,
+        rootId: created.rootId ?? rootId,
+        sourceCommentId: created.id,
+      });
+    }
   } catch {
     ElMessage.error('回复失败，请确认已登录');
   }
@@ -808,13 +1159,49 @@ async function toggleFavoriteAction() {
   }
 
   try {
-    const result = video.value.isFavorited
-      ? await unfavoriteVideo(video.value.id)
-      : await favoriteVideo(video.value.id);
-    ElMessage.success(result.favorited ? '收藏成功' : '已取消收藏');
-    await loadDetail();
+    if (video.value.isFavorited) {
+      const result = await unfavoriteVideo(video.value.id);
+      ElMessage.success(result.favorited ? '收藏成功' : '已取消收藏');
+      await loadDetail();
+      return;
+    }
+
+    await openFavoriteDialog();
   } catch {
     ElMessage.error('操作失败，请确认已登录');
+  }
+}
+
+async function openFavoriteDialog() {
+  favoriteFolderLoading.value = true;
+  try {
+    const folders = await fetchMyFavoriteFolders();
+    favoriteFolderOptions.value = folders;
+    selectedFavoriteFolderId.value = folders.find((folder) => folder.isDefault)?.id ?? folders[0]?.id ?? null;
+    favoriteDialogVisible.value = true;
+  } catch {
+    ElMessage.error('加载收藏夹失败，请确认已登录');
+  } finally {
+    favoriteFolderLoading.value = false;
+  }
+}
+
+async function confirmFavoriteVideo() {
+  if (!video.value || !selectedFavoriteFolderId.value) {
+    ElMessage.warning('请选择一个收藏夹');
+    return;
+  }
+
+  favoritingVideo.value = true;
+  try {
+    await favoriteVideo(video.value.id, { folderId: selectedFavoriteFolderId.value });
+    favoriteDialogVisible.value = false;
+    ElMessage.success('收藏成功');
+    await loadDetail();
+  } catch {
+    ElMessage.error('收藏失败，请确认已登录');
+  } finally {
+    favoritingVideo.value = false;
   }
 }
 
@@ -866,6 +1253,29 @@ function openReportDialog(danmaku: DanmakuItem) {
 function openVideoReportDialog() {
   videoReportReason.value = '';
   videoReportDialogVisible.value = true;
+}
+
+function openAgentPanel() {
+  agentPanelVisible.value = true;
+}
+
+async function handleShareVideo() {
+  const shareUrl = window.location.href;
+
+  try {
+    if (navigator.share && video.value) {
+      await navigator.share({
+        title: video.value.title,
+        url: shareUrl,
+      });
+      return;
+    }
+
+    await navigator.clipboard.writeText(shareUrl);
+    ElMessage.success('视频链接已复制');
+  } catch {
+    ElMessage.info('分享已取消');
+  }
 }
 
 async function submitVideoReport() {
@@ -985,6 +1395,8 @@ watch(
       resetWatchTracking();
     }
 
+    clearGrokReplyPolling();
+    expandedCommentIds.value = new Set();
     resetAgentState();
     await Promise.all([loadDetail(), loadRecommendations(), loadComments(), loadDanmakus()]);
   },
@@ -999,554 +1411,47 @@ onBeforeRouteLeave(async () => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('pagehide', handlePageHide);
+  clearGrokReplyPolling();
   void flushWatchProgress('leave', { force: true });
   resetWatchTracking();
 });
 </script>
 
 <style scoped>
-.page {
-  display: grid;
-  gap: 20px;
+.favorite-dialog-body {
+  min-height: 120px;
 }
 
-.top-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) 360px;
-  gap: 20px;
-}
-
-.main-column,
-.side-column {
-  display: grid;
-  gap: 20px;
-}
-
-.side-column {
-  align-self: start;
-}
-
-.creator-card {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 16px;
-  border-radius: 16px;
-  background: #ffffff;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
-  text-decoration: none;
-  transition: box-shadow 0.15s ease;
-}
-
-.creator-card:hover {
-  box-shadow: 0 6px 28px rgba(15, 23, 42, 0.1);
-}
-
-.creator-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  color: #ffffff;
-  font-size: 20px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  overflow: hidden;
-}
-
-.creator-avatar-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.creator-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.creator-name {
-  display: block;
-  color: #111827;
-  font-size: 15px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.creator-fans {
-  display: block;
-  margin-top: 2px;
-  color: #9ca3af;
-  font-size: 13px;
-}
-
-.danmaku-panel {
-  border-radius: 16px;
-  background: #ffffff;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
-  overflow: hidden;
-}
-
-.danmaku-panel-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 14px 16px;
-  border: 0;
-  background: transparent;
-  color: #111827;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-
-.danmaku-panel-toggle:hover {
-  background: rgba(15, 23, 42, 0.03);
-}
-
-.danmaku-count {
-  display: inline-flex;
-  align-items: center;
-  padding: 1px 8px;
-  border-radius: 10px;
-  background: rgba(37, 99, 235, 0.08);
-  color: #2563eb;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.toggle-arrow {
-  margin-left: auto;
-  transition: transform 0.2s ease;
-}
-
-.toggle-arrow.expanded {
-  transform: rotate(90deg);
-}
-
-.danmaku-panel-body {
-  border-top: 1px solid rgba(15, 23, 42, 0.06);
-}
-
-.danmaku-scroll {
-  max-height: 300px;
-  overflow-y: auto;
-  padding: 8px 0;
-}
-
-.danmaku-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 16px;
-  font-size: 13px;
-  line-height: 1.5;
-  cursor: pointer;
-  transition: background 0.12s ease;
-}
-
-.danmaku-row:hover {
-  background: rgba(15, 23, 42, 0.04);
-}
-
-.danmaku-row:hover .danmaku-row-actions {
-  opacity: 1;
-}
-
-.danmaku-time {
-  flex-shrink: 0;
-  color: #9ca3af;
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-
-.danmaku-user {
-  flex-shrink: 0;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.danmaku-text {
-  flex: 1;
-  min-width: 0;
-  color: #374151;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.danmaku-row-actions {
-  display: flex;
-  gap: 2px;
-  opacity: 0;
-  transition: opacity 0.12s ease;
-  flex-shrink: 0;
-}
-
-.danmaku-action-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: #9ca3af;
-  cursor: pointer;
-  transition: all 0.12s ease;
-}
-
-.danmaku-action-btn:hover {
-  background: rgba(15, 23, 42, 0.06);
-  color: #6b7280;
-}
-
-.danmaku-action-btn.liked {
-  color: #2563eb;
-}
-
-.danmaku-action-btn.report:hover {
-  color: #dc2626;
-}
-
-.danmaku-action-icon {
-  width: 14px;
-  height: 14px;
-}
-
-.video-desc-card {
-  padding: 14px 16px;
-  border-radius: 16px;
-  background: #ffffff;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
-}
-
-.video-desc-text {
-  margin: 0;
-  color: #6b7280;
-  font-size: 13px;
-  line-height: 1.6;
-  word-break: break-word;
-}
-
-.agent-entry {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.agent-entry-btn {
-  min-width: 92px;
-}
-
-.agent-panel {
+.favorite-dialog-list {
   display: grid;
   gap: 10px;
 }
 
-.agent-panel-head {
+.favorite-dialog-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  color: #111827;
-}
-
-.agent-panel-head span {
-  color: #9ca3af;
-  font-size: 12px;
-}
-
-.agent-messages {
-  display: grid;
-  gap: 8px;
-  max-height: 280px;
-  overflow-y: auto;
-  padding: 4px 2px;
-}
-
-.agent-message {
-  display: flex;
-}
-
-.agent-message p {
-  margin: 0;
-  padding: 8px 10px;
-  max-width: 85%;
-  border-radius: 8px;
-  font-size: 13px;
-  line-height: 1.55;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.agent-message-user {
-  justify-content: flex-end;
-}
-
-.agent-message-user p {
-  background: #2563eb;
-  color: #ffffff;
-}
-
-.agent-message-assistant p {
-  background: #f3f4f6;
-  color: #374151;
-}
-
-.agent-loading {
-  color: #9ca3af;
-  font-size: 12px;
-}
-
-.agent-error {
-  margin: 0;
-  color: #dc2626;
-  font-size: 12px;
-}
-
-.agent-input-wrap {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
-}
-
-:deep(.video-agent-popper) {
-  padding: 12px;
-}
-
-.video-title {
-  margin: 0;
-  color: #111827;
-  font-size: 20px;
-  font-weight: 700;
-}
-
-.player-section {
-  display: flex;
-  flex-direction: column;
-}
-
-.player-wrapper {
-  position: relative;
-  aspect-ratio: 16 / 9;
-  border-radius: 16px 16px 0 0;
-  background: #111827;
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  overflow: hidden;
-}
-
-.video {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.danmaku-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
-  margin-top: -1px;
-  border-radius: 0 0 16px 16px;
-  background: #1e293b;
-}
-
-.action-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 0;
-}
-
-.action-left {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.action-icon-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 8px 12px;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: #6b7280;
-  font-size: 16px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.action-icon-btn:hover {
-  background: rgba(15, 23, 42, 0.05);
-  color: #374151;
-}
-
-.action-icon-btn.active {
-  color: #2563eb;
-}
-
-.action-icon-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-.coin-action {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.coin-btn.active {
-  color: #f59e0b;
-}
-
-.coin-progress {
-  color: #6b7280;
-  font-size: 13px;
-  white-space: nowrap;
-}
-
-.action-icon {
-  width: 26px;
-  height: 26px;
-}
-
-.report-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: #9ca3af;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.report-btn:hover {
-  background: rgba(220, 38, 38, 0.06);
-  color: #dc2626;
-}
-
-.comments,
-.comment-card,
-.reply-card,
-.recommend-panel {
-  display: grid;
-  gap: 16px;
-}
-
-.comments,
-.comment-card,
-.recommend-panel {
-  padding: 20px;
-  border-radius: 16px;
-  background: #ffffff;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
-}
-
-.comments-head,
-.panel-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.time-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 12px;
-  border-radius: 8px;
-  background: rgba(37, 99, 235, 0.08);
-  color: #2563eb;
-  font-size: 13px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.comment-meta {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-  color: #6b7280;
-}
-
-.comment-list,
-.reply-list,
-.recommend-list {
-  display: grid;
   gap: 12px;
-}
-
-.reply-card,
-.recommend-card {
-  padding: 12px 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
   border-radius: 12px;
-  background: #f8fafc;
-  border: 1px solid rgba(15, 23, 42, 0.06);
-}
-
-.comment-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.link-btn,
-.secondary-link {
-  color: #2563eb;
-  background: transparent;
-  border: 0;
+  background: var(--color-bg-page);
   cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
 }
 
-.link-btn.danger {
-  color: #dc2626;
+.favorite-dialog-item.active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
 }
 
-.recommend-card {
-  display: grid;
-  grid-template-columns: 120px 1fr;
-  gap: 12px;
+.favorite-dialog-item :deep(.el-radio) {
+  margin-right: 0;
 }
 
-.recommend-cover {
-  width: 120px;
-  height: 84px;
-  border-radius: 10px;
-  object-fit: cover;
-}
-
-.recommend-meta {
-  display: grid;
-  gap: 6px;
-}
-
-.recommend-meta strong {
-  color: #111827;
-}
-
-.recommend-meta span {
-  color: #6b7280;
+.favorite-dialog-count {
+  color: var(--color-text-secondary);
+  font-size: 12px;
 }
 
 .report-dialog-body {
@@ -1557,11 +1462,589 @@ onBeforeUnmount(() => {
 .report-preview {
   padding: 12px;
   border-radius: 8px;
-  background: #f8fafc;
+  background: var(--color-bg-page);
 }
 
 .report-time {
-  color: #6b7280;
+  color: var(--color-text-secondary);
   font-size: 13px;
+}
+
+.video-detail-page {
+  min-height: calc(100dvh - 96px);
+  background: transparent;
+  color: var(--color-text-main);
+}
+
+.video-detail-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  gap: 24px;
+  align-items: start;
+  width: 100%;
+  max-width: 1540px;
+  margin: 0 auto;
+}
+
+.main-column {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.side-column {
+  position: sticky;
+  top: 88px;
+  align-self: start;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.video-header {
+  display: grid;
+  gap: 12px;
+  padding: 2px 0 0;
+}
+
+.video-title {
+  margin: 0;
+  color: var(--color-text-main);
+  font-size: clamp(24px, 1.9vw, 26px);
+  line-height: 1.22;
+  font-weight: 820;
+  letter-spacing: 0;
+}
+
+.author-meta-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+  color: var(--color-text-secondary);
+}
+
+.creator-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.creator-avatar,
+.viewer-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, var(--color-primary-light), var(--color-bg-page));
+  color: var(--color-primary);
+  font-weight: 800;
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.08);
+}
+
+.creator-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+.viewer-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 14px;
+}
+
+.creator-avatar-img,
+.viewer-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.creator-text {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.creator-text strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  color: var(--color-text-main);
+  font-size: 15px;
+  line-height: 1.2;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.verified-icon {
+  flex-shrink: 0;
+  color: var(--color-primary);
+}
+
+.follow-btn {
+  min-width: 76px;
+  height: 30px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--color-primary);
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.follow-btn:hover {
+  background: var(--color-primary-hover);
+  color: #FFFFFF;
+}
+
+.follow-btn.followed {
+  background: var(--color-bg-muted);
+  color: var(--color-text-secondary);
+}
+
+.meta-strip {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  min-width: 0;
+  flex-wrap: wrap;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.meta-item :deep(.el-icon) {
+  color: var(--color-text-muted);
+}
+
+.rights-note {
+  color: var(--color-text-muted);
+}
+
+.rights-note :deep(.el-icon) {
+  color: var(--color-danger);
+}
+
+.watch-panel {
+  overflow: hidden;
+  border: 1px solid rgba(17, 24, 39, 0.1);
+  border-radius: 16px;
+  background: #172231;
+  box-shadow: 0 14px 32px rgba(23, 32, 51, 0.1);
+}
+
+.player-wrapper {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: #111827;
+}
+
+.video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.player-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 14px;
+}
+
+.danmaku-bar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  margin-top: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0;
+  background: #1b2635;
+}
+
+.danmaku-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 11px;
+  border-radius: 12px;
+  background: #283545;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.danmaku-switch :deep(.el-switch__core) {
+  border-color: transparent;
+  background: #475569;
+}
+
+.danmaku-switch :deep(.is-checked .el-switch__core),
+.danmaku-switch :deep(.el-switch.is-checked .el-switch__core) {
+  background: var(--color-primary);
+}
+
+.danmaku-input :deep(.el-input__wrapper) {
+  min-height: 36px;
+  border-radius: 12px;
+  background: #344150;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.danmaku-input :deep(.el-input__wrapper.is-focus) {
+  background: #3a4859;
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.58);
+}
+
+.danmaku-input :deep(.el-input__inner) {
+  color: #f8fafc;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.danmaku-input :deep(.el-input__inner::placeholder) {
+  color: #aeb8c6;
+}
+
+.danmaku-counter {
+  color: #d6deea;
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.danmaku-face {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: #2c3847;
+  color: #d5dde8;
+  cursor: pointer;
+  transition: background 180ms cubic-bezier(0.16, 1, 0.3, 1), color 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.danmaku-face:hover {
+  background: #354354;
+  color: #ffffff;
+}
+
+.danmaku-send {
+  min-width: 66px;
+  height: 36px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--color-primary);
+  font-size: 14px;
+  font-weight: 800;
+  box-shadow: none;
+}
+
+.danmaku-send:hover {
+  background: var(--color-primary-hover);
+}
+
+.comments {
+  display: grid;
+  gap: 13px;
+  padding: 20px 24px;
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  background: var(--color-bg-card);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+}
+
+.comments-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.comments-head h2 {
+  margin: 0;
+  color: var(--color-text-main);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.comments-head h2 span {
+  margin-left: 4px;
+  color: var(--color-primary);
+  font-size: 15px;
+}
+
+.comment-composer {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+.composer-main {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.comment-composer :deep(.el-textarea__inner) {
+  min-height: 42px !important;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--color-bg-page);
+  color: var(--color-text-main);
+  font-size: 14px;
+  line-height: 20px;
+  box-shadow: 0 0 0 1px var(--color-border) inset;
+}
+
+.comment-composer :deep(.el-textarea__inner::placeholder) {
+  color: var(--color-text-muted);
+}
+
+.comment-composer :deep(.el-textarea__inner:focus) {
+  background: var(--color-bg-card);
+  box-shadow:
+    0 0 0 1px var(--color-primary) inset,
+    0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.composer-footer p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.composer-footer strong {
+  color: var(--color-primary);
+}
+
+.comment-tabs {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.comment-tabs button {
+  position: relative;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.comment-tabs button::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -8px;
+  height: 2px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.comment-tabs button.active {
+  color: var(--color-primary);
+}
+
+.comment-tabs button.active::after {
+  background: var(--color-primary);
+}
+
+.comment-list {
+  display: grid;
+  gap: 0;
+}
+
+.comment-card {
+  padding: 16px 0;
+  border: 0;
+  border-bottom: 1px solid var(--color-border-soft);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.comment-card:last-child {
+  border-bottom: 0;
+}
+
+.agent-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.agent-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--color-text-main);
+}
+
+.agent-panel-head span {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.agent-messages {
+  display: grid;
+  gap: 10px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-bg-page);
+}
+
+.agent-message {
+  display: flex;
+}
+
+.agent-message p {
+  max-width: 86%;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 13px;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.agent-message-user {
+  justify-content: flex-end;
+}
+
+.agent-message-user p {
+  background: var(--color-primary);
+  color: #FFFFFF;
+}
+
+.agent-message-assistant p {
+  background: var(--color-bg-card);
+  color: var(--color-text-secondary);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.agent-loading {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.agent-error {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: 12px;
+}
+
+.agent-input-wrap {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+@media (max-width: 1180px) {
+  .video-detail-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .side-column {
+    position: static;
+  }
+}
+
+@media (max-width: 760px) {
+  .video-detail-shell {
+    gap: 18px;
+  }
+
+  .author-meta-card {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .meta-strip {
+    flex-basis: 100%;
+  }
+
+  .watch-panel {
+    border-radius: 14px;
+  }
+
+  .danmaku-bar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .danmaku-counter {
+    display: none;
+  }
+
+  .danmaku-face {
+    display: none;
+  }
+
+  .comments {
+    padding: 16px;
+  }
+
+  .comment-composer {
+    grid-template-columns: 1fr;
+  }
+
+  .viewer-avatar {
+    display: none;
+  }
+
+  .agent-input-wrap {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

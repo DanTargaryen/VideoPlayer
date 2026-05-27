@@ -13,4 +13,5 @@ const categoryPathMap: Record<string, string> = {
 export const primaryNavItems: NavItem[] = categoryOptions.map((item) => ({
   label: item.label,
   path: categoryPathMap[item.code] ?? `/search?tab=video&category=${item.code}`,
+  code: item.code,
 }));

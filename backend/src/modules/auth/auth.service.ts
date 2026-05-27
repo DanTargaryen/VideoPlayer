@@ -50,6 +50,12 @@ export class AuthService {
         password: payload.password,
         role: 'USER',
         nickname: payload.nickname || payload.username,
+        favoriteFolders: {
+          create: {
+            name: '默认收藏夹',
+            isDefault: true,
+          },
+        },
       },
     });
 
@@ -160,6 +166,12 @@ export class AuthService {
         password: ADMIN_USER.password,
         role: 'ADMIN',
         nickname: ADMIN_USER.nickname,
+        favoriteFolders: {
+          create: {
+            name: '默认收藏夹',
+            isDefault: true,
+          },
+        },
       },
     });
   }
@@ -192,6 +204,12 @@ export class AuthService {
         password: payload.password,
         role: 'USER',
         nickname: payload.nickname,
+        favoriteFolders: {
+          create: {
+            name: '默认收藏夹',
+            isDefault: true,
+          },
+        },
       },
     });
   }

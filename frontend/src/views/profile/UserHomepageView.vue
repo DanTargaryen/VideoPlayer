@@ -13,17 +13,37 @@
           <span v-if="isOwnHomepage" class="meta coin-meta">平台货币 {{ homepage.coinBalance ?? 0 }}</span>
         </div>
       </div>
-      <el-button
-        v-if="canFollow"
-        :type="homepage.isFollowing ? 'default' : 'primary'"
-        @click="toggleFollow"
-      >
-        {{ homepage.isFollowing ? '取消关注' : '关注用户' }}
-      </el-button>
+      <div class="hero-actions">
+        <el-button
+          v-if="canOpenDirectMessage"
+          type="primary"
+          plain
+          @click="openDirectMessage"
+        >
+          发私信
+        </el-button>
+        <el-button
+          v-if="canFollow"
+          :type="homepage.isFollowing ? 'default' : 'primary'"
+          @click="toggleFollow"
+        >
+          {{ homepage.isFollowing ? '取消关注' : '关注用户' }}
+        </el-button>
+        <el-button
+          v-if="homepage.items.length > 0"
+          type="primary"
+          plain
+          :loading="refreshingVideos"
+          @click="refreshHomepageVideos"
+        >
+          <el-icon><RefreshRight /></el-icon>
+          <span>刷新视频</span>
+        </el-button>
+      </div>
     </div>
 
     <div class="cards" v-if="homepage">
-      <article v-for="card in homepage.items" :key="card.id" class="card">
+      <article v-for="card in displayedItems" :key="card.id" class="card">
         <img :src="card.coverUrl" :alt="card.title" class="cover" />
         <div class="card-body">
           <h3>{{ card.title }}</h3>
@@ -40,11 +60,12 @@
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { ArrowLeft } from '@element-plus/icons-vue';
+import { ArrowLeft, RefreshRight } from '@element-plus/icons-vue';
 
 import { fetchUserHomepage, followUser, unfollowUser } from '@/api/platform';
 import { useAppStore } from '@/stores/app';
-import type { UserHomepage } from '@/types/api';
+import type { UserHomepage, VideoCard } from '@/types/api';
+import { takeRandomItems } from '@/utils/randomVideos';
 
 const router = useRouter();
 
@@ -57,21 +78,39 @@ const route = useRoute();
 const store = useAppStore();
 const loading = ref(false);
 const homepage = ref<UserHomepage | null>(null);
+const displayedItems = ref<VideoCard[]>([]);
+const refreshingVideos = ref(false);
+const HOMEPAGE_DISPLAY_SIZE = 12;
+const HOMEPAGE_CANDIDATE_SIZE = 60;
 
 const canFollow = computed(
   () => homepage.value && store.isLoggedIn && homepage.value.id !== store.userId,
 );
 const isOwnHomepage = computed(() => Boolean(homepage.value && store.userId === homepage.value.id));
+const canOpenDirectMessage = computed(() => Boolean(homepage.value && store.isLoggedIn && homepage.value.id !== store.userId));
 
 async function loadHomepage() {
   loading.value = true;
   try {
-    homepage.value = await fetchUserHomepage(Number(route.params.id));
+    homepage.value = await fetchUserHomepage(Number(route.params.id), {
+      itemLimit: HOMEPAGE_CANDIDATE_SIZE,
+    });
+    refreshHomepageVideos();
   } catch {
     ElMessage.error('加载用户主页失败');
   } finally {
     loading.value = false;
   }
+}
+
+function refreshHomepageVideos() {
+  if (!homepage.value || refreshingVideos.value) {
+    return;
+  }
+
+  refreshingVideos.value = true;
+  displayedItems.value = takeRandomItems(homepage.value.items, HOMEPAGE_DISPLAY_SIZE);
+  refreshingVideos.value = false;
 }
 
 async function toggleFollow() {
@@ -91,6 +130,17 @@ async function toggleFollow() {
   } catch {
     ElMessage.error('操作失败，请确认已登录');
   }
+}
+
+function openDirectMessage() {
+  if (!homepage.value) {
+    return;
+  }
+
+  void router.push({
+    path: '/messages',
+    query: { userId: String(homepage.value.id) },
+  });
 }
 
 watch(
@@ -178,6 +228,12 @@ watch(
   display: block;
   color: #f59e0b;
   font-weight: 700;
+}
+
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .cards {

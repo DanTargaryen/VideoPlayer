@@ -54,6 +54,7 @@ export class CreatorController {
       role: user.role,
       email: user.email,
       bio: user.bio,
+      messagePrivacy: user.messagePrivacy,
       coinBalance: user.coinBalance,
       followerCount,
       followingCount,
@@ -69,5 +70,17 @@ export class CreatorController {
   async getMyVideos(@Headers('authorization') authorization?: string) {
     const user = await this.authService.requireUser(authorization);
     return ok(await this.videoService.getCreatorVideos(user));
+  }
+
+  @Get('videos/play-trend')
+  async getCreatorPlayTrend(@Headers('authorization') authorization?: string) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.videoService.getCreatorPlayTrend(user.id));
+  }
+
+  @Get('followers/trend')
+  async getCreatorFollowerTrend(@Headers('authorization') authorization?: string) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.followService.getCreatorFollowerTrend(user.id));
   }
 }
