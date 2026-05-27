@@ -1,8 +1,19 @@
 <template>
   <section class="page">
     <div class="section-head">
-      <h2>{{ categoryLabel }}</h2>
-      <el-button type="primary" size="small" @click="loadFeed">刷新</el-button>
+      <div class="section-title-wrap">
+        <span class="section-icon">
+          <el-icon :size="22">
+            <component :is="categoryIcon" />
+          </el-icon>
+        </span>
+        <span class="section-eyebrow">{{ categoryEyebrow }}</span>
+        <h2 class="section-title">{{ categoryLabel }}</h2>
+      </div>
+      <el-button type="primary" size="small" :loading="refreshingFeed" @click="loadFeed">
+        <el-icon><RefreshRight /></el-icon>
+        <span>刷新</span>
+      </el-button>
     </div>
 
     <template v-if="cards.length > 0">
@@ -81,14 +92,18 @@
 </template>
 
 <script setup lang="ts">
+import type { Component } from 'vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
+import { MagicStick, Monitor, Reading, RefreshRight, Trophy } from '@element-plus/icons-vue';
 
 import VideoMediaCard from '@/components/VideoMediaCard.vue';
 import { fetchRecommendFeed } from '@/api/platform';
 import { videoCategoryOptions, type VideoCategoryCode } from '@/constants/categories';
 import type { VideoCard } from '@/types/api';
+import { mergeUniqueById, takeRandomItems } from '@/utils/randomVideos';
+import { sectionThemes } from '@/utils/sectionThemes';
 
 const props = defineProps<{
   category?: VideoCategoryCode;
@@ -98,7 +113,20 @@ const route = useRoute();
 const cards = ref<VideoCard[]>([]);
 const carousel = ref<VideoCard[]>([]);
 const carouselIndex = ref(0);
+const refreshingFeed = ref(false);
 let carouselTimer: number | null = null;
+
+const FEED_PAGE_SIZE = 20;
+const FEED_DISPLAY_SIZE = 20;
+const FEED_CANDIDATE_PAGES = 6;
+const FEED_CAROUSEL_SIZE = 5;
+
+const categoryIconMap: Record<VideoCategoryCode, Component> = {
+  entertainment: MagicStick,
+  study: Reading,
+  game: Trophy,
+  tech: Monitor,
+};
 
 const gradientStyles = ref<Record<number, string>>({});
 const defaultGradient = 'linear-gradient(to bottom, transparent 0%, rgba(30, 30, 30, 0.95) 100%)';
@@ -153,15 +181,8 @@ const categoryLabel = computed(() => {
   return found ? found.label : '视频';
 });
 
-function pickCarousel(videos: VideoCard[], count: number): VideoCard[] {
-  if (videos.length <= count) return [...videos];
-  const shuffled = [...videos];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled.slice(0, count);
-}
+const categoryEyebrow = computed(() => sectionThemes[categoryCode.value]?.eyebrow ?? 'Channel');
+const categoryIcon = computed(() => categoryIconMap[categoryCode.value] ?? MagicStick);
 
 const topRightCards = computed(() => cards.value.slice(0, 4));
 const restCards = computed(() => cards.value.slice(4));
@@ -192,26 +213,52 @@ function stopCarouselTimer() {
   }
 }
 
+async function fetchFeedPage(page: number) {
+  return fetchRecommendFeed({
+    categoryCode: categoryCode.value,
+    page,
+    pageSize: FEED_PAGE_SIZE,
+  });
+}
+
+async function fetchFeedCandidates() {
+  const pages = Array.from({ length: FEED_CANDIDATE_PAGES }, (_, index) => index + 1);
+  const groups = await Promise.all(pages.map((page) => fetchFeedPage(page)));
+  return mergeUniqueById(groups);
+}
+
 async function loadFeed() {
+  if (refreshingFeed.value) {
+    return;
+  }
+
+  refreshingFeed.value = true;
   try {
     stopCarouselTimer();
     gradientStyles.value = {};
-    const videos = await fetchRecommendFeed({ categoryCode: categoryCode.value });
-    cards.value = videos;
-    carousel.value = pickCarousel(videos, Math.min(5, Math.max(3, videos.length)));
+    const candidates = await fetchFeedCandidates();
+    cards.value = takeRandomItems(candidates, FEED_DISPLAY_SIZE);
+    carousel.value = takeRandomItems(cards.value, Math.min(FEED_CAROUSEL_SIZE, Math.max(3, cards.value.length)));
     carouselIndex.value = 0;
     startCarouselTimer();
   } catch {
     ElMessage.error(`加载${categoryLabel.value}视频失败`);
+  } finally {
+    refreshingFeed.value = false;
   }
 }
 
-watch(() => props.category, () => {
+watch(categoryCode, () => {
   void loadFeed();
 });
 
-onMounted(loadFeed);
-onUnmounted(stopCarouselTimer);
+onMounted(async () => {
+  await loadFeed();
+});
+
+onUnmounted(() => {
+  stopCarouselTimer();
+});
 </script>
 
 <style scoped>
@@ -227,9 +274,47 @@ onUnmounted(stopCarouselTimer);
   gap: 16px;
 }
 
-.section-head h2 {
+.section-title-wrap {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 12px;
+  align-items: center;
+}
+
+.section-icon {
+  grid-row: span 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  color: #fff;
+  background: var(--theme-title-gradient, linear-gradient(135deg, #2563eb, #14b8a6));
+  box-shadow: 0 12px 28px var(--theme-soft-strong, rgba(37, 99, 235, 0.18));
+}
+
+.section-title {
   margin: 0;
-  color: #111827;
+  width: fit-content;
+  color: transparent;
+  background: var(--theme-title-gradient, linear-gradient(135deg, #2563eb, #14b8a6));
+  -webkit-background-clip: text;
+  background-clip: text;
+  font-family: "STKaiti", "KaiTi", "Microsoft YaHei", sans-serif;
+  font-size: 30px;
+  font-weight: 900;
+  text-shadow: 0 10px 22px var(--theme-soft-strong, rgba(37, 99, 235, 0.18));
+}
+
+.section-eyebrow {
+  display: inline-flex;
+  margin-bottom: 4px;
+  color: var(--theme-accent, #2563eb);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .featured-row {

@@ -11,7 +11,7 @@ export class UserService {
     private readonly followService: FollowService,
   ) {}
 
-  async getHomepage(id: number, currentUserId?: number) {
+  async getHomepage(id: number, currentUserId?: number, options: { itemLimit?: number } = {}) {
     const user = await this.prisma.user.findUnique({ where: { id } });
 
     if (!user) {
@@ -25,7 +25,7 @@ export class UserService {
       this.prisma.video.findMany({
         where: { creatorId: id, status: 'PUBLISHED' },
         orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }],
-        take: 12,
+        take: this.normalizeHomepageItemLimit(options.itemLimit),
       }),
       this.followService.isFollowing(id, currentUserId),
     ]);
@@ -35,6 +35,7 @@ export class UserService {
       nickname: user.nickname,
       avatarUrl: user.avatarUrl,
       bio: user.bio,
+      messagePrivacy: user.messagePrivacy,
       followers,
       following: followingCount,
       videos: videoCount,
@@ -42,6 +43,14 @@ export class UserService {
       coinBalance: currentUserId === id ? user.coinBalance : undefined,
       items: videos,
     };
+  }
+
+  private normalizeHomepageItemLimit(itemLimit?: number) {
+    if (!itemLimit || !Number.isFinite(itemLimit) || itemLimit < 1) {
+      return 12;
+    }
+
+    return Math.min(60, Math.floor(itemLimit));
   }
 
   async deleteAccount(userId: number, password: string): Promise<void> {
@@ -64,6 +73,7 @@ export class UserService {
 
       // Delete leaf records owned by user
       await tx.userVideoWatch.deleteMany({ where: { userId } });
+      await tx.directMessage.deleteMany({ where: { OR: [{ senderId: userId }, { recipientId: userId }] } });
       await tx.coinTransaction.deleteMany({ where: { userId } });
       await tx.dailyCoinClaim.deleteMany({ where: { userId } });
       await tx.videoCoinContribution.deleteMany({ where: { userId } });
@@ -71,8 +81,11 @@ export class UserService {
       await tx.userCreatorPreference.deleteMany({ where: { userId } });
       await tx.userCreatorPreference.deleteMany({ where: { creatorId: userId } });
       await tx.userProfileSummary.deleteMany({ where: { userId } });
+      await tx.creatorPlayDaily.deleteMany({ where: { creatorId: userId } });
+      await tx.$executeRaw`DELETE FROM CreatorFollowerDaily WHERE creatorId = ${userId}`;
       await tx.videoLike.deleteMany({ where: { userId } });
       await tx.favorite.deleteMany({ where: { userId } });
+      await tx.favoriteFolder.deleteMany({ where: { userId } });
       await tx.followRelation.deleteMany({
         where: { OR: [{ followerId: userId }, { followingId: userId }] },
       });
@@ -103,7 +116,13 @@ export class UserService {
 
   async updateProfile(
     userId: number,
-    payload: { nickname?: string; avatarUrl?: string; bio?: string; email?: string },
+    payload: {
+      nickname?: string;
+      avatarUrl?: string;
+      bio?: string;
+      email?: string;
+      messagePrivacy?: 'ALLOW_ALL' | 'FOLLOWING_ONLY' | 'DISABLED';
+    },
   ) {
     const data = Object.fromEntries(
       Object.entries(payload).filter(([, value]) => value !== undefined),
@@ -134,6 +153,7 @@ export class UserService {
       nickname: updated.nickname,
       avatarUrl: updated.avatarUrl,
       bio: updated.bio,
+      messagePrivacy: updated.messagePrivacy,
       role: updated.role,
     };
   }

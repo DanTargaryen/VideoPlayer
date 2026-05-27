@@ -7,6 +7,16 @@
         <el-option label="最新优先" value="latest" />
         <el-option label="热度优先" value="hot" />
       </el-select>
+      <el-button
+        v-if="activeTab === 'video'"
+        type="primary"
+        plain
+        :loading="refreshingVideos"
+        @click="refreshVideos"
+      >
+        <el-icon><RefreshRight /></el-icon>
+        <span>刷新视频</span>
+      </el-button>
     </section>
 
     <el-tabs v-model="activeTab" class="tabs" @tab-change="handleTabChange">
@@ -42,12 +52,14 @@
 import { computed, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
+import { RefreshRight } from '@element-plus/icons-vue';
 
 import VideoMediaCard from '@/components/VideoMediaCard.vue';
 import LiveRoomCard from '@/components/live/LiveRoomCard.vue';
 import { categoryOptions, normalizeCategoryCode, type CategoryCode } from '@/constants/categories';
 import { searchAll } from '@/api/platform';
-import type { SearchResultResponse } from '@/types/api';
+import type { SearchResultResponse, VideoCard } from '@/types/api';
+import { takeRandomItems } from '@/utils/randomVideos';
 
 const route = useRoute();
 const router = useRouter();
@@ -55,6 +67,8 @@ const keyword = ref('');
 const activeTab = ref<'video' | 'user' | 'live'>('video');
 const sortBy = ref<'best' | 'latest' | 'hot'>('best');
 const category = ref<CategoryCode>('recommend');
+const refreshingVideos = ref(false);
+const videoCandidates = ref<VideoCard[]>([]);
 const result = reactive<SearchResultResponse>({
   keyword: '',
   tab: 'video',
@@ -66,6 +80,9 @@ const result = reactive<SearchResultResponse>({
   live: [],
   user: [],
 });
+
+const SEARCH_VIDEO_DISPLAY_SIZE = 20;
+const SEARCH_VIDEO_CANDIDATE_SIZE = 50;
 
 const categorySegmentOptions = computed(() =>
   categoryOptions.map((item) => ({
@@ -92,17 +109,44 @@ function buildQuery() {
 }
 
 async function loadSearch() {
+  refreshingVideos.value = activeTab.value === 'video';
   try {
     const data = await searchAll({
       keyword: keyword.value.trim(),
       tab: activeTab.value,
       sortBy: sortBy.value,
       category: category.value,
+      pageSize: activeTab.value === 'video' ? SEARCH_VIDEO_CANDIDATE_SIZE : SEARCH_VIDEO_DISPLAY_SIZE,
     });
-    Object.assign(result, data);
+    if (activeTab.value === 'video') {
+      videoCandidates.value = data.video;
+      Object.assign(result, {
+        ...data,
+        video: takeRandomItems(data.video, SEARCH_VIDEO_DISPLAY_SIZE),
+        pageSize: SEARCH_VIDEO_DISPLAY_SIZE,
+      });
+    } else {
+      videoCandidates.value = [];
+      Object.assign(result, data);
+    }
   } catch {
     ElMessage.error('搜索失败，请稍后重试');
+  } finally {
+    refreshingVideos.value = false;
   }
+}
+
+async function refreshVideos() {
+  if (refreshingVideos.value) {
+    return;
+  }
+
+  if (videoCandidates.value.length === 0) {
+    await loadSearch();
+    return;
+  }
+
+  result.video = takeRandomItems(videoCandidates.value, SEARCH_VIDEO_DISPLAY_SIZE);
 }
 
 function submitSearch() {

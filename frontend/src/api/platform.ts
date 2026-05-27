@@ -1,16 +1,24 @@
 import http from './http';
 import type {
   ApiResponse,
+  CommentItem,
   CommentListResponse,
   CommentReply,
   CoinWallet,
   CreatorDashboardData,
+  CreatorFollowerTrendPoint,
+  CreatorPlayTrendPoint,
   CreatorVideo,
   DanmakuItem,
   DailyClaimResponse,
+  DirectMessageConversationDetail,
+  DirectMessageConversationSummary,
   LiveFrameResponse,
+  LiveCenterOverview,
+  LiveCategoryItem,
   LiveRoomInfo,
   LiveMessage,
+  LivePlazaResponse,
   LiveRtcExchangeResponse,
   LiveReplaySaveResponse,
   LiveSessionInfo,
@@ -35,6 +43,8 @@ import type {
   VideoDetail,
   VideoCoinResponse,
   FollowUserItem,
+  FavoriteFolderSummary,
+  FavoriteVideoResult,
   MyVideoItem,
   VideoWatchProgressPayload,
 } from '@/types/api';
@@ -118,6 +128,34 @@ export async function fetchLiveRooms(params?: {
   const { data } = await http.get<ApiResponse<LiveRoomInfo[]>>('/lives/rooms', {
     params,
   });
+  return data.data;
+}
+
+export async function fetchLiveCenterOverview() {
+  const { data } = await http.get<ApiResponse<LiveCenterOverview>>('/lives/center/overview');
+  return data.data;
+}
+
+export async function fetchLivePlaza(params?: {
+  category?: string;
+  keyword?: string;
+  limit?: number;
+}) {
+  const { data } = await http.get<ApiResponse<LivePlazaResponse>>('/lives/plaza', {
+    params,
+  });
+  return data.data;
+}
+
+export async function fetchHotLiveRooms(params?: { limit?: number }) {
+  const { data } = await http.get<ApiResponse<{ list: LiveRoomInfo[] }>>('/lives/hot', {
+    params,
+  });
+  return data.data;
+}
+
+export async function fetchLiveCategories() {
+  const { data } = await http.get<ApiResponse<LiveCategoryItem[]>>('/lives/categories');
   return data.data;
 }
 
@@ -258,13 +296,17 @@ export async function createVideoAiChat(payload: { videoId: number; prompt: stri
   return data.data;
 }
 
-export async function fetchRelatedVideos(videoId: number) {
-  const { data } = await http.get<ApiResponse<VideoCard[]>>(`/videos/${videoId}/recommendations`);
+export async function fetchRelatedVideos(videoId: number, params?: { limit?: number }) {
+  const { data } = await http.get<ApiResponse<VideoCard[]>>(`/videos/${videoId}/recommendations`, {
+    params,
+  });
   return data.data;
 }
 
-export async function fetchUserHomepage(id: number) {
-  const { data } = await http.get<ApiResponse<UserHomepage>>(`/users/${id}/homepage`);
+export async function fetchUserHomepage(id: number, params?: { itemLimit?: number }) {
+  const { data } = await http.get<ApiResponse<UserHomepage>>(`/users/${id}/homepage`, {
+    params,
+  });
   return data.data;
 }
 
@@ -323,8 +365,8 @@ export async function updateVideoDraft(
   return data.data;
 }
 
-export async function deleteVideoDraft(videoId: number) {
-  const { data } = await http.delete<ApiResponse<{ deleted: boolean }>>(`/videos/${videoId}`);
+export async function deleteCreatorVideo(videoId: number) {
+  const { data } = await http.delete<ApiResponse<{ deleted: boolean; videoId: number }>>(`/videos/${videoId}`);
   return data.data;
 }
 
@@ -340,6 +382,16 @@ export async function fetchCreatorDashboard() {
 
 export async function fetchCreatorVideos() {
   const { data } = await http.get<ApiResponse<CreatorVideo[]>>('/creator/videos');
+  return data.data;
+}
+
+export async function fetchCreatorPlayTrend() {
+  const { data } = await http.get<ApiResponse<CreatorPlayTrendPoint[]>>('/creator/videos/play-trend');
+  return data.data;
+}
+
+export async function fetchCreatorFollowerTrend() {
+  const { data } = await http.get<ApiResponse<CreatorFollowerTrendPoint[]>>('/creator/followers/trend');
   return data.data;
 }
 
@@ -419,6 +471,11 @@ export async function fetchComments(videoId: number) {
   return data.data;
 }
 
+export async function fetchCommentThread(videoId: number, rootId: number) {
+  const { data } = await http.get<ApiResponse<CommentItem>>(`/videos/${videoId}/comments/${rootId}/thread`);
+  return data.data;
+}
+
 export async function createComment(
   videoId: number,
   payload: { content: string; parentId?: number; rootId?: number },
@@ -476,8 +533,8 @@ export async function unlikeVideo(videoId: number) {
   return data.data;
 }
 
-export async function favoriteVideo(videoId: number) {
-  const { data } = await http.post<ApiResponse<{ favorited: boolean }>>(`/videos/${videoId}/favorite`);
+export async function favoriteVideo(videoId: number, payload?: { folderId?: number }) {
+  const { data } = await http.post<ApiResponse<FavoriteVideoResult>>(`/videos/${videoId}/favorite`, payload ?? {});
   return data.data;
 }
 
@@ -487,7 +544,7 @@ export async function coinVideo(videoId: number, payload: { amount: number }) {
 }
 
 export async function reportVideoPlay(videoId: number, payload?: { videoDurationSeconds?: number }) {
-  const { data } = await http.post<ApiResponse<Record<string, unknown>>>(`/videos/${videoId}/play`, payload ?? {});
+  const { data } = await http.post<ApiResponse<{ videoId: number; playCount: number }>>(`/videos/${videoId}/play`, payload ?? {});
   return data.data;
 }
 
@@ -547,13 +604,87 @@ export async function fetchMyFavorites() {
   return data.data;
 }
 
+export async function fetchMyFavoritesByFolder(folderId?: number) {
+  const { data } = await http.get<ApiResponse<MyVideoItem[]>>('/videos/my/favorites', {
+    params: folderId ? { folderId } : undefined,
+  });
+  return data.data;
+}
+
+export async function fetchMyFavoriteFolders() {
+  const { data } = await http.get<ApiResponse<FavoriteFolderSummary[]>>('/videos/my/favorite-folders');
+  return data.data;
+}
+
+export async function createMyFavoriteFolder(payload: { name: string }) {
+  const { data } = await http.post<ApiResponse<FavoriteFolderSummary>>('/videos/my/favorite-folders', payload);
+  return data.data;
+}
+
+export async function deleteMyFavoriteFolder(folderId: number) {
+  const { data } = await http.delete<ApiResponse<{ deleted: boolean; folderId: number; movedToFolderId: number }>>(
+    `/videos/my/favorite-folders/${folderId}`,
+  );
+  return data.data;
+}
+
 export async function fetchMyLikes() {
   const { data } = await http.get<ApiResponse<MyVideoItem[]>>('/videos/my/likes');
   return data.data;
 }
 
-export async function updateProfile(payload: { nickname?: string; avatarUrl?: string; bio?: string; email?: string }) {
-  const { data } = await http.put<ApiResponse<{ id: number; nickname: string; avatarUrl?: string; bio?: string; email?: string }>>('/users/profile', payload);
+export async function fetchMyHistory() {
+  const { data } = await http.get<ApiResponse<MyVideoItem[]>>('/videos/my/history');
+  return data.data;
+}
+
+export async function updateProfile(payload: {
+  nickname?: string;
+  avatarUrl?: string;
+  bio?: string;
+  email?: string;
+  messagePrivacy?: 'ALLOW_ALL' | 'FOLLOWING_ONLY' | 'DISABLED';
+}) {
+  const { data } = await http.put<ApiResponse<{
+    id: number;
+    nickname: string;
+    avatarUrl?: string;
+    bio?: string;
+    email?: string;
+    messagePrivacy?: 'ALLOW_ALL' | 'FOLLOWING_ONLY' | 'DISABLED';
+  }>>('/users/profile', payload);
+  return data.data;
+}
+
+export async function fetchDirectMessageConversations() {
+  const { data } = await http.get<ApiResponse<DirectMessageConversationSummary[]>>('/messages/conversations');
+  return data.data;
+}
+
+export async function fetchDirectMessageConversation(targetUserId: number) {
+  const { data } = await http.get<ApiResponse<DirectMessageConversationDetail>>(`/messages/conversations/${targetUserId}`);
+  return data.data;
+}
+
+export async function sendDirectMessage(targetUserId: number, content: string) {
+  const { data } = await http.post<ApiResponse<{
+    message: DirectMessageConversationDetail['messages'][number];
+    canSend: boolean;
+    messagePrivacy: 'ALLOW_ALL' | 'FOLLOWING_ONLY' | 'DISABLED';
+    senderFollowsRecipient: boolean;
+    recipientFollowsSender: boolean;
+    reason?: string;
+  }>>(`/messages/conversations/${targetUserId}`, { content });
+  return data.data;
+}
+
+export async function fetchUnreadDirectMessageCount() {
+  const { data } = await http.get<ApiResponse<{ unreadCount: number }>>('/messages/unread-count');
+  return data.data;
+}
+
+export async function readAllDirectMessages() {
+  const { data } = await http.post<ApiResponse<{ success: boolean; updatedCount: number }>>('/messages/read-all');
   return data.data;
 }
 

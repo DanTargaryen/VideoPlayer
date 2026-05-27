@@ -1,29 +1,46 @@
 <template>
   <article class="card">
-    <RouterLink :to="`/video/${item.id}`" class="cover-wrap">
+    <RouterLink
+      :to="`/video/${item.id}`"
+      class="cover-wrap"
+      :class="{ 'is-previewing': isPreviewing && previewReady }"
+      @mouseenter="startPreview"
+      @mouseleave="stopPreview"
+    >
       <img :src="item.coverUrl" :alt="item.title" class="cover" />
-      <div class="cover-stats">
-        <span class="stat-item">
-          <svg class="stat-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M7 22V11L10.5 3.5C10.78 2.87 11.41 2.5 12.1 2.5C13.1 2.5 13.85 3.42 13.65 4.4L12.8 9H20c1.1 0 2 0.9 2 2v1c0 .15-.02.3-.05.44l-2.19 8C19.5 21.35 18.68 22 17.73 22H7ZM7 13v8M3 22h2V11H3v11Z" fill="currentColor"/>
-          </svg>
-          {{ item.likeCount }}
-        </span>
-        <span class="stat-item">
-          <el-icon :size="14"><StarFilled /></el-icon>
-          {{ item.favoriteCount }}
-        </span>
-        <span class="stat-item">
-          <el-icon :size="14"><ChatDotRound /></el-icon>
-          {{ item.commentCount }}
-        </span>
-      </div>
+      <video
+        v-if="hasHoverPreview"
+        ref="previewVideoRef"
+        class="cover-preview"
+        :src="item.playUrl"
+        :poster="item.coverUrl"
+        muted
+        loop
+        playsinline
+        preload="none"
+        @loadeddata="handlePreviewLoaded"
+      ></video>
+      <span v-if="durationLabel" class="duration-badge">{{ durationLabel }}</span>
     </RouterLink>
     <div class="card-info">
-      <h3 class="title">{{ item.title }}</h3>
-      <div class="meta">
-        <RouterLink v-if="creatorId" :to="`/users/${creatorId}`" class="author">{{ creatorLabel }}</RouterLink>
+      <RouterLink :to="`/video/${item.id}`" class="title-link">
+        <h3 class="title">{{ item.title }}</h3>
+      </RouterLink>
+      <div class="author-row">
+        <RouterLink v-if="showAuthorLink" :to="`/users/${creatorId}`" class="author-avatar-link" :aria-label="creatorLabel">
+          <img v-if="creatorAvatar" :src="creatorAvatar" :alt="creatorLabel" class="author-avatar" />
+          <span v-else class="author-avatar fallback">{{ creatorInitial }}</span>
+        </RouterLink>
+        <span v-else class="author-avatar-link static" :aria-label="creatorLabel">
+          <img v-if="creatorAvatar" :src="creatorAvatar" :alt="creatorLabel" class="author-avatar" />
+          <span v-else class="author-avatar fallback">{{ creatorInitial }}</span>
+        </span>
+        <RouterLink v-if="showAuthorLink" :to="`/users/${creatorId}`" class="author">{{ creatorLabel }}</RouterLink>
         <span v-else class="author static">{{ creatorLabel }}</span>
+      </div>
+      <div class="meta">
+        <span v-if="showPlayCount">{{ formattedPlayCount }}次观看</span>
+        <span v-if="showPlayCount && formattedTime" class="dot">·</span>
         <span class="time">{{ formattedTime }}</span>
       </div>
     </div>
@@ -31,17 +48,29 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { StarFilled, ChatDotRound } from '@element-plus/icons-vue';
+import { computed, ref } from 'vue';
 
 import type { VideoCard } from '@/types/api';
 
 const props = defineProps<{
   item: VideoCard;
+  hoverPreview?: boolean;
+  showPlayCount?: boolean;
+  disableAuthorLink?: boolean;
 }>();
 
+const previewVideoRef = ref<HTMLVideoElement | null>(null);
+const isPreviewing = ref(false);
+const previewReady = ref(false);
+
+const hasHoverPreview = computed(() => Boolean(props.hoverPreview && props.item.playUrl));
 const creatorId = computed(() => props.item.creator?.id ?? props.item.creatorId ?? null);
 const creatorLabel = computed(() => props.item.creator?.nickname ?? `用户 #${creatorId.value ?? '-'}`);
+const creatorAvatar = computed(() => props.item.creator?.avatarUrl ?? '');
+const creatorInitial = computed(() => creatorLabel.value.trim().slice(0, 1).toUpperCase() || 'U');
+const showAuthorLink = computed(() => Boolean(creatorId.value) && !props.disableAuthorLink);
+const formattedPlayCount = computed(() => formatCount(props.item.playCount ?? 0));
+const durationLabel = computed(() => formatDuration(props.item.durationSeconds));
 
 const formattedTime = computed(() => {
   const raw = props.item.publishedAt ?? props.item.createdAt;
@@ -62,94 +91,253 @@ const formattedTime = computed(() => {
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 });
+
+function formatCount(value: number) {
+  if (value >= 10000) {
+    return `${(value / 10000).toFixed(value >= 100000 ? 0 : 1)}万`;
+  }
+
+  return String(value);
+}
+
+function formatDuration(value?: number | null) {
+  if (!value || value <= 0) {
+    return '';
+  }
+
+  const total = Math.floor(value);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function handlePreviewLoaded() {
+  previewReady.value = true;
+}
+
+async function startPreview() {
+  if (!hasHoverPreview.value || !previewVideoRef.value) return;
+
+  isPreviewing.value = true;
+
+  try {
+    previewVideoRef.value.currentTime = 0;
+  } catch {
+    // ignore seek errors before metadata is ready
+  }
+
+  try {
+    await previewVideoRef.value.play();
+  } catch {
+    isPreviewing.value = false;
+  }
+}
+
+function stopPreview() {
+  if (!previewVideoRef.value) {
+    isPreviewing.value = false;
+    return;
+  }
+
+  isPreviewing.value = false;
+  previewVideoRef.value.pause();
+
+  try {
+    previewVideoRef.value.currentTime = 0;
+  } catch {
+    // ignore seek errors before metadata is ready
+  }
+}
 </script>
 
 <style scoped>
 .card {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  padding: 0 0 12px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #eef2f7;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.045);
+  overflow: hidden;
+  cursor: pointer;
+  transition:
+    transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.28s ease;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  border-color: #dbe8ff;
+  box-shadow: 0 20px 42px rgba(15, 23, 42, 0.11);
 }
 
 .cover-wrap {
   position: relative;
   display: block;
   text-decoration: none;
-  border-radius: 6px;
+  aspect-ratio: 16 / 9;
+  border-radius: 9px 9px 0 0;
   overflow: hidden;
+  background: #eef2f7;
 }
 
 .cover {
   width: 100%;
-  height: 200px;
+  height: 100%;
   object-fit: cover;
   display: block;
+  transition:
+    opacity 0.22s ease,
+    transform 0.42s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.cover-stats {
+.cover-preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease, transform 0.42s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card:hover .cover,
+.card:hover .cover-preview {
+  transform: scale(1.035);
+}
+
+.cover-wrap.is-previewing .cover {
+  opacity: 0;
+}
+
+.cover-wrap.is-previewing .cover-preview {
+  opacity: 1;
+}
+
+.duration-badge {
   position: absolute;
   right: 10px;
   bottom: 10px;
-  display: flex;
-  gap: 10px;
-  padding: 6px 14px;
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.55);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 7px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
   backdrop-filter: blur(6px);
 }
 
-.stat-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: rgba(255, 255, 255, 0.92);
-  font-size: 13px;
-  line-height: 1;
-}
-
-.stat-icon {
-  width: 14px;
-  height: 14px;
-}
-
 .card-info {
-  padding: 12px 4px 0;
+  display: grid;
+  gap: 7px;
+  padding: 11px 12px 0;
+}
+
+.title-link {
+  color: inherit;
+  text-decoration: none;
 }
 
 .title {
-  margin: 0 0 6px;
+  min-height: 42px;
+  margin: 0;
+  color: #131925;
   font-size: 15px;
-  font-weight: 600;
-  color: #111827;
+  font-weight: 760;
+  line-height: 1.42;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.author-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.author-avatar-link {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  text-decoration: none;
+}
+
+.author-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #e8edf5;
+}
+
+.author-avatar.fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  background: linear-gradient(135deg, #6b7a90, #2f6fed);
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .meta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 5px;
+  min-height: 18px;
   font-size: 12px;
-  color: #9ca3af;
+  color: #8a95a8;
+  line-height: 1;
 }
 
 .author {
-  color: #2563eb;
+  min-width: 0;
+  color: #5f6b7a;
   text-decoration: none;
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   transition: color 0.15s;
 }
 
 .author:hover {
-  color: #1d4ed8;
+  color: #2f6fed;
 }
 
 .author.static {
-  color: #6b7280;
+  color: #5f6b7a;
 }
 
 .time {
-  color: #9ca3af;
-  margin-left: auto;
+  color: #8a95a8;
+}
+
+.dot {
+  color: #c3cad5;
 }
 </style>

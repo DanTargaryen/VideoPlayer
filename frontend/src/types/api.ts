@@ -26,7 +26,10 @@ export interface VideoCard {
   status: string;
   coverUrl: string;
   description: string;
+  category?: string;
   playUrl?: string;
+  durationSeconds?: number | null;
+  playCount?: number;
   likeCount: number;
   favoriteCount: number;
   commentCount: number;
@@ -135,6 +138,7 @@ export interface CommentReply {
   status: 'NORMAL' | 'HIDDEN' | 'DELETED';
   createdAt: string;
   updatedAt: string;
+  isPendingGrok?: boolean;
   user: {
     id: number;
     nickname: string;
@@ -186,12 +190,56 @@ export interface UserHomepage {
   nickname: string;
   avatarUrl?: string | null;
   bio?: string | null;
+  messagePrivacy?: DirectMessagePrivacy;
   followers: number;
   following: number;
   videos: number;
   isFollowing: boolean;
   coinBalance?: number;
   items: VideoCard[];
+}
+
+export type DirectMessagePrivacy = 'ALLOW_ALL' | 'FOLLOWING_ONLY' | 'DISABLED';
+
+export interface DirectMessageUser {
+  id: number;
+  nickname: string;
+  avatarUrl?: string | null;
+}
+
+export interface DirectMessagePermission {
+  canSend: boolean;
+  messagePrivacy: DirectMessagePrivacy;
+  senderFollowsRecipient: boolean;
+  recipientFollowsSender: boolean;
+  reason?: string;
+}
+
+export interface DirectMessageItem {
+  id: number;
+  senderId: number;
+  recipientId: number;
+  content: string;
+  isRead: boolean;
+  readAt?: string | null;
+  createdAt: string;
+  sender: DirectMessageUser;
+}
+
+export interface DirectMessageConversationSummary extends DirectMessagePermission {
+  user: DirectMessageUser;
+  unreadCount: number;
+  lastMessage: {
+    id: number;
+    content: string;
+    createdAt: string;
+    senderId: number;
+  };
+}
+
+export interface DirectMessageConversationDetail extends DirectMessagePermission {
+  targetUser: DirectMessageUser & { messagePrivacy: DirectMessagePrivacy };
+  messages: DirectMessageItem[];
 }
 
 export interface TextReviewItem {
@@ -251,6 +299,7 @@ export interface CreatorDashboardData {
   avatarUrl?: string | null;
   bio?: string | null;
   email: string;
+  messagePrivacy: DirectMessagePrivacy;
   role: 'USER' | 'ADMIN';
   totalVideos: number;
   pendingReviews: number;
@@ -290,7 +339,34 @@ export interface LiveRoomInfo {
   broadcaster?: {
     id: number;
     nickname: string;
+    avatarUrl?: string | null;
   };
+}
+
+export interface LiveCategoryItem {
+  code: string;
+  label: string;
+}
+
+export interface LiveCenterOverview {
+  metrics: {
+    livingRoomCount: number;
+    myLivingRoomCount: number;
+    identity: {
+      label: string;
+      description: string;
+    };
+    todayViewerCount: number;
+  };
+  myRoom: LiveRoomInfo | null;
+  categories: LiveCategoryItem[];
+  tips: string[];
+}
+
+export interface LivePlazaResponse {
+  list: LiveRoomInfo[];
+  total: number;
+  categories: LiveCategoryItem[];
 }
 
 export interface LiveStartResponse {
@@ -315,6 +391,7 @@ export interface LiveSessionInfo {
   broadcaster?: {
     id: number;
     nickname: string;
+    avatarUrl?: string | null;
   };
 }
 
@@ -360,11 +437,114 @@ export interface LiveViewerAnswerResponse {
   updatedAt: string;
 }
 
+export interface CreatorPlayTrendPoint {
+  date: string;
+  playCount: number;
+}
+
+export interface CreatorFollowerTrendPoint {
+  date: string;
+  followerCount: number;
+}
+
 export interface FollowUserItem {
   id: number;
   nickname: string;
   avatarUrl?: string | null;
   followedAt: string;
+}
+
+export type DynamicFeedType = 'all' | 'video' | 'post' | 'live';
+export type DynamicFeedSource = 'following' | 'recommended';
+
+export interface DynamicFeedAuthor {
+  id: string;
+  username: string;
+  avatar: string | null;
+}
+
+export interface DynamicFeedItem {
+  id: string;
+  type: 'video' | 'post' | 'live';
+  source: DynamicFeedSource;
+  author: DynamicFeedAuthor;
+  actionText: string;
+  title: string;
+  description?: string;
+  cover?: string;
+  images?: string[];
+  duration?: number;
+  category?: string;
+  createdAt: string;
+  stats?: {
+    views?: number;
+    likes?: number;
+    comments?: number;
+    favorites?: number;
+  };
+  live?: {
+    isLive: boolean;
+    roomId?: string;
+    viewerCount?: number;
+  };
+}
+
+export interface DynamicFeedResponse {
+  list: DynamicFeedItem[];
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+  meta: {
+    isGuest: boolean;
+    followingCount: number;
+    followingItemCount: number;
+    recommendedItemCount: number;
+  };
+}
+
+export interface SidebarLiveItem {
+  id: string;
+  roomId: string;
+  title: string;
+  cover: string;
+  authorName: string;
+  avatar: string | null;
+  viewerCount: number;
+  category: string;
+  isLive: boolean;
+}
+
+export interface SidebarRecentUpdateItem {
+  userId: string;
+  username: string;
+  avatar: string | null;
+  lastActionText: string;
+  lastUpdateAt: string;
+}
+
+export interface SidebarRecommendedUser {
+  userId: string;
+  username: string;
+  avatar: string | null;
+  bio?: string;
+  followerCount?: number;
+  reason?: string;
+  followed: boolean;
+}
+
+export interface FavoriteFolderSummary {
+  id: number;
+  name: string;
+  isDefault: boolean;
+  videoCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FavoriteVideoResult {
+  favorited: boolean;
+  folderId?: number;
+  folderName?: string;
 }
 
 export interface MyVideoItem {
@@ -377,9 +557,11 @@ export interface MyVideoItem {
   favoriteCount: number;
   commentCount: number;
   coinCount?: number;
-  creator: { id: number; nickname: string };
+  creator: { id: number; nickname: string; avatarUrl?: string | null };
   favoritedAt?: string;
+  folderId?: number | null;
   likedAt?: string;
+  watchedAt?: string | null;
 }
 
 export interface VideoAiSummaryResult {

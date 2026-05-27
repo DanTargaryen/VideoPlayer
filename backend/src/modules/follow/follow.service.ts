@@ -37,6 +37,8 @@ export class FollowService {
       },
     });
 
+    await this.syncCreatorFollowerDailySnapshot(targetUserId);
+
     return { id: targetUserId, followed: true };
   }
 
@@ -47,6 +49,8 @@ export class FollowService {
         followingId: targetUserId,
       },
     });
+
+    await this.syncCreatorFollowerDailySnapshot(targetUserId);
 
     return { id: targetUserId, followed: false };
   }
@@ -90,6 +94,7 @@ export class FollowService {
           select: {
             id: true,
             nickname: true,
+            avatarUrl: true,
           },
         },
       },
@@ -135,5 +140,69 @@ export class FollowService {
       avatarUrl: r.following.avatarUrl,
       followedAt: r.createdAt,
     }));
+  }
+
+  async getCreatorFollowerTrend(targetUserId: number, days = 7) {
+    const normalizedDays = Math.max(1, Math.min(30, Math.floor(days)));
+    const dateKeys = Array.from({ length: normalizedDays }, (_, index) => {
+      const date = new Date();
+      date.setHours(0, 0, 0, 0);
+      date.setDate(date.getDate() - (normalizedDays - 1 - index));
+      return this.formatStatDate(date);
+    });
+
+    const currentFollowerCount = await this.syncCreatorFollowerDailySnapshot(targetUserId);
+    const stats = await this.prisma.$queryRaw<Array<{ statDate: string; followerCount: number }>>`
+      SELECT 
+        statDate,
+        followerCount
+      FROM 
+        CreatorFollowerDaily
+      WHERE creatorId = ${targetUserId} AND statDate <= ${dateKeys[dateKeys.length - 1]}
+      ORDER BY statDate ASC
+    `;
+
+    const statMap = new Map(stats.map((item) => [item.statDate, Number(item.followerCount)] as const));
+    const previousRow = [...stats].reverse().find((item) => item.statDate < dateKeys[0]);
+    const firstRow = stats.find((item) => item.statDate >= dateKeys[0]);
+    let lastKnownCount = previousRow
+      ? Number(previousRow.followerCount)
+      : firstRow
+        ? Number(firstRow.followerCount)
+        : currentFollowerCount;
+
+    return dateKeys.map((date) => {
+      const followerCount = statMap.get(date);
+      if (followerCount !== undefined) {
+        lastKnownCount = followerCount;
+      }
+
+      return {
+        date,
+        followerCount: lastKnownCount,
+      };
+    });
+  }
+
+  private async syncCreatorFollowerDailySnapshot(targetUserId: number) {
+    const statDate = this.formatStatDate(new Date());
+    const followerCount = await this.getFollowerCount(targetUserId);
+
+    await this.prisma.$executeRaw`
+      INSERT INTO CreatorFollowerDaily (creatorId, statDate, followerCount, createdAt, updatedAt)
+      VALUES (${targetUserId}, ${statDate}, ${followerCount}, NOW(), NOW())
+      ON DUPLICATE KEY UPDATE
+        followerCount = ${followerCount},
+        updatedAt = NOW()
+    `;
+
+    return followerCount;
+  }
+
+  private formatStatDate(value: Date) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 }

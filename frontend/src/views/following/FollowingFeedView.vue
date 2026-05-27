@@ -5,7 +5,10 @@
         <h1>动态</h1>
         <p>查看你已关注用户最近发布的内容。</p>
       </div>
-      <el-button type="primary" @click="loadFeed">刷新动态</el-button>
+      <el-button type="primary" :loading="refreshingFeed" @click="loadFeed">
+        <el-icon><RefreshRight /></el-icon>
+        <span>刷新动态</span>
+      </el-button>
     </div>
 
     <div class="cards">
@@ -26,17 +29,29 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { ElMessage } from 'element-plus';
+import { RefreshRight } from '@element-plus/icons-vue';
 
 import { fetchFollowingFeed } from '@/api/platform';
 import type { VideoCard } from '@/types/api';
+import { takeRandomItems } from '@/utils/randomVideos';
 
 const cards = ref<VideoCard[]>([]);
+const refreshingFeed = ref(false);
+const FOLLOWING_FEED_SIZE = 12;
 
 async function loadFeed() {
+  if (refreshingFeed.value) {
+    return;
+  }
+
+  refreshingFeed.value = true;
   try {
-    cards.value = await fetchFollowingFeed();
+    const videos = await fetchFollowingFeed();
+    cards.value = takeRandomItems(videos, FOLLOWING_FEED_SIZE);
   } catch {
     ElMessage.warning('请先登录后查看关注流');
+  } finally {
+    refreshingFeed.value = false;
   }
 }
 
