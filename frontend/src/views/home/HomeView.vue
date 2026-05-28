@@ -123,23 +123,6 @@
             {{ category.label }}
           </button>
         </div>
-        <el-dropdown trigger="click" @command="handleMoreCategory">
-          <button type="button" class="more-category">
-            <span>更多分类</span>
-            <el-icon :size="14"><ArrowDown /></el-icon>
-          </button>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item
-                v-for="category in moreCategories"
-                :key="category.code"
-                :command="category.code"
-              >
-                {{ category.label }}
-              </el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
       </section>
 
       <div class="section-head">
@@ -192,7 +175,6 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import {
-  ArrowDown,
   ArrowLeft,
   ArrowRight,
   Plus,
@@ -214,6 +196,7 @@ interface HomeCategory {
 
 const categoryTabs: HomeCategory[] = [
   { code: 'all', label: '全部' },
+  { code: 'entertainment', label: '娱乐', apiCode: 'entertainment' },
   { code: 'tech', label: '科技', apiCode: 'tech' },
   { code: 'animation', label: '动画', apiCode: 'animation' },
   { code: 'game', label: '游戏', apiCode: 'game' },
@@ -225,13 +208,6 @@ const categoryTabs: HomeCategory[] = [
   { code: 'comedy', label: '搞笑', apiCode: 'comedy' },
   { code: 'food', label: '美食', apiCode: 'food' },
   { code: 'travel', label: '旅行', apiCode: 'travel' },
-  { code: 'live', label: '直播', apiCode: 'live' },
-];
-
-const moreCategories: HomeCategory[] = [
-  { code: 'entertainment', label: '娱乐', apiCode: 'entertainment' },
-  { code: 'china-animation', label: '国创', keyword: '国创' },
-  { code: 'knowledge', label: '知识', keyword: '知识' },
 ];
 
 const loading = ref(true);
@@ -254,7 +230,7 @@ let feedRequestId = 0;
 let observer: IntersectionObserver | null = null;
 
 const activeCategory = computed(() => {
-  return [...categoryTabs, ...moreCategories].find((item) => item.code === activeCategoryCode.value) ?? categoryTabs[0];
+  return categoryTabs.find((item) => item.code === activeCategoryCode.value) ?? categoryTabs[0];
 });
 
 const activeCarouselItem = computed(() => carousel.value[carouselIndex.value] ?? carousel.value[0]);
@@ -438,12 +414,6 @@ async function selectCategory(code: string) {
   hasMore.value = true;
   currentPage.value = 0;
   await loadInitialFeed();
-}
-
-async function handleMoreCategory(command: string | number | object) {
-  if (typeof command === 'string') {
-    await selectCategory(command);
-  }
 }
 
 async function refreshFeed() {
@@ -633,7 +603,6 @@ onUnmounted(() => {
 .carousel-btn,
 .side-card,
 .category-pill,
-.more-category,
 .refresh-btn,
 .empty-reset {
   transition:
@@ -671,7 +640,6 @@ onUnmounted(() => {
 .carousel-btn:active,
 .side-card:active,
 .category-pill:active,
-.more-category:active,
 .refresh-btn:active,
 .empty-reset:active {
   transform: translateY(-1px) scale(0.98);
@@ -871,10 +839,7 @@ onUnmounted(() => {
 }
 
 .category-shell {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 16px;
+  display: block;
 }
 
 .category-rail {
@@ -891,8 +856,7 @@ onUnmounted(() => {
   display: none;
 }
 
-.category-pill,
-.more-category {
+.category-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -909,8 +873,7 @@ onUnmounted(() => {
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.035);
 }
 
-.category-pill:hover,
-.more-category:hover {
+.category-pill:hover {
   color: var(--home-blue);
   border-color: #cfe0ff;
 }
@@ -920,11 +883,6 @@ onUnmounted(() => {
   background: var(--home-blue);
   border-color: var(--home-blue);
   box-shadow: 0 12px 24px rgba(47, 111, 237, 0.2);
-}
-
-.more-category {
-  gap: 8px;
-  padding: 0 18px;
 }
 
 .section-head {
@@ -1142,15 +1100,6 @@ onUnmounted(() => {
     grid-template-columns: 1fr;
     padding: 12px;
     border-radius: 14px;
-  }
-
-  .category-shell {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-
-  .more-category {
-    justify-self: start;
   }
 
   .section-head {

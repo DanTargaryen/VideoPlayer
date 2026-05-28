@@ -4,7 +4,7 @@
       <div class="intro">
         <span class="eyebrow">Account</span>
         <h1>{{ adminMode ? '管理员登录' : '用户登录' }}</h1>
-        <p v-if="!adminMode">使用用户名或邮箱登录。当前默认自动填充普通测试账号，可直接进入直播广场和弹幕联调。</p>
+        <p v-if="!adminMode">使用用户名或邮箱登录。当前默认自动填充普通测试账号，登录后进入推荐页面。</p>
         <p v-else>管理入口改为仅需密钥登录，密钥已自动填充，可直接进入后台。</p>
       </div>
 
@@ -173,7 +173,7 @@ async function handleLogin() {
       return;
     }
 
-    router.push('/live');
+    router.push('/');
   } catch {
     ElMessage.error(adminMode.value ? '登录失败，请检查管理密钥' : '登录失败，请检查账号和密码');
   } finally {

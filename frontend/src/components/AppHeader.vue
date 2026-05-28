@@ -36,10 +36,6 @@
         </span>
         <span class="action-label">消息</span>
       </RouterLink>
-      <RouterLink :to="isLoggedIn ? '/user/dashboard' : '/login'" class="action-icon-link" aria-label="收藏">
-        <el-icon :size="22"><Star /></el-icon>
-        <span class="action-label">收藏</span>
-      </RouterLink>
       <template v-if="isLoggedIn">
         <RouterLink v-if="isAdmin" to="/admin/dashboard" class="action-icon-link" aria-label="审核后台">
           <el-icon :size="22"><DocumentChecked /></el-icon>
@@ -64,7 +60,6 @@ import {
   ArrowDown,
   DocumentChecked,
   Message,
-  Star,
   Upload,
   User,
 } from '@element-plus/icons-vue';
@@ -84,7 +79,6 @@ interface HeaderNavItem {
 
 const headerNavItems: HeaderNavItem[] = [
   { label: '推荐', path: '/' },
-  { label: '探索', path: '/search?tab=video' },
   { label: '直播', path: '/live' },
   { label: '动态', path: '/notifications' },
 ];

@@ -575,7 +575,7 @@
           <el-input v-model="editForm.description" type="textarea" />
         </el-form-item>
         <el-form-item label="分区">
-          <el-select v-model="editForm.categories" multiple collapse-tags collapse-tags-tooltip>
+          <el-select v-model="editForm.categories" multiple>
             <el-option v-for="item in videoCategoryOptions" :key="item.code" :label="item.label" :value="item.code" />
           </el-select>
         </el-form-item>
@@ -745,7 +745,7 @@ import {
   verifyEmailCode,
   withdrawVideoReview,
 } from '@/api/platform';
-import { videoCategoryOptions } from '@/constants/categories';
+import { resolveVideoCategoryCodes, videoCategoryOptions } from '@/constants/categories';
 import { useAppStore } from '@/stores/app';
 import type {
   CreatorDashboardData,
@@ -1579,11 +1579,17 @@ async function handleCreateDraft() {
     autoCoverFile.value = null;
     captureTimeSeconds.value = 1;
     ElMessage.success({ message: '稿件创建成功', duration: 1500 });
-    await refreshAll();
   } catch {
     ElMessage.error({ message: '创建稿件失败，请确认 MinIO 服务已启动且已使用用户账号登录', duration: 4000 });
+    return;
   } finally {
     creating.value = false;
+  }
+
+  try {
+    await refreshAll();
+  } catch {
+    // 稿件已创建，列表刷新失败不重复提示失败。
   }
 }
 
@@ -1592,7 +1598,7 @@ function openEditDialog(video: CreatorVideo) {
   editingVideoStatus.value = video.status;
   editForm.title = video.title;
   editForm.description = video.description;
-  editForm.categories = video.categories?.length ? [...video.categories] : [video.category];
+  editForm.categories = [...resolveVideoCategoryCodes(video)];
   editForm.coverUrl = video.coverUrl;
   editDialogVisible.value = true;
 }
@@ -1614,11 +1620,17 @@ async function handleSaveDraft() {
       duration: 1800,
     });
     editDialogVisible.value = false;
-    await refreshAll();
   } catch {
     ElMessage.error({ message: '保存稿件失败', duration: 3000 });
+    return;
   } finally {
     savingDraft.value = false;
+  }
+
+  try {
+    await refreshAll();
+  } catch {
+    // 保存已成功，刷新列表失败时不重复提示失败。
   }
 }
 
@@ -1634,20 +1646,32 @@ async function openReviewDialog(video: CreatorVideo) {
 async function handleSubmitReview(videoId: number) {
   try {
     await submitReview(videoId);
-    ElMessage.success({ message: '已提交审核', duration: 1500 });
-    await refreshAll();
   } catch {
     ElMessage.error({ message: '提交审核失败', duration: 3000 });
+    return;
+  }
+
+  ElMessage.success({ message: '已提交审核', duration: 1500 });
+  try {
+    await refreshAll();
+  } catch {
+    // 提交已成功，刷新列表失败时不重复提示失败。
   }
 }
 
 async function handleWithdrawReview(videoId: number) {
   try {
     await withdrawVideoReview(videoId);
-    ElMessage.success({ message: '稿件已撤回，可继续修改标题、简介和分区', duration: 1800 });
-    await refreshAll();
   } catch {
     ElMessage.error({ message: '撤回审核失败', duration: 3000 });
+    return;
+  }
+
+  ElMessage.success({ message: '稿件已撤回，可继续修改标题、简介和分区', duration: 1800 });
+  try {
+    await refreshAll();
+  } catch {
+    // 撤回已成功，刷新列表失败时不重复提示失败。
   }
 }
 

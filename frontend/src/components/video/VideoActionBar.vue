@@ -27,10 +27,6 @@
         <span>评论</span>
         <strong>{{ formatCompactNumber(video.commentCount) }}</strong>
       </button>
-      <button class="action-pill" type="button" @click="$emit('share')">
-        <el-icon :size="18"><Share /></el-icon>
-        <span>分享</span>
-      </button>
       <button class="action-pill action-pill-icon robot-entry" type="button" aria-label="打开视频智能体" @click="$emit('more')">
         <span class="robot-head" aria-hidden="true">
           <i class="robot-eye"></i>
@@ -47,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import { CaretTop, ChatDotRound, Coin, Share, Star, Warning } from '@element-plus/icons-vue';
+import { CaretTop, ChatDotRound, Coin, Star, Warning } from '@element-plus/icons-vue';
 import type { VideoDetail } from '@/types/api';
 
 defineProps<{
@@ -61,7 +57,6 @@ defineEmits<{
   (e: 'favorite'): void;
   (e: 'coin'): void;
   (e: 'comments'): void;
-  (e: 'share'): void;
   (e: 'more'): void;
   (e: 'report'): void;
 }>();

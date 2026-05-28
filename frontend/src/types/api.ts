@@ -164,6 +164,7 @@ export interface CommentReply {
   user: {
     id: number;
     nickname: string;
+    avatarUrl?: string | null;
   };
   replies: CommentReply[];
 }

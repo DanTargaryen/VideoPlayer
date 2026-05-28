@@ -497,6 +497,13 @@ export async function createComment(
   return data.data;
 }
 
+export async function withdrawComment(videoId: number, commentId: number) {
+  const { data } = await http.delete<
+    ApiResponse<{ withdrawn: boolean; commentId: number; withdrawnCount: number }>
+  >(`/videos/${videoId}/comments/${commentId}`);
+  return data.data;
+}
+
 export async function reportContent(payload: {
   targetType: 'VIDEO' | 'COMMENT' | 'VIDEO_DANMAKU';
   targetId: number;

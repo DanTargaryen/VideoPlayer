@@ -85,7 +85,7 @@ async function handleRegister() {
     const result = await login({ account: form.username, password: form.password });
     appStore.setAuth(result);
     ElMessage.success(`注册成功，欢迎 ${result.nickname}`);
-    router.push('/live');
+    router.push('/');
   } catch (err: unknown) {
     const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '';
     if (msg.includes('already') || msg.includes('exists')) {
