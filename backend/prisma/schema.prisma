@@ -290,6 +290,7 @@ model Comment {
   parentId   Int?
   rootId     Int?
   content    String     @db.VarChar(1000)
+  imageUrl   String?    @db.VarChar(255)
   status     TextStatus @default(NORMAL)
   replyCount Int        @default(0)
   createdAt  DateTime   @default(now())

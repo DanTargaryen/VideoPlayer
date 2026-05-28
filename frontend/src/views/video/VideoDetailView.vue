@@ -144,9 +144,23 @@
                 resize="none"
                 placeholder="发一条友善的评论......"
               />
+              <div v-if="commentImagePreviewUrl" class="comment-image-preview-wrap">
+                <img :src="commentImagePreviewUrl" alt="评论图片预览" class="comment-image-preview" />
+                <button type="button" class="comment-image-remove" @click="clearCommentImage">移除图片</button>
+              </div>
               <div class="composer-footer">
                 <p>输入 <strong>@grok</strong> + 问题，可召唤智能体回复</p>
-                <el-button type="primary" @click="submitRootComment">发表评论</el-button>
+                <div class="composer-actions">
+                  <input
+                    ref="commentImageInputRef"
+                    type="file"
+                    accept="image/*"
+                    class="hidden-input"
+                    @change="handleCommentImageChange"
+                  />
+                  <el-button plain :loading="uploadingCommentImage" @click="commentImageInputRef?.click()">上传图片</el-button>
+                  <el-button type="primary" @click="submitRootComment">发表评论</el-button>
+                </div>
               </div>
             </div>
           </div>
@@ -213,8 +227,6 @@
 
           <div class="agent-sidebar-tabs">
             <button type="button" class="active">聊天</button>
-            <button type="button" disabled>笔记</button>
-            <button type="button" disabled>上下文</button>
           </div>
 
           <div class="agent-panel">
@@ -399,6 +411,7 @@ import {
   unfavoriteVideo,
   unfollowUser,
   unlikeVideo,
+  uploadVideo,
 } from '@/api/platform';
 import CommentThread from '@/components/CommentThread.vue';
 import DanmakuOverlay from '@/components/DanmakuOverlay.vue';
@@ -443,6 +456,10 @@ const recommendationsLoading = ref(false);
 const comments = ref<CommentItem[]>([]);
 const danmakus = ref<DanmakuItem[]>([]);
 const commentForm = ref('');
+const commentImageInputRef = ref<HTMLInputElement | null>(null);
+const commentImagePreviewUrl = ref('');
+const commentImageRemoteUrl = ref('');
+const uploadingCommentImage = ref(false);
 const replyForm = ref('');
 const replyTargetId = ref<number | null>(null);
 const commentSortTab = ref<'hot' | 'latest'>('hot');
@@ -1116,15 +1133,19 @@ async function askVideoAgent() {
 
 async function submitRootComment() {
   const content = commentForm.value.trim();
-  if (!content) {
+  if (!content && !commentImageRemoteUrl.value) {
     ElMessage.warning('请输入评论内容');
     return;
   }
 
   try {
     const videoId = Number(route.params.id);
-    const created = await createComment(videoId, { content });
+    const created = await createComment(videoId, {
+      content: content || undefined,
+      imageUrl: commentImageRemoteUrl.value || undefined,
+    });
     commentForm.value = '';
+    clearCommentImage();
     ElMessage.success('评论成功');
     await Promise.all([loadComments(), loadDetail()]);
     if (hasGrokMention(content)) {
@@ -1137,6 +1158,37 @@ async function submitRootComment() {
   } catch {
     ElMessage.error('评论失败，请确认已登录');
   }
+}
+
+async function handleCommentImageChange(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';
+  if (!file) {
+    return;
+  }
+
+  if (!file.type.startsWith('image/')) {
+    ElMessage.warning('只能上传图片文件');
+    return;
+  }
+
+  uploadingCommentImage.value = true;
+  try {
+    const uploaded = await uploadVideo(file, 'COVER');
+    commentImageRemoteUrl.value = uploaded.url;
+    commentImagePreviewUrl.value = uploaded.url;
+    ElMessage.success('评论图片上传成功');
+  } catch {
+    ElMessage.error('评论图片上传失败');
+  } finally {
+    uploadingCommentImage.value = false;
+  }
+}
+
+function clearCommentImage() {
+  commentImagePreviewUrl.value = '';
+  commentImageRemoteUrl.value = '';
 }
 
 function toggleReplyBox(commentId: number) {
@@ -2033,6 +2085,13 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
 }
 
+.composer-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .composer-footer p {
   margin: 0;
   color: var(--color-text-secondary);
@@ -2042,6 +2101,34 @@ onBeforeUnmount(() => {
 
 .composer-footer strong {
   color: var(--color-primary);
+}
+
+.hidden-input {
+  display: none;
+}
+
+.comment-image-preview-wrap {
+  display: grid;
+  gap: 8px;
+}
+
+.comment-image-preview {
+  width: min(240px, 100%);
+  max-height: 240px;
+  border-radius: 14px;
+  object-fit: cover;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.comment-image-remove {
+  width: fit-content;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-danger);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .comment-tabs {

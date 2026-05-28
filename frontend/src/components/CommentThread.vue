@@ -5,11 +5,17 @@
       <div class="comment-main">
         <strong>{{ comment.user.nickname }}</strong>
         <p>
-          {{ comment.content }}
+          <span v-if="comment.content">{{ comment.content }}</span>
           <span v-if="comment.isPendingGrok" class="pending-dots" aria-hidden="true">
             <i></i><i></i><i></i>
           </span>
         </p>
+        <img
+          v-if="comment.imageUrl"
+          :src="comment.imageUrl"
+          :alt="`${comment.user.nickname} 的评论图片`"
+          class="comment-image"
+        />
         <div class="comment-meta">
           <span>{{ comment.isPendingGrok ? '等待回复中' : formatTime(comment.createdAt) }}</span>
           <button v-if="!comment.isPendingGrok" class="link-btn" @click="toggleReplyBox">回复</button>
@@ -163,6 +169,15 @@ function handleSubmitReply() {
   color: #334155;
   font-size: 14px;
   line-height: 1.7;
+}
+
+.comment-image {
+  display: block;
+  max-width: min(320px, 100%);
+  max-height: 320px;
+  border-radius: 14px;
+  object-fit: cover;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
 }
 
 .pending-dots {

@@ -62,7 +62,7 @@ export class CommentService {
   async createComment(
     videoId: number,
     user: { id: number; nickname: string },
-    payload: { content: string; parentId?: number; rootId?: number },
+    payload: { content: string; imageUrl?: string; parentId?: number; rootId?: number },
   ) {
     const video = await this.prisma.video.findUnique({ where: { id: videoId } });
 
@@ -83,6 +83,7 @@ export class CommentService {
         videoId,
         userId: user.id,
         content: payload.content,
+        imageUrl: payload.imageUrl ?? null,
         parentId: payload.parentId ?? null,
         rootId: payload.rootId ?? payload.parentId ?? null,
         status: 'NORMAL',
@@ -120,13 +121,14 @@ export class CommentService {
     const notificationRecipientId = payload.parentId ? parent?.userId ?? null : video.creatorId;
 
     if (notificationRecipientId && notificationRecipientId !== user.id) {
+      const notificationPreview = payload.content || '[图片评论]';
       await this.prisma.notification.create({
         data: {
           recipientId: notificationRecipientId,
           actorId: user.id,
           type: payload.parentId ? 'REPLY' : 'COMMENT',
           title: payload.parentId ? '收到新的回复' : '收到新的评论',
-          content: `${user.nickname}：${payload.content.slice(0, 80)}`,
+          content: `${user.nickname}：${notificationPreview.slice(0, 80)}`,
           relatedType: 'VIDEO',
           relatedId: videoId,
         },
