@@ -37,6 +37,7 @@ import type {
   SearchSuggestResponse,
   TextReviewItem,
   UserHomepage,
+  VideoAiChatHistoryResult,
   VideoAiChatResult,
   VideoCard,
   VideoAiSummaryResult,
@@ -295,6 +296,11 @@ export async function createVideoAiChat(payload: { videoId: number; prompt: stri
   const { data } = await http.post<ApiResponse<VideoAiChatResult>>('/ai/video-chat', payload, {
     timeout: Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 120000,
   });
+  return data.data;
+}
+
+export async function fetchVideoAiChatHistory(videoId: number) {
+  const { data } = await http.get<ApiResponse<VideoAiChatHistoryResult>>(`/ai/video-chat/${videoId}`);
   return data.data;
 }
 
