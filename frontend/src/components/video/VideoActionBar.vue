@@ -31,8 +31,11 @@
         <el-icon :size="18"><Share /></el-icon>
         <span>分享</span>
       </button>
-      <button class="action-pill action-pill-icon" type="button" aria-label="更多" @click="$emit('more')">
-        <el-icon :size="18"><MoreFilled /></el-icon>
+      <button class="action-pill action-pill-icon robot-entry" type="button" aria-label="打开视频智能体" @click="$emit('more')">
+        <span class="robot-head" aria-hidden="true">
+          <i class="robot-eye"></i>
+          <i class="robot-eye"></i>
+        </span>
       </button>
     </div>
 
@@ -44,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { CaretTop, ChatDotRound, Coin, MoreFilled, Share, Star, Warning } from '@element-plus/icons-vue';
+import { CaretTop, ChatDotRound, Coin, Share, Star, Warning } from '@element-plus/icons-vue';
 import type { VideoDetail } from '@/types/api';
 
 defineProps<{
@@ -168,6 +171,48 @@ function formatCompactNumber(value?: number | null) {
 .action-pill-icon {
   width: 38px;
   padding: 0;
+}
+
+.robot-head {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 18px;
+  height: 14px;
+  border: 1.6px solid currentColor;
+  border-radius: 6px 6px 5px 5px;
+}
+
+.robot-head::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  width: 1.6px;
+  height: 5px;
+  background: currentColor;
+  transform: translateX(-50%);
+}
+
+.robot-head::after {
+  content: '';
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: currentColor;
+  transform: translateX(-50%);
+}
+
+.robot-eye {
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
 }
 
 .report-action {
