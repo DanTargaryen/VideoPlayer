@@ -73,9 +73,7 @@ onBeforeUnmount(() => {
 .intro-card {
   display: grid;
   gap: 8px;
-  margin-left: 28px;
-  margin-right: -28px;
-  padding: 10px 0 8px;
+  padding: 10px 0 8px 28px;
   border: 0;
   border-radius: 0;
   background: var(--color-bg-card);
