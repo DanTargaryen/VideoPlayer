@@ -69,6 +69,7 @@ enum VideoAssetType {
 enum CoinTransactionType {
   DAILY_CLAIM
   VIDEO_COIN
+  STREAK_REWARD
 }
 
 enum CommentAiTaskStatus {
@@ -118,6 +119,7 @@ model User {
   receivedDirectMessages DirectMessage[]        @relation("DirectMessageRecipient")
   creatorPlayDaily       CreatorPlayDaily[]
   creatorFollowerDaily   CreatorFollowerDaily[]
+  streakMilestoneClaims  StreakMilestoneClaim[]
 }
 
 model DirectMessage {
@@ -391,6 +393,17 @@ model DailyCoinClaim {
 
   @@unique([userId, claimDate])
   @@index([claimDate])
+}
+
+model StreakMilestoneClaim {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  milestone Int
+  createdAt DateTime @default(now())
+
+  @@unique([userId, milestone])
+  @@index([userId])
 }
 
 model VideoCoinContribution {

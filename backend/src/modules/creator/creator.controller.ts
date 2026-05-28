@@ -56,6 +56,7 @@ export class CreatorController {
       bio: user.bio,
       messagePrivacy: user.messagePrivacy,
       coinBalance: user.coinBalance,
+      createdAt: user.createdAt,
       followerCount,
       followingCount,
       totalLikes: aggregates._sum.likeCount ?? 0,
