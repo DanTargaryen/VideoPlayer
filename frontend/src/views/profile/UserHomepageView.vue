@@ -10,7 +10,7 @@
           <h1>{{ homepage.nickname }} 的主页</h1>
           <p>{{ homepage.bio || '这个用户还没有填写简介。' }}</p>
           <span class="meta">粉丝 {{ homepage.followers }} · 关注 {{ homepage.following }} · 视频 {{ homepage.videos }}</span>
-          <span v-if="isOwnHomepage" class="meta coin-meta">平台货币 {{ homepage.coinBalance ?? 0 }}</span>
+          <span v-if="isOwnHomepage" class="meta coin-meta">硬币 {{ homepage.coinBalance ?? 0 }}</span>
         </div>
       </div>
       <div class="hero-actions">

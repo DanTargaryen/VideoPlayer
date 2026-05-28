@@ -1107,7 +1107,7 @@ export class VideoService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return favorites.map((f: { video: { id: number; title: string; description: string; coverUrl: string; category: string; likeCount: number; favoriteCount: number; commentCount: number; creator: { id: number; nickname: string } }; createdAt: Date }) => ({
+    return favorites.map((f) => ({
       id: f.video.id,
       title: f.video.title,
       description: f.video.description,

@@ -120,6 +120,25 @@ export interface VideoCoinResponse {
   balance: number;
 }
 
+export interface StreakMilestone {
+  day: number;
+  claimed: boolean;
+  reached: boolean;
+}
+
+export interface StreakInfo {
+  streak: number;
+  claimedToday: boolean;
+  milestones: StreakMilestone[];
+}
+
+export interface StreakClaimResponse {
+  claimed: boolean;
+  amount: number;
+  balance: number;
+  message?: string;
+}
+
 export interface VideoWatchProgressPayload {
   watchedSeconds: number;
   currentTimeSeconds: number;
@@ -301,6 +320,7 @@ export interface CreatorDashboardData {
   email: string;
   messagePrivacy: DirectMessagePrivacy;
   role: 'USER' | 'ADMIN';
+  createdAt: string;
   totalVideos: number;
   pendingReviews: number;
   publishedVideos: number;
