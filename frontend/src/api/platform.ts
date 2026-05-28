@@ -42,6 +42,8 @@ import type {
   VideoAiSummaryResult,
   VideoDetail,
   VideoCoinResponse,
+  StreakClaimResponse,
+  StreakInfo,
   FollowUserItem,
   FavoriteFolderSummary,
   FavoriteVideoResult,
@@ -320,6 +322,7 @@ export async function uploadVideo(file: File, assetType: 'ORIGINAL' | 'COVER' | 
       'Content-Type': 'multipart/form-data',
     },
     params: { assetType },
+    timeout: 300000,
   });
   return data.data;
 }
@@ -401,6 +404,16 @@ export async function fetchCoinWallet() {
 
 export async function claimDailyCoins() {
   const { data } = await http.post<ApiResponse<DailyClaimResponse>>('/gift-coins/daily-claim');
+  return data.data;
+}
+
+export async function fetchStreakInfo() {
+  const { data } = await http.get<ApiResponse<StreakInfo>>('/gift-coins/streak');
+  return data.data;
+}
+
+export async function claimMilestoneReward(milestone: number) {
+  const { data } = await http.post<ApiResponse<StreakClaimResponse>>('/gift-coins/streak-claim', { milestone });
   return data.data;
 }
 

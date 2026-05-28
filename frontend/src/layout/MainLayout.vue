@@ -8,6 +8,7 @@
         'content--video-detail': route.name === 'video-detail',
         'content--dynamic': route.name === 'notifications',
         'content--live': route.name === 'live-room',
+        'content--dashboard': route.name === 'user-dashboard',
       }"
     >
       <RouterView />
@@ -85,6 +86,12 @@ const theme = computed(() => resolveSectionTheme(route));
   max-width: none;
   padding: 24px clamp(28px, 4vw, 72px) 40px;
   background: transparent;
+}
+
+.content--dashboard {
+  width: 100%;
+  max-width: none;
+  padding: 0 clamp(12px, 1.6vw, 24px);
 }
 
 @media (max-width: 760px) {
