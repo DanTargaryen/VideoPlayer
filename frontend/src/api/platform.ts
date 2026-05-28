@@ -477,7 +477,7 @@ export async function fetchCommentThread(videoId: number, rootId: number) {
 
 export async function createComment(
   videoId: number,
-  payload: { content: string; parentId?: number; rootId?: number },
+  payload: { content?: string; imageUrl?: string; parentId?: number; rootId?: number },
 ) {
   const { data } = await http.post<ApiResponse<CommentReply>>(`/videos/${videoId}/comments`, payload);
   return data.data;
