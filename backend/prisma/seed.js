@@ -3,6 +3,18 @@ const { PrismaClient, UserRole, VideoStatus, ReviewStatus, TextStatus } = requir
 const prisma = new PrismaClient();
 
 const DEFAULT_PLAY_URL = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
+const VIDEO_CATEGORY_FALLBACKS = {
+  entertainment: ['entertainment', 'music', 'life'],
+  study: ['study', 'tech'],
+  game: ['game', 'comedy'],
+  tech: ['tech', 'animation'],
+  life: ['life', 'travel', 'food'],
+  live: ['live'],
+};
+
+function resolveVideoCategories(primaryCategory) {
+  return VIDEO_CATEGORY_FALLBACKS[primaryCategory] || [primaryCategory];
+}
 
 function hoursAgo(value) {
   return new Date(Date.now() - value * 60 * 60 * 1000);
@@ -330,6 +342,13 @@ async function createVideos(userIndex) {
         favoriteCount: seed.favoriteCount,
         commentCount: seed.commentCount,
       },
+    });
+    await prisma.videoCategory.createMany({
+      data: resolveVideoCategories(seed.category).map((code) => ({
+        videoId: created.id,
+        code,
+      })),
+      skipDuplicates: true,
     });
     videos.push(created);
   }

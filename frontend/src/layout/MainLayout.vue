@@ -102,7 +102,14 @@ const theme = computed(() => resolveSectionTheme(route));
   }
 }
 
-.theme-entertainment {
+.theme-entertainment,
+.theme-animation,
+.theme-life,
+.theme-music,
+.theme-film,
+.theme-comedy,
+.theme-food,
+.theme-travel {
   --theme-accent: var(--color-primary);
   --theme-accent-2: var(--color-primary);
   --theme-accent-3: var(--color-warning);
@@ -120,7 +127,8 @@ const theme = computed(() => resolveSectionTheme(route));
   --theme-page-bg: var(--color-bg-page);
 }
 
-.theme-game {
+.theme-game,
+.theme-sports {
   --theme-accent: var(--color-primary);
   --theme-accent-2: var(--color-primary);
   --theme-accent-3: var(--color-warning);

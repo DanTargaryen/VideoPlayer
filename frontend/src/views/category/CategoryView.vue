@@ -126,6 +126,14 @@ const categoryIconMap: Record<VideoCategoryCode, Component> = {
   study: Reading,
   game: Trophy,
   tech: Monitor,
+  animation: MagicStick,
+  life: MagicStick,
+  music: MagicStick,
+  film: MagicStick,
+  sports: Trophy,
+  comedy: MagicStick,
+  food: MagicStick,
+  travel: MagicStick,
 };
 
 const gradientStyles = ref<Record<number, string>>({});

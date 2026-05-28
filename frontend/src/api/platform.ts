@@ -350,7 +350,8 @@ export async function createVideo(payload: {
   uploadToken?: string;
   title: string;
   description: string;
-  category: string;
+  category?: string;
+  categories?: string[];
   coverUrl?: string;
   coverAssetId?: number;
   coverUploadToken?: string;
@@ -361,7 +362,7 @@ export async function createVideo(payload: {
 
 export async function updateVideoDraft(
   videoId: number,
-  payload: { title?: string; description?: string; category?: string; coverUrl?: string },
+  payload: { title?: string; description?: string; category?: string; categories?: string[]; coverUrl?: string },
 ) {
   const { data } = await http.put<ApiResponse<CreatorVideo>>(`/videos/${videoId}`, payload);
   return data.data;

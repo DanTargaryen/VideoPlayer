@@ -8,6 +8,14 @@ const categoryPathMap: Record<string, string> = {
   study: '/study',
   game: '/game',
   tech: '/tech',
+  animation: '/animation',
+  life: '/life',
+  music: '/music',
+  film: '/film',
+  sports: '/sports',
+  comedy: '/comedy',
+  food: '/food',
+  travel: '/travel',
 };
 
 export const primaryNavItems: NavItem[] = categoryOptions.map((item) => ({

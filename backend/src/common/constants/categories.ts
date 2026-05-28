@@ -4,6 +4,14 @@ export const CATEGORY_CODE_TO_ID = {
   game: 3,
   tech: 4,
   live: 5,
+  animation: 6,
+  life: 7,
+  music: 8,
+  film: 9,
+  sports: 10,
+  comedy: 11,
+  food: 12,
+  travel: 13,
 } as const;
 
 export const CATEGORY_DEFINITIONS = [
@@ -13,11 +21,33 @@ export const CATEGORY_DEFINITIONS = [
   { code: 'game', label: '游戏', id: CATEGORY_CODE_TO_ID.game },
   { code: 'tech', label: '科技', id: CATEGORY_CODE_TO_ID.tech },
   { code: 'live', label: '直播', id: CATEGORY_CODE_TO_ID.live },
+  { code: 'animation', label: '动画', id: CATEGORY_CODE_TO_ID.animation },
+  { code: 'life', label: '生活', id: CATEGORY_CODE_TO_ID.life },
+  { code: 'music', label: '音乐', id: CATEGORY_CODE_TO_ID.music },
+  { code: 'film', label: '影视', id: CATEGORY_CODE_TO_ID.film },
+  { code: 'sports', label: '运动', id: CATEGORY_CODE_TO_ID.sports },
+  { code: 'comedy', label: '搞笑', id: CATEGORY_CODE_TO_ID.comedy },
+  { code: 'food', label: '美食', id: CATEGORY_CODE_TO_ID.food },
+  { code: 'travel', label: '旅行', id: CATEGORY_CODE_TO_ID.travel },
 ] as const;
 
 export type CategoryCode = (typeof CATEGORY_DEFINITIONS)[number]['code'];
 
-export const VIDEO_CATEGORY_CODES: readonly CategoryCode[] = ['entertainment', 'study', 'game', 'tech'] as const;
+export const VIDEO_CATEGORY_CODES: readonly CategoryCode[] = [
+  'entertainment',
+  'tech',
+  'animation',
+  'game',
+  'life',
+  'study',
+  'music',
+  'film',
+  'sports',
+  'comedy',
+  'food',
+  'travel',
+  'live',
+] as const;
 
 export function resolveCategoryId(categoryCode?: string) {
   if (!categoryCode || categoryCode === 'recommend') {
