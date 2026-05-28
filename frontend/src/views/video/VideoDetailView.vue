@@ -1,6 +1,6 @@
 <template>
   <section class="video-detail-page" v-loading="loading">
-    <div class="video-detail-shell" v-if="video">
+    <div class="video-detail-shell" :class="{ 'agent-sidebar-open': agentPanelVisible }" v-if="video">
       <main class="main-column">
         <header class="video-header">
           <h1 class="video-title">{{ video.title }}</h1>
@@ -144,9 +144,23 @@
                 resize="none"
                 placeholder="发一条友善的评论......"
               />
+              <div v-if="commentImagePreviewUrl" class="comment-image-preview-wrap">
+                <img :src="commentImagePreviewUrl" alt="评论图片预览" class="comment-image-preview" />
+                <button type="button" class="comment-image-remove" @click="clearCommentImage">移除图片</button>
+              </div>
               <div class="composer-footer">
                 <p>输入 <strong>@grok</strong> + 问题，可召唤智能体回复</p>
-                <el-button type="primary" @click="submitRootComment">发表评论</el-button>
+                <div class="composer-actions">
+                  <input
+                    ref="commentImageInputRef"
+                    type="file"
+                    accept="image/*"
+                    class="hidden-input"
+                    @change="handleCommentImageChange"
+                  />
+                  <el-button plain :loading="uploadingCommentImage" @click="commentImageInputRef?.click()">上传图片</el-button>
+                  <el-button type="primary" @click="submitRootComment">发表评论</el-button>
+                </div>
               </div>
             </div>
           </div>
@@ -195,6 +209,63 @@
           @refresh="loadRecommendations"
         />
       </aside>
+
+      <aside v-if="agentPanelVisible" class="agent-side-column">
+        <div class="agent-sidebar">
+          <div class="agent-sidebar-head">
+            <div class="agent-sidebar-title">
+              <span class="agent-sidebar-eyebrow">AI Assistant</span>
+              <strong>视频智能体</strong>
+            </div>
+            <div class="agent-sidebar-actions">
+              <span class="agent-sidebar-status">视频上下文</span>
+              <button type="button" class="agent-sidebar-close" aria-label="关闭视频智能体" @click="agentPanelVisible = false">
+                ×
+              </button>
+            </div>
+          </div>
+
+          <div class="agent-sidebar-tabs">
+            <button type="button" class="active">聊天</button>
+          </div>
+
+          <div class="agent-panel">
+            <div class="agent-panel-head">
+              <strong>当前会话</strong>
+              <span>{{ agentLastFrameCount > 0 ? `已分析 ${agentLastFrameCount} 帧` : '待提问' }}</span>
+            </div>
+            <div ref="agentMessagesRef" class="agent-messages">
+              <div
+                v-for="item in agentMessages"
+                :key="item.id"
+                class="agent-message"
+                :class="item.role === 'user' ? 'agent-message-user' : 'agent-message-assistant'"
+              >
+                <p>{{ item.content }}</p>
+              </div>
+              <div v-if="agentLoading" class="agent-loading">智能体思考中...</div>
+            </div>
+            <div class="agent-composer">
+              <p v-if="agentError" class="agent-error">{{ agentError }}</p>
+              <div class="agent-input-wrap">
+                <el-input
+                  v-model="agentDraft"
+                  type="textarea"
+                  :autosize="{ minRows: 3, maxRows: 6 }"
+                  resize="none"
+                  placeholder="尽管问，例如：这个视频里的人物在做什么？"
+                  :disabled="agentLoading"
+                  @keydown.enter.exact.prevent="askVideoAgent"
+                />
+                <div class="agent-composer-footer">
+                  <span>Enter 发送</span>
+                  <el-button type="primary" :loading="agentLoading" @click="askVideoAgent">发送</el-button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
     </div>
 
     <el-dialog v-model="favoriteDialogVisible" title="选择收藏夹" width="420px" :close-on-click-modal="false">
@@ -227,7 +298,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="agentPanelVisible" title="视频智能体" width="520px" :close-on-click-modal="false">
+    <el-dialog v-model="agentLegacyDialogVisible" title="视频智能体" width="520px" :close-on-click-modal="false">
       <div class="agent-panel">
         <div class="agent-panel-head">
           <strong>和当前视频对话</strong>
@@ -340,6 +411,7 @@ import {
   unfavoriteVideo,
   unfollowUser,
   unlikeVideo,
+  uploadVideo,
 } from '@/api/platform';
 import CommentThread from '@/components/CommentThread.vue';
 import DanmakuOverlay from '@/components/DanmakuOverlay.vue';
@@ -384,6 +456,10 @@ const recommendationsLoading = ref(false);
 const comments = ref<CommentItem[]>([]);
 const danmakus = ref<DanmakuItem[]>([]);
 const commentForm = ref('');
+const commentImageInputRef = ref<HTMLInputElement | null>(null);
+const commentImagePreviewUrl = ref('');
+const commentImageRemoteUrl = ref('');
+const uploadingCommentImage = ref(false);
 const replyForm = ref('');
 const replyTargetId = ref<number | null>(null);
 const commentSortTab = ref<'hot' | 'latest'>('hot');
@@ -421,6 +497,7 @@ const reportReason = ref('');
 const videoReportDialogVisible = ref(false);
 const videoReportReason = ref('');
 const agentPanelVisible = ref(false);
+const agentLegacyDialogVisible = ref(false);
 const agentLoading = ref(false);
 const agentDraft = ref('');
 const agentError = ref('');
@@ -1056,15 +1133,19 @@ async function askVideoAgent() {
 
 async function submitRootComment() {
   const content = commentForm.value.trim();
-  if (!content) {
+  if (!content && !commentImageRemoteUrl.value) {
     ElMessage.warning('请输入评论内容');
     return;
   }
 
   try {
     const videoId = Number(route.params.id);
-    const created = await createComment(videoId, { content });
+    const created = await createComment(videoId, {
+      content: content || undefined,
+      imageUrl: commentImageRemoteUrl.value || undefined,
+    });
     commentForm.value = '';
+    clearCommentImage();
     ElMessage.success('评论成功');
     await Promise.all([loadComments(), loadDetail()]);
     if (hasGrokMention(content)) {
@@ -1077,6 +1158,37 @@ async function submitRootComment() {
   } catch {
     ElMessage.error('评论失败，请确认已登录');
   }
+}
+
+async function handleCommentImageChange(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';
+  if (!file) {
+    return;
+  }
+
+  if (!file.type.startsWith('image/')) {
+    ElMessage.warning('只能上传图片文件');
+    return;
+  }
+
+  uploadingCommentImage.value = true;
+  try {
+    const uploaded = await uploadVideo(file, 'COVER');
+    commentImageRemoteUrl.value = uploaded.url;
+    commentImagePreviewUrl.value = uploaded.url;
+    ElMessage.success('评论图片上传成功');
+  } catch {
+    ElMessage.error('评论图片上传失败');
+  } finally {
+    uploadingCommentImage.value = false;
+  }
+}
+
+function clearCommentImage() {
+  commentImagePreviewUrl.value = '';
+  commentImageRemoteUrl.value = '';
 }
 
 function toggleReplyBox(commentId: number) {
@@ -1486,6 +1598,10 @@ onBeforeUnmount(() => {
   margin: 0 auto;
 }
 
+.video-detail-shell.agent-sidebar-open {
+  grid-template-columns: minmax(0, 1fr) 340px 336px;
+}
+
 .main-column {
   display: grid;
   gap: 12px;
@@ -1499,6 +1615,124 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 16px;
   min-width: 0;
+}
+
+.agent-side-column {
+  position: sticky;
+  top: 88px;
+  align-self: start;
+  min-width: 0;
+}
+
+.agent-sidebar {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 10px;
+  min-height: calc(100dvh - 112px);
+  padding: 10px 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.96));
+  box-shadow:
+    0 14px 28px rgba(15, 23, 42, 0.08),
+    0 1px 0 rgba(255, 255, 255, 0.7) inset;
+}
+
+.agent-sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 6px 0;
+}
+
+.agent-sidebar-title {
+  display: grid;
+  gap: 2px;
+}
+
+.agent-sidebar-eyebrow {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.agent-sidebar-title strong {
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.agent-sidebar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.agent-sidebar-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #475569;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.agent-sidebar-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.agent-sidebar-close:hover {
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563eb;
+}
+
+.agent-sidebar-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.agent-sidebar-tabs button {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px 8px 0 0;
+  background: transparent;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.agent-sidebar-tabs button.active {
+  background: rgba(255, 255, 255, 0.8);
+  color: #0f172a;
+  box-shadow: 0 -1px 0 rgba(148, 163, 184, 0.18) inset;
+}
+
+.agent-sidebar-tabs button:disabled {
+  opacity: 0.54;
+  cursor: default;
 }
 
 .video-header {
@@ -1851,6 +2085,13 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
 }
 
+.composer-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .composer-footer p {
   margin: 0;
   color: var(--color-text-secondary);
@@ -1860,6 +2101,34 @@ onBeforeUnmount(() => {
 
 .composer-footer strong {
   color: var(--color-primary);
+}
+
+.hidden-input {
+  display: none;
+}
+
+.comment-image-preview-wrap {
+  display: grid;
+  gap: 8px;
+}
+
+.comment-image-preview {
+  width: min(240px, 100%);
+  max-height: 240px;
+  border-radius: 14px;
+  object-fit: cover;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.comment-image-remove {
+  width: fit-content;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-danger);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .comment-tabs {
@@ -1917,7 +2186,11 @@ onBeforeUnmount(() => {
 
 .agent-panel {
   display: grid;
-  gap: 12px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  min-height: 0;
+  height: 100%;
+  padding: 4px 4px 0;
 }
 
 .agent-panel-head {
@@ -1925,23 +2198,27 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  color: var(--color-text-main);
+  padding: 0 4px;
+  color: #0f172a;
+  font-size: 13px;
 }
 
 .agent-panel-head span {
-  color: var(--color-text-muted);
-  font-size: 12px;
+  color: #64748b;
+  font-size: 11px;
 }
 
 .agent-messages {
   display: grid;
-  gap: 10px;
-  max-height: 320px;
+  align-content: start;
+  gap: 12px;
+  min-height: 420px;
+  max-height: calc(100dvh - 284px);
   overflow-y: auto;
-  padding: 10px;
-  border: 1px solid var(--color-border);
-  border-radius: 14px;
-  background: var(--color-bg-page);
+  padding: 8px 8px 4px;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.46);
 }
 
 .agent-message {
@@ -1949,12 +2226,12 @@ onBeforeUnmount(() => {
 }
 
 .agent-message p {
-  max-width: 86%;
+  max-width: 92%;
   margin: 0;
   padding: 10px 12px;
-  border-radius: 13px;
-  font-size: 13px;
-  line-height: 1.6;
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -1964,31 +2241,83 @@ onBeforeUnmount(() => {
 }
 
 .agent-message-user p {
-  background: var(--color-primary);
+  background: linear-gradient(180deg, #3b82f6, #2563eb);
   color: #FFFFFF;
+  border-bottom-right-radius: 4px;
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.18);
 }
 
 .agent-message-assistant p {
-  background: var(--color-bg-card);
-  color: var(--color-text-secondary);
-  box-shadow: inset 0 0 0 1px var(--color-border);
+  background: rgba(255, 255, 255, 0.96);
+  color: #334155;
+  border-bottom-left-radius: 4px;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.18);
 }
 
 .agent-loading {
-  color: var(--color-text-muted);
-  font-size: 12px;
+  padding: 0 6px;
+  color: #64748b;
+  font-size: 11px;
 }
 
 .agent-error {
   margin: 0;
-  color: var(--color-danger);
-  font-size: 12px;
+  color: #dc2626;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.agent-composer {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
 }
 
 .agent-input-wrap {
   display: grid;
-  grid-template-columns: 1fr auto;
+  gap: 10px;
+}
+
+.agent-input-wrap :deep(.el-textarea__inner) {
+  min-height: 88px !important;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 1.6;
+  box-shadow: none;
+}
+
+.agent-input-wrap :deep(.el-textarea__inner::placeholder) {
+  color: #94a3b8;
+}
+
+.agent-input-wrap :deep(.el-textarea__inner:focus) {
+  box-shadow: none;
+}
+
+.agent-input-wrap :deep(.el-textarea__wrapper) {
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.agent-composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
+}
+
+.agent-composer-footer span {
+  color: #64748b;
+  font-size: 11px;
 }
 
 @media (max-width: 1180px) {
@@ -1996,8 +2325,30 @@ onBeforeUnmount(() => {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .video-detail-shell.agent-sidebar-open {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .side-column {
     position: static;
+  }
+
+  .agent-side-column {
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 40;
+    width: min(420px, 92vw);
+    height: 100dvh;
+  }
+
+  .agent-sidebar {
+    min-height: 100dvh;
+    height: 100%;
+    border-radius: 0;
+    border-right: 0;
+    border-top: 0;
+    border-bottom: 0;
   }
 }
 
@@ -2044,7 +2395,20 @@ onBeforeUnmount(() => {
   }
 
   .agent-input-wrap {
-    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .agent-side-column {
+    width: 100vw;
+  }
+
+  .agent-sidebar {
+    padding: 16px;
+  }
+
+  .agent-messages {
+    min-height: 320px;
+    max-height: calc(100dvh - 250px);
   }
 }
 </style>

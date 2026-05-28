@@ -153,6 +153,7 @@ export interface CommentReply {
   parentId: number | null;
   rootId: number | null;
   content: string;
+  imageUrl?: string | null;
   replyCount: number;
   status: 'NORMAL' | 'HIDDEN' | 'DELETED';
   createdAt: string;
