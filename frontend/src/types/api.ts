@@ -27,6 +27,7 @@ export interface VideoCard {
   coverUrl: string;
   description: string;
   category?: string;
+  categories?: string[];
   playUrl?: string;
   durationSeconds?: number | null;
   playCount?: number;
@@ -47,6 +48,7 @@ export interface VideoCard {
 export interface CreatorVideo extends VideoCard {
   creatorId: number;
   category: string;
+  categories?: string[];
   uploadToken: string;
   rejectReason?: string | null;
   submittedAt?: string | null;
@@ -574,6 +576,7 @@ export interface MyVideoItem {
   description: string;
   coverUrl: string;
   category: string;
+  categories?: string[];
   likeCount: number;
   favoriteCount: number;
   commentCount: number;

@@ -1,7 +1,12 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Express } from 'express';
 
-import { CATEGORY_DEFINITIONS, resolveCategoryCode, resolveCategoryId } from '../../common/constants/categories';
+import {
+  CATEGORY_DEFINITIONS,
+  VIDEO_CATEGORY_CODES,
+  resolveCategoryCode,
+  resolveCategoryId,
+} from '../../common/constants/categories';
 import { PrismaService } from '../prisma/prisma.service';
 import { FollowService } from '../follow/follow.service';
 import { UserProfileService, type UserRecommendationProfileDto } from '../user/user-profile.service';
@@ -17,10 +22,19 @@ interface VideoListOptions {
   pageSize?: number;
 }
 
-export interface RecommendCandidate {
+type VideoCategoryRelation = {
+  code: string;
+};
+
+type VideoWithCategories<T> = T & {
+  categories?: VideoCategoryRelation[];
+};
+
+interface RecommendCandidate {
   id: number;
   creatorId: number;
   category: string;
+  categories?: VideoCategoryRelation[];
   likeCount: number;
   favoriteCount: number;
   commentCount: number;
@@ -97,7 +111,8 @@ export class VideoService {
       uploadToken?: string;
       title: string;
       description?: string;
-      category: string;
+      category?: string;
+      categories?: string[];
       coverUrl?: string;
       coverAssetId?: number;
       coverUploadToken?: string;
@@ -121,16 +136,22 @@ export class VideoService {
       coverUrl = coverAsset.url;
     }
 
+    const categoryCodes = this.normalizeVideoCategoryCodes(payload.categories, payload.category);
+    const primaryCategory = categoryCodes[0];
+
     const video = await this.prisma.video.create({
       data: {
         creatorId: user.id,
         title: payload.title,
         description: payload.description ?? '',
-        category: payload.category,
+        category: primaryCategory,
         coverUrl,
         playUrl: asset.url,
         status: 'DRAFT',
         uploadToken: asset.objectKey,
+        categories: {
+          create: categoryCodes.map((code) => ({ code })),
+        },
       },
     });
 
@@ -148,13 +169,13 @@ export class VideoService {
 
     await this.mediaService.processVideo(video.id, asset.id, coverAsset?.id ?? null);
 
-    return this.prisma.video.findUnique({ where: { id: video.id } });
+    return this.findVideoWithCategories(video.id);
   }
 
   async updateDraft(
     videoId: number,
     user: { id: number; role: 'USER' | 'ADMIN' },
-    payload: { title?: string; description?: string; category?: string; coverUrl?: string },
+    payload: { title?: string; description?: string; category?: string; categories?: string[]; coverUrl?: string },
   ) {
     const video = await this.prisma.video.findUnique({ where: { id: videoId } });
 
@@ -170,41 +191,60 @@ export class VideoService {
       throw new ForbiddenException('Only draft, rejected, pending review, or published videos can be edited');
     }
 
+    const categoryCodes = this.resolvePayloadCategoryUpdate(payload, video.category);
+    const categoryUpdate = categoryCodes
+      ? {
+          category: categoryCodes[0],
+          categories: {
+            deleteMany: {},
+            create: categoryCodes.map((code) => ({ code })),
+          },
+        }
+      : {};
+
     if (video.status === 'PENDING_REVIEW' || video.status === 'PUBLISHED') {
-      await this.prisma.$transaction([
-        this.prisma.video.update({
+      await this.prisma.$transaction(async (tx) => {
+        await tx.video.update({
           where: { id: videoId },
           data: {
             ...(payload.title !== undefined ? { title: payload.title } : {}),
             ...(payload.description !== undefined ? { description: payload.description } : {}),
-            ...(payload.category !== undefined ? { category: payload.category } : {}),
+            ...categoryUpdate,
             ...(payload.coverUrl !== undefined ? { coverUrl: payload.coverUrl } : {}),
             status: 'DRAFT',
             submittedAt: null,
             publishedAt: null,
           },
-        }),
-        this.prisma.videoReview.deleteMany({
+        });
+        await tx.videoReview.deleteMany({
           where: {
             videoId,
             status: 'PENDING',
           },
-        }),
-      ]);
+        });
+      });
 
-      return this.prisma.video.findUnique({ where: { id: videoId } });
+      return this.findVideoWithCategories(videoId);
     }
 
-    return this.prisma.video.update({
+    const updated = await this.prisma.video.update({
       where: { id: videoId },
       data: {
         ...(payload.title !== undefined ? { title: payload.title } : {}),
         ...(payload.description !== undefined ? { description: payload.description } : {}),
-        ...(payload.category !== undefined ? { category: payload.category } : {}),
+        ...categoryUpdate,
         ...(payload.coverUrl !== undefined ? { coverUrl: payload.coverUrl } : {}),
         submittedAt: null,
       },
+      include: {
+        categories: {
+          select: { code: true },
+          orderBy: { id: 'asc' },
+        },
+      },
     });
+
+    return this.withCategoryCodes(updated);
   }
 
   async deleteCreatorVideo(videoId: number, user: { id: number; role: 'USER' | 'ADMIN' }) {
@@ -345,7 +385,13 @@ export class VideoService {
   async getVideoDetail(id: number, currentUserId?: number) {
     const video = await this.prisma.video.findFirst({
       where: { id, status: 'PUBLISHED' },
-      include: { creator: true },
+      include: {
+        creator: true,
+        categories: {
+          select: { code: true },
+          orderBy: { id: 'asc' },
+        },
+      },
     });
 
     if (!video) {
@@ -375,7 +421,7 @@ export class VideoService {
       : 0;
 
     return {
-      ...video,
+      ...this.withCategoryCodes(video),
       creator: {
         id: video.creator.id,
         nickname: video.creator.nickname,
@@ -392,18 +438,29 @@ export class VideoService {
   }
 
   async getRelatedVideos(id: number, currentUserId?: number, options: { limit?: number } = {}) {
-    const current = await this.prisma.video.findUnique({ where: { id } });
+    const current = await this.prisma.video.findUnique({
+      where: { id },
+      include: {
+        categories: {
+          select: { code: true },
+          orderBy: { id: 'asc' },
+        },
+      },
+    });
 
     if (!current) {
       throw new NotFoundException('Video not found');
     }
 
     const recommendationContext = await this.getRecommendationContext(currentUserId);
+    const currentCategoryCodes = this.extractCategoryCodes(current);
+    const currentCategoryWhere = currentCategoryCodes.length > 0 ? this.buildCategoryWhere(currentCategoryCodes) : null;
+    const currentCategoryFilters = currentCategoryWhere ? [currentCategoryWhere] : [];
     const primaryCandidates = await this.prisma.video.findMany({
       where: {
         status: 'PUBLISHED',
         id: { not: id },
-        OR: [{ creatorId: current.creatorId }, { category: current.category }],
+        OR: [{ creatorId: current.creatorId }, ...currentCategoryFilters],
       },
       include: {
         creator: {
@@ -412,6 +469,10 @@ export class VideoService {
             nickname: true,
             avatarUrl: true,
           },
+        },
+        categories: {
+          select: { code: true },
+          orderBy: { id: 'asc' },
         },
       },
       orderBy: this.buildVideoOrderBy('hot'),
@@ -422,7 +483,7 @@ export class VideoService {
       where: {
         status: 'PUBLISHED',
         id: {
-          notIn: [id, ...primaryCandidates.map((item: { id: number }) => item.id)],
+          notIn: [id, ...primaryCandidates.map((item) => item.id)],
         },
       },
       include: {
@@ -432,6 +493,10 @@ export class VideoService {
             nickname: true,
             avatarUrl: true,
           },
+        },
+        categories: {
+          select: { code: true },
+          orderBy: { id: 'asc' },
         },
       },
       orderBy: this.buildVideoOrderBy('hot'),
@@ -454,7 +519,7 @@ export class VideoService {
           right.video.id - left.video.id,
       )
       .slice(0, limit)
-      .map((item) => item.video);
+      .map((item) => this.withCategoryCodes(item.video));
   }
 
   private normalizeRelatedVideoLimit(limit?: number) {
@@ -504,10 +569,18 @@ export class VideoService {
   }
 
   async getCreatorVideos(user: { id: number }) {
-    return this.prisma.video.findMany({
+    const videos = await this.prisma.video.findMany({
       where: { creatorId: user.id },
+      include: {
+        categories: {
+          select: { code: true },
+          orderBy: { id: 'asc' },
+        },
+      },
       orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
     });
+
+    return videos.map((video) => this.withCategoryCodes(video));
   }
 
   async countVideosByStatus(creatorId: number) {
@@ -545,10 +618,10 @@ export class VideoService {
     const pageSize = this.normalizePageSize(options.pageSize);
     const category = resolveCategoryCode(options.categoryCode);
 
-    return this.prisma.video.findMany({
+    const videos = await this.prisma.video.findMany({
       where: {
         status: 'PUBLISHED',
-        ...(category ? { category } : {}),
+        ...this.buildOptionalCategoryWhere(category),
       },
       include: {
         creator: {
@@ -558,11 +631,17 @@ export class VideoService {
             avatarUrl: true,
           },
         },
+        categories: {
+          select: { code: true },
+          orderBy: { id: 'asc' },
+        },
       },
       orderBy: this.buildVideoOrderBy(options.sortBy),
       skip: (page - 1) * pageSize,
       take: pageSize,
     });
+
+    return videos.map((video) => this.withCategoryCodes(video));
   }
 
   private async getDiversifiedRecommendFeed(options: VideoListOptions = {}) {
@@ -575,7 +654,7 @@ export class VideoService {
     const candidates = await this.prisma.video.findMany({
       where: {
         status: 'PUBLISHED',
-        ...(category ? { category } : {}),
+        ...this.buildOptionalCategoryWhere(category),
       },
       include: {
         creator: {
@@ -584,6 +663,10 @@ export class VideoService {
             nickname: true,
             avatarUrl: true,
           },
+        },
+        categories: {
+          select: { code: true },
+          orderBy: { id: 'asc' },
         },
       },
       orderBy: this.buildVideoOrderBy('hot'),
@@ -598,12 +681,13 @@ export class VideoService {
     const pageSize = this.normalizePageSize(options.pageSize);
     const category = resolveCategoryCode(options.categoryCode);
     const normalizedKeyword = keyword.trim();
+    const keywordCategoryCodes = this.resolveSearchCategoryCodes(normalizedKeyword);
 
     if (options.sortBy === 'latest' || options.sortBy === 'hot') {
-      return this.prisma.video.findMany({
+      const videos = await this.prisma.video.findMany({
         where: {
           status: 'PUBLISHED',
-          ...(category ? { category } : {}),
+          ...this.buildOptionalCategoryWhere(category),
           ...(normalizedKeyword
             ? {
                 OR: [
@@ -624,6 +708,19 @@ export class VideoService {
                       },
                     },
                   },
+                  ...(keywordCategoryCodes.length > 0
+                    ? [
+                        {
+                          categories: {
+                            some: {
+                              code: {
+                                in: keywordCategoryCodes,
+                              },
+                            },
+                          },
+                        },
+                      ]
+                    : []),
                 ],
               }
             : {}),
@@ -636,11 +733,17 @@ export class VideoService {
               avatarUrl: true,
             },
           },
+          categories: {
+            select: { code: true },
+            orderBy: { id: 'asc' },
+          },
         },
         orderBy: this.buildVideoOrderBy(options.sortBy),
         skip: (page - 1) * pageSize,
         take: pageSize,
       });
+
+      return videos.map((video) => this.withCategoryCodes(video));
     }
 
     if (!normalizedKeyword) {
@@ -659,7 +762,7 @@ export class VideoService {
     const candidates = await this.prisma.video.findMany({
       where: {
         status: 'PUBLISHED',
-        ...(category ? { category } : {}),
+        ...this.buildOptionalCategoryWhere(category),
         OR: recallTerms.flatMap((term) => [
           {
             title: {
@@ -678,6 +781,15 @@ export class VideoService {
               },
             },
           },
+          {
+            categories: {
+              some: {
+                code: {
+                  in: this.resolveSearchCategoryCodes(term),
+                },
+              },
+            },
+          },
         ]),
       },
       include: {
@@ -688,6 +800,10 @@ export class VideoService {
             avatarUrl: true,
           },
         },
+        categories: {
+          select: { code: true },
+          orderBy: { id: 'asc' },
+        },
       },
       orderBy: this.buildVideoOrderBy('hot'),
       take: candidateTake,
@@ -695,19 +811,19 @@ export class VideoService {
     const now = new Date();
 
     return candidates
-      .map((video: RecommendCandidate & { title: string; description: string; creator: { id: number; nickname: string } | null }) => ({
+      .map((video) => ({
         video,
         score: this.calculateSearchRankingScore(video, normalizedKeyword, tokens, now, recommendationContext),
       }))
-      .filter((item: { score: number }) => item.score > 0)
+      .filter((item) => item.score > 0)
       .sort(
-        (left: { score: number; video: { publishedAt: Date | null; id: number } }, right: { score: number; video: { publishedAt: Date | null; id: number } }) =>
+        (left, right) =>
           right.score - left.score ||
           (right.video.publishedAt?.getTime() ?? 0) - (left.video.publishedAt?.getTime() ?? 0) ||
           right.video.id - left.video.id,
       )
       .slice((page - 1) * pageSize, page * pageSize)
-      .map((item: { video: RecommendCandidate & { title: string; description: string; creator: { id: number; nickname: string } | null } }) => item.video);
+      .map((item) => this.withCategoryCodes(item.video));
   }
 
   async likeVideo(videoId: number, user: { id: number; nickname: string }) {
@@ -1101,6 +1217,10 @@ export class VideoService {
         video: {
           include: {
             creator: { select: { id: true, nickname: true, avatarUrl: true } },
+            categories: {
+              select: { code: true },
+              orderBy: { id: 'asc' },
+            },
           },
         },
       },
@@ -1108,14 +1228,7 @@ export class VideoService {
     });
 
     return favorites.map((f) => ({
-      id: f.video.id,
-      title: f.video.title,
-      description: f.video.description,
-      coverUrl: f.video.coverUrl,
-      category: f.video.category,
-      likeCount: f.video.likeCount,
-      favoriteCount: f.video.favoriteCount,
-      commentCount: f.video.commentCount,
+      ...this.withCategoryCodes(f.video),
       creator: f.video.creator,
       favoritedAt: f.createdAt,
       folderId: f.folderId,
@@ -1247,21 +1360,18 @@ export class VideoService {
         video: {
           include: {
             creator: { select: { id: true, nickname: true, avatarUrl: true } },
+            categories: {
+              select: { code: true },
+              orderBy: { id: 'asc' },
+            },
           },
         },
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    return likes.map((l: { video: { id: number; title: string; description: string; coverUrl: string; category: string; likeCount: number; favoriteCount: number; commentCount: number; creator: { id: number; nickname: string } }; createdAt: Date }) => ({
-      id: l.video.id,
-      title: l.video.title,
-      description: l.video.description,
-      coverUrl: l.video.coverUrl,
-      category: l.video.category,
-      likeCount: l.video.likeCount,
-      favoriteCount: l.video.favoriteCount,
-      commentCount: l.video.commentCount,
+    return likes.map((l) => ({
+      ...this.withCategoryCodes(l.video),
       creator: l.video.creator,
       likedAt: l.createdAt,
     }));
@@ -1279,6 +1389,10 @@ export class VideoService {
         video: {
           include: {
             creator: { select: { id: true, nickname: true, avatarUrl: true } },
+            categories: {
+              select: { code: true },
+              orderBy: { id: 'asc' },
+            },
           },
         },
       },
@@ -1286,15 +1400,7 @@ export class VideoService {
     });
 
     return history.map((item) => ({
-      id: item.video.id,
-      title: item.video.title,
-      description: item.video.description,
-      coverUrl: item.video.coverUrl,
-      category: item.video.category,
-      likeCount: item.video.likeCount,
-      favoriteCount: item.video.favoriteCount,
-      commentCount: item.video.commentCount,
-      coinCount: item.video.coinCount,
+      ...this.withCategoryCodes(item.video),
       creator: item.video.creator,
       watchedAt: item.lastWatchedAt,
     }));
@@ -1464,6 +1570,108 @@ export class VideoService {
     throw new NotFoundException(errorMessage);
   }
 
+  private async findVideoWithCategories(videoId: number) {
+    const video = await this.prisma.video.findUnique({
+      where: { id: videoId },
+      include: {
+        categories: {
+          select: { code: true },
+          orderBy: { id: 'asc' },
+        },
+      },
+    });
+
+    return video ? this.withCategoryCodes(video) : null;
+  }
+
+  private withCategoryCodes<T extends { category: string }>(video: VideoWithCategories<T>) {
+    return {
+      ...video,
+      categories: this.extractCategoryCodes(video),
+    };
+  }
+
+  private extractCategoryCodes(video: VideoWithCategories<{ category: string }> | null | undefined) {
+    if (!video) {
+      return [];
+    }
+
+    const codes = (video.categories ?? []).map((item) => item.code);
+    const fallback = video.category ? [video.category] : [];
+    return this.normalizeVideoCategoryCodes(codes, fallback[0]);
+  }
+
+  private buildOptionalCategoryWhere(category?: string) {
+    if (!category) {
+      return {};
+    }
+
+    return this.buildCategoryWhere(category);
+  }
+
+  private buildCategoryWhere(category: string | string[]) {
+    const categoryCodes = Array.isArray(category) ? category : [category];
+
+    return {
+      OR: [
+        { category: { in: categoryCodes } },
+        {
+          categories: {
+            some: {
+              code: {
+                in: categoryCodes,
+              },
+            },
+          },
+        },
+      ],
+    };
+  }
+
+  private normalizeVideoCategoryCodes(categoryCodes?: string[] | null, fallbackCategory?: string | null) {
+    const validCodes = new Set<string>(VIDEO_CATEGORY_CODES as unknown as string[]);
+    const normalized = Array.from(
+      new Set((categoryCodes ?? []).map((item) => item.trim()).filter((item) => validCodes.has(item))),
+    );
+
+    if (normalized.length > 0) {
+      return normalized.slice(0, 5);
+    }
+
+    if (fallbackCategory && validCodes.has(fallbackCategory)) {
+      return [fallbackCategory];
+    }
+
+    return ['entertainment'];
+  }
+
+  private resolvePayloadCategoryUpdate(
+    payload: { category?: string; categories?: string[] },
+    fallbackCategory?: string | null,
+  ) {
+    if (payload.categories === undefined && payload.category === undefined) {
+      return null;
+    }
+
+    return this.normalizeVideoCategoryCodes(payload.categories, payload.category ?? fallbackCategory);
+  }
+
+  private resolveSearchCategoryCodes(keyword: string) {
+    const normalizedKeyword = keyword.trim().toLowerCase();
+
+    if (!normalizedKeyword) {
+      return [];
+    }
+
+    return CATEGORY_DEFINITIONS.filter(
+      (item) =>
+        item.id !== null &&
+        item.code !== 'live' &&
+        (item.code.toLowerCase().includes(normalizedKeyword) ||
+          item.label.toLowerCase().includes(normalizedKeyword)),
+    ).map((item) => item.code);
+  }
+
   private buildVideoOrderBy(sortBy?: 'best' | 'hot' | 'latest') {
     if (sortBy === 'hot') {
       return [
@@ -1505,8 +1713,10 @@ export class VideoService {
       return baseScore;
     }
 
-    const categoryPreferenceScore =
-      recommendationContext.categoryPreferenceIndex.get(this.resolveVideoCategoryId(video.category)) ?? 0;
+    const categoryPreferenceScore = this.extractCategoryCodes(video).reduce((maxScore, categoryCode) => {
+      const score = recommendationContext.categoryPreferenceIndex.get(this.resolveVideoCategoryId(categoryCode)) ?? 0;
+      return Math.max(maxScore, score);
+    }, 0);
     const creatorPreferenceScore = recommendationContext.creatorPreferenceIndex.get(video.creatorId) ?? 0;
     const activityMultiplier =
       recommendationContext.activityLevel === 'HIGH'
@@ -1533,13 +1743,15 @@ export class VideoService {
 
   private calculateRelatedRecommendationScore(
     video: RecommendCandidate,
-    current: Pick<RecommendCandidate, 'creatorId' | 'category'>,
+    current: Pick<RecommendCandidate, 'creatorId' | 'category' | 'categories'>,
     now: Date,
     recommendationContext?: RecommendationContext,
   ) {
     const personalizedScore = this.calculatePersonalizedRecommendScore(video, now, recommendationContext);
     const creatorMatchBoost = video.creatorId === current.creatorId ? 40 : 0;
-    const categoryMatchBoost = video.category === current.category ? 24 : 0;
+    const currentCategoryCodes = this.extractCategoryCodes(current);
+    const videoCategoryCodes = this.extractCategoryCodes(video);
+    const categoryMatchBoost = videoCategoryCodes.some((code) => currentCategoryCodes.includes(code)) ? 24 : 0;
     const dualMatchBoost = creatorMatchBoost > 0 && categoryMatchBoost > 0 ? 12 : 0;
 
     return personalizedScore + creatorMatchBoost + categoryMatchBoost + dualMatchBoost;
@@ -1556,7 +1768,9 @@ export class VideoService {
     const normalizedTitle = video.title.toLowerCase();
     const normalizedDescription = video.description.toLowerCase();
     const normalizedCreator = (video.creator?.nickname ?? '').toLowerCase();
-    const categoryMeta = CATEGORY_SEARCH_META.get(video.category);
+    const categoryMetas = this.extractCategoryCodes(video)
+      .map((categoryCode) => CATEGORY_SEARCH_META.get(categoryCode))
+      .filter((item): item is { code: string; label: string } => Boolean(item));
     const personalizedScore = this.calculatePersonalizedRecommendScore(video, now, recommendationContext);
     let relevanceScore = 0;
     let matchedTokenCount = 0;
@@ -1581,7 +1795,7 @@ export class VideoService {
       relevanceScore += 44;
     }
 
-    if (categoryMeta && (categoryMeta.code.includes(normalizedKeyword) || categoryMeta.label.includes(normalizedKeyword))) {
+    if (categoryMetas.some((item) => item.code.includes(normalizedKeyword) || item.label.includes(normalizedKeyword))) {
       relevanceScore += 24;
     }
 
@@ -1603,7 +1817,7 @@ export class VideoService {
         tokenMatched = true;
       }
 
-      if (categoryMeta && (categoryMeta.code.includes(token) || categoryMeta.label.includes(token))) {
+      if (categoryMetas.some((item) => item.code.includes(token) || item.label.includes(token))) {
         relevanceScore += 8;
         tokenMatched = true;
       }

@@ -210,6 +210,7 @@ model Video {
   danmakus        VideoDanmaku[]
   reports         ReportRecord[]
   assets          VideoAsset[]
+  categories      VideoCategory[]
   userWatches     UserVideoWatch[]
   aiSummary       VideoAiSummary?
   coinTransactions CoinTransaction[]
@@ -217,6 +218,17 @@ model Video {
   commentAiTasks  CommentAiTask[]
 
   @@index([creatorId, status])
+}
+
+model VideoCategory {
+  id        Int      @id @default(autoincrement())
+  videoId   Int
+  video     Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  code      String   @db.VarChar(32)
+  createdAt DateTime @default(now())
+
+  @@unique([videoId, code])
+  @@index([code])
 }
 
 model VideoAiSummary {

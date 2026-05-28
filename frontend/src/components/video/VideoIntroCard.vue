@@ -13,7 +13,9 @@
     </p>
 
     <div class="tag-row">
-      <RouterLink class="intro-tag" :to="categoryPath">#{{ categoryLabel }}</RouterLink>
+      <RouterLink v-for="item in categoryItems" :key="item.code" class="intro-tag" :to="`/${item.code}`">
+        #{{ item.label }}
+      </RouterLink>
       <RouterLink class="intro-tag" :to="`/users/${video.creator.id}`">#{{ video.creator.nickname }}</RouterLink>
       <span v-if="publishText" class="intro-tag muted">{{ publishText }}</span>
     </div>
@@ -32,12 +34,12 @@ const props = defineProps<{
 
 const expanded = ref(false);
 
-const categoryLabel = computed(() => {
-  return videoCategoryOptions.find((item) => item.code === props.video.category)?.label ?? '视频';
-});
-
-const categoryPath = computed(() => {
-  return props.video.category ? `/${props.video.category}` : '/';
+const categoryItems = computed(() => {
+  const codes = props.video.categories?.length ? props.video.categories : props.video.category ? [props.video.category] : [];
+  return codes.map((code) => ({
+    code,
+    label: videoCategoryOptions.find((item) => item.code === code)?.label ?? code,
+  }));
 });
 
 const publishText = computed(() => {

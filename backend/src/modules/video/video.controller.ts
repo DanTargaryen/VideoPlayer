@@ -16,6 +16,8 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Express } from 'express';
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
   IsArray,
   IsIn,
   IsInt,
@@ -52,9 +54,18 @@ class CreateVideoDto {
   @IsString()
   description?: string;
 
+  @IsOptional()
   @IsString()
   @IsIn(VIDEO_CATEGORY_CODES as unknown as string[])
-  category!: string;
+  category?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(5)
+  @IsString({ each: true })
+  @IsIn(VIDEO_CATEGORY_CODES as unknown as string[], { each: true })
+  categories?: string[];
 
   @IsOptional()
   @IsArray()
@@ -86,6 +97,14 @@ class UpdateVideoDto {
   @IsString()
   @IsIn(VIDEO_CATEGORY_CODES as unknown as string[])
   category?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(5)
+  @IsString({ each: true })
+  @IsIn(VIDEO_CATEGORY_CODES as unknown as string[], { each: true })
+  categories?: string[];
 
   @IsOptional()
   @IsString()

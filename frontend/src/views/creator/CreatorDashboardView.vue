@@ -575,7 +575,7 @@
           <el-input v-model="editForm.description" type="textarea" />
         </el-form-item>
         <el-form-item label="分区">
-          <el-select v-model="editForm.category">
+          <el-select v-model="editForm.categories" multiple collapse-tags collapse-tags-tooltip>
             <el-option v-for="item in videoCategoryOptions" :key="item.code" :label="item.label" :value="item.code" />
           </el-select>
         </el-form-item>
@@ -957,13 +957,13 @@ const playTrendAreaPath = computed(() => {
 const form = reactive({
   title: '新的演示投稿',
   description: '这是通过用户中心上传真实文件后创建并提交审核的演示稿件。',
-  category: 'entertainment' as string,
+  categories: ['entertainment'] as string[],
   coverUrl: '',
 });
 const editForm = reactive({
   title: '',
   description: '',
-  category: 'entertainment' as string,
+  categories: ['entertainment'] as string[],
   coverUrl: '',
 });
 
@@ -1547,6 +1547,10 @@ async function handleCreateDraft() {
     ElMessage.warning({ message: '请先选择视频文件', duration: 2000 });
     return;
   }
+  if (form.categories.length === 0) {
+    ElMessage.warning({ message: '请至少选择一个分区', duration: 2000 });
+    return;
+  }
   creating.value = true;
   try {
     const upload = await uploadVideo(selectedVideoFile.value, 'ORIGINAL');
@@ -1563,7 +1567,8 @@ async function handleCreateDraft() {
       uploadToken: upload.uploadToken,
       title: form.title,
       description: form.description,
-      category: form.category,
+      category: form.categories[0],
+      categories: form.categories,
       coverUrl: form.coverUrl || undefined,
       coverAssetId,
       coverUploadToken,
@@ -1587,13 +1592,17 @@ function openEditDialog(video: CreatorVideo) {
   editingVideoStatus.value = video.status;
   editForm.title = video.title;
   editForm.description = video.description;
-  editForm.category = video.category;
+  editForm.categories = video.categories?.length ? [...video.categories] : [video.category];
   editForm.coverUrl = video.coverUrl;
   editDialogVisible.value = true;
 }
 
 async function handleSaveDraft() {
   if (!editingVideoId.value) return;
+  if (editForm.categories.length === 0) {
+    ElMessage.warning({ message: '请至少选择一个分区', duration: 2000 });
+    return;
+  }
   savingDraft.value = true;
   try {
     await updateVideoDraft(editingVideoId.value, { ...editForm });

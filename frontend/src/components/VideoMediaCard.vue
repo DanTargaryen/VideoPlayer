@@ -38,6 +38,9 @@
         <RouterLink v-if="showAuthorLink" :to="`/users/${creatorId}`" class="author">{{ creatorLabel }}</RouterLink>
         <span v-else class="author static">{{ creatorLabel }}</span>
       </div>
+      <div v-if="categoryLabels.length > 0" class="category-row">
+        <span v-for="label in categoryLabels.slice(0, 3)" :key="label" class="category-pill">{{ label }}</span>
+      </div>
       <div class="meta">
         <span v-if="showPlayCount">{{ formattedPlayCount }}次观看</span>
         <span v-if="showPlayCount && formattedTime" class="dot">·</span>
@@ -50,6 +53,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 
+import { videoCategoryOptions } from '@/constants/categories';
 import type { VideoCard } from '@/types/api';
 
 const props = defineProps<{
@@ -71,6 +75,10 @@ const creatorInitial = computed(() => creatorLabel.value.trim().slice(0, 1).toUp
 const showAuthorLink = computed(() => Boolean(creatorId.value) && !props.disableAuthorLink);
 const formattedPlayCount = computed(() => formatCount(props.item.playCount ?? 0));
 const durationLabel = computed(() => formatDuration(props.item.durationSeconds));
+const categoryLabels = computed(() => {
+  const codes = props.item.categories?.length ? props.item.categories : props.item.category ? [props.item.category] : [];
+  return codes.map((code) => videoCategoryOptions.find((item) => item.code === code)?.label ?? code);
+});
 
 const formattedTime = computed(() => {
   const raw = props.item.publishedAt ?? props.item.createdAt;
@@ -309,6 +317,26 @@ function stopPreview() {
   min-height: 18px;
   font-size: 12px;
   color: #8a95a8;
+  line-height: 1;
+}
+
+.category-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 20px;
+}
+
+.category-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 7px;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-size: 11px;
+  font-weight: 750;
   line-height: 1;
 }
 

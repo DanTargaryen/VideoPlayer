@@ -16,7 +16,7 @@
           <el-input v-model="form.description" type="textarea" placeholder="请输入视频简介" />
         </el-form-item>
         <el-form-item label="分区">
-          <el-select v-model="form.category" placeholder="请选择分区">
+          <el-select v-model="form.categories" multiple collapse-tags collapse-tags-tooltip placeholder="请选择分区">
             <el-option
               v-for="item in videoCategoryOptions"
               :key="item.code"
@@ -70,7 +70,7 @@ const router = useRouter();
 const form = reactive({
   title: '',
   description: '',
-  category: 'entertainment' as string,
+  categories: ['entertainment'] as string[],
   coverUrl: '',
 });
 
@@ -171,6 +171,11 @@ async function handleCreateDraft() {
     return;
   }
 
+  if (form.categories.length === 0) {
+    ElMessage.warning('请至少选择一个分区');
+    return;
+  }
+
   creating.value = true;
 
   try {
@@ -192,7 +197,8 @@ async function handleCreateDraft() {
       uploadToken: uploadedVideo.uploadToken,
       title: form.title,
       description: form.description,
-      category: form.category,
+      category: form.categories[0],
+      categories: form.categories,
       coverUrl,
       coverAssetId,
       coverUploadToken,
@@ -204,7 +210,11 @@ async function handleCreateDraft() {
     autoCoverFile.value = null;
     captureTimeSeconds.value = 1;
     ElMessage.success('稿件创建成功！');
-    router.push('/user/dashboard');
+    try {
+      await router.push(`/video/${resp.id}`);
+    } catch {
+      ElMessage.warning('稿件已创建，但跳转详情页失败');
+    }
   } catch (error: unknown) {
     console.error('创建稿件失败:', error);
     let message = '创建稿件失败，请重试';
