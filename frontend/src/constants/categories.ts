@@ -48,19 +48,87 @@ export function formatCategoryLabel(value?: string | null) {
     return '视频';
   }
 
-  const matched = categoryOptions.find((item) => item.code === value);
-  return matched?.label ?? value;
+  const code = extractCategoryCode(value);
+  if (!code) {
+    return '视频';
+  }
+
+  const matched = videoCategoryOptions.find((item) => item.code === code)
+    ?? categoryOptions.find((item) => item.code === code);
+  return matched?.label ?? code;
+}
+
+type CategoryCodeInput = string | { code?: string | null } | null | undefined;
+
+export function extractCategoryCode(value: CategoryCodeInput): string | null {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    if (trimmed.startsWith('{') && trimmed.includes('code')) {
+      try {
+        const parsed = JSON.parse(trimmed) as { code?: string };
+        if (typeof parsed.code === 'string' && parsed.code.trim()) {
+          return parsed.code.trim();
+        }
+      } catch {
+        // Ignore malformed JSON and fall back to the raw string.
+      }
+    }
+
+    return trimmed;
+  }
+
+  if (typeof value.code === 'string' && value.code.trim()) {
+    return value.code.trim();
+  }
+
+  return null;
+}
+
+export function resolveVideoCategoryCodes(video: {
+  category?: string | null;
+  categories?: unknown;
+}): string[] {
+  const fromList = Array.isArray(video.categories)
+    ? video.categories
+        .map((item) => extractCategoryCode(item as CategoryCodeInput))
+        .filter((item): item is string => Boolean(item))
+    : [];
+
+  const fallback = extractCategoryCode(video.category);
+  return normalizeVideoCategories(fromList.length > 0 ? fromList : fallback ? [fallback] : [], fallback);
+}
+
+export function formatVideoCategoryLabels(video: {
+  category?: string | null;
+  categories?: unknown;
+}): string[] {
+  return resolveVideoCategoryCodes(video).map((code) => formatCategoryLabel(code));
 }
 
 export function normalizeVideoCategories(value?: string[] | null, fallback?: string | null) {
   const validCodes = new Set(videoCategoryOptions.map((item) => item.code));
   const normalized = Array.from(
-    new Set((value ?? []).filter((item): item is VideoCategoryCode => validCodes.has(item as VideoCategoryCode))),
+    new Set(
+      (value ?? [])
+        .map((item) => extractCategoryCode(item))
+        .filter((item): item is VideoCategoryCode => Boolean(item && validCodes.has(item as VideoCategoryCode))),
+    ),
   );
 
   if (normalized.length > 0) {
     return normalized;
   }
 
-  return validCodes.has(fallback as VideoCategoryCode) ? [fallback as VideoCategoryCode] : [];
+  const fallbackCode = extractCategoryCode(fallback);
+  return fallbackCode && validCodes.has(fallbackCode as VideoCategoryCode)
+    ? [fallbackCode as VideoCategoryCode]
+    : [];
 }

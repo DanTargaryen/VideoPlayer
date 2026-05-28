@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 
 import { CommentAiService } from '../comment-ai/comment-ai.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -20,6 +20,7 @@ export class CommentService {
           select: {
             id: true,
             nickname: true,
+            avatarUrl: true,
           },
         },
       },
@@ -44,6 +45,7 @@ export class CommentService {
           select: {
             id: true,
             nickname: true,
+            avatarUrl: true,
           },
         },
       },
@@ -93,6 +95,7 @@ export class CommentService {
           select: {
             id: true,
             nickname: true,
+            avatarUrl: true,
           },
         },
       },
@@ -148,6 +151,85 @@ export class CommentService {
       });
 
     return created;
+  }
+
+  async withdrawComment(
+    videoId: number,
+    commentId: number,
+    user: { id: number; role: 'USER' | 'ADMIN' },
+  ) {
+    const comment = await this.prisma.comment.findFirst({
+      where: { id: commentId, videoId },
+    });
+
+    if (!comment || comment.status !== 'NORMAL') {
+      throw new NotFoundException('Comment not found');
+    }
+
+    if (comment.userId !== user.id && user.role !== 'ADMIN') {
+      throw new ForbiddenException('Cannot withdraw others comments');
+    }
+
+    const activeComments = await this.prisma.comment.findMany({
+      where: { videoId, status: 'NORMAL' },
+      select: { id: true, parentId: true },
+    });
+
+    const idsToWithdraw = this.collectDescendantCommentIds(commentId, activeComments);
+    const withdrawnCount = idsToWithdraw.length;
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.comment.updateMany({
+        where: { id: { in: idsToWithdraw } },
+        data: { status: 'DELETED' },
+      });
+
+      await tx.video.update({
+        where: { id: videoId },
+        data: {
+          commentCount: {
+            decrement: withdrawnCount,
+          },
+        },
+      });
+
+      if (comment.parentId) {
+        await tx.comment.update({
+          where: { id: comment.parentId },
+          data: {
+            replyCount: {
+              decrement: 1,
+            },
+          },
+        });
+      }
+    });
+
+    return {
+      withdrawn: true,
+      commentId,
+      withdrawnCount,
+    };
+  }
+
+  private collectDescendantCommentIds(
+    rootId: number,
+    comments: Array<{ id: number; parentId: number | null }>,
+  ) {
+    const ids = new Set<number>([rootId]);
+    let changed = true;
+
+    while (changed) {
+      changed = false;
+      for (const item of comments) {
+        if (item.parentId !== null && ids.has(item.parentId) && !ids.has(item.id)) {
+          ids.add(item.id);
+          changed = true;
+        }
+      }
+    }
+
+    return [...ids];
   }
 
   private buildCommentTree<T extends { id: number; parentId: number | null }>(comments: T[]) {

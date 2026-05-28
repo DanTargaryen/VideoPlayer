@@ -113,7 +113,6 @@
           @favorite="toggleFavoriteAction"
           @coin="handleCoinVideo"
           @comments="scrollToComments"
-          @share="handleShareVideo"
           @more="openAgentPanel"
           @report="openVideoReportDialog"
         />
@@ -125,7 +124,7 @@
             <div>
               <h2>评论 <span>{{ formatCompactNumber(video.commentCount) }}</span></h2>
             </div>
-            <el-button type="primary" plain @click="loadComments">
+            <el-button type="primary" plain @click="handleRefreshComments">
               <el-icon><RefreshRight /></el-icon>
               <span>刷新评论</span>
             </el-button>
@@ -190,9 +189,11 @@
                 :active-reply-id="replyTargetId"
                 :reply-form-value="replyForm"
                 :expanded-comment-ids="expandedCommentIds"
+                :current-user-id="appStore.userId"
                 @update:reply-form-value="replyForm = $event"
                 @toggle-reply="toggleReplyBox"
                 @submit-reply="handleSubmitReply"
+                @withdraw="handleWithdrawComment"
                 @report="reportComment"
               />
             </article>
@@ -379,7 +380,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   ChatDotRound,
   ChatLineRound,
@@ -412,6 +413,7 @@ import {
   unfollowUser,
   unlikeVideo,
   uploadVideo,
+  withdrawComment,
 } from '@/api/platform';
 import CommentThread from '@/components/CommentThread.vue';
 import DanmakuOverlay from '@/components/DanmakuOverlay.vue';
@@ -508,6 +510,9 @@ let agentMessageSeed = 0;
 let grokReplyPollTimer: ReturnType<typeof setTimeout> | null = null;
 let grokReplyPollToken = 0;
 let grokPendingReplySeed = 0;
+let videoStatsTimer: number | null = null;
+
+const VIDEO_STATS_POLL_INTERVAL_MS = 15000;
 
 const canFollow = computed(
   () => appStore.isLoggedIn && video.value && video.value.creator.id !== appStore.userId,
@@ -722,6 +727,10 @@ function handleLoadedMetadata() {
 
 function handleTimeUpdate() {
   capturePlaybackProgress();
+
+  if (video.value && videoRef.value && !videoRef.value.paused && !hasReportedPlay.value) {
+    void handleVideoPlay();
+  }
 }
 
 async function handleVideoPlay() {
@@ -746,8 +755,9 @@ async function handleVideoPlay() {
     });
 
     if (video.value) {
-      video.value.playCount = result.playCount;
+      video.value.playCount = Math.max(video.value.playCount ?? 0, result.playCount);
     }
+    void refreshVideoStats();
   } catch (error) {
     hasReportedPlay.value = false;
     console.warn('report play failed', error);
@@ -771,12 +781,75 @@ async function handleVideoEnded() {
   }
 }
 
+function countCommentTree(items: CommentItem[]): number {
+  return items.reduce((total, item) => total + 1 + countCommentTree(item.replies), 0);
+}
+
+function syncCommentCountFromList() {
+  if (!video.value) {
+    return;
+  }
+
+  const listedCount = countCommentTree(comments.value);
+  video.value.commentCount = Math.max(video.value.commentCount ?? 0, listedCount);
+}
+
+function applyVideoStats(detail: VideoDetail) {
+  if (!video.value || video.value.id !== detail.id) {
+    video.value = detail;
+    return;
+  }
+
+  video.value.playCount = detail.playCount;
+  video.value.commentCount = Math.max(detail.commentCount, countCommentTree(comments.value));
+  video.value.likeCount = detail.likeCount;
+  video.value.favoriteCount = detail.favoriteCount;
+  video.value.coinCount = detail.coinCount;
+  video.value.isLiked = detail.isLiked;
+  video.value.isFavorited = detail.isFavorited;
+  video.value.isFollowingCreator = detail.isFollowingCreator;
+  video.value.myCoinCount = detail.myCoinCount;
+  video.value.myCoinLimit = detail.myCoinLimit;
+  video.value.creator.followerCount = detail.creator.followerCount;
+}
+
+async function refreshVideoStats() {
+  if (!video.value) {
+    return;
+  }
+
+  try {
+    const detail = await fetchVideoDetail(video.value.id);
+    applyVideoStats(detail);
+  } catch {
+    // 静默刷新，避免打断观看体验。
+  }
+}
+
+function startVideoStatsPolling() {
+  stopVideoStatsPolling();
+  videoStatsTimer = window.setInterval(() => {
+    if (document.visibilityState === 'visible') {
+      void refreshVideoStats();
+    }
+  }, VIDEO_STATS_POLL_INTERVAL_MS);
+}
+
+function stopVideoStatsPolling() {
+  if (videoStatsTimer) {
+    window.clearInterval(videoStatsTimer);
+    videoStatsTimer = null;
+  }
+}
+
 async function loadDetail() {
   loading.value = true;
   try {
-    video.value = await fetchVideoDetail(Number(route.params.id));
+    const detail = await fetchVideoDetail(Number(route.params.id));
+    video.value = detail;
     syncInitialDurationFromDetail();
     coinAmount.value = Math.max(1, Math.min(coinAmount.value, remainingCoinLimit.value || 1));
+    syncCommentCountFromList();
   } catch {
     ElMessage.error('加载视频详情失败');
   } finally {
@@ -802,12 +875,23 @@ async function loadRecommendations() {
   }
 }
 
+async function handleRefreshComments() {
+  await loadComments();
+  await refreshVideoStats();
+}
+
 async function loadComments() {
   try {
     const result = await fetchComments(Number(route.params.id));
     comments.value = result.items;
-  } catch {
-    ElMessage.error('加载评论失败');
+    syncCommentCountFromList();
+  } catch (error: unknown) {
+    const status = (error as { response?: { status?: number } })?.response?.status;
+    if (status === 401) {
+      ElMessage.warning('请先登录后再查看评论');
+      return;
+    }
+    ElMessage.error('加载评论失败，请稍后重试');
   }
 }
 
@@ -993,7 +1077,8 @@ function startGrokReplyPolling(input: { videoId: number; rootId: number; sourceC
         upsertCommentThread(thread);
         expandCommentPath(thread, input.sourceCommentId);
         clearGrokReplyPolling();
-        await loadDetail();
+        syncCommentCountFromList();
+        await refreshVideoStats();
         return;
       }
 
@@ -1146,8 +1231,13 @@ async function submitRootComment() {
     });
     commentForm.value = '';
     clearCommentImage();
+    if (video.value) {
+      video.value.commentCount = (video.value.commentCount ?? 0) + 1;
+    }
     ElMessage.success('评论成功');
-    await Promise.all([loadComments(), loadDetail()]);
+    await loadComments();
+    syncCommentCountFromList();
+    void refreshVideoStats();
     if (hasGrokMention(content)) {
       startGrokReplyPolling({
         videoId,
@@ -1216,8 +1306,13 @@ async function submitReply(parentId: number, rootId: number) {
     });
     replyForm.value = '';
     replyTargetId.value = null;
+    if (video.value) {
+      video.value.commentCount = (video.value.commentCount ?? 0) + 1;
+    }
     ElMessage.success('回复成功');
-    await Promise.all([loadComments(), loadDetail()]);
+    await loadComments();
+    syncCommentCountFromList();
+    void refreshVideoStats();
     if (hasGrokMention(content)) {
       startGrokReplyPolling({
         videoId,
@@ -1243,7 +1338,7 @@ async function toggleFollow() {
       await followUser(video.value.creator.id);
       ElMessage.success('关注成功');
     }
-    await loadDetail();
+    await refreshVideoStats();
   } catch {
     ElMessage.error('操作失败，请确认已登录');
   }
@@ -1259,7 +1354,7 @@ async function toggleLikeAction() {
       ? await unlikeVideo(video.value.id)
       : await likeVideo(video.value.id);
     ElMessage.success(result.liked ? '点赞成功' : '已取消点赞');
-    await loadDetail();
+    await refreshVideoStats();
   } catch {
     ElMessage.error('操作失败，请确认已登录');
   }
@@ -1274,7 +1369,7 @@ async function toggleFavoriteAction() {
     if (video.value.isFavorited) {
       const result = await unfavoriteVideo(video.value.id);
       ElMessage.success(result.favorited ? '收藏成功' : '已取消收藏');
-      await loadDetail();
+      await refreshVideoStats();
       return;
     }
 
@@ -1309,7 +1404,7 @@ async function confirmFavoriteVideo() {
     await favoriteVideo(video.value.id, { folderId: selectedFavoriteFolderId.value });
     favoriteDialogVisible.value = false;
     ElMessage.success('收藏成功');
-    await loadDetail();
+    await refreshVideoStats();
   } catch {
     ElMessage.error('收藏失败，请确认已登录');
   } finally {
@@ -1356,6 +1451,44 @@ async function reportComment(commentId: number) {
   }
 }
 
+async function handleWithdrawComment(commentId: number) {
+  if (!appStore.isLoggedIn) {
+    ElMessage.warning('请先登录后再撤回评论');
+    return;
+  }
+
+  if (!video.value) {
+    return;
+  }
+
+  try {
+    await ElMessageBox.confirm('撤回后该评论及其回复将不可恢复，确定撤回吗？', '撤回评论', {
+      confirmButtonText: '撤回',
+      cancelButtonText: '取消',
+      type: 'warning',
+    });
+  } catch {
+    return;
+  }
+
+  try {
+    const result = await withdrawComment(video.value.id, commentId);
+    if (replyTargetId.value === commentId) {
+      replyTargetId.value = null;
+      replyForm.value = '';
+    }
+    if (video.value) {
+      video.value.commentCount = Math.max(0, (video.value.commentCount ?? 0) - result.withdrawnCount);
+    }
+    ElMessage.success('评论已撤回');
+    await loadComments();
+    syncCommentCountFromList();
+    void refreshVideoStats();
+  } catch {
+    ElMessage.error('撤回失败，请确认已登录');
+  }
+}
+
 function openReportDialog(danmaku: DanmakuItem) {
   reportTarget.value = danmaku;
   reportReason.value = '';
@@ -1369,25 +1502,6 @@ function openVideoReportDialog() {
 
 function openAgentPanel() {
   agentPanelVisible.value = true;
-}
-
-async function handleShareVideo() {
-  const shareUrl = window.location.href;
-
-  try {
-    if (navigator.share && video.value) {
-      await navigator.share({
-        title: video.value.title,
-        url: shareUrl,
-      });
-      return;
-    }
-
-    await navigator.clipboard.writeText(shareUrl);
-    ElMessage.success('视频链接已复制');
-  } catch {
-    ElMessage.info('分享已取消');
-  }
 }
 
 async function submitVideoReport() {
@@ -1508,9 +1622,11 @@ watch(
     }
 
     clearGrokReplyPolling();
+    stopVideoStatsPolling();
     expandedCommentIds.value = new Set();
     resetAgentState();
     await Promise.all([loadDetail(), loadRecommendations(), loadComments(), loadDanmakus()]);
+    startVideoStatsPolling();
   },
   { immediate: true },
 );
@@ -1524,6 +1640,7 @@ onBeforeRouteLeave(async () => {
 onBeforeUnmount(() => {
   window.removeEventListener('pagehide', handlePageHide);
   clearGrokReplyPolling();
+  stopVideoStatsPolling();
   void flushWatchProgress('leave', { force: true });
   resetWatchTracking();
 });

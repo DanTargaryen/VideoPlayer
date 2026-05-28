@@ -42,9 +42,25 @@
         <span v-for="label in categoryLabels.slice(0, 3)" :key="label" class="category-pill">{{ label }}</span>
       </div>
       <div class="meta">
-        <span v-if="showPlayCount">{{ formattedPlayCount }}次观看</span>
-        <span v-if="showPlayCount && formattedTime" class="dot">·</span>
-        <span class="time">{{ formattedTime }}</span>
+        <div class="meta-leading">
+          <span v-if="showPlayCount" class="meta-text">{{ formattedPlayCount }}次观看</span>
+          <span v-if="showPlayCount && formattedTime" class="dot">·</span>
+          <span v-if="formattedTime" class="meta-text time">{{ formattedTime }}</span>
+        </div>
+        <div class="meta-stats">
+          <span class="stat-item" title="点赞数" aria-label="点赞数">
+            <svg class="meta-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M7 22V11L10.5 3.5C10.78 2.87 11.41 2.5 12.1 2.5C13.1 2.5 13.85 3.42 13.65 4.4L12.8 9H20c1.1 0 2 .9 2 2v1c0 .15-.02.3-.05.44l-2.19 8C19.5 21.35 18.68 22 17.73 22H7ZM3 22h2V11H3v11Z" />
+            </svg>
+            {{ formattedLikeCount }}
+          </span>
+          <span class="stat-item" title="收藏数" aria-label="收藏数">
+            <svg class="meta-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2Z" />
+            </svg>
+            {{ formattedFavoriteCount }}
+          </span>
+        </div>
       </div>
     </div>
   </article>
@@ -53,7 +69,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 
-import { videoCategoryOptions } from '@/constants/categories';
+import { formatVideoCategoryLabels } from '@/constants/categories';
 import type { VideoCard } from '@/types/api';
 
 const props = defineProps<{
@@ -74,11 +90,10 @@ const creatorAvatar = computed(() => props.item.creator?.avatarUrl ?? '');
 const creatorInitial = computed(() => creatorLabel.value.trim().slice(0, 1).toUpperCase() || 'U');
 const showAuthorLink = computed(() => Boolean(creatorId.value) && !props.disableAuthorLink);
 const formattedPlayCount = computed(() => formatCount(props.item.playCount ?? 0));
+const formattedLikeCount = computed(() => formatCount(props.item.likeCount ?? 0));
+const formattedFavoriteCount = computed(() => formatCount(props.item.favoriteCount ?? 0));
 const durationLabel = computed(() => formatDuration(props.item.durationSeconds));
-const categoryLabels = computed(() => {
-  const codes = props.item.categories?.length ? props.item.categories : props.item.category ? [props.item.category] : [];
-  return codes.map((code) => videoCategoryOptions.find((item) => item.code === code)?.label ?? code);
-});
+const categoryLabels = computed(() => formatVideoCategoryLabels(props.item));
 
 const formattedTime = computed(() => {
   const raw = props.item.publishedAt ?? props.item.createdAt;
@@ -313,11 +328,46 @@ function stopPreview() {
 .meta {
   display: flex;
   align-items: center;
-  gap: 5px;
-  min-height: 18px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  min-height: 20px;
   font-size: 12px;
   color: #8a95a8;
-  line-height: 1;
+  line-height: 1.2;
+}
+
+.meta-leading {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.meta-text {
+  white-space: nowrap;
+}
+
+.meta-stats {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.stat-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+.meta-icon {
+  width: 13px;
+  height: 13px;
+  color: #8a95a8;
 }
 
 .category-row {

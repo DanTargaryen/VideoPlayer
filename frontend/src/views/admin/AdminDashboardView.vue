@@ -163,6 +163,10 @@ function formatReviewStatus(status: ReviewQueueItem['status']) {
   return '待审核';
 }
 
+function isUserCancelled(error: unknown) {
+  return error === 'cancel' || error === 'close';
+}
+
 async function loadTextReviews() {
   textReviews.value = await fetchTextReviewQueue(textFilter.value === 'ALL' ? undefined : textFilter.value);
 }
@@ -196,23 +200,31 @@ function resetPreviewPlayer() {
 }
 
 async function handleReview(id: number, action: 'APPROVE' | 'REJECT') {
+  let reason: string | undefined;
+
   try {
-    const reason =
-      action === 'REJECT'
-        ? await ElMessageBox.prompt('请输入驳回原因', '驳回视频', {
-            confirmButtonText: '确认',
-            cancelButtonText: '取消',
-          }).then((result) => result.value)
-        : undefined;
+    if (action === 'REJECT') {
+      const result = await ElMessageBox.prompt('请输入驳回原因', '驳回视频', {
+        confirmButtonText: '确认',
+        cancelButtonText: '取消',
+      });
+      reason = result.value;
+    }
 
     await reviewVideo(id, action, reason);
-    ElMessage.success(action === 'APPROVE' ? '审核通过' : '已驳回视频');
-    await refreshAll();
-  } catch {
-    if (action === 'REJECT') {
+  } catch (error) {
+    if (isUserCancelled(error)) {
       return;
     }
     ElMessage.error('审核操作失败');
+    return;
+  }
+
+  ElMessage.success(action === 'APPROVE' ? '审核通过' : '已驳回视频');
+  try {
+    await refreshAll();
+  } catch {
+    // 审核已成功，刷新列表失败时不重复提示失败。
   }
 }
 
@@ -223,30 +235,45 @@ async function handleTextModeration(
 ) {
   try {
     await moderateTextContent(targetType, id, action);
-    ElMessage.success('文本审核处理完成');
-    await refreshAll();
   } catch {
     ElMessage.error('文本审核处理失败');
+    return;
+  }
+
+  ElMessage.success('文本审核处理完成');
+  try {
+    await refreshAll();
+  } catch {
+    // 处理已成功，刷新列表失败时不重复提示失败。
   }
 }
 
 async function handleReportAction(id: number, action: 'KEEP' | 'HIDE' | 'DELETE') {
+  let reason: string | undefined;
+
   try {
-    const reason =
-      action !== 'KEEP'
-        ? await ElMessageBox.prompt('请输入处理备注', '处理举报', {
-            confirmButtonText: '确认',
-            cancelButtonText: '取消',
-          }).then((result) => result.value)
-        : undefined;
-    await handleReport(id, action, reason);
-    ElMessage.success('举报处理完成');
-    await refreshAll();
-  } catch {
     if (action !== 'KEEP') {
+      const result = await ElMessageBox.prompt('请输入处理备注', '处理举报', {
+        confirmButtonText: '确认',
+        cancelButtonText: '取消',
+      });
+      reason = result.value;
+    }
+
+    await handleReport(id, action, reason);
+  } catch (error) {
+    if (isUserCancelled(error)) {
       return;
     }
     ElMessage.error('举报处理失败');
+    return;
+  }
+
+  ElMessage.success('举报处理完成');
+  try {
+    await refreshAll();
+  } catch {
+    // 处理已成功，刷新列表失败时不重复提示失败。
   }
 }
 

@@ -16,7 +16,7 @@
           <el-input v-model="form.description" type="textarea" placeholder="请输入视频简介" />
         </el-form-item>
         <el-form-item label="分区">
-          <el-select v-model="form.categories" multiple collapse-tags collapse-tags-tooltip placeholder="请选择分区">
+          <el-select v-model="form.categories" multiple placeholder="请选择分区">
             <el-option
               v-for="item in videoCategoryOptions"
               :key="item.code"
@@ -210,11 +210,7 @@ async function handleCreateDraft() {
     autoCoverFile.value = null;
     captureTimeSeconds.value = 1;
     ElMessage.success('稿件创建成功！');
-    try {
-      await router.push(`/video/${resp.id}`);
-    } catch {
-      ElMessage.warning('稿件已创建，但跳转详情页失败');
-    }
+    await router.push('/user/dashboard');
   } catch (error: unknown) {
     console.error('创建稿件失败:', error);
     let message = '创建稿件失败，请重试';

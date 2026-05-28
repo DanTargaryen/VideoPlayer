@@ -24,6 +24,12 @@ export class UserService {
       this.prisma.followRelation.count({ where: { followerId: id } }),
       this.prisma.video.findMany({
         where: { creatorId: id, status: 'PUBLISHED' },
+        include: {
+          categories: {
+            select: { code: true },
+            orderBy: { id: 'asc' },
+          },
+        },
         orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }],
         take: this.normalizeHomepageItemLimit(options.itemLimit),
       }),
@@ -41,8 +47,36 @@ export class UserService {
       videos: videoCount,
       isFollowing,
       coinBalance: currentUserId === id ? user.coinBalance : undefined,
-      items: videos,
+      items: videos.map((video) => ({
+        id: video.id,
+        title: video.title,
+        description: video.description,
+        coverUrl: video.coverUrl,
+        category: video.category,
+        categories: this.extractVideoCategoryCodes(video),
+        playUrl: video.playUrl,
+        durationSeconds: video.durationSeconds,
+        playCount: video.playCount,
+        likeCount: video.likeCount,
+        favoriteCount: video.favoriteCount,
+        commentCount: video.commentCount,
+        coinCount: video.coinCount,
+        publishedAt: video.publishedAt,
+        createdAt: video.createdAt,
+      })),
     };
+  }
+
+  private extractVideoCategoryCodes(video: {
+    category: string;
+    categories?: Array<{ code: string }>;
+  }) {
+    const codes = (video.categories ?? []).map((item) => item.code);
+    if (codes.length > 0) {
+      return codes;
+    }
+
+    return video.category ? [video.category] : [];
   }
 
   private normalizeHomepageItemLimit(itemLimit?: number) {

@@ -1,7 +1,10 @@
 <template>
   <article class="comment-node" :class="{ 'comment-node-pending': comment.isPendingGrok }">
     <div class="comment-shell">
-      <span class="comment-avatar">{{ userInitial }}</span>
+      <span class="comment-avatar">
+        <img v-if="userAvatarUrl" :src="userAvatarUrl" :alt="comment.user.nickname" class="comment-avatar-img" />
+        <span v-else>{{ userInitial }}</span>
+      </span>
       <div class="comment-main">
         <strong>{{ comment.user.nickname }}</strong>
         <p>
@@ -19,6 +22,7 @@
         <div class="comment-meta">
           <span>{{ comment.isPendingGrok ? '等待回复中' : formatTime(comment.createdAt) }}</span>
           <button v-if="!comment.isPendingGrok" class="link-btn" @click="toggleReplyBox">回复</button>
+          <button v-if="canWithdraw" class="link-btn" @click="$emit('withdraw', comment.id)">撤回</button>
           <button v-if="!comment.isPendingGrok" class="link-btn danger" @click="$emit('report', comment.id)">举报</button>
         </div>
       </div>
@@ -58,6 +62,7 @@
         @update:reply-form-value="$emit('update:replyFormValue', $event)"
         @toggle-reply="$emit('toggle-reply', $event)"
         @submit-reply="$emit('submit-reply', $event)"
+        @withdraw="$emit('withdraw', $event)"
         @report="$emit('report', $event)"
       />
     </div>
@@ -74,17 +79,26 @@ const props = defineProps<{
   activeReplyId: number | null;
   replyFormValue: string;
   expandedCommentIds: Set<number>;
+  currentUserId?: number | null;
 }>();
 
 const emit = defineEmits<{
   (e: 'toggle-reply', commentId: number): void;
   (e: 'submit-reply', payload: { parentId: number; rootId: number }): void;
+  (e: 'withdraw', commentId: number): void;
   (e: 'report', commentId: number): void;
   (e: 'update:replyFormValue', value: string): void;
 }>();
 
 const repliesExpanded = ref(props.expandedCommentIds.has(props.comment.id));
 const userInitial = computed(() => props.comment.user.nickname.trim().charAt(0).toUpperCase() || '评');
+const userAvatarUrl = computed(() => props.comment.user.avatarUrl?.trim() || '');
+const canWithdraw = computed(
+  () =>
+    Boolean(props.currentUserId) &&
+    props.comment.userId === props.currentUserId &&
+    !props.comment.isPendingGrok,
+);
 
 watch(
   () => props.expandedCommentIds.has(props.comment.id),
@@ -144,6 +158,13 @@ function handleSubmitReply() {
   font-size: 14px;
   font-weight: 800;
   box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.1);
+}
+
+.comment-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .comment-main {

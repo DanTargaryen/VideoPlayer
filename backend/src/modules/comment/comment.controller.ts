@@ -1,4 +1,14 @@
-import { BadRequestException, Body, Controller, Get, Headers, Param, ParseIntPipe, Post } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  Param,
+  ParseIntPipe,
+  Post,
+} from '@nestjs/common';
 import { IsInt, IsOptional, IsString, MaxLength } from 'class-validator';
 
 import { ok } from '../../common/dto/api-response.dto';
@@ -65,5 +75,15 @@ export class CommentController {
         imageUrl: imageUrl || undefined,
       }),
     );
+  }
+
+  @Delete(':commentId')
+  async withdrawComment(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('commentId', ParseIntPipe) commentId: number,
+  ) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.commentService.withdrawComment(id, commentId, user));
   }
 }
