@@ -143,7 +143,7 @@ var CreatorController = function () {
                                 ])];
                         case 3:
                             _a = _e.sent(), aggregates = _a[0], followerCount = _a[1], followingCount = _a[2], recentRejectedVideos = _a[3];
-                            return [2 /*return*/, (0, api_response_dto_1.ok)(__assign({ id: user.id, username: user.username, nickname: user.nickname, avatarUrl: user.avatarUrl, role: user.role, followerCount: followerCount, followingCount: followingCount, totalLikes: (_b = aggregates._sum.likeCount) !== null && _b !== void 0 ? _b : 0, totalFavorites: (_c = aggregates._sum.favoriteCount) !== null && _c !== void 0 ? _c : 0, totalComments: (_d = aggregates._sum.commentCount) !== null && _d !== void 0 ? _d : 0, recentRejectedVideos: recentRejectedVideos }, counts))];
+                            return [2 /*return*/, (0, api_response_dto_1.ok)(__assign({ id: user.id, username: user.username, nickname: user.nickname, avatarUrl: user.avatarUrl, role: user.role, createdAt: user.createdAt, email: user.email, bio: user.bio, messagePrivacy: user.messagePrivacy, coinBalance: user.coinBalance, followerCount: followerCount, followingCount: followingCount, totalLikes: (_b = aggregates._sum.likeCount) !== null && _b !== void 0 ? _b : 0, totalFavorites: (_c = aggregates._sum.favoriteCount) !== null && _c !== void 0 ? _c : 0, totalComments: (_d = aggregates._sum.commentCount) !== null && _d !== void 0 ? _d : 0, recentRejectedVideos: recentRejectedVideos }, counts))];
                     }
                 });
             });

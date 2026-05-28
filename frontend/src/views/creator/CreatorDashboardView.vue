@@ -1,82 +1,104 @@
 <template>
   <section class="page" v-loading="pageLoading">
-    <div class="profile-banner">
-      <div class="profile-left">
-        <div class="avatar-wrapper" @click="openAvatarEdit">
-          <img :src="profileAvatarUrl" :alt="dashboard.nickname" class="avatar" />
-          <span class="avatar-edit-hint">编辑</span>
+    <div class="dashboard-layout">
+      <aside class="tab-bar">
+        <button class="tab-btn" :class="{ active: activeTab === 'home' }" @click="activeTab = 'home'">
+          <el-icon class="tab-icon"><Edit /></el-icon>
+          <span>创作中心</span>
+        </button>
+        <button class="tab-btn" :class="{ active: activeTab === 'favorites' }" @click="activeTab = 'favorites'">
+          <el-icon class="tab-icon"><Star /></el-icon>
+          <span>我的收藏</span>
+        </button>
+        <button class="tab-btn" :class="{ active: activeTab === 'likes' }" @click="activeTab = 'likes'">
+          <el-icon class="tab-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+              <path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3z"/>
+            </svg>
+          </el-icon>
+          <span>最近点赞</span>
+        </button>
+        <button class="tab-btn" :class="{ active: activeTab === 'history' }" @click="activeTab = 'history'">
+          <el-icon class="tab-icon"><Clock /></el-icon>
+          <span>历史记录</span>
+        </button>
+        <button class="tab-btn" :class="{ active: activeTab === 'settings' }" @click="activeTab = 'settings'">
+          <el-icon class="tab-icon"><Setting /></el-icon>
+          <span>账号设置</span>
+        </button>
+        <div class="tab-bar-footer">
+          <img src="/assets/beautiful_guanlan.png" alt="" class="tab-bar-img" />
         </div>
-        <div class="profile-info">
-          <div class="nickname-row">
-            <h1 v-if="!editingNickname">{{ dashboard.nickname }}</h1>
-            <el-input
-              v-else
-              v-model="nicknameDraft"
-              size="small"
-              class="nickname-input"
-              @keyup.enter="saveNickname"
-              @keyup.escape="cancelNickname"
-            />
-            <button v-if="!editingNickname" class="edit-nickname-btn" @click="startEditNickname">✏️</button>
-            <template v-else>
-              <el-button size="small" type="primary" @click="saveNickname">保存</el-button>
-              <el-button size="small" @click="cancelNickname">取消</el-button>
-            </template>
-          </div>
-          <div class="bio-row">
-            <template v-if="!editingBio">
-              <span class="bio-text" :class="{ placeholder: !dashboard.bio }" @click="startEditBio">
-                {{ dashboard.bio || '编辑个性签名' }}
-              </span>
-            </template>
-            <template v-else>
-              <el-input
-                v-model="bioDraft"
-                size="small"
-                class="bio-input"
-                maxlength="200"
-                show-word-limit
-                placeholder="写点什么介绍自己吧..."
-                @keyup.enter="saveBio"
-                @keyup.escape="cancelBio"
-              />
-              <el-button size="small" type="primary" @click="saveBio">保存</el-button>
-              <el-button size="small" @click="cancelBio">取消</el-button>
-            </template>
-          </div>
-          <div class="profile-stats">
-            <button class="stat-link" @click="openFollowersDialog">
-              <strong>{{ dashboard.followerCount }}</strong>
-              <span>粉丝</span>
-            </button>
-            <button class="stat-link" @click="openFollowingDialog">
-              <strong>{{ followingCount }}</strong>
-              <span>关注</span>
-            </button>
-            <span class="stat-item">
-              <strong>{{ dashboard.totalLikes }}</strong>
-              <span>获赞</span>
-            </span>
-            <span class="stat-item">
-              <strong>{{ dashboard.coinBalance }}</strong>
-              <span>平台货币</span>
-            </span>
-            <el-button size="small" type="primary" :loading="claimingDaily" @click="handleDailyClaim">每日打卡 +2</el-button>
+      </aside>
+      <main class="dashboard-content">
+        <div class="profile-banner">
+          <div class="profile-left">
+            <div class="avatar-wrapper" @click="openAvatarEdit">
+              <img :src="profileAvatarUrl" :alt="dashboard.nickname" class="avatar" />
+              <span class="avatar-edit-hint">编辑</span>
+            </div>
+            <div class="profile-info">
+              <div class="nickname-row">
+                <h1 v-if="!editingNickname">{{ dashboard.nickname }}</h1>
+                <el-input
+                  v-else
+                  v-model="nicknameDraft"
+                  size="small"
+                  class="nickname-input"
+                  @keyup.enter="saveNickname"
+                  @keyup.escape="cancelNickname"
+                />
+                <button v-if="!editingNickname" class="edit-nickname-btn" @click="startEditNickname">✏️</button>
+                <template v-else>
+                  <el-button size="small" type="primary" @click="saveNickname">保存</el-button>
+                  <el-button size="small" @click="cancelNickname">取消</el-button>
+                </template>
+              </div>
+              <div class="bio-row">
+                <template v-if="!editingBio">
+                  <span class="bio-text" :class="{ placeholder: !dashboard.bio }" @click="startEditBio">
+                    {{ dashboard.bio || '编辑个性签名' }}
+                  </span>
+                </template>
+                <template v-else>
+                  <el-input
+                    v-model="bioDraft"
+                    size="small"
+                    class="bio-input"
+                    maxlength="200"
+                    show-word-limit
+                    placeholder="写点什么介绍自己吧..."
+                    @keyup.enter="saveBio"
+                    @keyup.escape="cancelBio"
+                  />
+                  <el-button size="small" type="primary" @click="saveBio">保存</el-button>
+                  <el-button size="small" @click="cancelBio">取消</el-button>
+                </template>
+              </div>
+              <div class="profile-stats">
+                <button class="stat-link" @click="openFollowersDialog">
+                  <strong>{{ dashboard.followerCount }}</strong>
+                  <span>粉丝</span>
+                </button>
+                <button class="stat-link" @click="openFollowingDialog">
+                  <strong>{{ followingCount }}</strong>
+                  <span>关注</span>
+                </button>
+                <span class="stat-item">
+                  <strong>{{ dashboard.totalLikes }}</strong>
+                  <span>获赞</span>
+                </span>
+                <span class="stat-item">
+                  <strong>{{ dashboard.coinBalance }}</strong>
+                  <span>硬币</span>
+                </span>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
-
-    <div class="tab-bar">
-      <button class="tab-btn" :class="{ active: activeTab === 'home' }" @click="activeTab = 'home'">主页</button>
-      <button class="tab-btn" :class="{ active: activeTab === 'favorites' }" @click="activeTab = 'favorites'">我的收藏</button>
-      <button class="tab-btn" :class="{ active: activeTab === 'likes' }" @click="activeTab = 'likes'">最近点赞</button>
-      <button class="tab-btn" :class="{ active: activeTab === 'history' }" @click="activeTab = 'history'">历史记录</button>
-      <button class="tab-btn" :class="{ active: activeTab === 'settings' }" @click="activeTab = 'settings'">账号设置</button>
-    </div>
-
-    <template v-if="activeTab === 'home'">
-      <section v-if="dashboard.recentRejectedVideos.length > 0" class="panel">
+  
+      <template v-if="activeTab === 'home'">
+        <section v-if="dashboard.recentRejectedVideos.length > 0" class="panel">
         <div class="panel-head">
           <h2>违规提醒</h2>
           <span class="subtle">最近被驳回的稿件会显示在这里，便于重新修改后提交。</span>
@@ -92,76 +114,152 @@
         </div>
       </section>
 
-      <section class="panel play-trend-panel">
-        <div class="panel-head play-trend-head">
-          <div class="play-trend-heading">
-            <h2>{{ activeTrendTitle }}</h2>
-            <span class="subtle">{{ activeTrendDescription }}</span>
-          </div>
-          <div class="play-trend-side">
-            <div class="play-trend-switch">
-              <button
-                class="play-trend-switch-btn"
-                :class="{ active: trendMode === 'play' }"
-                type="button"
-                @click="trendMode = 'play'"
-              >
-                播放量
-              </button>
-              <button
-                class="play-trend-switch-btn"
-                :class="{ active: trendMode === 'follower' }"
-                type="button"
-                @click="trendMode = 'follower'"
-              >
-                粉丝量
-              </button>
+      <div class="insight-row">
+        <section class="panel play-trend-panel">
+          <div class="panel-head play-trend-head">
+            <div class="play-trend-heading">
+              <h2>
+                {{ activeTrendTitle }}
+                <el-tooltip :content="activeTrendDescription" placement="top" :show-after="200">
+                  <span class="info-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                      <circle cx="12" cy="12" r="10"/>
+                      <text x="12" y="16" text-anchor="middle" font-size="14" fill="currentColor" stroke="none">i</text>
+                    </svg>
+                  </span>
+                </el-tooltip>
+              </h2>
             </div>
-            <div class="play-trend-summary">
-              <span>{{ activeTrendSummaryLabel }}</span>
-              <strong>{{ activeTrendSummaryValue }}</strong>
+            <div class="play-trend-side">
+              <div class="play-trend-switch">
+                <button
+                  class="play-trend-switch-btn"
+                  :class="{ active: trendMode === 'play' }"
+                  type="button"
+                  @click="trendMode = 'play'"
+                >
+                  播放量
+                </button>
+                <button
+                  class="play-trend-switch-btn"
+                  :class="{ active: trendMode === 'follower' }"
+                  type="button"
+                  @click="trendMode = 'follower'"
+                >
+                  粉丝量
+                </button>
+              </div>
+              <div class="play-trend-summary">
+                <span>{{ activeTrendSummaryLabel }}</span>
+                <strong>{{ activeTrendSummaryValue }}</strong>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div class="play-trend-chart">
-          <svg
-            class="play-trend-svg"
-            :viewBox="`0 0 ${playTrendChartWidth} ${playTrendChartHeight}`"
-            preserveAspectRatio="none"
-            role="img"
-            :aria-label="activeTrendTitle"
-          >
-            <g v-for="tick in playTrendYAxisTicks" :key="`tick-${tick.y}`">
+          <div class="play-trend-chart">
+            <svg
+              class="play-trend-svg"
+              :viewBox="`0 0 ${playTrendChartWidth} ${playTrendChartHeight}`"
+              preserveAspectRatio="none"
+              role="img"
+              :aria-label="activeTrendTitle"
+            >
+              <g v-for="tick in playTrendYAxisTicks" :key="`tick-${tick.y}`">
+                <line
+                  class="play-trend-grid"
+                  :x1="playTrendYAxisX"
+                  :x2="playTrendChartRight"
+                  :y1="tick.y"
+                  :y2="tick.y"
+                />
+                <text class="play-trend-axis-text" :x="playTrendYAxisX - 10" :y="tick.y + 4">{{ tick.value }}</text>
+              </g>
+
               <line
-                class="play-trend-grid"
+                class="play-trend-axis"
                 :x1="playTrendYAxisX"
                 :x2="playTrendChartRight"
-                :y1="tick.y"
-                :y2="tick.y"
+                :y1="playTrendXAxisY"
+                :y2="playTrendXAxisY"
               />
-              <text class="play-trend-axis-text" :x="playTrendYAxisX - 10" :y="tick.y + 4">{{ tick.value }}</text>
-            </g>
 
-            <line
-              class="play-trend-axis"
-              :x1="playTrendYAxisX"
-              :x2="playTrendChartRight"
-              :y1="playTrendXAxisY"
-              :y2="playTrendXAxisY"
-            />
+              <path v-if="playTrendAreaPath" class="play-trend-area" :d="playTrendAreaPath" />
+              <path v-if="playTrendLinePath" class="play-trend-line" :d="playTrendLinePath" />
 
-            <path v-if="playTrendAreaPath" class="play-trend-area" :d="playTrendAreaPath" />
-            <path v-if="playTrendLinePath" class="play-trend-line" :d="playTrendLinePath" />
-
-            <g v-for="point in playTrendChartPoints" :key="point.date">
-              <circle class="play-trend-point" :cx="point.x" :cy="point.y" r="4.5" />
-              <text class="play-trend-point-value" :x="point.x" :y="point.valueY">{{ point.value }}</text>
-              <text class="play-trend-label" :x="point.x" :y="playTrendChartHeight - 10">{{ point.label }}</text>
-            </g>
-          </svg>
-        </div>
-      </section>
+              <g v-for="point in playTrendChartPoints" :key="point.date">
+                <circle class="play-trend-point" :cx="point.x" :cy="point.y" r="4.5" />
+                <text class="play-trend-point-value" :x="point.x" :y="point.valueY">{{ point.value }}</text>
+                <text class="play-trend-label" :x="point.x" :y="playTrendChartHeight - 10">{{ point.label }}</text>
+              </g>
+            </svg>
+          </div>
+        </section>
+        <aside class="growth-panel">
+          <h2 class="growth-title">成长中心</h2>
+          <div class="growth-cards">
+            <div class="growth-card">
+              <img src="/assets/growth_time.png" alt="" class="growth-card-img" />
+              <div class="growth-card-body">
+                <span class="growth-card-label">创作时长</span>
+                <span class="growth-card-value">{{ formatTotalDuration(totalVideoDuration) }}</span>
+              </div>
+            </div>
+            <div class="growth-card">
+              <img src="/assets/growth_join.png" alt="" class="growth-card-img" />
+              <div class="growth-card-body">
+                <span class="growth-card-label">加入平台</span>
+                <span class="growth-card-value">{{ joinTime }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="growth-extra">
+            <div class="checkin-card">
+              <img src="/assets/data.png" alt="" class="checkin-img" />
+              <div class="checkin-body">
+                <span class="checkin-label">今日打卡</span>
+                <span class="checkin-streak">连续打卡{{ streakInfo.streak }}天</span>
+              </div>
+              <el-button
+                class="checkin-btn"
+                :type="streakInfo.claimedToday ? 'default' : 'primary'"
+                :loading="claimingDaily"
+                :disabled="streakInfo.claimedToday"
+                @click="handleDailyClaim"
+              >
+                {{ streakInfo.claimedToday ? '已打卡' : '去打卡' }}
+              </el-button>
+            </div>
+            <div class="reward-section">
+              <h3 class="reward-title">连续打卡奖励</h3>
+              <div class="reward-track">
+                <div class="reward-line"></div>
+                <div
+                  v-for="m in streakInfo.milestones"
+                  :key="m.day"
+                  class="reward-node"
+                  :class="{ 'reward-node--reached': m.reached, 'reward-node--claimed': m.claimed }"
+                >
+                  <button
+                     class="reward-gift-btn"
+                     :class="{
+                       'reward-gift--reached': m.reached,
+                       'reward-gift--claimed': m.claimed,
+                     }"
+                     :disabled="!m.reached || m.claimed"
+                     @click="handleClaimMilestone(m.day)"
+                   >
+                    <el-icon :size="18">
+                      <Present />
+                    </el-icon>
+                  </button>
+                  <span class="reward-day-label">{{ m.day }}天</span>
+                  <span v-if="m.claimed" class="reward-check">✓</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
 
       <section class="panel">
         <h2>我的作品</h2>
@@ -169,28 +267,24 @@
           <article v-for="item in videos" :key="item.id" class="video-card">
             <button class="video-cover-button" type="button" @click="openVideoPreview(item)">
               <img :src="item.coverUrl" :alt="item.title" class="video-cover-thumb" />
-              <span class="video-cover-overlay">查看完整视频</span>
+              <span class="video-play-icon">
+                <el-icon :size="36"><VideoPlay /></el-icon>
+              </span>
+              <span class="video-duration">{{ formatDuration(item.durationSeconds) }}</span>
             </button>
             <div class="video-main">
               <h3>{{ item.title }}</h3>
-              <p>{{ item.description }}</p>
-              <span class="status">状态：{{ item.status }}</span>
-              <span class="reason">时长：{{ item.durationSeconds ?? 0 }} 秒</span>
-              <span v-if="item.rejectReason" class="reason">驳回原因：{{ item.rejectReason }}</span>
+              <div class="video-meta">
+                <span class="status" :class="'status-' + item.status.toLowerCase()">{{ getStatusLabel(item.status) }}</span>
+                <span class="publish-time">{{ formatTime(item.publishedAt || item.createdAt) }}</span>
+                <span v-if="item.rejectReason" class="reason">驳回原因：{{ item.rejectReason }}</span>
+              </div>
             </div>
             <div class="actions-block">
-              <el-button plain @click="openVideoPreview(item)">预览视频</el-button>
-              <el-button plain @click="openReviewDialog(item)">审核记录</el-button>
+              <el-button class="btn-review" :icon="DocumentChecked" @click="openReviewDialog(item)">审核记录</el-button>
               <el-button
-                type="warning"
-                plain
-                :disabled="item.status !== 'PENDING_REVIEW'"
-                @click="handleWithdrawReview(item.id)"
-              >
-                撤回审核
-              </el-button>
-              <el-button
-                plain
+                class="btn-edit"
+                :icon="Edit"
                 :disabled="
                   item.status !== 'DRAFT' &&
                   item.status !== 'REJECTED' &&
@@ -202,16 +296,24 @@
                 编辑稿件
               </el-button>
               <el-button
+                :icon="CircleCloseFilled"
+                type="warning"
+                :disabled="item.status !== 'PENDING_REVIEW'"
+                @click="handleWithdrawReview(item.id)"
+              >
+                撤回审核
+              </el-button>
+              <el-button
+                :icon="CircleCheck"
                 type="primary"
-                plain
                 :disabled="item.status !== 'DRAFT' && item.status !== 'REJECTED'"
                 @click="handleSubmitReview(Number(item.id))"
               >
                 提交审核
               </el-button>
               <el-button
+                :icon="Delete"
                 type="danger"
-                plain
                 :loading="deletingVideoId === item.id"
                 @click="handleDeleteVideo(item)"
               >
@@ -354,79 +456,6 @@
       </section>
     </template>
 
-    <el-dialog v-model="editDialogVisible" title="编辑稿件" width="560px">
-      <el-form :model="editForm" label-position="top">
-        <el-form-item label="标题">
-          <el-input v-model="editForm.title" />
-        </el-form-item>
-        <el-form-item label="简介">
-          <el-input v-model="editForm.description" type="textarea" />
-        </el-form-item>
-        <el-form-item label="分区">
-          <el-select v-model="editForm.category">
-            <el-option v-for="item in videoCategoryOptions" :key="item.code" :label="item.label" :value="item.code" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="封面地址">
-          <el-input v-model="editForm.coverUrl" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="editDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="savingDraft" @click="handleSaveDraft">保存修改</el-button>
-      </template>
-    </el-dialog>
-
-    <el-dialog v-model="reviewDialogVisible" title="审核记录" width="620px">
-      <div class="history-list">
-        <article v-for="item in reviewHistory" :key="item.id" class="history-card">
-          <div>
-            <strong>{{ item.status }}</strong>
-            <p>{{ item.reason || '暂无审核意见' }}</p>
-            <span class="subtle">
-              提交时间 {{ formatTime(item.createdAt) }}
-              <template v-if="item.reviewedAt"> · 处理时间 {{ formatTime(item.reviewedAt) }}</template>
-            </span>
-          </div>
-          <span class="subtle">{{ item.reviewer?.nickname || '待处理' }}</span>
-        </article>
-        <el-empty v-if="reviewHistory.length === 0" description="当前稿件还没有审核记录" />
-      </div>
-    </el-dialog>
-
-    <el-dialog v-model="previewDialogVisible" :title="previewVideo?.title || '视频预览'" width="860px" top="6vh">
-      <div v-if="previewVideo" class="preview-dialog-body">
-        <video
-          ref="previewPlayerRef"
-          :key="`${previewVideo.id}-${previewVideo.playUrl}-${previewVideo.coverUrl}`"
-          class="preview-player"
-          :src="previewVideo.playUrl"
-          :poster="previewVideo.coverUrl"
-          controls
-          preload="auto"
-        />
-        <p class="preview-description">{{ previewVideo.description || '暂无简介' }}</p>
-      </div>
-    </el-dialog>
-
-    <el-dialog v-model="avatarDialogVisible" title="修改头像" width="420px">
-      <el-form label-position="top">
-        <el-form-item label="上传头像图片">
-          <input type="file" accept="image/*" @change="handleAvatarFileChange" class="avatar-file-input" />
-          <div v-if="avatarPreview" class="avatar-preview-box">
-            <img :src="avatarPreview" alt="预览" class="avatar-preview-img" />
-          </div>
-        </el-form-item>
-        <el-form-item label="或输入头像链接">
-          <el-input v-model="avatarDraft" placeholder="输入头像图片 URL" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="avatarDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="savingAvatar" @click="saveAvatar">保存</el-button>
-      </template>
-    </el-dialog>
-
     <template v-if="activeTab === 'settings'">
       <section class="panel">
         <h2>账号信息</h2>
@@ -535,6 +564,81 @@
       </section>
     </template>
 
+    </main></div>
+
+    <el-dialog v-model="editDialogVisible" title="编辑稿件" width="560px">
+      <el-form :model="editForm" label-position="top">
+        <el-form-item label="标题">
+          <el-input v-model="editForm.title" />
+        </el-form-item>
+        <el-form-item label="简介">
+          <el-input v-model="editForm.description" type="textarea" />
+        </el-form-item>
+        <el-form-item label="分区">
+          <el-select v-model="editForm.category">
+            <el-option v-for="item in videoCategoryOptions" :key="item.code" :label="item.label" :value="item.code" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="封面地址">
+          <el-input v-model="editForm.coverUrl" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="editDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="savingDraft" @click="handleSaveDraft">保存修改</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="reviewDialogVisible" title="审核记录" width="620px">
+      <div class="history-list">
+        <article v-for="item in reviewHistory" :key="item.id" class="history-card">
+          <div>
+            <strong>{{ item.status }}</strong>
+            <p>{{ item.reason || '暂无审核意见' }}</p>
+            <span class="subtle">
+              提交时间 {{ formatTime(item.createdAt) }}
+              <template v-if="item.reviewedAt"> · 处理时间 {{ formatTime(item.reviewedAt) }}</template>
+            </span>
+          </div>
+          <span class="subtle">{{ item.reviewer?.nickname || '待处理' }}</span>
+        </article>
+        <el-empty v-if="reviewHistory.length === 0" description="当前稿件还没有审核记录" />
+      </div>
+    </el-dialog>
+
+    <el-dialog v-model="previewDialogVisible" :title="previewVideo?.title || '视频预览'" width="860px" top="6vh">
+      <div v-if="previewVideo" class="preview-dialog-body">
+        <video
+          ref="previewPlayerRef"
+          :key="`${previewVideo.id}-${previewVideo.playUrl}-${previewVideo.coverUrl}`"
+          class="preview-player"
+          :src="previewVideo.playUrl"
+          :poster="previewVideo.coverUrl"
+          controls
+          preload="auto"
+        />
+        <p class="preview-description">{{ previewVideo.description || '暂无简介' }}</p>
+      </div>
+    </el-dialog>
+
+    <el-dialog v-model="avatarDialogVisible" title="修改头像" width="420px">
+      <el-form label-position="top">
+        <el-form-item label="上传头像图片">
+          <input type="file" accept="image/*" @change="handleAvatarFileChange" class="avatar-file-input" />
+          <div v-if="avatarPreview" class="avatar-preview-box">
+            <img :src="avatarPreview" alt="预览" class="avatar-preview-img" />
+          </div>
+        </el-form-item>
+        <el-form-item label="或输入头像链接">
+          <el-input v-model="avatarDraft" placeholder="输入头像图片 URL" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="avatarDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="savingAvatar" @click="saveAvatar">保存</el-button>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="deleteAccountDialogVisible" title="注销账户" width="460px">
       <div class="delete-account-warning">
         <p>此操作将永久删除您的账号，包括：</p>
@@ -599,6 +703,18 @@
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import {
+  CircleCheck,
+  CircleCloseFilled,
+  Clock,
+  Delete,
+  DocumentChecked,
+  Edit,
+  Present,
+  Setting,
+  Star,
+  VideoPlay,
+} from '@element-plus/icons-vue';
 
 import {
   createMyFavoriteFolder,
@@ -613,6 +729,8 @@ import {
   fetchCreatorPlayTrend,
   fetchCreatorVideos,
   claimDailyCoins,
+  fetchStreakInfo,
+  claimMilestoneReward,
   fetchFollowers,
   fetchFollowing,
   fetchMyFavoritesByFolder,
@@ -639,6 +757,7 @@ import type {
   FollowUserItem,
   MyVideoItem,
   ReviewHistoryItem,
+  StreakInfo,
 } from '@/types/api';
 
 const fallbackAvatar = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=320&q=80';
@@ -655,6 +774,9 @@ const deleteAccountPassword = ref('');
 const deletingAccount = ref(false);
 const claimingDaily = ref(false);
 const deletingVideoId = ref<number | null>(null);
+const streakInfo = ref<StreakInfo>({ streak: 0, claimedToday: false, milestones: [] });
+const claimingMilestone = ref<number | null>(null);
+const loadingStreak = ref(false);
 
 const dashboard = ref<CreatorDashboardData>({
   id: 0,
@@ -665,6 +787,7 @@ const dashboard = ref<CreatorDashboardData>({
   email: '',
   messagePrivacy: 'ALLOW_ALL',
   role: 'USER',
+  createdAt: '',
   totalVideos: 0,
   pendingReviews: 0,
   publishedVideos: 0,
@@ -754,12 +877,12 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 const profileAvatarUrl = computed(() => dashboard.value.avatarUrl || fallbackAvatar);
 const activeTrendTitle = computed(() =>
-  trendMode.value === 'play' ? '所属视频的播放量变化曲线' : '粉丝数量变化曲线',
+  trendMode.value === 'play' ? '播放数据概览' : '粉丝数据概览',
 );
 const activeTrendDescription = computed(() =>
   trendMode.value === 'play'
-    ? '仅展示最近 7 天内，该账号下全部视频每天新增播放量之和。'
-    : '仅展示最近 7 天内，该账号每天的粉丝总数。',
+    ? '最近 7 天内账号下全部视频每天新增播放量之和。'
+    : '最近 7 天内账号每天的粉丝总数。',
 );
 const activeTrendSummaryLabel = computed(() =>
   trendMode.value === 'play' ? '7 日累计播放量' : '当前粉丝数',
@@ -847,6 +970,46 @@ const editForm = reactive({
 function formatTime(value?: string | null) {
   if (!value) return '暂无';
   return new Date(value).toLocaleString('zh-CN');
+}
+
+function formatDuration(seconds?: number | null) {
+  if (!seconds || seconds <= 0) return '00:00';
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function formatTotalDuration(seconds?: number | null) {
+  if (!seconds || seconds <= 0) return '0 分钟';
+  const hours = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  if (hours > 0) return `${hours} 小时 ${mins} 分钟`;
+  return `${mins} 分钟`;
+}
+
+const totalVideoDuration = computed(() => {
+  return videos.value.reduce((sum, v) => sum + (v.durationSeconds || 0), 0);
+});
+
+const joinTime = computed(() => {
+  if (!dashboard.value.createdAt) return '暂无';
+  const joinDate = new Date(dashboard.value.createdAt);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  joinDate.setHours(0, 0, 0, 0);
+  const days = Math.floor((today.getTime() - joinDate.getTime()) / 86400000);
+  return `${days} 天`;
+});
+
+const statusLabel: Record<string, string> = {
+  DRAFT: '草稿',
+  PENDING_REVIEW: '待审核',
+  PUBLISHED: '已发布',
+  REJECTED: '已驳回',
+};
+
+function getStatusLabel(status: string) {
+  return statusLabel[status] || status;
 }
 
 function normalizeSearchKeyword(value: string) {
@@ -963,6 +1126,7 @@ async function refreshAll() {
   emailDraft.value = dashboardData.email || '';
   messagePrivacyDraft.value = dashboardData.messagePrivacy;
   videos.value = videoList;
+  loadStreakInfo();
 }
 
 async function handleDailyClaim() {
@@ -975,10 +1139,40 @@ async function handleDailyClaim() {
     } else {
       ElMessage.info('今日已打卡');
     }
+    await loadStreakInfo();
   } catch (error) {
     ElMessage.error(getErrorMessage(error, '打卡失败'));
   } finally {
     claimingDaily.value = false;
+  }
+}
+
+async function loadStreakInfo() {
+  loadingStreak.value = true;
+  try {
+    streakInfo.value = await fetchStreakInfo();
+  } catch {
+    // ignore
+  } finally {
+    loadingStreak.value = false;
+  }
+}
+
+async function handleClaimMilestone(milestone: number) {
+  claimingMilestone.value = milestone;
+  try {
+    const result = await claimMilestoneReward(milestone);
+    if (result.claimed) {
+      dashboard.value.coinBalance = result.balance;
+      ElMessage.success(`领取成功，获得 ${result.amount} 个硬币`);
+      await loadStreakInfo();
+    } else {
+      ElMessage.warning(result.message || '领取失败');
+    }
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error, '领取失败'));
+  } finally {
+    claimingMilestone.value = null;
   }
 }
 
@@ -1567,17 +1761,51 @@ async function handleDeleteAccount() {
 
 <style scoped>
 .page {
+  width: 100%;
+  margin: 0;
+  padding: 28px 16px;
+  min-height: calc(100vh - 64px);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dashboard-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 40px;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dashboard-content {
   display: grid;
   gap: 20px;
+  min-width: 0;
+  max-height: calc(100vh - 64px - 56px);
+  overflow-y: auto;
+  align-content: start;
+  scrollbar-width: none;
+}
+
+.dashboard-content::-webkit-scrollbar {
+  display: none;
 }
 
 .profile-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 28px 32px;
+  padding: 14px 32px;
   border-radius: 16px;
-  background: #ffffff;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.40), rgba(255, 255, 255, 0.10)),
+    url('/assets/personal-bg.png') center / cover no-repeat;
+  background-origin: border-box;
+  background-clip: border-box;
   border: 1px solid rgba(15, 23, 42, 0.08);
   box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
 }
@@ -1586,6 +1814,7 @@ async function handleDeleteAccount() {
   display: flex;
   align-items: center;
   gap: 24px;
+  padding: 28px 32px;
 }
 
 .avatar-wrapper {
@@ -1823,37 +2052,69 @@ async function handleDeleteAccount() {
 
 .tab-bar {
   display: flex;
-  gap: 0;
-  border-bottom: 2px solid #e5e7eb;
+  flex-direction: column;
+  gap: 8px;
+  padding: 24px 12px;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+  height: 100%;
+}
+
+.tab-bar-footer {
+  margin-top: auto;
+  padding-top: 16px;
+}
+
+.tab-bar-img {
+  display: block;
+  width: 100%;
+  max-width: 180px;
+  height: auto;
+  margin: 0 auto;
+  border-radius: 8px;
 }
 
 .tab-btn {
-  padding: 10px 32px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 16px;
   font-size: 15px;
   font-weight: 500;
   background: transparent;
   border: 0;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
+  border-radius: 10px;
   cursor: pointer;
   color: #6b7280;
-  transition: color 0.15s, border-color 0.15s;
+  transition: all 0.15s ease;
+  text-align: left;
 }
 
 .tab-btn:hover {
   color: #111827;
+  background: #f3f4f6;
 }
 
 .tab-btn.active {
   color: #2563eb;
-  border-bottom-color: #2563eb;
+  background: rgba(37, 99, 235, 0.08);
+  font-weight: 600;
+}
+
+.tab-icon {
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 .panel,
 .video-card,
 .warning-card,
 .history-card {
-  padding: 20px;
+  padding: 14px 20px;
   border-radius: 16px;
   background: #ffffff;
   border: 1px solid rgba(15, 23, 42, 0.08);
@@ -1895,12 +2156,11 @@ async function handleDeleteAccount() {
 .warning-card,
 .history-card {
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   justify-content: space-between;
   gap: 16px;
 }
 
-.video-card h3,
 .warning-card strong,
 .history-card strong {
   color: #111827;
@@ -1909,6 +2169,22 @@ async function handleDeleteAccount() {
 .video-main {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.video-main h3 {
+  margin: 0;
+  color: #111827;
+  font-size: 15px;
+}
+
+.video-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
 }
 
 .video-card p,
@@ -1937,31 +2213,146 @@ async function handleDeleteAccount() {
   display: block;
 }
 
-.video-cover-overlay {
+.video-play-icon {
   position: absolute;
-  inset: auto 0 0 0;
-  padding: 10px 12px;
-  background: linear-gradient(180deg, transparent, rgba(15, 23, 42, 0.82));
-  color: #fff;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #ffffff;
+  opacity: 0;
+  transition: opacity 0.2s;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
+  pointer-events: none;
+}
+
+.video-cover-button:hover .video-play-icon {
+  opacity: 1;
+}
+
+.video-cover-button:hover .video-cover-thumb {
+  filter: brightness(0.7);
+}
+
+.video-duration {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #ffffff;
   font-size: 13px;
-  text-align: left;
+  line-height: 1.6;
+  pointer-events: none;
 }
 
 .actions-block {
-  display: grid;
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  align-self: center;
 }
 
 .actions-block :deep(.el-button) {
-  width: 100%;
+  height: 36px;
+  padding: 0 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  border: none;
 }
 
-.status,
-.reason,
+.actions-block :deep(.el-button--default) {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.actions-block :deep(.el-button--default:hover) {
+  background: #e5e7eb;
+}
+
+.actions-block :deep(.btn-review) {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.actions-block :deep(.btn-review:hover) {
+  background: #ddd6fe;
+}
+
+.actions-block :deep(.btn-edit) {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.actions-block :deep(.btn-edit:hover) {
+  background: #bae6fd;
+}
+
+.actions-block :deep(.el-button--warning) {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.actions-block :deep(.el-button--warning:hover) {
+  background: #fde68a;
+}
+
+.actions-block :deep(.el-button--primary) {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.actions-block :deep(.el-button--primary:hover) {
+  background: #bfdbfe;
+}
+
+.actions-block :deep(.el-button--danger) {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.actions-block :deep(.el-button--danger:hover) {
+  background: #fecaca;
+}
+
+.video-meta .status,
+.video-meta .publish-time,
+.video-meta .reason {
+  display: inline;
+  margin: 0;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.video-meta .status {
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.status-published {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-draft {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.status-pending_review {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-rejected {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 .hint,
 .subtle {
-  display: block;
-  margin-top: 8px;
   color: #6b7280;
 }
 
@@ -1982,7 +2373,249 @@ async function handleDeleteAccount() {
 }
 
 .play-trend-panel {
-  gap: 18px;
+  gap: 12px;
+}
+
+.insight-row {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 20px;
+}
+
+.growth-panel {
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.growth-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.growth-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.growth-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.growth-card:first-child {
+  background: rgba(176, 96, 251, 0.06);
+}
+
+.growth-card:last-child {
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.growth-card-img {
+  width: 64px;
+  height: 64px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.growth-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.growth-card-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.growth-card-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.growth-extra {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.checkin-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+}
+
+.checkin-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.checkin-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.checkin-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.checkin-streak {
+  font-size: 18px;
+  font-weight: 700;
+  color: #2563eb;
+}
+
+.checkin-btn {
+  flex-shrink: 0;
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  border: none;
+  font-weight: 500;
+}
+
+.checkin-btn.el-button--primary {
+  background: #2563eb;
+  color: #fff;
+}
+
+.checkin-btn.el-button--primary:hover {
+  background: #1d4ed8;
+}
+
+.checkin-btn.el-button--default,
+.checkin-btn.el-button--default.is-disabled,
+.checkin-btn.el-button--default:disabled {
+  background: #f3f4f6 !important;
+  color: #9ca3af !important;
+  border: none !important;
+  opacity: 1 !important;
+}
+
+.reward-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.reward-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.reward-track {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0 4px;
+}
+
+.reward-line {
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  right: 16px;
+  height: 3px;
+  background: #e5e7eb;
+  border-radius: 2px;
+  z-index: 0;
+}
+
+.reward-node {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.reward-gift-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  background: #f3f4f6;
+  color: #d1d5db;
+  padding: 0;
+  transition: all 0.15s;
+}
+
+.reward-gift--reached {
+  background: #f3e8ff;
+  color: #a855f7;
+  cursor: pointer;
+}
+
+.reward-gift--reached:hover {
+  background: #e9d5ff;
+}
+
+.reward-gift--claimed {
+  background: #a855f7;
+  color: #fff;
+  cursor: default;
+}
+
+.reward-day-label {
+  font-size: 11px;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.reward-node--reached .reward-day-label {
+  color: #a855f7;
+}
+
+.reward-check {
+  font-size: 10px;
+  color: #fff;
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #22c55e;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
 }
 
 .play-trend-head {
@@ -1992,6 +2625,25 @@ async function handleDeleteAccount() {
 .play-trend-heading {
   display: grid;
   gap: 4px;
+}
+
+.play-trend-heading h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #9ca3af;
+  transition: color 0.15s;
+}
+
+.info-icon:hover {
+  color: #2563eb;
 }
 
 .play-trend-side {
@@ -2046,12 +2698,12 @@ async function handleDeleteAccount() {
 
 .play-trend-chart {
   width: 100%;
-  min-height: 260px;
+  min-height: 220px;
 }
 
 .play-trend-svg {
   width: 100%;
-  height: 260px;
+  height: 220px;
   overflow: visible;
 }
 
@@ -2407,5 +3059,32 @@ async function handleDeleteAccount() {
   margin: 8px 0;
   padding-left: 20px;
   line-height: 1.8;
+}
+
+@media (max-width: 768px) {
+  .dashboard-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .tab-bar {
+    flex-direction: row;
+    overflow-x: auto;
+    position: static;
+    padding: 8px;
+    gap: 2px;
+    height: auto;
+    min-height: auto;
+  }
+
+  .tab-btn {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    font-size: 14px;
+    justify-content: center;
+  }
+
+  .tab-icon {
+    display: none;
+  }
 }
 </style>

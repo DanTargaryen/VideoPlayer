@@ -155,9 +155,8 @@ function captureVideoFrame(file: File, timeSeconds: number) {
 
 function handleUseAutoCover() {
   if (autoCoverPreview.value) {
-    selectedCoverFile.value = null;
     form.coverUrl = '';
-    ElMessage.success('已选用截取封面，创建时会自动上传');
+    ElMessage.success('已选择截取封面，提交时将自动上传');
   }
 }
 
@@ -205,14 +204,20 @@ async function handleCreateDraft() {
     autoCoverFile.value = null;
     captureTimeSeconds.value = 1;
     ElMessage.success('稿件创建成功！');
-    try {
-      await router.push(`/video/${resp.id}`);
-    } catch {
-      ElMessage.warning('稿件已创建，但跳转详情页失败');
+    router.push('/user/dashboard');
+  } catch (error: unknown) {
+    console.error('创建稿件失败:', error);
+    let message = '创建稿件失败，请重试';
+    if (typeof error === 'object' && error !== null && 'response' in error) {
+      const axiosError = error as { response?: { data?: { message?: string | string[] } } };
+      if (axiosError.response?.data?.message) {
+        const msg = axiosError.response.data.message;
+        message = Array.isArray(msg) ? msg.join(', ') : msg;
+      }
+    } else if (error instanceof Error) {
+      message = error.message;
     }
-  } catch (error) {
-    const responseMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
-    ElMessage.error(typeof responseMessage === 'string' && responseMessage ? responseMessage : '创建稿件失败，请重试');
+    ElMessage.error(message);
   } finally {
     creating.value = false;
   }
