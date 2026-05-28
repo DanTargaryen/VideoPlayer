@@ -79,6 +79,11 @@ enum CommentAiTaskStatus {
   FAILED
 }
 
+enum VideoAiChatRole {
+  USER
+  ASSISTANT
+}
+
 model User {
   id                    Int              @id @default(autoincrement())
   username              String           @unique @db.VarChar(64)
@@ -120,6 +125,7 @@ model User {
   creatorPlayDaily       CreatorPlayDaily[]
   creatorFollowerDaily   CreatorFollowerDaily[]
   streakMilestoneClaims  StreakMilestoneClaim[]
+  videoAiChatSessions    VideoAiChatSession[]
 }
 
 model DirectMessage {
@@ -216,6 +222,7 @@ model Video {
   coinTransactions CoinTransaction[]
   coinContributions VideoCoinContribution[]
   commentAiTasks  CommentAiTask[]
+  aiChatSessions  VideoAiChatSession[]
 
   @@index([creatorId, status])
 }
@@ -240,6 +247,33 @@ model VideoAiSummary {
   model      String   @db.VarChar(64)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+model VideoAiChatSession {
+  id         Int                  @id @default(autoincrement())
+  userId     Int
+  user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  videoId    Int
+  video      Video                @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+  messages   VideoAiChatMessage[]
+
+  @@unique([userId, videoId])
+  @@index([videoId, updatedAt])
+}
+
+model VideoAiChatMessage {
+  id         Int              @id @default(autoincrement())
+  sessionId  Int
+  session    VideoAiChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role       VideoAiChatRole
+  content    String           @db.Text
+  model      String?          @db.VarChar(64)
+  frameCount Int?
+  createdAt  DateTime         @default(now())
+
+  @@index([sessionId, createdAt])
 }
 
 model UserVideoWatch {

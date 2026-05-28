@@ -601,5 +601,24 @@ export interface VideoAiChatResult {
   success: boolean;
   videoId: number;
   reply: string;
+  model?: string;
   frameCount: number;
+  userMessageId?: number;
+  assistantMessageId?: number;
+}
+
+export interface VideoAiChatMessage {
+  id: number;
+  role: 'user' | 'assistant';
+  content: string;
+  model?: string | null;
+  frameCount?: number | null;
+  createdAt: string;
+}
+
+export interface VideoAiChatHistoryResult {
+  success: boolean;
+  videoId: number;
+  frameCount: number;
+  messages: VideoAiChatMessage[];
 }

@@ -230,10 +230,10 @@
             <button type="button" class="active">聊天</button>
           </div>
 
-          <div class="agent-panel">
+          <div class="agent-panel" v-loading="agentHistoryLoading">
             <div class="agent-panel-head">
               <strong>当前会话</strong>
-              <span>{{ agentLastFrameCount > 0 ? `已分析 ${agentLastFrameCount} 帧` : '待提问' }}</span>
+              <span>{{ agentHistoryLoading ? '加载历史中...' : agentLastFrameCount > 0 ? `已分析 ${agentLastFrameCount} 帧` : '待提问' }}</span>
             </div>
             <div ref="agentMessagesRef" class="agent-messages">
               <div
@@ -255,12 +255,12 @@
                   :autosize="{ minRows: 3, maxRows: 6 }"
                   resize="none"
                   placeholder="尽管问，例如：这个视频里的人物在做什么？"
-                  :disabled="agentLoading"
+                  :disabled="agentLoading || agentHistoryLoading"
                   @keydown.enter.exact.prevent="askVideoAgent"
                 />
                 <div class="agent-composer-footer">
                   <span>Enter 发送</span>
-                  <el-button type="primary" :loading="agentLoading" @click="askVideoAgent">发送</el-button>
+                  <el-button type="primary" :loading="agentLoading" :disabled="agentHistoryLoading" @click="askVideoAgent">发送</el-button>
                 </div>
               </div>
             </div>
@@ -300,10 +300,10 @@
     </el-dialog>
 
     <el-dialog v-model="agentLegacyDialogVisible" title="视频智能体" width="520px" :close-on-click-modal="false">
-      <div class="agent-panel">
+      <div class="agent-panel" v-loading="agentHistoryLoading">
         <div class="agent-panel-head">
           <strong>和当前视频对话</strong>
-          <span v-if="agentLastFrameCount > 0">分析帧数：{{ agentLastFrameCount }}</span>
+          <span>{{ agentHistoryLoading ? '加载历史中...' : agentLastFrameCount > 0 ? `分析帧数：${agentLastFrameCount}` : '待提问' }}</span>
         </div>
         <div ref="agentMessagesRef" class="agent-messages">
           <div
@@ -321,10 +321,10 @@
           <el-input
             v-model="agentDraft"
             placeholder="输入你的问题，例如：这个视频里人物在做什么？"
-            :disabled="agentLoading"
+            :disabled="agentLoading || agentHistoryLoading"
             @keydown.enter.exact.prevent="askVideoAgent"
           />
-          <el-button type="primary" :loading="agentLoading" @click="askVideoAgent">发送</el-button>
+          <el-button type="primary" :loading="agentLoading" :disabled="agentHistoryLoading" @click="askVideoAgent">发送</el-button>
         </div>
       </div>
     </el-dialog>
@@ -402,6 +402,7 @@ import {
   fetchDanmakus,
   fetchMyFavoriteFolders,
   fetchRelatedVideos,
+  fetchVideoAiChatHistory,
   fetchVideoDetail,
   followUser,
   likeVideo,
@@ -427,6 +428,7 @@ import type {
   DanmakuItem,
   FavoriteFolderSummary,
   VideoCard,
+  VideoAiChatMessage,
   VideoDetail,
   VideoWatchProgressPayload,
 } from '@/types/api';
@@ -438,6 +440,7 @@ const GROK_MENTION_PATTERN = /@grok\b/i;
 const GROK_REPLY_POLL_INTERVAL_MS = 2000;
 const GROK_REPLY_POLL_MAX_ATTEMPTS = 30;
 const GROK_PENDING_REPLY_TEXT = 'Grok 正在生成回复，请稍候';
+const AGENT_GREETING_TEXT = '你好，我是视频智能体。你可以问我这个视频里发生了什么。';
 const RELATED_DISPLAY_SIZE = 6;
 const RELATED_CANDIDATE_SIZE = 24;
 
@@ -445,6 +448,10 @@ interface AgentMessage {
   id: number;
   role: 'user' | 'assistant';
   content: string;
+  model?: string | null;
+  frameCount?: number | null;
+  createdAt?: string;
+  pending?: boolean;
 }
 
 const route = useRoute();
@@ -501,12 +508,15 @@ const videoReportReason = ref('');
 const agentPanelVisible = ref(false);
 const agentLegacyDialogVisible = ref(false);
 const agentLoading = ref(false);
+const agentHistoryLoading = ref(false);
 const agentDraft = ref('');
 const agentError = ref('');
 const agentLastFrameCount = ref(0);
 const agentMessagesRef = ref<HTMLElement | null>(null);
 const agentMessages = ref<AgentMessage[]>([]);
 let agentMessageSeed = 0;
+let agentHistoryLoadToken = 0;
+let agentHistoryLoadedVideoId: number | null = null;
 let grokReplyPollTimer: ReturnType<typeof setTimeout> | null = null;
 let grokReplyPollToken = 0;
 let grokPendingReplySeed = 0;
@@ -564,6 +574,77 @@ function formatCompactNumber(value?: number | null) {
     return `${(count / 10000).toFixed(count >= 100000 ? 0 : 1)}万`;
   }
   return String(count);
+}
+
+function buildAgentWelcomeMessage(): AgentMessage {
+  return {
+    id: 0,
+    role: 'assistant',
+    content: AGENT_GREETING_TEXT,
+  };
+}
+
+function syncAgentFrameCountFromMessages(messages: AgentMessage[]) {
+  const lastAssistant = [...messages].reverse().find((item) => item.role === 'assistant' && typeof item.frameCount === 'number');
+  agentLastFrameCount.value = lastAssistant?.frameCount ?? 0;
+}
+
+function normalizeAgentMessages(messages: VideoAiChatMessage[]) {
+  if (messages.length === 0) {
+    return [buildAgentWelcomeMessage()];
+  }
+
+  return messages.map((message) => ({
+    id: message.id,
+    role: message.role,
+    content: message.content,
+    model: message.model,
+    frameCount: message.frameCount,
+    createdAt: message.createdAt,
+  }));
+}
+
+async function loadAgentHistory(videoId: number) {
+  const token = ++agentHistoryLoadToken;
+  agentHistoryLoading.value = true;
+  agentError.value = '';
+
+  try {
+    const result = await fetchVideoAiChatHistory(videoId);
+    if (token !== agentHistoryLoadToken || !video.value || video.value.id !== videoId) {
+      return;
+    }
+
+    const normalized = normalizeAgentMessages(result.messages);
+    agentMessages.value = normalized;
+    agentLastFrameCount.value = result.frameCount;
+    agentHistoryLoadedVideoId = videoId;
+    agentMessageSeed = normalized.reduce((max, item) => Math.max(max, item.id), 0);
+    await scrollAgentToBottom();
+  } catch (error) {
+    if (token !== agentHistoryLoadToken) {
+      return;
+    }
+
+    const status = (error as { response?: { status?: number } })?.response?.status;
+    if (status === 401) {
+      agentMessages.value = [buildAgentWelcomeMessage()];
+      agentLastFrameCount.value = 0;
+      agentHistoryLoadedVideoId = null;
+      agentMessageSeed = 0;
+      return;
+    }
+
+    ElMessage.error('加载智能体历史失败');
+    agentMessages.value = [buildAgentWelcomeMessage()];
+    agentLastFrameCount.value = 0;
+    agentHistoryLoadedVideoId = null;
+    agentMessageSeed = 0;
+  } finally {
+    if (token === agentHistoryLoadToken) {
+      agentHistoryLoading.value = false;
+    }
+  }
 }
 
 function onTimeUpdate() {
@@ -1126,6 +1207,29 @@ function appendAgentMessage(role: AgentMessage['role'], content: string) {
       content,
     },
   ];
+  syncAgentFrameCountFromMessages(agentMessages.value);
+}
+
+function replaceAgentPendingUserMessage(pendingId: number, content: string, savedId?: number) {
+  const index = agentMessages.value.findIndex((item) => item.id === pendingId && item.pending);
+  if (index < 0) {
+    return;
+  }
+
+  agentMessages.value.splice(index, 1, {
+    id: savedId ?? pendingId,
+    role: 'user',
+    content,
+  });
+}
+
+function removeAgentPendingUserMessage(id: number) {
+  const index = agentMessages.value.findIndex((item) => item.id === id && item.pending);
+  if (index < 0) {
+    return;
+  }
+
+  agentMessages.value.splice(index, 1);
 }
 
 async function scrollAgentToBottom() {
@@ -1140,12 +1244,14 @@ async function scrollAgentToBottom() {
 function resetAgentState() {
   agentPanelVisible.value = false;
   agentLoading.value = false;
+  agentHistoryLoading.value = false;
   agentDraft.value = '';
   agentError.value = '';
   agentLastFrameCount.value = 0;
   agentMessageSeed = 0;
-  agentMessages.value = [];
-  appendAgentMessage('assistant', '你好，我是视频智能体。你可以问我这个视频里发生了什么。');
+  agentHistoryLoadedVideoId = null;
+  agentHistoryLoadToken += 1;
+  agentMessages.value = [buildAgentWelcomeMessage()];
 }
 
 function resolveApiErrorMessage(error: unknown, fallback: string) {
@@ -1173,7 +1279,13 @@ function resolveApiErrorMessage(error: unknown, fallback: string) {
 }
 
 async function askVideoAgent() {
-  if (!video.value || agentLoading.value) {
+  if (!video.value || agentLoading.value || agentHistoryLoading.value) {
+    return;
+  }
+
+  if (!appStore.isLoggedIn) {
+    ElMessage.warning('请先登录后再使用视频智能体');
+    await router.push('/login');
     return;
   }
 
@@ -1187,7 +1299,16 @@ async function askVideoAgent() {
   agentLoading.value = true;
   agentError.value = '';
   agentDraft.value = '';
-  appendAgentMessage('user', prompt);
+  const pendingUserMessageId = ++agentMessageSeed;
+  agentMessages.value = [
+    ...agentMessages.value,
+    {
+      id: pendingUserMessageId,
+      role: 'user',
+      content: prompt,
+      pending: true,
+    },
+  ];
   await scrollAgentToBottom();
 
   try {
@@ -1198,13 +1319,27 @@ async function askVideoAgent() {
     if (!video.value || video.value.id !== targetVideoId) {
       return;
     }
-    appendAgentMessage('assistant', result.reply);
+    replaceAgentPendingUserMessage(pendingUserMessageId, prompt, result.userMessageId);
+    const assistantMessageId = result.assistantMessageId ?? ++agentMessageSeed;
+    agentMessageSeed = Math.max(agentMessageSeed, result.userMessageId ?? 0, assistantMessageId);
+    agentMessages.value = [
+      ...agentMessages.value,
+      {
+        id: assistantMessageId,
+        role: 'assistant',
+        content: result.reply,
+        model: result.model,
+        frameCount: result.frameCount,
+        createdAt: new Date().toISOString(),
+      },
+    ];
     agentLastFrameCount.value = result.frameCount;
     await scrollAgentToBottom();
   } catch (error) {
     if (!video.value || video.value.id !== targetVideoId) {
       return;
     }
+    removeAgentPendingUserMessage(pendingUserMessageId);
     const message = resolveApiErrorMessage(error, '智能体暂时不可用，请稍后重试');
     agentError.value = message;
     appendAgentMessage('assistant', `出错了：${message}`);
@@ -1502,6 +1637,25 @@ function openVideoReportDialog() {
 
 function openAgentPanel() {
   agentPanelVisible.value = true;
+  const targetVideoId = video.value?.id;
+
+  if (!appStore.isLoggedIn) {
+    agentMessages.value = [buildAgentWelcomeMessage()];
+    agentLastFrameCount.value = 0;
+    agentHistoryLoadedVideoId = null;
+    agentHistoryLoadToken += 1;
+    agentHistoryLoading.value = false;
+    return;
+  }
+
+  if (targetVideoId && agentHistoryLoadedVideoId !== targetVideoId && !agentHistoryLoading.value) {
+    void loadAgentHistory(targetVideoId);
+    return;
+  }
+
+  if (!agentMessages.value.length) {
+    agentMessages.value = [buildAgentWelcomeMessage()];
+  }
 }
 
 async function submitVideoReport() {

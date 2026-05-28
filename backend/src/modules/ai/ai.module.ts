@@ -1,21 +1,24 @@
 import { Module } from '@nestjs/common';
 
+import { AuthModule } from '../auth/auth.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { StorageModule } from '../storage/storage.module';
 import { AiController } from './ai.controller';
 import { AiSummaryService } from './ai-summary.service';
 import { FrameExtractService } from './frame-extract.service';
+import { VideoAiChatRepository } from './video-ai-chat.repository';
 import { VideoAiSummaryRepository } from './video-ai-summary.repository';
 import { VideoAiSummaryService } from './video-ai-summary.service';
 import { AiVideoService } from './video.service';
 
 @Module({
-  imports: [PrismaModule, StorageModule],
+  imports: [AuthModule, PrismaModule, StorageModule],
   controllers: [AiController],
   providers: [
     AiVideoService,
     FrameExtractService,
     AiSummaryService,
+    VideoAiChatRepository,
     VideoAiSummaryRepository,
     VideoAiSummaryService,
   ],

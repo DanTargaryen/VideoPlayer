@@ -15,6 +15,7 @@ import * as path from 'node:path';
 import { MinioService, LOCAL_STORAGE_ROOT } from '../storage/minio.service';
 import { AiSummaryService } from './ai-summary.service';
 import { FrameExtractService } from './frame-extract.service';
+import { VideoAiChatRepository } from './video-ai-chat.repository';
 import { VideoAiSummaryRepository } from './video-ai-summary.repository';
 import { AiVideoService } from './video.service';
 
@@ -27,6 +28,7 @@ export class VideoAiSummaryService {
     private readonly aiVideoService: AiVideoService,
     private readonly frameExtractService: FrameExtractService,
     private readonly aiSummaryService: AiSummaryService,
+    private readonly videoAiChatRepository: VideoAiChatRepository,
     private readonly videoAiSummaryRepository: VideoAiSummaryRepository,
     private readonly minioService: MinioService,
   ) {}
@@ -91,7 +93,7 @@ export class VideoAiSummaryService {
     }
   }
 
-  async chatWithVideo(videoId: number, prompt: string) {
+  async chatWithVideo(videoId: number, prompt: string, userId?: number) {
     try {
       const source = await this.aiVideoService.getVideoSource(videoId);
       const workDir = await mkdtemp(path.join(tmpdir(), 'videoplayer-ai-chat-'));
@@ -103,12 +105,25 @@ export class VideoAiSummaryService {
           workingDir: workDir,
         });
         const chatResult = await this.aiSummaryService.chatWithFrames(framePaths, prompt);
+        const savedExchange = userId
+          ? await this.videoAiChatRepository.saveExchange({
+              userId,
+              videoId,
+              prompt,
+              reply: chatResult.reply,
+              model: chatResult.model,
+              frameCount: framePaths.length,
+            })
+          : null;
 
         return {
           success: true,
           videoId,
           reply: chatResult.reply,
+          model: chatResult.model,
           frameCount: framePaths.length,
+          userMessageId: savedExchange?.userMessage.id,
+          assistantMessageId: savedExchange?.assistantMessage.id,
         };
       } finally {
         await rm(workDir, { recursive: true, force: true });
@@ -130,6 +145,24 @@ export class VideoAiSummaryService {
         `AI chat failed: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
+  }
+
+  async getChatHistory(videoId: number, userId: number) {
+    const session = await this.videoAiChatRepository.findSessionMessages(userId, videoId);
+
+    return {
+      success: true,
+      videoId,
+      frameCount: this.getLatestFrameCount(session?.messages ?? []),
+      messages: (session?.messages ?? []).map((message) => ({
+        id: message.id,
+        role: message.role.toLowerCase() as 'user' | 'assistant',
+        content: message.content,
+        model: message.model,
+        frameCount: message.frameCount,
+        createdAt: message.createdAt,
+      })),
+    };
   }
 
   private async prepareVideoInput(source: Awaited<ReturnType<AiVideoService['getVideoSource']>>, workDir: string) {
@@ -194,5 +227,21 @@ export class VideoAiSummaryService {
     }
 
     return String(error);
+  }
+
+  private getLatestFrameCount(
+    messages: Array<{
+      frameCount: number | null;
+      role: string;
+    }>,
+  ) {
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const message = messages[index];
+      if (message.role === 'ASSISTANT' && typeof message.frameCount === 'number') {
+        return message.frameCount;
+      }
+    }
+
+    return 0;
   }
 }
