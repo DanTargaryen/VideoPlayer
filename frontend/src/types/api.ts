@@ -513,6 +513,17 @@ export interface DynamicFeedItem {
   };
 }
 
+export interface DynamicPostItem {
+  id: string;
+  author: DynamicFeedAuthor;
+  content: string;
+  images: string[];
+  createdAt: string;
+  likeCount: number;
+  commentCount: number;
+  favoriteCount: number;
+}
+
 export interface DynamicFeedResponse {
   list: DynamicFeedItem[];
   page: number;
