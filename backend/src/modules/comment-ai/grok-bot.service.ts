@@ -7,6 +7,7 @@ type BotUser = {
   id: number;
   username: string;
   nickname: string;
+  avatarUrl: string | null;
 };
 
 @Injectable()
@@ -28,6 +29,7 @@ export class GrokBotService implements OnModuleInit {
     const email = this.getBotEmail(username);
     const nickname = this.getBotNickname();
     const password = this.getBotPassword();
+    const avatarUrl = this.getBotAvatarUrl();
 
     const existing = await this.prisma.user.findFirst({
       where: {
@@ -37,6 +39,7 @@ export class GrokBotService implements OnModuleInit {
         id: true,
         username: true,
         nickname: true,
+        avatarUrl: true,
       },
     });
 
@@ -48,12 +51,14 @@ export class GrokBotService implements OnModuleInit {
           email,
           password,
           nickname,
+          avatarUrl,
           role: 'USER',
         },
         select: {
           id: true,
           username: true,
           nickname: true,
+          avatarUrl: true,
         },
       });
 
@@ -67,12 +72,14 @@ export class GrokBotService implements OnModuleInit {
         email,
         password,
         nickname,
+        avatarUrl,
         role: 'USER',
       },
       select: {
         id: true,
         username: true,
         nickname: true,
+        avatarUrl: true,
       },
     });
 
@@ -89,6 +96,7 @@ export class GrokBotService implements OnModuleInit {
           id: true,
           username: true,
           nickname: true,
+          avatarUrl: true,
         },
       });
       if (existing) {
@@ -113,6 +121,10 @@ export class GrokBotService implements OnModuleInit {
 
   private getBotNickname() {
     return this.configService.get<string>('GROK_BOT_NICKNAME') || 'Grok 机器人';
+  }
+
+  private getBotAvatarUrl() {
+    return this.configService.get<string>('GROK_BOT_AVATAR_URL') || '/assets/grok-bot-avatar.svg';
   }
 
   private getBotPassword() {

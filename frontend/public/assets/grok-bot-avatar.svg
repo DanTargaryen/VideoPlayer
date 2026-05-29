@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-label="Grok bot avatar">
+  <rect width="160" height="160" rx="36" fill="#eef5ff"/>
+  <circle cx="80" cy="62" r="42" fill="#2563eb" opacity="0.14"/>
+  <rect x="38" y="50" width="84" height="72" rx="26" fill="#ffffff" stroke="#2563eb" stroke-width="8"/>
+  <path d="M80 28v18" stroke="#2563eb" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="80" cy="24" r="8" fill="#22c55e"/>
+  <circle cx="65" cy="84" r="8" fill="#2563eb"/>
+  <circle cx="95" cy="84" r="8" fill="#2563eb"/>
+  <path d="M66 104c8 7 20 7 28 0" fill="none" stroke="#22c55e" stroke-width="7" stroke-linecap="round"/>
+  <path d="M32 78h-12M140 78h-12" stroke="#2563eb" stroke-width="8" stroke-linecap="round"/>
+  <rect x="48" y="118" width="64" height="18" rx="9" fill="#2563eb"/>
+</svg>
