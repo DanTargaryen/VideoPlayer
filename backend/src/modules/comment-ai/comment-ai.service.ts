@@ -187,18 +187,6 @@ export class CommentAiService {
           },
         });
 
-        await tx.notification.create({
-          data: {
-            recipientId: sourceComment.userId,
-            actorId: botUser.id,
-            type: 'REPLY',
-            title: 'Grok 回复了你的评论',
-            content: `${botUser.nickname}：${reply.content.slice(0, 80)}`,
-            relatedType: 'VIDEO',
-            relatedId: sourceComment.videoId,
-          },
-        });
-
         await tx.commentAiTask.update({
           where: { id: task.id },
           data: {

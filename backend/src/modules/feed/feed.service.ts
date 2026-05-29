@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { VideoService } from '../video/video.service';
 import { LiveService } from '../live/live.service';
+import { DynamicPostsService, type DynamicPostItem } from './dynamic-posts.service';
 
 export type DynamicFeedType = 'all' | 'video' | 'post' | 'live';
 type DynamicFeedSource = 'following' | 'recommended';
@@ -18,6 +19,7 @@ type FeedStats = {
   likes?: number;
   comments?: number;
   favorites?: number;
+  liked?: boolean;
 };
 
 type DynamicFeedItem = {
@@ -69,6 +71,7 @@ export class FeedService {
     private readonly prisma: PrismaService,
     private readonly videoService: VideoService,
     private readonly liveService: LiveService,
+    private readonly dynamicPostsService: DynamicPostsService,
   ) {}
 
   async getDynamicFeed(options: {
@@ -84,18 +87,21 @@ export class FeedService {
     const followingIds = await this.getFollowingIds(options.currentUserId);
     const followingIdSet = new Set(followingIds);
 
-    const [followingVideos, recommendedVideos, liveRooms] = await Promise.all([
+    const [followingVideos, recommendedVideos, liveRooms, dynamicPosts] = await Promise.all([
       this.fetchPublishedVideos({
         creatorIds: followingIds,
         take: requiredCount,
       }),
       this.fetchRecommendedVideos(options.currentUserId, requiredCount * 2, followingIds),
       this.fetchLiveRoomsWithAvatars(requiredCount * 2),
+      this.dynamicPostsService.listPosts(options.currentUserId, requiredCount * 2),
     ]);
 
     const followingItems = [
       ...followingVideos.map((video) => this.videoToFeedItem(video, 'following')),
-      ...this.buildPostItemsFromVideos(followingVideos, 'following'),
+      ...dynamicPosts.list
+        .filter((post) => followingIdSet.has(Number(post.author.id)) || post.author.id === String(options.currentUserId ?? ''))
+        .map((post) => this.dynamicPostToFeedItem(post, 'following')),
       ...this.liveRoomsToFeedItems(liveRooms.filter((room) => followingIdSet.has(Number(room.broadcaster.id))), 'following'),
     ];
 
@@ -109,7 +115,9 @@ export class FeedService {
       const usedIds = new Set(combined.map((item) => item.id));
       const recommendedItems = [
         ...recommendedVideos.map((video, index) => this.videoToFeedItem(video, 'recommended', index, recommendedVideos.length)),
-        ...this.buildPostItemsFromVideos(recommendedVideos.slice(0, pageSize), 'recommended'),
+        ...dynamicPosts.list
+          .filter((post) => !followingIdSet.has(Number(post.author.id)))
+          .map((post) => this.dynamicPostToFeedItem(post, 'recommended')),
         ...this.liveRoomsToFeedItems(
           liveRooms.filter((room) => !followingIdSet.has(Number(room.broadcaster.id))),
           'recommended',
@@ -126,7 +134,10 @@ export class FeedService {
       ].slice(0, requiredCount);
     }
 
-    const pageItems = combined.slice((page - 1) * pageSize, page * pageSize);
+    const pageItems = await this.attachInteractionState(
+      combined.slice((page - 1) * pageSize, page * pageSize),
+      options.currentUserId,
+    );
 
     return {
       list: pageItems.map((item) => this.withoutScore(item)),
@@ -437,6 +448,37 @@ export class FeedService {
     });
   }
 
+  private dynamicPostToFeedItem(
+    post: DynamicPostItem,
+    source: DynamicFeedSource,
+  ): DynamicFeedItem {
+    return {
+      id: post.id,
+      type: 'post',
+      source,
+      author: post.author,
+      actionText: source === 'following' ? '发布了图文动态' : '推荐给你',
+      title: post.content.slice(0, 40) || '图文动态',
+      description: post.content,
+      images: post.images,
+      createdAt: post.createdAt,
+      stats: {
+        likes: post.likeCount,
+        comments: post.commentCount,
+        favorites: post.favoriteCount,
+        liked: post.liked,
+      },
+      score: this.calculateDynamicScore({
+        createdAt: post.createdAt,
+        likes: post.likeCount,
+        comments: post.commentCount,
+        favorites: post.favoriteCount,
+        source,
+        recommendationScore: source === 'following' ? 0.9 : 0.7,
+      }),
+    };
+  }
+
   private liveRoomsToFeedItems(rooms: Awaited<ReturnType<FeedService['fetchLiveRoomsWithAvatars']>>, source: DynamicFeedSource) {
     return rooms.map((room): DynamicFeedItem => {
       const createdAt = room.startedAt ?? room.createdAt ?? new Date().toISOString();
@@ -482,6 +524,53 @@ export class FeedService {
     }
 
     return items.filter((item) => item.type === type);
+  }
+
+  private async attachInteractionState(items: DynamicFeedItem[], currentUserId?: number) {
+    if (!currentUserId) {
+      return items;
+    }
+
+    const videoIds = items
+      .map((item) => (item.type === 'video' ? this.extractNumericId(item.id, 'video-') : null))
+      .filter((id): id is number => typeof id === 'number');
+
+    if (videoIds.length === 0) {
+      return items;
+    }
+
+    const likedVideos = await this.prisma.videoLike.findMany({
+      where: {
+        userId: currentUserId,
+        videoId: { in: videoIds },
+      },
+      select: { videoId: true },
+    });
+    const likedVideoIds = new Set(likedVideos.map((item) => item.videoId));
+
+    return items.map((item) => {
+      if (item.type !== 'video') {
+        return item;
+      }
+
+      const videoId = this.extractNumericId(item.id, 'video-');
+      return {
+        ...item,
+        stats: {
+          ...item.stats,
+          liked: videoId ? likedVideoIds.has(videoId) : false,
+        },
+      };
+    });
+  }
+
+  private extractNumericId(value: string, prefix: string) {
+    if (!value.startsWith(prefix)) {
+      return null;
+    }
+
+    const id = Number(value.slice(prefix.length));
+    return Number.isInteger(id) && id > 0 ? id : null;
   }
 
   private calculateDynamicScore(input: {
