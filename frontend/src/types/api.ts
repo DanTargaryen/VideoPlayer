@@ -143,6 +143,7 @@ export interface CommentReply {
   user: {
     id: number;
     nickname: string;
+    avatarUrl?: string | null;
   };
   replies: CommentReply[];
 }
@@ -488,6 +489,17 @@ export interface DynamicFeedItem {
     roomId?: string;
     viewerCount?: number;
   };
+}
+
+export interface DynamicPostItem {
+  id: string;
+  author: DynamicFeedAuthor;
+  content: string;
+  images: string[];
+  createdAt: string;
+  likeCount: number;
+  commentCount: number;
+  favoriteCount: number;
 }
 
 export interface DynamicFeedResponse {

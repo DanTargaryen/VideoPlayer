@@ -1,7 +1,8 @@
 <template>
   <article class="comment-node" :class="{ 'comment-node-pending': comment.isPendingGrok }">
     <div class="comment-shell">
-      <span class="comment-avatar">{{ userInitial }}</span>
+      <img v-if="comment.user.avatarUrl" :src="comment.user.avatarUrl" :alt="comment.user.nickname" class="comment-avatar" />
+      <span v-else class="comment-avatar">{{ userInitial }}</span>
       <div class="comment-main">
         <strong>{{ comment.user.nickname }}</strong>
         <p>
@@ -144,6 +145,7 @@ function handleSubmitReply() {
   font-size: 14px;
   font-weight: 800;
   box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.1);
+  object-fit: cover;
 }
 
 .comment-main {

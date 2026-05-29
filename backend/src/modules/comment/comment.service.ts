@@ -20,6 +20,7 @@ export class CommentService {
           select: {
             id: true,
             nickname: true,
+            avatarUrl: true,
           },
         },
       },
@@ -44,6 +45,7 @@ export class CommentService {
           select: {
             id: true,
             nickname: true,
+            avatarUrl: true,
           },
         },
       },
@@ -93,6 +95,7 @@ export class CommentService {
           select: {
             id: true,
             nickname: true,
+            avatarUrl: true,
           },
         },
       },
