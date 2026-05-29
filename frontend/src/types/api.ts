@@ -505,6 +505,7 @@ export interface DynamicFeedItem {
     likes?: number;
     comments?: number;
     favorites?: number;
+    liked?: boolean;
   };
   live?: {
     isLive: boolean;
@@ -522,6 +523,30 @@ export interface DynamicPostItem {
   likeCount: number;
   commentCount: number;
   favoriteCount: number;
+  liked: boolean;
+}
+
+export interface DynamicPostCommentItem {
+  id: number;
+  postId: number;
+  content: string;
+  createdAt: string;
+  user: {
+    id: number;
+    nickname: string;
+    avatarUrl?: string | null;
+  };
+}
+
+export interface DynamicPostCommentList {
+  postId: number;
+  items: DynamicPostCommentItem[];
+}
+
+export interface DynamicPostLikeResult {
+  postId: number;
+  liked: boolean;
+  likeCount: number;
 }
 
 export interface DynamicFeedResponse {

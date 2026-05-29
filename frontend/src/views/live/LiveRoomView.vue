@@ -151,9 +151,6 @@
           <ul>
             <li v-for="tip in liveTips" :key="tip">{{ tip }}</li>
           </ul>
-          <RouterLink class="text-link" to="/notifications">
-            查看直播规范 <el-icon><ArrowRight /></el-icon>
-          </RouterLink>
         </section>
       </aside>
     </section>

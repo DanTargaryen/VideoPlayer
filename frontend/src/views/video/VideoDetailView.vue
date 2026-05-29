@@ -109,6 +109,8 @@
           :video="video"
           :remaining-coin-limit="remainingCoinLimit"
           :coining-video="coiningVideo"
+          :has-previous-video="hasPreviousVideo"
+          @previous="goToPreviousVideo"
           @like="toggleLikeAction"
           @favorite="toggleFavoriteAction"
           @coin="handleCoinVideo"
@@ -119,7 +121,7 @@
 
         <VideoIntroCard :video="video" />
 
-        <section class="comments" v-if="video">
+        <section id="comments" class="comments" v-if="video">
           <div class="comments-head">
             <div>
               <h2>评论 <span>{{ formatCompactNumber(video.commentCount) }}</span></h2>
@@ -529,6 +531,13 @@ const VIDEO_STATS_POLL_INTERVAL_MS = 15000;
 const canFollow = computed(
   () => appStore.isLoggedIn && video.value && video.value.creator.id !== appStore.userId,
 );
+const hasPreviousVideo = computed(() => {
+  if (!video.value) {
+    return false;
+  }
+
+  return appStore.getPreviousVideoId(video.value.id) !== null;
+});
 const remainingCoinLimit = computed(() => Math.max(0, (video.value?.myCoinLimit ?? 5) - (video.value?.myCoinCount ?? 0)));
 const creatorInitial = computed(() => video.value?.creator.nickname.trim().charAt(0).toUpperCase() || '观');
 const currentUserInitial = computed(() => appStore.nickname.trim().charAt(0).toUpperCase() || '游');
@@ -864,6 +873,19 @@ async function handleVideoEnded() {
   }
 }
 
+async function goToPreviousVideo() {
+  if (!video.value) {
+    return;
+  }
+
+  const previousVideoId = appStore.takePreviousVideoId(video.value.id);
+  if (!previousVideoId) {
+    return;
+  }
+
+  await router.push(`/video/${previousVideoId}`);
+}
+
 function countCommentTree(items: CommentItem[]): number {
   return items.reduce((total, item) => total + 1 + countCommentTree(item.replies), 0);
 }
@@ -930,6 +952,7 @@ async function loadDetail() {
   try {
     const detail = await fetchVideoDetail(Number(route.params.id));
     video.value = detail;
+    appStore.recordVideoPlayback(detail.id);
     syncInitialDurationFromDetail();
     coinAmount.value = Math.max(1, Math.min(coinAmount.value, remainingCoinLimit.value || 1));
     syncCommentCountFromList();
@@ -1693,12 +1716,6 @@ function toggleDanmakuLike(danmaku: DanmakuItem) {
     likedDanmakuIds.value.delete(danmaku.id);
   } else {
     likedDanmakuIds.value.add(danmaku.id);
-  }
-}
-
-function onDanmakuRowClick(danmaku: DanmakuItem) {
-  if (videoRef.value) {
-    videoRef.value.currentTime = danmaku.timeOffsetMs / 1000;
   }
 }
 

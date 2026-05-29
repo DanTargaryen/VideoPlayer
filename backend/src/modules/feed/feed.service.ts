@@ -19,6 +19,7 @@ type FeedStats = {
   likes?: number;
   comments?: number;
   favorites?: number;
+  liked?: boolean;
 };
 
 type DynamicFeedItem = {
@@ -133,7 +134,10 @@ export class FeedService {
       ].slice(0, requiredCount);
     }
 
-    const pageItems = combined.slice((page - 1) * pageSize, page * pageSize);
+    const pageItems = await this.attachInteractionState(
+      combined.slice((page - 1) * pageSize, page * pageSize),
+      options.currentUserId,
+    );
 
     return {
       list: pageItems.map((item) => this.withoutScore(item)),
@@ -462,6 +466,7 @@ export class FeedService {
         likes: post.likeCount,
         comments: post.commentCount,
         favorites: post.favoriteCount,
+        liked: post.liked,
       },
       score: this.calculateDynamicScore({
         createdAt: post.createdAt,
@@ -519,6 +524,53 @@ export class FeedService {
     }
 
     return items.filter((item) => item.type === type);
+  }
+
+  private async attachInteractionState(items: DynamicFeedItem[], currentUserId?: number) {
+    if (!currentUserId) {
+      return items;
+    }
+
+    const videoIds = items
+      .map((item) => (item.type === 'video' ? this.extractNumericId(item.id, 'video-') : null))
+      .filter((id): id is number => typeof id === 'number');
+
+    if (videoIds.length === 0) {
+      return items;
+    }
+
+    const likedVideos = await this.prisma.videoLike.findMany({
+      where: {
+        userId: currentUserId,
+        videoId: { in: videoIds },
+      },
+      select: { videoId: true },
+    });
+    const likedVideoIds = new Set(likedVideos.map((item) => item.videoId));
+
+    return items.map((item) => {
+      if (item.type !== 'video') {
+        return item;
+      }
+
+      const videoId = this.extractNumericId(item.id, 'video-');
+      return {
+        ...item,
+        stats: {
+          ...item.stats,
+          liked: videoId ? likedVideoIds.has(videoId) : false,
+        },
+      };
+    });
+  }
+
+  private extractNumericId(value: string, prefix: string) {
+    if (!value.startsWith(prefix)) {
+      return null;
+    }
+
+    const id = Number(value.slice(prefix.length));
+    return Number.isInteger(id) && id > 0 ? id : null;
   }
 
   private calculateDynamicScore(input: {

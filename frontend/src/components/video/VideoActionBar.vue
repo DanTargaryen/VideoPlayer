@@ -1,6 +1,16 @@
 <template>
   <div class="video-action-bar">
     <div class="action-pill-group" role="group" aria-label="视频操作">
+      <button
+        class="action-pill"
+        type="button"
+        :disabled="!hasPreviousVideo"
+        aria-label="上一条视频"
+        @click="$emit('previous')"
+      >
+        <el-icon :size="18"><ArrowLeft /></el-icon>
+        <span>上一条</span>
+      </button>
       <button class="action-pill" :class="{ active: video.isLiked }" type="button" @click="$emit('like')">
         <el-icon :size="18"><CaretTop /></el-icon>
         <span>赞</span>
@@ -43,16 +53,18 @@
 </template>
 
 <script setup lang="ts">
-import { CaretTop, ChatDotRound, Coin, Star, Warning } from '@element-plus/icons-vue';
+import { ArrowLeft, CaretTop, ChatDotRound, Coin, Star, Warning } from '@element-plus/icons-vue';
 import type { VideoDetail } from '@/types/api';
 
 defineProps<{
   video: VideoDetail;
   remainingCoinLimit: number;
   coiningVideo: boolean;
+  hasPreviousVideo: boolean;
 }>();
 
 defineEmits<{
+  (e: 'previous'): void;
   (e: 'like'): void;
   (e: 'favorite'): void;
   (e: 'coin'): void;
@@ -161,6 +173,13 @@ function formatCompactNumber(value?: number | null) {
   cursor: not-allowed;
   opacity: 0.48;
   transform: none;
+  box-shadow: none;
+}
+
+.action-pill:disabled:hover {
+  border-color: var(--color-border);
+  color: #334155;
+  box-shadow: none;
 }
 
 .action-pill-icon {
@@ -234,7 +253,7 @@ function formatCompactNumber(value?: number | null) {
 
   .action-pill {
     min-height: 40px;
-    padding: 0 13px;
+    padding: 0 12px;
     font-size: 13px;
   }
 

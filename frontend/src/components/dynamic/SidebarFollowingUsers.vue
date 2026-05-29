@@ -2,10 +2,10 @@
   <section class="sidebar-card">
     <header class="sidebar-head">
       <h2>我关注的 UP 主</h2>
-      <span>管理</span>
+      <span>{{ items.length }} 位</span>
     </header>
-    <div v-if="items.length > 0" class="user-list">
-      <RouterLink v-for="item in items" :key="item.id" :to="`/users/${item.id}`" class="user-item">
+    <div v-if="items.length > 0" class="user-list" :class="{ expanded }">
+      <RouterLink v-for="item in visibleItems" :key="item.id" :to="`/users/${item.id}`" class="user-item">
         <img v-if="item.avatarUrl" :src="item.avatarUrl" :alt="item.nickname" />
         <span v-else class="avatar-fallback">{{ item.nickname.slice(0, 1) }}</span>
         <strong>{{ item.nickname }}</strong>
@@ -13,16 +13,34 @@
       </RouterLink>
     </div>
     <p v-else class="sidebar-empty">还没有关注的 UP 主</p>
-    <RouterLink v-if="items.length > 0" to="/user/dashboard" class="view-all">查看全部</RouterLink>
+    <button v-if="canToggle" type="button" class="view-all" @click="expanded = !expanded">
+      {{ expanded ? '收起' : '查看全部' }}
+    </button>
   </section>
 </template>
 
 <script setup lang="ts">
+import { computed, ref, watch } from 'vue';
 import type { FollowUserItem } from '@/types/api';
 
-defineProps<{
+const props = defineProps<{
   items: FollowUserItem[];
 }>();
+
+const PREVIEW_COUNT = 5;
+const expanded = ref(false);
+
+const canToggle = computed(() => props.items.length > PREVIEW_COUNT);
+const visibleItems = computed(() => (expanded.value ? props.items : props.items.slice(0, PREVIEW_COUNT)));
+
+watch(
+  () => props.items.length,
+  (length) => {
+    if (length <= PREVIEW_COUNT) {
+      expanded.value = false;
+    }
+  },
+);
 </script>
 
 <style scoped>
@@ -62,6 +80,37 @@ defineProps<{
 .user-list {
   display: grid;
   gap: 14px;
+}
+
+.user-list.expanded {
+  max-height: min(360px, 56dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 6px;
+  scrollbar-color: rgba(37, 99, 235, 0.44) rgba(226, 232, 240, 0.72);
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.user-list.expanded::-webkit-scrollbar {
+  width: 8px;
+}
+
+.user-list.expanded::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgba(226, 232, 240, 0.78);
+}
+
+.user-list.expanded::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(100, 116, 139, 0.68);
+  background-clip: content-box;
+}
+
+.user-list.expanded::-webkit-scrollbar-thumb:hover {
+  background: rgba(37, 99, 235, 0.76);
+  background-clip: content-box;
 }
 
 .user-item {
@@ -110,16 +159,29 @@ defineProps<{
 .view-all {
   justify-content: center;
   min-height: 34px;
+  border: 0;
   border-top: 1px solid var(--color-border-soft);
   padding-top: 14px;
+  background: transparent;
   color: var(--color-text-secondary);
+  cursor: pointer;
   font-size: 13px;
   font-weight: 800;
+}
+
+.view-all:hover {
+  color: var(--color-primary);
 }
 
 .sidebar-empty {
   margin: 0;
   color: var(--color-text-secondary);
   font-size: 13px;
+}
+
+@media (max-width: 560px) {
+  .user-list.expanded {
+    max-height: 42dvh;
+  }
 }
 </style>

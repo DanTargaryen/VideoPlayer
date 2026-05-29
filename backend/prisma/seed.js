@@ -33,6 +33,9 @@ async function resetDatabase() {
   await prisma.favorite.deleteMany();
   await prisma.favoriteFolder.deleteMany();
   await prisma.videoLike.deleteMany();
+  await prisma.dynamicPostLike.deleteMany();
+  await prisma.dynamicPostComment.deleteMany();
+  await prisma.dynamicPost.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.directMessage.deleteMany();
   await prisma.followRelation.deleteMany();
