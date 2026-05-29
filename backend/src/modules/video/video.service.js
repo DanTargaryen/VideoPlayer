@@ -208,9 +208,14 @@ var VideoService = function () {
                         case 5:
                             _d.sent();
                             _d.label = 6;
-                        case 6: return [4 /*yield*/, this.mediaService.processVideo(video.id, asset.id, (_c = coverAsset === null || coverAsset === void 0 ? void 0 : coverAsset.id) !== null && _c !== void 0 ? _c : null)];
-                        case 7:
+                        case 6:
+                            _d.label = 7;
+                        case 7: return [4 /*yield*/, this.mediaService.probeVideoDuration(video.id, asset.id)];
+                        case 8:
                             _d.sent();
+                            this.mediaService.processVideo(video.id, asset.id, (_c = coverAsset === null || coverAsset === void 0 ? void 0 : coverAsset.id) !== null && _c !== void 0 ? _c : null).catch(function (err) {
+                                this.logger.error("Media processing failed for video ".concat(video.id, ": ").concat(err.message), err.stack);
+                            }.bind(this));
                             return [2 /*return*/, this.prisma.video.findUnique({ where: { id: video.id } })];
                     }
                 });

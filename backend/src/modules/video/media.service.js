@@ -126,9 +126,60 @@ var MediaService = function () {
                 });
             });
         };
+        MediaService_1.prototype.probeVideoDuration = function (videoId, originalAssetId) {
+            return __awaiter(this, void 0, void 0, function () {
+                var originalAsset, workDir, inputPath, durationSeconds, error_1;
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0: return [4 /*yield*/, this.prisma.videoAsset.findUnique({ where: { id: originalAssetId } })];
+                        case 1:
+                            originalAsset = _a.sent();
+                            if (!originalAsset) {
+                                this.logger.warn("Original asset ".concat(originalAssetId, " not found for duration probe"));
+                                return [2 /*return*/, 0];
+                            }
+                            return [4 /*yield*/, this.checkFfmpegAvailable()];
+                        case 2:
+                            if (!(_a.sent())) {
+                                this.logger.warn("Duration probe skipped for video ".concat(videoId, ": FFmpeg not available"));
+                                return [2 /*return*/, 0];
+                            }
+                            return [4 /*yield*/, (0, promises_1.mkdtemp)(path.join((0, node_os_1.tmpdir)(), 'videoplayer-duration-'))];
+                        case 3:
+                            workDir = _a.sent();
+                            inputPath = path.join(workDir, 'input');
+                            _a.label = 4;
+                        case 4:
+                            _a.trys.push([4, 7, 8, 10]);
+                            return [4 /*yield*/, this.minioService.downloadObjectToFile(originalAsset.objectKey, inputPath)];
+                        case 5:
+                            _a.sent();
+                            return [4 /*yield*/, this.probeDuration(inputPath)];
+                        case 6:
+                            durationSeconds = _a.sent();
+                            if (durationSeconds > 0) {
+                                return [2 /*return*/, this.prisma.video.update({
+                                        where: { id: videoId },
+                                        data: { durationSeconds: durationSeconds },
+                                    }).then(function () { return durationSeconds; })];
+                            }
+                            return [2 /*return*/, 0];
+                        case 7:
+                            error_1 = _a.sent();
+                            this.logger.warn("Duration probe failed for video ".concat(videoId, ": ").concat(String(error_1)));
+                            return [2 /*return*/, 0];
+                        case 8: return [4 /*yield*/, (0, promises_1.rm)(workDir, { recursive: true, force: true })];
+                        case 9:
+                            _a.sent();
+                            return [7 /*endfinally*/];
+                        case 10: return [2 /*return*/];
+                    }
+                });
+            });
+        };
         MediaService_1.prototype.processVideo = function (videoId, originalAssetId, existingCoverAssetId) {
             return __awaiter(this, void 0, void 0, function () {
-                var originalAsset, workDir, inputPath, coverPath, transcodedPath, durationSeconds, videoUpdate, coverObjectKey, uploadedCover, transcodedObjectKey, uploadedTranscoded, error_1;
+                var originalAsset, workDir, inputPath, coverPath, transcodedPath, video, alreadyHasDuration, durationSeconds, videoUpdate, coverObjectKey, uploadedCover, transcodedObjectKey, uploadedTranscoded, error_2;
                 return __generator(this, function (_a) {
                     switch (_a.label) {
                         case 0: return [4 /*yield*/, this.prisma.videoAsset.findUnique({ where: { id: originalAssetId } })];
@@ -152,20 +203,30 @@ var MediaService = function () {
                             transcodedPath = path.join(workDir, 'transcoded.mp4');
                             _a.label = 4;
                         case 4:
-                            _a.trys.push([4, 15, 16, 18]);
+                            _a.trys.push([4, 16, 17, 19]);
                             return [4 /*yield*/, this.minioService.downloadObjectToFile(originalAsset.objectKey, inputPath)];
                         case 5:
                             _a.sent();
-                            return [4 /*yield*/, this.probeDuration(inputPath)];
+                            return [4 /*yield*/, this.prisma.video.findUnique({
+                                    where: { id: videoId },
+                                    select: { durationSeconds: true },
+                                })];
                         case 6:
-                            durationSeconds = _a.sent();
+                            video = _a.sent();
+                            alreadyHasDuration = video && video.durationSeconds != null && video.durationSeconds > 0;
                             videoUpdate = {};
+                            if (!!alreadyHasDuration) return [3 /*break*/, 8];
+                            return [4 /*yield*/, this.probeDuration(inputPath)];
+                        case 7:
+                            durationSeconds = _a.sent();
                             if (durationSeconds > 0) {
                                 videoUpdate.durationSeconds = durationSeconds;
                             }
-                            if (!!existingCoverAssetId) return [3 /*break*/, 10];
+                            _a.label = 8;
+                        case 8:
+                            if (!!existingCoverAssetId) return [3 /*break*/, 12];
                             return [4 /*yield*/, this.generateCover(inputPath, coverPath)];
-                        case 7:
+                        case 9:
                             _a.sent();
                             coverObjectKey = this.buildDerivedObjectKey(originalAsset.objectKey, 'covers', 'jpg');
                             return [4 /*yield*/, this.minioService.uploadFileFromPath({
@@ -174,7 +235,7 @@ var MediaService = function () {
                                     mimeType: 'image/jpeg',
                                     originalName: 'cover.jpg',
                                 })];
-                        case 8:
+                        case 10:
                             uploadedCover = _a.sent();
                             return [4 /*yield*/, this.prisma.videoAsset.create({
                                     data: {
@@ -188,12 +249,12 @@ var MediaService = function () {
                                         url: uploadedCover.url,
                                     },
                                 })];
-                        case 9:
+                        case 11:
                             _a.sent();
                             videoUpdate.coverUrl = uploadedCover.url;
-                            _a.label = 10;
-                        case 10: return [4 /*yield*/, this.transcodeVideo(inputPath, transcodedPath)];
-                        case 11:
+                            _a.label = 12;
+                        case 12: return [4 /*yield*/, this.transcodeVideo(inputPath, transcodedPath)];
+                        case 13:
                             _a.sent();
                             transcodedObjectKey = this.buildDerivedObjectKey(originalAsset.objectKey, 'transcoded', 'mp4');
                             return [4 /*yield*/, this.minioService.uploadFileFromPath({
@@ -202,7 +263,7 @@ var MediaService = function () {
                                     mimeType: 'video/mp4',
                                     originalName: 'transcoded.mp4',
                                 })];
-                        case 12:
+                        case 14:
                             uploadedTranscoded = _a.sent();
                             return [4 /*yield*/, this.prisma.videoAsset.create({
                                     data: {
@@ -216,25 +277,25 @@ var MediaService = function () {
                                         url: uploadedTranscoded.url,
                                     },
                                 })];
-                        case 13:
+                        case 15:
                             _a.sent();
                             videoUpdate.playUrl = uploadedTranscoded.url;
                             return [4 /*yield*/, this.prisma.video.update({
                                     where: { id: videoId },
                                     data: videoUpdate,
                                 })];
-                        case 14:
+                        case 16:
                             _a.sent();
-                            return [3 /*break*/, 18];
-                        case 15:
-                            error_1 = _a.sent();
-                            this.logger.warn("Media processing skipped for video ".concat(videoId, ": ").concat(String(error_1)));
-                            return [3 /*break*/, 18];
-                        case 16: return [4 /*yield*/, (0, promises_1.rm)(workDir, { recursive: true, force: true })];
+                            return [3 /*break*/, 19];
                         case 17:
+                            error_2 = _a.sent();
+                            this.logger.warn("Media processing skipped for video ".concat(videoId, ": ").concat(String(error_2)));
+                            return [3 /*break*/, 19];
+                        case 18: return [4 /*yield*/, (0, promises_1.rm)(workDir, { recursive: true, force: true })];
+                        case 19:
                             _a.sent();
                             return [7 /*endfinally*/];
-                        case 18: return [2 /*return*/];
+                        case 20: return [2 /*return*/];
                     }
                 });
             });
