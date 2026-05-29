@@ -440,6 +440,8 @@ const GROK_MENTION_PATTERN = /@grok\b/i;
 const GROK_REPLY_POLL_INTERVAL_MS = 2000;
 const GROK_REPLY_POLL_MAX_ATTEMPTS = 30;
 const GROK_PENDING_REPLY_TEXT = 'Grok 正在生成回复，请稍候';
+const GROK_BOT_NICKNAME = 'Grok 机器人';
+const GROK_BOT_AVATAR_URL = '/assets/grok-bot-avatar.svg';
 const AGENT_GREETING_TEXT = '你好，我是视频智能体。你可以问我这个视频里发生了什么。';
 const RELATED_DISPLAY_SIZE = 6;
 const RELATED_CANDIDATE_SIZE = 24;
@@ -1027,7 +1029,8 @@ function createPendingGrokReply(input: { id: number; videoId: number; parentId: 
     isPendingGrok: true,
     user: {
       id: 0,
-      nickname: 'Grok',
+      nickname: GROK_BOT_NICKNAME,
+      avatarUrl: GROK_BOT_AVATAR_URL,
     },
     replies: [],
   };
