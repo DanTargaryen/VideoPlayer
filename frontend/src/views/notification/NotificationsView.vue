@@ -240,6 +240,7 @@ async function loadRecommendFallback(targetPage: number) {
         likes: video.likeCount ?? 0,
         comments: video.commentCount ?? 0,
         favorites: video.favoriteCount ?? 0,
+        liked: false,
       },
     };
   });
@@ -285,7 +286,7 @@ async function loadFollowingUsers() {
   }
 
   try {
-    followingUsers.value = (await fetchFollowing(store.userId)).slice(0, 5);
+    followingUsers.value = await fetchFollowing(store.userId);
   } catch {
     followingUsers.value = [];
   }

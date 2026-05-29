@@ -3,6 +3,9 @@ import type {
   ApiResponse,
   DynamicFeedResponse,
   DynamicPostItem,
+  DynamicPostCommentItem,
+  DynamicPostCommentList,
+  DynamicPostLikeResult,
   DynamicFeedType,
   SidebarLiveItem,
   SidebarRecentUpdateItem,
@@ -41,6 +44,28 @@ export async function getRecommendedUsers() {
 
 export async function createDynamicPost(payload: { content: string; images?: string[] }) {
   const { data } = await http.post<ApiResponse<DynamicPostItem>>('/feed/posts', payload);
+  return data.data;
+}
+
+export async function likeDynamicPost(postId: number) {
+  const { data } = await http.post<ApiResponse<DynamicPostLikeResult>>(`/feed/posts/${postId}/like`);
+  return data.data;
+}
+
+export async function unlikeDynamicPost(postId: number) {
+  const { data } = await http.delete<ApiResponse<DynamicPostLikeResult>>(`/feed/posts/${postId}/like`);
+  return data.data;
+}
+
+export async function fetchDynamicPostComments(postId: number) {
+  const { data } = await http.get<ApiResponse<DynamicPostCommentList>>(`/feed/posts/${postId}/comments`);
+  return data.data;
+}
+
+export async function createDynamicPostComment(postId: number, content: string) {
+  const { data } = await http.post<ApiResponse<DynamicPostCommentItem>>(`/feed/posts/${postId}/comments`, {
+    content,
+  });
   return data.data;
 }
 

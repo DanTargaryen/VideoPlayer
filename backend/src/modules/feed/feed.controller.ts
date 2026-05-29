@@ -1,4 +1,17 @@
-import { BadRequestException, Body, Controller, Get, Headers, Post, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  Param,
+  ParseIntPipe,
+  Post,
+  Query,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { IsArray, IsOptional, IsString, MaxLength } from 'class-validator';
 import type { Express } from 'express';
@@ -16,6 +29,12 @@ class CreateDynamicPostDto {
   @IsOptional()
   @IsArray()
   images?: string[];
+}
+
+class CreateDynamicPostCommentDto {
+  @IsString()
+  @MaxLength(1000)
+  content!: string;
 }
 
 @Controller('feed')
@@ -90,6 +109,39 @@ export class FeedController {
       throw new BadRequestException('Content or images are required');
     }
     return ok(await this.dynamicPostsService.createPost({ authorId: user.id, content, images }));
+  }
+
+  @Post('posts/:postId/like')
+  async likePost(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('postId', ParseIntPipe) postId: number,
+  ) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.dynamicPostsService.likePost(postId, user));
+  }
+
+  @Delete('posts/:postId/like')
+  async unlikePost(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('postId', ParseIntPipe) postId: number,
+  ) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.dynamicPostsService.unlikePost(postId, user));
+  }
+
+  @Get('posts/:postId/comments')
+  async listComments(@Param('postId', ParseIntPipe) postId: number) {
+    return ok(await this.dynamicPostsService.listComments(postId));
+  }
+
+  @Post('posts/:postId/comments')
+  async createComment(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('postId', ParseIntPipe) postId: number,
+    @Body() dto: CreateDynamicPostCommentDto,
+  ) {
+    const user = await this.authService.requireUser(authorization);
+    return ok(await this.dynamicPostsService.createComment(postId, user, dto.content ?? ''));
   }
 
   @Post('posts/upload')
