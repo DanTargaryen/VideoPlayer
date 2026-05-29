@@ -101,6 +101,9 @@ model User {
   createdVideos         Video[]          @relation("CreatedVideos")
   reviewedReviews       VideoReview[]    @relation("ReviewedReviews")
   comments              Comment[]
+  dynamicPosts          DynamicPost[]
+  dynamicPostLikes      DynamicPostLike[]
+  dynamicPostComments   DynamicPostComment[]
   followingRelations    FollowRelation[] @relation("FollowingUsers")
   followerRelations     FollowRelation[] @relation("FollowerUsers")
   receivedNotifications Notification[]   @relation("NotificationRecipients")
@@ -348,6 +351,52 @@ model Comment {
   aiTaskReply CommentAiTask? @relation("CommentAiTaskReply")
 
   @@index([videoId, parentId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model DynamicPost {
+  id            Int        @id @default(autoincrement())
+  authorId      Int
+  author        User       @relation(fields: [authorId], references: [id])
+  content       String     @db.VarChar(1000)
+  imageUrls     Json?
+  status        TextStatus @default(NORMAL)
+  likeCount     Int        @default(0)
+  commentCount  Int        @default(0)
+  favoriteCount Int        @default(0)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  likes         DynamicPostLike[]
+  comments      DynamicPostComment[]
+
+  @@index([authorId, createdAt])
+  @@index([status, createdAt])
+}
+
+model DynamicPostLike {
+  id        Int         @id @default(autoincrement())
+  postId    Int
+  post      DynamicPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now())
+
+  @@unique([postId, userId])
+  @@index([userId, createdAt])
+}
+
+model DynamicPostComment {
+  id        Int         @id @default(autoincrement())
+  postId    Int
+  post      DynamicPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String      @db.VarChar(1000)
+  status    TextStatus  @default(NORMAL)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([postId, createdAt])
   @@index([userId, createdAt])
 }
 

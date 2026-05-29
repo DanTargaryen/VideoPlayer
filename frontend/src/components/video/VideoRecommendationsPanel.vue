@@ -98,8 +98,11 @@ function formatRelativeTime(value?: string | null) {
 <style scoped>
 .recommend-panel {
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 16px;
+  max-height: min(640px, calc(100dvh - 112px));
   padding: 20px;
+  overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: 20px;
   background: var(--color-bg-card);
@@ -159,6 +162,34 @@ function formatRelativeTime(value?: string | null) {
 .recommend-list {
   display: grid;
   gap: 2px;
+  min-height: 0;
+  overflow-y: scroll;
+  overscroll-behavior: contain;
+  padding-right: 6px;
+  scrollbar-color: rgba(37, 99, 235, 0.46) rgba(226, 232, 240, 0.74);
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.recommend-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.recommend-list::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgba(226, 232, 240, 0.82);
+}
+
+.recommend-list::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(100, 116, 139, 0.72);
+  background-clip: content-box;
+}
+
+.recommend-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(37, 99, 235, 0.78);
+  background-clip: content-box;
 }
 
 .recommend-item {
@@ -250,6 +281,7 @@ function formatRelativeTime(value?: string | null) {
 
 @media (max-width: 520px) {
   .recommend-panel {
+    max-height: 62dvh;
     padding: 16px;
   }
 

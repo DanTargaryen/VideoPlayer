@@ -65,7 +65,7 @@ import {
 } from '@element-plus/icons-vue';
 
 import SearchSuggestBox from '@/components/SearchSuggestBox.vue';
-import { fetchCurrentUser, fetchUnreadDirectMessageCount, fetchUnreadNotificationCount } from '@/api/platform';
+import { fetchCurrentUser, fetchUnreadDirectMessageCount } from '@/api/platform';
 import { useAppStore } from '@/stores/app';
 
 interface HeaderNavItem {
@@ -86,9 +86,9 @@ const headerNavItems: HeaderNavItem[] = [
 const store = useAppStore();
 const router = useRouter();
 const route = useRoute();
-const { siteName, avatarUrl, isLoggedIn, isAdmin, token, unreadNotificationCount, unreadDirectMessageCount } = storeToRefs(store);
+const { siteName, avatarUrl, isLoggedIn, isAdmin, token, unreadDirectMessageCount } = storeToRefs(store);
 const searchKeyword = ref(String(route.query.keyword ?? ''));
-const messageBadgeCount = computed(() => unreadNotificationCount.value + unreadDirectMessageCount.value);
+const messageBadgeCount = computed(() => unreadDirectMessageCount.value);
 let headerSyncTimer: number | null = null;
 
 function isNavActive(item: HeaderNavItem) {
@@ -126,11 +126,8 @@ async function syncUnreadCount() {
   }
 
   try {
-    const [notificationResult, directMessageResult] = await Promise.all([
-      fetchUnreadNotificationCount(),
-      fetchUnreadDirectMessageCount(),
-    ]);
-    store.setUnreadNotificationCount(notificationResult.unreadCount);
+    const directMessageResult = await fetchUnreadDirectMessageCount();
+    store.setUnreadNotificationCount(0);
     store.setUnreadDirectMessageCount(directMessageResult.unreadCount);
   } catch {
     store.setUnreadNotificationCount(0);
