@@ -11,13 +11,45 @@
       </el-button>
     </header>
 
-    <p v-if="!store.isLoggedIn" class="notice-bar">登录后可查看你关注的创作者动态，当前为你展示平台最新推荐内容。</p>
+    <p v-if="!store.isLoggedIn" class="notice-bar">
+      登录后可查看你关注的创作者动态，当前为你展示平台最新推荐内容。
+    </p>
     <p v-else-if="feedMeta.followingCount === 0 && !loading" class="notice-bar">
       你还没有关注任何创作者，下面是为你推荐的最新内容。
     </p>
 
     <div class="dynamic-layout">
       <main class="feed-column">
+        <section v-if="store.isLoggedIn" class="post-composer">
+          <div class="composer-head">
+            <img v-if="store.avatarUrl" :src="store.avatarUrl" :alt="store.nickname" class="composer-avatar" />
+            <span v-else class="composer-avatar fallback">{{ store.nickname.slice(0, 1) }}</span>
+            <div>
+              <strong>发布图文动态</strong>
+              <p>分享你的近况、观点或截图。</p>
+            </div>
+          </div>
+          <el-input
+            v-model="postForm.content"
+            type="textarea"
+            :rows="4"
+            maxlength="1000"
+            resize="none"
+            placeholder="这一刻想和关注你的人分享什么？"
+          />
+          <div v-if="postForm.images.length > 0" class="composer-images">
+            <div v-for="(image, index) in postForm.images" :key="`${image}-${index}`" class="composer-image">
+              <img :src="image" :alt="`动态图片 ${index + 1}`" />
+              <button type="button" class="composer-image-remove" @click="removePostImage(index)">移除</button>
+            </div>
+          </div>
+          <div class="composer-actions">
+            <input ref="postImageInputRef" type="file" accept="image/*" hidden @change="handlePostImageChange" />
+            <el-button plain :loading="uploadingPostImage" @click="postImageInputRef?.click()">上传图片</el-button>
+            <el-button type="primary" :loading="publishingPost" @click="submitDynamicPost">发布动态</el-button>
+          </div>
+        </section>
+
         <FeedTabs v-model="activeType" />
 
         <div v-if="loading && feedItems.length === 0" class="skeleton-list" aria-label="动态加载中">
@@ -75,11 +107,13 @@ import { ElMessage } from 'element-plus';
 import { RefreshRight } from '@element-plus/icons-vue';
 
 import {
+  createDynamicPost,
   followUser,
   getDynamicFeed,
   getRecentUpdates,
   getRecommendedUsers,
   getSidebarLive,
+  uploadDynamicPostImage,
 } from '@/api/feed';
 import { fetchFollowing, fetchRecommendFeed } from '@/api/platform';
 import DynamicFeedCard from '@/components/dynamic/DynamicFeedCard.vue';
@@ -118,6 +152,13 @@ const loadingMore = ref(false);
 const errorMessage = ref('');
 const followingUserId = ref<string>();
 const loadMoreSentinel = ref<HTMLElement>();
+const postImageInputRef = ref<HTMLInputElement | null>(null);
+const uploadingPostImage = ref(false);
+const publishingPost = ref(false);
+const postForm = reactive({
+  content: '',
+  images: [] as string[],
+});
 let observer: IntersectionObserver | null = null;
 
 async function loadFeed(reset = false) {
@@ -140,8 +181,7 @@ async function loadFeed(reset = false) {
       page: page.value,
       pageSize,
     });
-    const nextItems = reset ? result.list : mergeItems(feedItems.value, result.list);
-    feedItems.value = nextItems;
+    feedItems.value = reset ? result.list : mergeItems(feedItems.value, result.list);
     hasMore.value = result.hasMore;
     feedMeta.followingCount = result.meta.followingCount;
     feedMeta.followingItemCount = result.meta.followingItemCount;
@@ -283,6 +323,58 @@ async function handleRecommendedFollow(user: SidebarRecommendedUser) {
   }
 }
 
+async function handlePostImageChange(event: Event) {
+  const target = event.target as HTMLInputElement | null;
+  const file = target?.files?.[0];
+  if (!file) {
+    return;
+  }
+
+  uploadingPostImage.value = true;
+  try {
+    const uploaded = await uploadDynamicPostImage(file);
+    postForm.images.push(uploaded.url);
+  } catch {
+    ElMessage.error('图片上传失败，请稍后重试');
+  } finally {
+    uploadingPostImage.value = false;
+    if (target) {
+      target.value = '';
+    }
+  }
+}
+
+function removePostImage(index: number) {
+  postForm.images.splice(index, 1);
+}
+
+async function submitDynamicPost() {
+  const content = postForm.content.trim();
+  if (!content && postForm.images.length === 0) {
+    ElMessage.warning('请输入动态内容或上传图片');
+    return;
+  }
+
+  publishingPost.value = true;
+  try {
+    await createDynamicPost({
+      content,
+      images: postForm.images,
+    });
+    postForm.content = '';
+    postForm.images = [];
+    ElMessage.success('动态已发布');
+    activeType.value = 'post';
+    await Promise.all([loadFeed(true), loadRecentUpdates()]);
+    await nextTick();
+    setupObserver();
+  } catch {
+    ElMessage.error('动态发布失败，请稍后重试');
+  } finally {
+    publishingPost.value = false;
+  }
+}
+
 function mergeItems(current: DynamicFeedItem[], incoming: DynamicFeedItem[]) {
   const existingIds = new Set(current.map((item) => item.id));
   return [...current, ...incoming.filter((item) => !existingIds.has(item.id))];
@@ -383,6 +475,95 @@ onUnmounted(() => {
   display: grid;
   gap: 18px;
   min-width: 0;
+}
+
+.post-composer {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: var(--color-bg-card);
+  box-shadow: var(--gl-shadow-card);
+}
+
+.composer-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.composer-head strong {
+  display: block;
+  color: var(--color-text-main);
+  font-size: 15px;
+}
+
+.composer-head p {
+  margin: 4px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.composer-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.composer-avatar.fallback {
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #dbeafe, #f1f5f9);
+  color: var(--color-primary);
+  font-weight: 900;
+}
+
+.post-composer :deep(.el-textarea__inner) {
+  min-height: 120px;
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+
+.composer-images {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.composer-image {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  aspect-ratio: 4 / 3;
+  background: var(--color-bg-muted);
+}
+
+.composer-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.composer-image-remove {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #fff;
+  cursor: pointer;
+}
+
+.composer-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .feed-list,
@@ -502,6 +683,10 @@ onUnmounted(() => {
   .dynamic-hero {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .composer-images {
+    grid-template-columns: 1fr;
   }
 
   .dynamic-hero :deep(.el-button) {

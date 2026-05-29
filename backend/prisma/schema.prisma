@@ -95,6 +95,7 @@ model User {
   createdVideos         Video[]          @relation("CreatedVideos")
   reviewedReviews       VideoReview[]    @relation("ReviewedReviews")
   comments              Comment[]
+  dynamicPosts          DynamicPost[]
   followingRelations    FollowRelation[] @relation("FollowingUsers")
   followerRelations     FollowRelation[] @relation("FollowerUsers")
   receivedNotifications Notification[]   @relation("NotificationRecipients")
@@ -301,6 +302,23 @@ model Comment {
 
   @@index([videoId, parentId, createdAt])
   @@index([userId, createdAt])
+}
+
+model DynamicPost {
+  id            Int        @id @default(autoincrement())
+  authorId      Int
+  author        User       @relation(fields: [authorId], references: [id])
+  content       String     @db.VarChar(1000)
+  imageUrls     Json?
+  status        TextStatus @default(NORMAL)
+  likeCount     Int        @default(0)
+  commentCount  Int        @default(0)
+  favoriteCount Int        @default(0)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([authorId, createdAt])
+  @@index([status, createdAt])
 }
 
 model CommentAiTask {

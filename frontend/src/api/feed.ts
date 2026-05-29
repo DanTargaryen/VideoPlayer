@@ -2,6 +2,7 @@ import http from './http';
 import type {
   ApiResponse,
   DynamicFeedResponse,
+  DynamicPostItem,
   DynamicFeedType,
   SidebarLiveItem,
   SidebarRecentUpdateItem,
@@ -35,6 +36,20 @@ export async function getRecommendedUsers() {
   const { data } = await http.get<ApiResponse<{ list: SidebarRecommendedUser[] }>>(
     '/feed/sidebar/recommended-users',
   );
+  return data.data;
+}
+
+export async function createDynamicPost(payload: { content: string; images?: string[] }) {
+  const { data } = await http.post<ApiResponse<DynamicPostItem>>('/feed/posts', payload);
+  return data.data;
+}
+
+export async function uploadDynamicPostImage(file: File) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const { data } = await http.post<ApiResponse<{ url: string }>>('/feed/posts/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
   return data.data;
 }
 
