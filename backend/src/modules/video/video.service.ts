@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { Express } from 'express';
 
 import {
@@ -62,6 +62,8 @@ const CATEGORY_SEARCH_META = new Map<string, { code: string; label: string }>(
 
 @Injectable()
 export class VideoService {
+  private readonly logger = new Logger(VideoService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly followService: FollowService,
@@ -167,7 +169,11 @@ export class VideoService {
       });
     }
 
-    await this.mediaService.processVideo(video.id, asset.id, coverAsset?.id ?? null);
+    await this.mediaService.probeVideoDuration(video.id, asset.id);
+
+    this.mediaService.processVideo(video.id, asset.id, coverAsset?.id ?? null).catch((err) =>
+      this.logger.error(`Media processing failed for video ${video.id}: ${err.message}`, err.stack),
+    );
 
     return this.findVideoWithCategories(video.id);
   }

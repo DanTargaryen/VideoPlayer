@@ -529,9 +529,9 @@
           <el-form-item label="私信权限">
             <div class="form-row privacy-row">
               <el-radio-group v-model="messagePrivacyDraft">
-                <el-radio-button label="ALLOW_ALL">允许所有人</el-radio-button>
-                <el-radio-button label="FOLLOWING_ONLY">仅我关注的人</el-radio-button>
-                <el-radio-button label="DISABLED">禁止私信</el-radio-button>
+                <el-radio-button value="ALLOW_ALL">允许所有人</el-radio-button>
+                <el-radio-button value="FOLLOWING_ONLY">仅我关注的人</el-radio-button>
+                <el-radio-button value="DISABLED">禁止私信</el-radio-button>
               </el-radio-group>
               <el-button type="primary" @click="saveMessagePrivacy">保存</el-button>
             </div>

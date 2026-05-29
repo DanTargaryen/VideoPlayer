@@ -278,7 +278,7 @@
             class="favorite-dialog-item"
             :class="{ active: selectedFavoriteFolderId === folder.id }"
           >
-            <el-radio v-model="selectedFavoriteFolderId" :label="folder.id">
+            <el-radio v-model="selectedFavoriteFolderId" :value="folder.id">
               {{ folder.name }}
             </el-radio>
             <span class="favorite-dialog-count">{{ folder.videoCount }} 个视频</span>
