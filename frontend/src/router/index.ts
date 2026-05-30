@@ -38,14 +38,14 @@ const routes: RouteRecordRaw[] = [
       { path: 'travel', name: 'category-travel', component: CategoryView, props: { category: 'travel' } },
       { path: 'video/:id', name: 'video-detail', component: VideoDetailView },
       { path: 'live/:id?', alias: 'live', name: 'live-room', component: LiveRoomView },
-      { path: 'user/dashboard', alias: 'creator/dashboard', name: 'user-dashboard', component: CreatorDashboardView },
-      { path: 'admin/dashboard', name: 'admin-dashboard', component: AdminDashboardView, meta: { adminOnly: true } },
+      { path: 'user/dashboard', alias: 'creator/dashboard', name: 'user-dashboard', component: CreatorDashboardView, meta: { requireAuth: true } },
+      { path: 'admin/dashboard', name: 'admin-dashboard', component: AdminDashboardView, meta: { adminOnly: true, requireAuth: true } },
       { path: 'login', name: 'login', component: LoginView },
       { path: 'register', name: 'register', component: RegisterView },
-      { path: 'notifications', name: 'notifications', component: NotificationsView },
-      { path: 'messages', name: 'messages', component: MessagesView },
+      { path: 'notifications', name: 'notifications', component: NotificationsView, meta: { requireAuth: true } },
+      { path: 'messages', name: 'messages', component: MessagesView, meta: { requireAuth: true } },
       { path: 'following', redirect: '/notifications' },
-      { path: 'upload', name: 'upload', component: UploadView },
+      { path: 'upload', name: 'upload', component: UploadView, meta: { requireAuth: true } },
       { path: 'users/:id', name: 'user-homepage', component: UserHomepageView },
     ],
   },
@@ -58,6 +58,10 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const store = useAppStore(pinia);
+
+  if (to.meta.requireAuth && !store.isLoggedIn) {
+    return { path: '/login', query: { redirect: to.fullPath } };
+  }
 
   if (to.meta.adminOnly && store.role !== 'admin') {
     return '/login';
