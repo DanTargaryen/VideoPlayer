@@ -75,6 +75,43 @@ export class MediaService {
     return null;
   }
 
+  async probeVideoDuration(videoId: number, originalAssetId: number): Promise<number> {
+    const originalAsset = await this.prisma.videoAsset.findUnique({ where: { id: originalAssetId } });
+
+    if (!originalAsset) {
+      this.logger.warn(`Original asset ${originalAssetId} not found for duration probe`);
+      return 0;
+    }
+
+    if (!(await this.checkFfmpegAvailable())) {
+      this.logger.warn(`Duration probe skipped for video ${videoId}: FFmpeg not available`);
+      return 0;
+    }
+
+    const workDir = await mkdtemp(path.join(tmpdir(), 'videoplayer-duration-'));
+    const inputPath = path.join(workDir, 'input');
+
+    try {
+      await this.minioService.downloadObjectToFile(originalAsset.objectKey, inputPath);
+      const durationSeconds = await this.probeDuration(inputPath);
+
+      if (durationSeconds > 0) {
+        await this.prisma.video.update({
+          where: { id: videoId },
+          data: { durationSeconds },
+        });
+      }
+
+      return durationSeconds;
+    } catch (error) {
+      const message = error instanceof Error ? (error.stack ?? error.message) : String(error);
+      this.logger.warn(`Duration probe failed for video ${videoId}: ${message}`);
+      return 0;
+    } finally {
+      await rm(workDir, { recursive: true, force: true });
+    }
+  }
+
   async processVideo(videoId: number, originalAssetId: number, existingCoverAssetId?: number | null) {
     const originalAsset = await this.prisma.videoAsset.findUnique({ where: { id: originalAssetId } });
 
@@ -96,10 +133,18 @@ export class MediaService {
     try {
       await this.minioService.downloadObjectToFile(originalAsset.objectKey, inputPath);
 
-      const durationSeconds = await this.probeDuration(inputPath);
+      const video = await this.prisma.video.findUnique({
+        where: { id: videoId },
+        select: { durationSeconds: true },
+      });
+      const alreadyHasDuration = video && video.durationSeconds != null && video.durationSeconds > 0;
       const videoUpdate: { durationSeconds?: number; playUrl?: string; coverUrl?: string } = {};
-      if (durationSeconds > 0) {
-        videoUpdate.durationSeconds = durationSeconds;
+
+      if (!alreadyHasDuration) {
+        const durationSeconds = await this.probeDuration(inputPath);
+        if (durationSeconds > 0) {
+          videoUpdate.durationSeconds = durationSeconds;
+        }
       }
 
       if (!existingCoverAssetId) {

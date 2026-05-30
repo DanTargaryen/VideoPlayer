@@ -115,7 +115,7 @@
       </section>
 
       <div class="insight-row">
-        <section class="panel play-trend-panel">
+        <section class="panel play-trend-panel" :class="{ 'trend-follower': trendMode === 'follower' }">
           <div class="panel-head play-trend-head">
             <div class="play-trend-heading">
               <h2>
@@ -160,7 +160,7 @@
             <svg
               class="play-trend-svg"
               :viewBox="`0 0 ${playTrendChartWidth} ${playTrendChartHeight}`"
-              preserveAspectRatio="none"
+              preserveAspectRatio="xMidYMid meet"
               role="img"
               :aria-label="activeTrendTitle"
             >
@@ -529,9 +529,9 @@
           <el-form-item label="私信权限">
             <div class="form-row privacy-row">
               <el-radio-group v-model="messagePrivacyDraft">
-                <el-radio-button label="ALLOW_ALL">允许所有人</el-radio-button>
-                <el-radio-button label="FOLLOWING_ONLY">仅我关注的人</el-radio-button>
-                <el-radio-button label="DISABLED">禁止私信</el-radio-button>
+                <el-radio-button value="ALLOW_ALL">允许所有人</el-radio-button>
+                <el-radio-button value="FOLLOWING_ONLY">仅我关注的人</el-radio-button>
+                <el-radio-button value="DISABLED">禁止私信</el-radio-button>
               </el-radio-group>
               <el-button type="primary" @click="saveMessagePrivacy">保存</el-button>
             </div>
@@ -906,23 +906,33 @@ const filteredFavoriteVideos = computed(() => filterVideosByKeyword(favoriteVide
 const filteredLikedVideos = computed(() => filterVideosByKeyword(likedVideos.value, likesSearchKeyword.value));
 const filteredHistoryVideos = computed(() => filterVideosByKeyword(historyVideos.value, historySearchKeyword.value));
 const playTrendMax = computed(() => activeTrendSeries.value.reduce((max, item) => Math.max(max, item.value), 0));
-const playTrendScaleMax = computed(() => {
+const playTrendTickStep = computed(() => {
   const max = playTrendMax.value;
 
   if (max <= 0) return 1;
-  if (max <= 5) return 5;
 
-  const magnitude = 10 ** Math.floor(Math.log10(max));
-  return Math.ceil(max / magnitude) * magnitude;
+  const roughStep = max / 4;
+  const magnitude = 10 ** Math.floor(Math.log10(roughStep));
+  const normalized = roughStep / magnitude;
+
+  let niceBase: number;
+  if (normalized <= 1) niceBase = 1;
+  else if (normalized <= 2) niceBase = 2;
+  else if (normalized <= 5) niceBase = 5;
+  else niceBase = 10;
+
+  return Math.max(1, niceBase * magnitude);
 });
+const playTrendScaleMax = computed(() => playTrendTickStep.value * 4);
 const playTrendYAxisTicks = computed(() => {
+  const step = playTrendTickStep.value;
   const divisions = 4;
 
   return Array.from({ length: divisions + 1 }, (_, index) => {
     const ratio = index / divisions;
     return {
       y: playTrendPaddingTop + playTrendPlotHeight * ratio,
-      value: Math.round(playTrendScaleMax.value * (1 - ratio)),
+      value: step * (divisions - index),
     };
   });
 });
@@ -2685,13 +2695,25 @@ async function handleDeleteAccount() {
   gap: 12px;
 }
 
+.play-trend-panel {
+  --trend-color: #2563eb;
+  --trend-color-light: rgba(37, 99, 235, 0.12);
+  --trend-switch-bg: #eff6ff;
+}
+
+.play-trend-panel.trend-follower {
+  --trend-color: #7c3aed;
+  --trend-color-light: rgba(124, 58, 237, 0.12);
+  --trend-switch-bg: #f5f3ff;
+}
+
 .play-trend-switch {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 4px;
   border-radius: 999px;
-  background: #eff6ff;
+  background: var(--trend-switch-bg);
 }
 
 .play-trend-switch-btn {
@@ -2707,7 +2729,7 @@ async function handleDeleteAccount() {
 }
 
 .play-trend-switch-btn.active {
-  background: #2563eb;
+  background: var(--trend-color);
   color: #ffffff;
 }
 
@@ -2731,12 +2753,12 @@ async function handleDeleteAccount() {
 
 .play-trend-chart {
   width: 100%;
-  min-height: 220px;
 }
 
 .play-trend-svg {
+  display: block;
   width: 100%;
-  height: 220px;
+  aspect-ratio: 640 / 240;
   overflow: visible;
 }
 
@@ -2752,12 +2774,12 @@ async function handleDeleteAccount() {
 }
 
 .play-trend-area {
-  fill: rgba(37, 99, 235, 0.12);
+  fill: var(--trend-color-light);
 }
 
 .play-trend-line {
   fill: none;
-  stroke: #2563eb;
+  stroke: var(--trend-color);
   stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -2765,7 +2787,7 @@ async function handleDeleteAccount() {
 
 .play-trend-point {
   fill: #ffffff;
-  stroke: #2563eb;
+  stroke: var(--trend-color);
   stroke-width: 3;
 }
 

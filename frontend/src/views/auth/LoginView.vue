@@ -86,7 +86,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 
 import { fetchCaptcha, login, resetPassword, sendResetEmailCode } from '@/api/platform';
@@ -95,6 +95,7 @@ import { useAppStore } from '@/stores/app';
 const ADMIN_SECRET = '123456';
 
 const router = useRouter();
+const route = useRoute();
 const appStore = useAppStore();
 const loading = ref(false);
 const form = reactive({
@@ -168,12 +169,14 @@ async function handleLogin() {
     appStore.setAuth(result);
     ElMessage.success(`已登录：${result.nickname}`);
 
+    const redirectTo = (route.query.redirect as string) || '/';
+
     if (result.role === 'ADMIN') {
-      router.push('/admin/dashboard');
+      router.push(redirectTo === '/' ? '/admin/dashboard' : redirectTo);
       return;
     }
 
-    router.push('/');
+    router.push(redirectTo);
   } catch {
     ElMessage.error(adminMode.value ? '登录失败，请检查管理密钥' : '登录失败，请检查账号和密码');
   } finally {

@@ -35,14 +35,22 @@ http.interceptors.response.use(
 
     if (status === 401 && store.token && !isAuthEntryRequest && !handlingSessionExpired) {
       handlingSessionExpired = true;
+      const currentPath = router.currentRoute.value.fullPath;
       store.logout();
-      ElMessage.warning('你的账号已在另一台设备登录，请重新登录。');
+      ElMessage.warning('登录已过期，请重新登录。');
       if (router.currentRoute.value.path !== '/login') {
-        await router.push('/login');
+        await router.push({ path: '/login', query: currentPath !== '/' ? { redirect: currentPath } : {} });
       }
       window.setTimeout(() => {
         handlingSessionExpired = false;
       }, 300);
+    }
+
+    if (status === 401 && !store.token && !isAuthEntryRequest) {
+      const currentPath = router.currentRoute.value.fullPath;
+      if (router.currentRoute.value.path !== '/login') {
+        await router.push({ path: '/login', query: currentPath !== '/' ? { redirect: currentPath } : {} });
+      }
     }
 
     return Promise.reject(error);
