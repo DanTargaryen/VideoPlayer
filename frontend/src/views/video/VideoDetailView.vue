@@ -81,8 +81,10 @@
               :visible="danmakuVisible"
               :paused="videoPaused"
               :liked-ids="likedDanmakuIds"
+              :current-user-id="appStore.userId"
               @report="openReportDialog"
               @like="toggleDanmakuLike"
+              @delete="handleDeleteDanmaku"
             />
           </div>
 
@@ -98,9 +100,6 @@
               @keyup.enter="submitDanmaku"
             />
             <span class="danmaku-counter">{{ formatMs(currentVideoTimeMs) }} / {{ formatMs(videoDurationMs) }}</span>
-            <button class="danmaku-face" type="button" aria-label="弹幕表情">
-              <el-icon :size="17"><ChatDotRound /></el-icon>
-            </button>
             <el-button class="danmaku-send" type="primary" @click="submitDanmaku">发送</el-button>
           </div>
         </section>
@@ -384,7 +383,6 @@ import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
-  ChatDotRound,
   ChatLineRound,
   CircleCheckFilled,
   CircleCloseFilled,
@@ -1719,6 +1717,10 @@ function toggleDanmakuLike(danmaku: DanmakuItem) {
   }
 }
 
+function handleDeleteDanmaku(danmaku: DanmakuItem) {
+  danmakus.value = danmakus.value.filter((d) => d.id !== danmaku.id);
+}
+
 async function submitReport() {
   if (!reportTarget.value || !reportReason.value.trim() || reportReason.value.trim().length < 2) {
     ElMessage.warning('请输入至少2个字的举报原因');
@@ -1751,14 +1753,14 @@ async function submitDanmaku() {
   }
 
   try {
-    await createDanmaku(Number(route.params.id), {
+    const newDanmaku = await createDanmaku(Number(route.params.id), {
       content: danmakuForm.content.trim(),
       timeOffsetMs: danmakuForm.timeOffsetMs,
       color: danmakuForm.color,
     });
     danmakuForm.content = '';
     ElMessage.success('弹幕发送成功');
-    await loadDanmakus();
+    danmakus.value = [...danmakus.value, newDanmaku];
   } catch {
     ElMessage.error('弹幕发送失败，请确认已登录');
   }
@@ -2266,25 +2268,6 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
-.danmaku-face {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  background: #2c3847;
-  color: #d5dde8;
-  cursor: pointer;
-  transition: background 180ms cubic-bezier(0.16, 1, 0.3, 1), color 180ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.danmaku-face:hover {
-  background: #354354;
-  color: #ffffff;
-}
-
 .danmaku-send {
   min-width: 66px;
   height: 36px;
@@ -2666,10 +2649,6 @@ onBeforeUnmount(() => {
   }
 
   .danmaku-counter {
-    display: none;
-  }
-
-  .danmaku-face {
     display: none;
   }
 
