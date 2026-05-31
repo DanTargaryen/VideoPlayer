@@ -478,7 +478,7 @@ export interface FollowUserItem {
   followedAt: string;
 }
 
-export type DynamicFeedType = 'all' | 'video' | 'post' | 'live';
+export type DynamicFeedType = 'all' | 'video' | 'post' | 'image_text' | 'text' | 'image' | 'live' | 'recommend';
 export type DynamicFeedSource = 'following' | 'recommended';
 
 export interface DynamicFeedAuthor {
@@ -489,7 +489,7 @@ export interface DynamicFeedAuthor {
 
 export interface DynamicFeedItem {
   id: string;
-  type: 'video' | 'post' | 'live';
+  type: 'video' | 'post' | 'image_text' | 'text' | 'image' | 'live' | 'recommend';
   source: DynamicFeedSource;
   author: DynamicFeedAuthor;
   actionText: string;
@@ -592,6 +592,31 @@ export interface SidebarRecommendedUser {
   followed: boolean;
 }
 
+export interface FollowGroupItem {
+  id: string;
+  name: string;
+  count: number;
+  icon: string;
+}
+
+export interface SidebarProfileStats {
+  followingCount: number;
+  followerCount: number;
+  dynamicCount: number;
+}
+
+export interface DynamicSidebarOverview {
+  profileStats: SidebarProfileStats;
+  groups: FollowGroupItem[];
+}
+
+export interface HotTopicItem {
+  id: string;
+  name: string;
+  discussionCount: number;
+  isRising?: boolean;
+}
+
 export interface FavoriteFolderSummary {
   id: number;
   name: string;
@@ -632,6 +657,8 @@ export interface VideoAiSummaryResult {
   frameCount: number;
   cached: boolean;
 }
+
+export type VideoAiChatTaskType = 'summarize' | 'analyze_highlights' | 'locate_key_segments' | 'free_chat';
 
 export interface VideoAiChatResult {
   success: boolean;

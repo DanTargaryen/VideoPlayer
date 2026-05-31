@@ -1,7 +1,7 @@
 <template>
   <div class="post-content">
     <p>{{ item.description || item.title }}</p>
-    <div v-if="visibleImages.length > 0" class="post-images">
+    <div v-if="visibleImages.length > 0" class="post-images" :class="`count-${visibleImages.length}`">
       <div v-for="(image, index) in visibleImages" :key="`${image}-${index}`" class="post-image">
         <img :src="image" :alt="`${item.author.username} 的动态图片 ${index + 1}`" />
         <span v-if="index === 2 && hiddenImageCount > 0" class="image-more">+{{ hiddenImageCount }}</span>
@@ -26,14 +26,14 @@ const hiddenImageCount = computed(() => Math.max(0, (props.item.images?.length ?
 <style scoped>
 .post-content {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .post-content p {
   margin: 0;
   color: var(--color-text-main);
-  font-size: 15px;
-  line-height: 1.8;
+  font-size: 14px;
+  line-height: 1.7;
 }
 
 .post-images {
@@ -48,6 +48,19 @@ const hiddenImageCount = computed(() => Math.max(0, (props.item.images?.length ?
   aspect-ratio: 16 / 9;
   border-radius: 10px;
   background: var(--color-bg-muted);
+}
+
+.post-images.count-1 {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.post-images.count-1 .post-image {
+  aspect-ratio: 16 / 9;
+  max-height: 360px;
+}
+
+.post-images.count-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .post-image img {

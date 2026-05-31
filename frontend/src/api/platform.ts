@@ -39,6 +39,7 @@ import type {
   UserHomepage,
   VideoAiChatHistoryResult,
   VideoAiChatResult,
+  VideoAiChatTaskType,
   VideoCard,
   VideoAiSummaryResult,
   VideoDetail,
@@ -291,7 +292,7 @@ export async function createVideoAiSummary(payload: { videoId: number }) {
   return data.data;
 }
 
-export async function createVideoAiChat(payload: { videoId: number; prompt: string }) {
+export async function createVideoAiChat(payload: { videoId: number; prompt: string; taskType?: VideoAiChatTaskType }) {
   const timeoutMs = Number(import.meta.env.VITE_AI_SUMMARY_TIMEOUT_MS ?? 120000);
   const { data } = await http.post<ApiResponse<VideoAiChatResult>>('/ai/video-chat', payload, {
     timeout: Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 120000,
