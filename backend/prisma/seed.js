@@ -1,4 +1,5 @@
 const { PrismaClient, UserRole, VideoStatus, ReviewStatus, TextStatus } = require('@prisma/client');
+const { ensureSeedAllowed } = require('../scripts/seed-guard');
 
 const prisma = new PrismaClient();
 
@@ -401,6 +402,7 @@ async function createVideos(userIndex) {
 }
 
 async function main() {
+  await ensureSeedAllowed();
   await resetDatabase();
   const userIndex = await createUsers();
   const videos = await createVideos(userIndex);

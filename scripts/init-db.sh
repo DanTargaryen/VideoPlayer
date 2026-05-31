@@ -5,6 +5,14 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+if [[ -z "${SEED_GUARD_CONFIRM:-}" && -t 0 ]]; then
+  read -r -s -p "Enter db:init password: " SEED_GUARD_CONFIRM
+  echo
+  export SEED_GUARD_CONFIRM
+fi
+
+node backend/scripts/seed-guard.js
+
 . "$ROOT_DIR/scripts/mysql-common.sh"
 
 load_backend_env
