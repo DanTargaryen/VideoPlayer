@@ -1,4 +1,4 @@
-import { IsInt, IsString, MaxLength, Min, MinLength } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
 
 export class CreateVideoChatDto {
   @IsInt()
@@ -9,4 +9,8 @@ export class CreateVideoChatDto {
   @MinLength(1)
   @MaxLength(1000)
   prompt!: string;
+
+  @IsOptional()
+  @IsIn(['summarize', 'analyze_highlights', 'locate_key_segments', 'free_chat'])
+  taskType?: 'summarize' | 'analyze_highlights' | 'locate_key_segments' | 'free_chat';
 }

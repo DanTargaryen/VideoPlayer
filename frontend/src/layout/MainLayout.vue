@@ -77,7 +77,7 @@ const theme = computed(() => resolveSectionTheme(route));
 .content--dynamic {
   width: 100%;
   max-width: none;
-  padding: 28px clamp(28px, 4vw, 72px) 38px;
+  padding: 10px clamp(28px, 4vw, 72px) 38px;
   background: transparent;
 }
 

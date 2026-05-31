@@ -9,28 +9,52 @@
           <span>{{ item.actionText }} · {{ relativeTime }}</span>
         </span>
       </RouterLink>
+      <button type="button" class="more-button" aria-label="更多操作">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <span class="type-badge" :class="`type-${renderType}`">{{ typeLabel }}</span>
     </header>
 
-    <DynamicVideoCard v-if="item.type === 'video'" :item="item" />
-    <DynamicLiveCard v-else-if="item.type === 'live'" :item="item" />
-    <DynamicPostCard v-else :item="item" />
+    <DynamicVideoCard v-if="renderType === 'video'" :item="item" />
+    <ImageTextDynamicCard v-else-if="renderType === 'image_text'" :item="item" />
+    <TextDynamicCard v-else-if="renderType === 'text'" :item="item" />
+    <ImageDynamicCard v-else-if="renderType === 'image'" :item="item" />
+    <DynamicLiveCard v-else-if="renderType === 'live'" :item="item" />
+    <DynamicVideoCard v-else-if="item.cover" :item="item" />
+    <TextDynamicCard v-else :item="item" />
 
-    <footer v-if="hasInteractionRow" class="interaction-row">
+    <footer class="interaction-row" :class="{ 'without-collect': !hasCollectButton }">
       <button
         type="button"
-        class="interaction-button"
+        class="interaction-button like-button"
         :class="{ active: liked }"
         :disabled="liking"
         @click="handleLike"
       >
         <el-icon><Pointer /></el-icon>
-        <span>{{ liked ? '已赞' : '点赞' }}</span>
+        <span>点赞</span>
         <strong>{{ formatCompactNumber(likeCount) }}</strong>
       </button>
       <button type="button" class="interaction-button" @click="handleComment">
         <el-icon><ChatDotRound /></el-icon>
         <span>评论</span>
         <strong>{{ formatCompactNumber(commentCount) }}</strong>
+      </button>
+      <button
+        v-if="hasCollectButton"
+        type="button"
+        class="interaction-button"
+        :class="{ active: collected }"
+        @click="handleCollect"
+      >
+        <el-icon><Star /></el-icon>
+        <span>{{ collected ? '已收藏' : '收藏' }}</span>
+      </button>
+      <button type="button" class="interaction-button" @click="handleRepost">
+        <el-icon><Share /></el-icon>
+        <span>转发</span>
       </button>
     </footer>
 
@@ -77,7 +101,7 @@
 import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { ChatDotRound, Pointer } from '@element-plus/icons-vue';
+import { ChatDotRound, Pointer, Share, Star } from '@element-plus/icons-vue';
 
 import {
   createDynamicPostComment,
@@ -88,9 +112,12 @@ import {
 import { likeVideo, unlikeVideo } from '@/api/platform';
 import { useAppStore } from '@/stores/app';
 import type { DynamicFeedItem, DynamicPostCommentItem } from '@/types/api';
+import { normalizeDynamicType } from '@/utils/dynamicFeed';
 import DynamicLiveCard from './DynamicLiveCard.vue';
-import DynamicPostCard from './DynamicPostCard.vue';
 import DynamicVideoCard from './DynamicVideoCard.vue';
+import ImageDynamicCard from './ImageDynamicCard.vue';
+import ImageTextDynamicCard from './ImageTextDynamicCard.vue';
+import TextDynamicCard from './TextDynamicCard.vue';
 
 const props = defineProps<{
   item: DynamicFeedItem;
@@ -101,6 +128,7 @@ const router = useRouter();
 const store = useAppStore();
 
 const liked = ref(false);
+const collected = ref(false);
 const likeCount = ref(0);
 const commentCount = ref(0);
 const liking = ref(false);
@@ -112,9 +140,21 @@ const commentDraft = ref('');
 const postComments = ref<DynamicPostCommentItem[]>([]);
 
 const relativeTime = computed(() => formatRelativeTime(props.item.createdAt));
+const renderType = computed(() => normalizeDynamicType(props.item));
+const typeLabel = computed(() => {
+  const labels: Record<string, string> = {
+    video: '视频',
+    image_text: '图文',
+    text: '动态',
+    image: '图片',
+    live: '直播',
+    recommend: '推荐',
+  };
+  return labels[renderType.value] ?? '动态';
+});
 const dynamicPostId = computed(() => parseItemId('dynamic-post-'));
-const videoTargetId = computed(() => parseItemId('video-') ?? parseItemId('post-'));
-const hasInteractionRow = computed(() => Boolean(dynamicPostId.value || videoTargetId.value));
+const videoTargetId = computed(() => (renderType.value === 'video' ? parseItemId('video-') : null));
+const hasCollectButton = computed(() => renderType.value !== 'text');
 
 watch(
   () => props.item,
@@ -126,6 +166,7 @@ watch(
 
 function syncInteractionState() {
   liked.value = Boolean(props.item.stats?.liked);
+  collected.value = false;
   likeCount.value = Math.max(0, Number(props.item.stats?.likes ?? 0));
   commentCount.value = Math.max(0, Number(props.item.stats?.comments ?? 0));
   commentPanelVisible.value = false;
@@ -134,6 +175,15 @@ function syncInteractionState() {
   commentsLoaded.value = false;
   commentDraft.value = '';
   postComments.value = [];
+}
+
+function handleRepost() {
+  ElMessage.info('转发能力正在建设中');
+}
+
+function handleCollect() {
+  collected.value = !collected.value;
+  ElMessage.success(collected.value ? '已收藏' : '已取消收藏');
 }
 
 function parseItemId(prefix: string) {
@@ -290,10 +340,10 @@ function formatCompactNumber(value: number) {
 <style scoped>
 .feed-card {
   display: grid;
-  gap: 18px;
-  padding: 22px;
+  gap: 11px;
+  padding: 15px 16px 12px;
   border: 1px solid var(--color-border);
-  border-radius: 18px;
+  border-radius: 14px;
   background: var(--color-bg-card);
   box-shadow: var(--gl-shadow-card);
   animation: feed-card-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -303,27 +353,27 @@ function formatCompactNumber(value: number) {
 
 .feed-card:hover {
   border-color: #dbeafe;
-  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.07);
-  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.06);
+  transform: translateY(-1px);
 }
 
 .feed-card-head {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
 }
 
 .author-link {
   display: inline-flex;
   align-items: center;
   min-width: 0;
-  gap: 12px;
+  gap: 10px;
 }
 
 .avatar {
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   object-fit: cover;
 }
@@ -344,27 +394,96 @@ function formatCompactNumber(value: number) {
 
 .author-copy strong {
   color: var(--color-text-main);
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .author-copy span {
   color: var(--color-text-secondary);
-  font-size: 13px;
+  font-size: 12px;
+}
+
+.more-button {
+  display: inline-grid;
+  place-items: center;
+  gap: 3px;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--gl-transition), transform var(--gl-transition);
+}
+
+.more-button span {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--color-text-secondary);
+}
+
+.more-button:hover {
+  background: var(--color-primary-light);
+}
+
+.more-button:active {
+  transform: translateY(1px) scale(0.95);
+}
+
+.type-badge {
+  grid-column: 2;
+  grid-row: 1;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.more-button {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.type-image_text {
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.type-image {
+  background: #fff1f2;
+  color: #be123c;
+}
+
+.type-text {
+  background: #f1f5f9;
+  color: var(--color-text-secondary);
+}
+
+.type-live {
+  background: #fff1f2;
+  color: var(--color-danger);
 }
 
 .interaction-row {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   border-top: 1px solid var(--color-border-soft);
-  padding-top: 12px;
+  padding-top: 9px;
+}
+
+.interaction-row.without-collect {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .interaction-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 34px;
+  gap: 7px;
+  min-height: 30px;
+  font-size: 13px;
   border: 0;
   border-right: 1px solid var(--color-border-soft);
   background: transparent;
@@ -380,13 +499,21 @@ function formatCompactNumber(value: number) {
 
 .interaction-button strong {
   color: inherit;
-  font-size: 13px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
+}
+
+.interaction-button:first-child {
+  border-left: 0;
 }
 
 .interaction-button:hover,
 .interaction-button.active {
   color: var(--color-primary);
+}
+
+.like-button.active {
+  color: var(--color-danger);
 }
 
 .interaction-button:disabled {
@@ -557,11 +684,11 @@ function formatCompactNumber(value: number) {
 
 @media (max-width: 560px) {
   .feed-card {
-    padding: 18px;
+    padding: 16px;
   }
 
   .interaction-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     row-gap: 6px;
   }
 

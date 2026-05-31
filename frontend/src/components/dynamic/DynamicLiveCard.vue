@@ -33,16 +33,14 @@ function formatCompactNumber(value: number) {
 <style scoped>
 .live-content {
   display: grid;
-  grid-template-columns: minmax(280px, 1.2fr) minmax(220px, 0.8fr);
-  gap: 22px;
-  align-items: center;
+  gap: 12px;
 }
 
 .live-media {
   position: relative;
   overflow: hidden;
   aspect-ratio: 16 / 9;
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--color-bg-muted);
 }
 
@@ -81,7 +79,9 @@ function formatCompactNumber(value: number) {
 
 .live-copy {
   display: grid;
-  gap: 13px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  align-items: center;
 }
 
 .live-title-row {
@@ -93,7 +93,8 @@ function formatCompactNumber(value: number) {
 .live-title-row h3 {
   margin: 0;
   color: var(--color-text-main);
-  font-size: 19px;
+  font-size: 15px;
+  font-weight: 800;
   line-height: 1.35;
 }
 
@@ -108,8 +109,11 @@ function formatCompactNumber(value: number) {
 }
 
 .live-copy p {
+  grid-column: 1 / -1;
   margin: 0;
   color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
 }
 
 .category {
@@ -123,17 +127,20 @@ function formatCompactNumber(value: number) {
 }
 
 .enter-button {
-  justify-self: start;
-  padding: 10px 18px;
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  justify-self: end;
+  padding: 9px 16px;
   border: 1px solid var(--color-primary);
-  border-radius: 10px;
-  color: var(--color-primary);
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: #ffffff;
   font-weight: 900;
   transition: color var(--gl-transition), background var(--gl-transition), transform var(--gl-transition);
 }
 
 .enter-button:hover {
-  background: var(--color-primary);
+  background: var(--color-primary-hover);
   color: #ffffff;
 }
 
@@ -141,9 +148,15 @@ function formatCompactNumber(value: number) {
   transform: translateY(1px) scale(0.98);
 }
 
-@media (max-width: 720px) {
-  .live-content {
+@media (max-width: 560px) {
+  .live-copy {
     grid-template-columns: 1fr;
+  }
+
+  .enter-button {
+    grid-row: auto;
+    grid-column: auto;
+    justify-self: start;
   }
 }
 </style>

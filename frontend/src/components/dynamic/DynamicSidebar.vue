@@ -1,8 +1,7 @@
 <template>
   <aside class="dynamic-sidebar">
-    <SidebarLiveList :items="liveItems" />
+    <HotTopicsCard :topics="hotTopics" />
     <SidebarRecentUpdates :items="recentUpdates" />
-    <SidebarFollowingUsers :items="followingUsers" />
     <SidebarRecommendedUsers
       :items="recommendedUsers"
       :loading-user-id="loadingUserId"
@@ -14,20 +13,17 @@
 
 <script setup lang="ts">
 import type {
-  FollowUserItem,
-  SidebarLiveItem,
+  HotTopicItem,
   SidebarRecentUpdateItem,
   SidebarRecommendedUser,
 } from '@/types/api';
-import SidebarFollowingUsers from './SidebarFollowingUsers.vue';
-import SidebarLiveList from './SidebarLiveList.vue';
+import HotTopicsCard from './HotTopicsCard.vue';
 import SidebarRecentUpdates from './SidebarRecentUpdates.vue';
 import SidebarRecommendedUsers from './SidebarRecommendedUsers.vue';
 
 defineProps<{
-  liveItems: SidebarLiveItem[];
+  hotTopics: HotTopicItem[];
   recentUpdates: SidebarRecentUpdateItem[];
-  followingUsers: FollowUserItem[];
   recommendedUsers: SidebarRecommendedUser[];
   loadingUserId?: string;
 }>();
