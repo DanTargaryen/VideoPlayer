@@ -25,19 +25,21 @@ defineEmits<{
 }>();
 
 const tabs: Array<{ label: string; value: DynamicFeedType }> = [
-  { label: '全部动态', value: 'all' },
+  { label: '全部', value: 'all' },
   { label: '视频投稿', value: 'video' },
   { label: '图文动态', value: 'post' },
-  { label: '直播提醒', value: 'live' },
+  { label: '直播', value: 'live' },
+  { label: '推荐', value: 'recommend' },
 ];
 </script>
 
 <style scoped>
 .feed-tabs {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   overflow-x: auto;
-  padding: 2px 2px 8px;
+  min-height: 36px;
+  padding: 0 2px;
   scrollbar-width: none;
 }
 
@@ -46,13 +48,15 @@ const tabs: Array<{ label: string; value: DynamicFeedType }> = [
 }
 
 .tab-button {
+  position: relative;
   flex: 0 0 auto;
-  min-height: 40px;
-  padding: 0 20px;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: var(--color-bg-card);
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--color-text-main);
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   transition: transform var(--gl-transition), color var(--gl-transition), border-color var(--gl-transition),
@@ -61,13 +65,26 @@ const tabs: Array<{ label: string; value: DynamicFeedType }> = [
 
 .tab-button:hover,
 .tab-button.active {
-  border-color: #bfdbfe;
-  background: var(--color-primary-light);
   color: var(--color-primary);
 }
 
-.tab-button.active {
-  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.08);
+.tab-button::after {
+  position: absolute;
+  right: 10px;
+  bottom: 0;
+  left: 10px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  content: '';
+  opacity: 0;
+  transform: scaleX(0.3);
+  transition: opacity var(--gl-transition), transform var(--gl-transition);
+}
+
+.tab-button.active::after {
+  opacity: 1;
+  transform: scaleX(1);
 }
 
 .tab-button:active {

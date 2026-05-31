@@ -214,60 +214,15 @@
       </aside>
 
       <aside v-if="agentPanelVisible" class="agent-side-column">
-        <div class="agent-sidebar">
-          <div class="agent-sidebar-head">
-            <div class="agent-sidebar-title">
-              <span class="agent-sidebar-eyebrow">AI Assistant</span>
-              <strong>视频智能体</strong>
-            </div>
-            <div class="agent-sidebar-actions">
-              <span class="agent-sidebar-status">视频上下文</span>
-              <button type="button" class="agent-sidebar-close" aria-label="关闭视频智能体" @click="agentPanelVisible = false">
-                ×
-              </button>
-            </div>
-          </div>
-
-          <div class="agent-sidebar-tabs">
-            <button type="button" class="active">聊天</button>
-          </div>
-
-          <div class="agent-panel" v-loading="agentHistoryLoading">
-            <div class="agent-panel-head">
-              <strong>当前会话</strong>
-              <span>{{ agentHistoryLoading ? '加载历史中...' : agentLastFrameCount > 0 ? `已分析 ${agentLastFrameCount} 帧` : '待提问' }}</span>
-            </div>
-            <div ref="agentMessagesRef" class="agent-messages">
-              <div
-                v-for="item in agentMessages"
-                :key="item.id"
-                class="agent-message"
-                :class="item.role === 'user' ? 'agent-message-user' : 'agent-message-assistant'"
-              >
-                <p>{{ item.content }}</p>
-              </div>
-              <div v-if="agentLoading" class="agent-loading">智能体思考中...</div>
-            </div>
-            <div class="agent-composer">
-              <p v-if="agentError" class="agent-error">{{ agentError }}</p>
-              <div class="agent-input-wrap">
-                <el-input
-                  v-model="agentDraft"
-                  type="textarea"
-                  :autosize="{ minRows: 3, maxRows: 6 }"
-                  resize="none"
-                  placeholder="尽管问，例如：这个视频里的人物在做什么？"
-                  :disabled="agentLoading || agentHistoryLoading"
-                  @keydown.enter.exact.prevent="askVideoAgent"
-                />
-                <div class="agent-composer-footer">
-                  <span>Enter 发送</span>
-                  <el-button type="primary" :loading="agentLoading" :disabled="agentHistoryLoading" @click="askVideoAgent">发送</el-button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <VideoAgentPanel
+          :messages="agentMessages"
+          :loading="agentLoading"
+          :history-loading="agentHistoryLoading"
+          :error="agentError"
+          @close="agentPanelVisible = false"
+          @send="askVideoAgent"
+          @reload-history="reloadAgentHistory"
+        />
       </aside>
     </div>
 
@@ -299,36 +254,6 @@
           确认收藏
         </el-button>
       </template>
-    </el-dialog>
-
-    <el-dialog v-model="agentLegacyDialogVisible" title="视频智能体" width="520px" :close-on-click-modal="false">
-      <div class="agent-panel" v-loading="agentHistoryLoading">
-        <div class="agent-panel-head">
-          <strong>和当前视频对话</strong>
-          <span>{{ agentHistoryLoading ? '加载历史中...' : agentLastFrameCount > 0 ? `分析帧数：${agentLastFrameCount}` : '待提问' }}</span>
-        </div>
-        <div ref="agentMessagesRef" class="agent-messages">
-          <div
-            v-for="item in agentMessages"
-            :key="item.id"
-            class="agent-message"
-            :class="item.role === 'user' ? 'agent-message-user' : 'agent-message-assistant'"
-          >
-            <p>{{ item.content }}</p>
-          </div>
-          <div v-if="agentLoading" class="agent-loading">智能体思考中...</div>
-        </div>
-        <p v-if="agentError" class="agent-error">{{ agentError }}</p>
-        <div class="agent-input-wrap">
-          <el-input
-            v-model="agentDraft"
-            placeholder="输入你的问题，例如：这个视频里人物在做什么？"
-            :disabled="agentLoading || agentHistoryLoading"
-            @keydown.enter.exact.prevent="askVideoAgent"
-          />
-          <el-button type="primary" :loading="agentLoading" :disabled="agentHistoryLoading" @click="askVideoAgent">发送</el-button>
-        </div>
-      </div>
     </el-dialog>
 
     <el-dialog v-model="reportDialogVisible" title="举报弹幕" width="440px" :close-on-click-modal="false">
@@ -380,7 +305,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
@@ -421,6 +346,11 @@ import {
 import CommentThread from '@/components/CommentThread.vue';
 import DanmakuOverlay from '@/components/DanmakuOverlay.vue';
 import VideoActionBar from '@/components/video/VideoActionBar.vue';
+import VideoAgentPanel from '@/components/video/agent/VideoAgentPanel.vue';
+import {
+  VIDEO_AGENT_GREETING_TEXT,
+  type VideoAgentTaskType,
+} from '@/components/video/agent/videoAgentConfig';
 import VideoIntroCard from '@/components/video/VideoIntroCard.vue';
 import VideoRecommendationsPanel from '@/components/video/VideoRecommendationsPanel.vue';
 import { useAppStore } from '@/stores/app';
@@ -444,7 +374,6 @@ const GROK_REPLY_POLL_MAX_ATTEMPTS = 30;
 const GROK_PENDING_REPLY_TEXT = 'Grok 正在生成回复，请稍候';
 const GROK_BOT_NICKNAME = 'Grok 机器人';
 const GROK_BOT_AVATAR_URL = '/assets/grok-bot-avatar.svg';
-const AGENT_GREETING_TEXT = '你好，我是视频智能体。你可以问我这个视频里发生了什么。';
 const RELATED_DISPLAY_SIZE = 6;
 const RELATED_CANDIDATE_SIZE = 24;
 
@@ -510,13 +439,10 @@ const reportReason = ref('');
 const videoReportDialogVisible = ref(false);
 const videoReportReason = ref('');
 const agentPanelVisible = ref(false);
-const agentLegacyDialogVisible = ref(false);
 const agentLoading = ref(false);
 const agentHistoryLoading = ref(false);
-const agentDraft = ref('');
 const agentError = ref('');
 const agentLastFrameCount = ref(0);
-const agentMessagesRef = ref<HTMLElement | null>(null);
 const agentMessages = ref<AgentMessage[]>([]);
 let agentMessageSeed = 0;
 let agentHistoryLoadToken = 0;
@@ -591,7 +517,7 @@ function buildAgentWelcomeMessage(): AgentMessage {
   return {
     id: 0,
     role: 'assistant',
-    content: AGENT_GREETING_TEXT,
+    content: VIDEO_AGENT_GREETING_TEXT,
   };
 }
 
@@ -631,7 +557,6 @@ async function loadAgentHistory(videoId: number) {
     agentLastFrameCount.value = result.frameCount;
     agentHistoryLoadedVideoId = videoId;
     agentMessageSeed = normalized.reduce((max, item) => Math.max(max, item.id), 0);
-    await scrollAgentToBottom();
   } catch (error) {
     if (token !== agentHistoryLoadToken) {
       return;
@@ -1258,20 +1183,10 @@ function removeAgentPendingUserMessage(id: number) {
   agentMessages.value.splice(index, 1);
 }
 
-async function scrollAgentToBottom() {
-  await nextTick();
-  const container = agentMessagesRef.value;
-  if (!container) {
-    return;
-  }
-  container.scrollTop = container.scrollHeight;
-}
-
 function resetAgentState() {
   agentPanelVisible.value = false;
   agentLoading.value = false;
   agentHistoryLoading.value = false;
-  agentDraft.value = '';
   agentError.value = '';
   agentLastFrameCount.value = 0;
   agentMessageSeed = 0;
@@ -1304,7 +1219,7 @@ function resolveApiErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
-async function askVideoAgent() {
+async function askVideoAgent(payload: { prompt: string; taskType: VideoAgentTaskType }) {
   if (!video.value || agentLoading.value || agentHistoryLoading.value) {
     return;
   }
@@ -1315,7 +1230,7 @@ async function askVideoAgent() {
     return;
   }
 
-  const prompt = agentDraft.value.trim();
+  const prompt = payload.prompt.trim();
   if (!prompt) {
     ElMessage.warning('请输入问题');
     return;
@@ -1324,7 +1239,6 @@ async function askVideoAgent() {
   const targetVideoId = video.value.id;
   agentLoading.value = true;
   agentError.value = '';
-  agentDraft.value = '';
   const pendingUserMessageId = ++agentMessageSeed;
   agentMessages.value = [
     ...agentMessages.value,
@@ -1335,12 +1249,12 @@ async function askVideoAgent() {
       pending: true,
     },
   ];
-  await scrollAgentToBottom();
 
   try {
     const result = await createVideoAiChat({
       videoId: targetVideoId,
       prompt,
+      taskType: payload.taskType,
     });
     if (!video.value || video.value.id !== targetVideoId) {
       return;
@@ -1360,7 +1274,6 @@ async function askVideoAgent() {
       },
     ];
     agentLastFrameCount.value = result.frameCount;
-    await scrollAgentToBottom();
   } catch (error) {
     if (!video.value || video.value.id !== targetVideoId) {
       return;
@@ -1369,7 +1282,6 @@ async function askVideoAgent() {
     const message = resolveApiErrorMessage(error, '智能体暂时不可用，请稍后重试');
     agentError.value = message;
     appendAgentMessage('assistant', `出错了：${message}`);
-    await scrollAgentToBottom();
   } finally {
     if (video.value?.id === targetVideoId) {
       agentLoading.value = false;
@@ -1661,6 +1573,21 @@ function openVideoReportDialog() {
   videoReportDialogVisible.value = true;
 }
 
+async function reloadAgentHistory() {
+  const targetVideoId = video.value?.id;
+  if (!targetVideoId) {
+    return;
+  }
+
+  if (!appStore.isLoggedIn) {
+    ElMessage.warning('请先登录后再查看视频智能体历史');
+    await router.push('/login');
+    return;
+  }
+
+  await loadAgentHistory(targetVideoId);
+}
+
 function openAgentPanel() {
   agentPanelVisible.value = true;
   const targetVideoId = video.value?.id;
@@ -1769,25 +1696,6 @@ function handlePageHide() {
 }
 
 watch(
-  () => agentMessages.value.length,
-  () => {
-    if (!agentPanelVisible.value) {
-      return;
-    }
-    void scrollAgentToBottom();
-  },
-);
-
-watch(
-  agentPanelVisible,
-  (visible) => {
-    if (visible) {
-      void scrollAgentToBottom();
-    }
-  },
-);
-
-watch(
   () => route.params.id,
   async (newId, oldId) => {
     if (oldId !== undefined && Number(oldId) !== Number(newId)) {
@@ -1890,7 +1798,7 @@ onBeforeUnmount(() => {
 }
 
 .video-detail-shell.agent-sidebar-open {
-  grid-template-columns: minmax(0, 1fr) 340px 336px;
+  grid-template-columns: minmax(0, 1fr) 340px 380px;
 }
 
 .main-column {
@@ -1913,117 +1821,6 @@ onBeforeUnmount(() => {
   top: 88px;
   align-self: start;
   min-width: 0;
-}
-
-.agent-sidebar {
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
-  gap: 10px;
-  min-height: calc(100dvh - 112px);
-  padding: 10px 10px 12px;
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  border-radius: 18px;
-  background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.96));
-  box-shadow:
-    0 14px 28px rgba(15, 23, 42, 0.08),
-    0 1px 0 rgba(255, 255, 255, 0.7) inset;
-}
-
-.agent-sidebar-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 4px 6px 0;
-}
-
-.agent-sidebar-title {
-  display: grid;
-  gap: 2px;
-}
-
-.agent-sidebar-eyebrow {
-  color: #64748b;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.agent-sidebar-title strong {
-  color: #0f172a;
-  font-size: 15px;
-  font-weight: 700;
-}
-
-.agent-sidebar-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.agent-sidebar-status {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  padding: 0 8px;
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.72);
-  color: #475569;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.agent-sidebar-close {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: #64748b;
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.agent-sidebar-close:hover {
-  background: rgba(37, 99, 235, 0.08);
-  color: #2563eb;
-}
-
-.agent-sidebar-tabs {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0 6px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
-}
-
-.agent-sidebar-tabs button {
-  min-height: 32px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 8px 8px 0 0;
-  background: transparent;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.agent-sidebar-tabs button.active {
-  background: rgba(255, 255, 255, 0.8);
-  color: #0f172a;
-  box-shadow: 0 -1px 0 rgba(148, 163, 184, 0.18) inset;
-}
-
-.agent-sidebar-tabs button:disabled {
-  opacity: 0.54;
-  cursor: default;
 }
 
 .video-header {
@@ -2475,142 +2272,6 @@ onBeforeUnmount(() => {
   border-bottom: 0;
 }
 
-.agent-panel {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 10px;
-  min-height: 0;
-  height: 100%;
-  padding: 4px 4px 0;
-}
-
-.agent-panel-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 0 4px;
-  color: #0f172a;
-  font-size: 13px;
-}
-
-.agent-panel-head span {
-  color: #64748b;
-  font-size: 11px;
-}
-
-.agent-messages {
-  display: grid;
-  align-content: start;
-  gap: 12px;
-  min-height: 420px;
-  max-height: calc(100dvh - 284px);
-  overflow-y: auto;
-  padding: 8px 8px 4px;
-  border: 0;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.46);
-}
-
-.agent-message {
-  display: flex;
-}
-
-.agent-message p {
-  max-width: 92%;
-  margin: 0;
-  padding: 10px 12px;
-  border-radius: 12px;
-  font-size: 12px;
-  line-height: 1.7;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.agent-message-user {
-  justify-content: flex-end;
-}
-
-.agent-message-user p {
-  background: linear-gradient(180deg, #3b82f6, #2563eb);
-  color: #FFFFFF;
-  border-bottom-right-radius: 4px;
-  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.18);
-}
-
-.agent-message-assistant p {
-  background: rgba(255, 255, 255, 0.96);
-  color: #334155;
-  border-bottom-left-radius: 4px;
-  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.18);
-}
-
-.agent-loading {
-  padding: 0 6px;
-  color: #64748b;
-  font-size: 11px;
-}
-
-.agent-error {
-  margin: 0;
-  color: #dc2626;
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.agent-composer {
-  display: grid;
-  gap: 8px;
-  padding: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.88);
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
-}
-
-.agent-input-wrap {
-  display: grid;
-  gap: 10px;
-}
-
-.agent-input-wrap :deep(.el-textarea__inner) {
-  min-height: 88px !important;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: #0f172a;
-  font-size: 13px;
-  line-height: 1.6;
-  box-shadow: none;
-}
-
-.agent-input-wrap :deep(.el-textarea__inner::placeholder) {
-  color: #94a3b8;
-}
-
-.agent-input-wrap :deep(.el-textarea__inner:focus) {
-  box-shadow: none;
-}
-
-.agent-input-wrap :deep(.el-textarea__wrapper) {
-  padding: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.agent-composer-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.agent-composer-footer span {
-  color: #64748b;
-  font-size: 11px;
-}
-
 @media (max-width: 1180px) {
   .video-detail-shell {
     grid-template-columns: minmax(0, 1fr);
@@ -2631,15 +2292,6 @@ onBeforeUnmount(() => {
     z-index: 40;
     width: min(420px, 92vw);
     height: 100dvh;
-  }
-
-  .agent-sidebar {
-    min-height: 100dvh;
-    height: 100%;
-    border-radius: 0;
-    border-right: 0;
-    border-top: 0;
-    border-bottom: 0;
   }
 }
 
@@ -2685,21 +2337,8 @@ onBeforeUnmount(() => {
     display: none;
   }
 
-  .agent-input-wrap {
-    gap: 8px;
-  }
-
   .agent-side-column {
     width: 100vw;
-  }
-
-  .agent-sidebar {
-    padding: 16px;
-  }
-
-  .agent-messages {
-    min-height: 320px;
-    max-height: calc(100dvh - 250px);
   }
 }
 </style>
