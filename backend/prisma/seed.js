@@ -4,6 +4,7 @@ const { ensureSeedAllowed } = require('../scripts/seed-guard');
 const prisma = new PrismaClient();
 
 const DEFAULT_PLAY_URL = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
+const INITIAL_COIN_BALANCE = 10;
 const VIDEO_CATEGORY_FALLBACKS = {
   entertainment: ['entertainment', 'music', 'life'],
   study: ['study', 'tech'],
@@ -61,6 +62,7 @@ async function createUsers() {
         password: 'Admin123456!',
         role: UserRole.ADMIN,
         nickname: '平台管理员',
+        coinBalance: INITIAL_COIN_BALANCE,
         avatarUrl: 'https://images.unsplash.com/photo-1544723795-3fb6469f5b39?auto=format&fit=crop&w=320&q=80',
         bio: '负责平台治理、审核演示和全站巡检。',
       },
@@ -72,6 +74,7 @@ async function createUsers() {
         password: 'User123456!',
         role: UserRole.USER,
         nickname: '演示用户',
+        coinBalance: INITIAL_COIN_BALANCE,
         avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=320&q=80',
         bio: '分享科技与学习内容，也会偶尔记录校园生活。',
       },
@@ -83,6 +86,7 @@ async function createUsers() {
         password: 'creator123',
         role: UserRole.USER,
         nickname: '阿明实验室',
+        coinBalance: INITIAL_COIN_BALANCE,
         avatarUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=320&q=80',
         bio: '主做后端、工程化和效率工具分享。',
       },
@@ -94,6 +98,7 @@ async function createUsers() {
         password: 'creator123',
         role: UserRole.USER,
         nickname: '小鱼自习室',
+        coinBalance: INITIAL_COIN_BALANCE,
         avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=320&q=80',
         bio: '专注课程复盘、笔记整理和考试经验。',
       },
@@ -105,6 +110,7 @@ async function createUsers() {
         password: 'creator123',
         role: UserRole.USER,
         nickname: '欧米伽打机台',
+        coinBalance: INITIAL_COIN_BALANCE,
         avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=320&q=80',
         bio: '游戏实况、整活剪辑和设备评测。',
       },
@@ -116,6 +122,7 @@ async function createUsers() {
         password: 'creator123',
         role: UserRole.USER,
         nickname: '依依日常',
+        coinBalance: INITIAL_COIN_BALANCE,
         avatarUrl: 'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&w=320&q=80',
         bio: '记录校园、旅行和演出现场的轻松瞬间。',
       },

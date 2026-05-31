@@ -61,6 +61,12 @@ export class UserService {
         favoriteCount: video.favoriteCount,
         commentCount: video.commentCount,
         coinCount: video.coinCount,
+        creatorId: user.id,
+        creator: {
+          id: user.id,
+          nickname: user.nickname,
+          avatarUrl: user.avatarUrl,
+        },
         publishedAt: video.publishedAt,
         createdAt: video.createdAt,
       })),

@@ -144,7 +144,6 @@
             :key="card.id"
             :item="card"
             hover-preview
-            show-play-count
             disable-author-link
           />
         </div>

@@ -374,6 +374,7 @@ const GROK_BOT_NICKNAME = 'Grok 机器人';
 const GROK_BOT_AVATAR_URL = '/assets/grok-bot-avatar.svg';
 const RELATED_DISPLAY_SIZE = 6;
 const RELATED_CANDIDATE_SIZE = 24;
+const VIDEO_COIN_LIMIT_PER_USER = 2;
 
 interface AgentMessage {
   id: number;
@@ -462,7 +463,9 @@ const hasPreviousVideo = computed(() => {
 
   return appStore.getPreviousVideoId(video.value.id) !== null;
 });
-const remainingCoinLimit = computed(() => Math.max(0, (video.value?.myCoinLimit ?? 5) - (video.value?.myCoinCount ?? 0)));
+const remainingCoinLimit = computed(() =>
+  Math.max(0, (video.value?.myCoinLimit ?? VIDEO_COIN_LIMIT_PER_USER) - (video.value?.myCoinCount ?? 0)),
+);
 const creatorInitial = computed(() => video.value?.creator.nickname.trim().charAt(0).toUpperCase() || '观');
 const currentUserInitial = computed(() => appStore.nickname.trim().charAt(0).toUpperCase() || '游');
 const publishDateText = computed(() => {
@@ -1489,7 +1492,7 @@ async function handleCoinVideo() {
   }
 
   if (remainingCoinLimit.value === 0) {
-    ElMessage.info('该视频已达投币上限 5 个');
+    ElMessage.info(`该视频已达投币上限 ${VIDEO_COIN_LIMIT_PER_USER} 个`);
     return;
   }
 

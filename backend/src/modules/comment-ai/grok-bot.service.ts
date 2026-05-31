@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+import { INITIAL_COIN_BALANCE } from '../../common/constants/coins';
 import { PrismaService } from '../prisma/prisma.service';
 
 type BotUser = {
@@ -53,6 +54,7 @@ export class GrokBotService implements OnModuleInit {
           nickname,
           avatarUrl,
           role: 'USER',
+          coinBalance: INITIAL_COIN_BALANCE,
         },
         select: {
           id: true,
@@ -74,6 +76,7 @@ export class GrokBotService implements OnModuleInit {
         nickname,
         avatarUrl,
         role: 'USER',
+        coinBalance: INITIAL_COIN_BALANCE,
       },
       select: {
         id: true,

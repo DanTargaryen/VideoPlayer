@@ -64,6 +64,10 @@ import { ElMessage } from 'element-plus';
 
 import { createVideo, uploadVideo } from '@/api/platform';
 import { videoCategoryOptions } from '@/constants/categories';
+import {
+  isRecoverableUploadSubmissionError,
+  resolveApiErrorMessage,
+} from '@/utils/apiErrors';
 
 const router = useRouter();
 
@@ -160,6 +164,14 @@ function handleUseAutoCover() {
   }
 }
 
+function resetSelectedUploadFiles() {
+  selectedVideoFile.value = null;
+  selectedCoverFile.value = null;
+  autoCoverPreview.value = null;
+  autoCoverFile.value = null;
+  captureTimeSeconds.value = 1;
+}
+
 async function handleCreateDraft() {
   if (!form.title.trim()) {
     ElMessage.warning('请输入视频标题');
@@ -178,8 +190,12 @@ async function handleCreateDraft() {
 
   creating.value = true;
 
+  let originalUploaded = false;
+  let draftCreateStarted = false;
+
   try {
     const uploadedVideo = await uploadVideo(selectedVideoFile.value, 'ORIGINAL');
+    originalUploaded = true;
     let coverUrl = form.coverUrl.trim() || undefined;
     let coverAssetId: number | undefined;
     let coverUploadToken: string | undefined;
@@ -192,7 +208,8 @@ async function handleCreateDraft() {
       coverUploadToken = coverResp.uploadToken;
     }
 
-    const resp = await createVideo({
+    draftCreateStarted = true;
+    await createVideo({
       assetId: uploadedVideo.assetId,
       uploadToken: uploadedVideo.uploadToken,
       title: form.title,
@@ -204,26 +221,37 @@ async function handleCreateDraft() {
       coverUploadToken,
     });
 
-    selectedVideoFile.value = null;
-    selectedCoverFile.value = null;
-    autoCoverPreview.value = null;
-    autoCoverFile.value = null;
-    captureTimeSeconds.value = 1;
+    resetSelectedUploadFiles();
     ElMessage.success('稿件创建成功！');
     await router.push('/user/dashboard');
   } catch (error: unknown) {
-    console.error('创建稿件失败:', error);
-    let message = '创建稿件失败，请重试';
-    if (typeof error === 'object' && error !== null && 'response' in error) {
-      const axiosError = error as { response?: { data?: { message?: string | string[] } } };
-      if (axiosError.response?.data?.message) {
-        const msg = axiosError.response.data.message;
-        message = Array.isArray(msg) ? msg.join(', ') : msg;
+    if (isRecoverableUploadSubmissionError(error)) {
+      if (draftCreateStarted) {
+        resetSelectedUploadFiles();
+        ElMessage.warning({
+          message: '请求没有及时返回，但视频文件已上传，稿件可能已经创建并在后台处理，请稍后到个人主页查看。',
+          duration: 6000,
+        });
+        await router.push('/user/dashboard');
+        return;
       }
-    } else if (error instanceof Error) {
-      message = error.message;
+
+      if (originalUploaded) {
+        ElMessage.warning({
+          message: '视频文件已上传，但后续提交暂时没有收到确认，请稍后查看个人主页，若没有出现再重新提交。',
+          duration: 6000,
+        });
+        return;
+      }
+
+      ElMessage.warning({
+        message: '上传请求没有及时返回，服务器可能仍在保存文件，请稍后确认后再重试。',
+        duration: 6000,
+      });
+      return;
     }
-    ElMessage.error(message);
+
+    ElMessage.error(resolveApiErrorMessage(error, '创建稿件失败，请重试'));
   } finally {
     creating.value = false;
   }

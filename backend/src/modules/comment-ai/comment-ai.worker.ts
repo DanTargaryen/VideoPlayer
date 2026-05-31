@@ -1,6 +1,10 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+import {
+  getPrismaErrorCode,
+  isTransientPrismaError,
+} from '../../common/prisma/transient-prisma-error';
 import { CommentAiService } from './comment-ai.service';
 
 @Injectable()
@@ -9,6 +13,8 @@ export class CommentAiWorkerService implements OnModuleInit, OnModuleDestroy {
   private timer: ReturnType<typeof setInterval> | null = null;
   private polling = false;
   private disabled = false;
+  private lastTransientDatabaseWarningAt = 0;
+  private transientDatabasePauseUntil = 0;
 
   constructor(
     private readonly configService: ConfigService,
@@ -33,7 +39,7 @@ export class CommentAiWorkerService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async pollOnce() {
-    if (this.polling || this.disabled) {
+    if (this.polling || this.disabled || Date.now() < this.transientDatabasePauseUntil) {
       return;
     }
 
@@ -48,6 +54,8 @@ export class CommentAiWorkerService implements OnModuleInit, OnModuleDestroy {
           this.timer = null;
         }
         this.logger.warn('Comment AI worker disabled because table `CommentAiTask` does not exist yet');
+      } else if (isTransientPrismaError(error)) {
+        this.pauseAfterTransientDatabaseError(error);
       } else {
         const message = error instanceof Error ? error.message : String(error);
         this.logger.error(`Comment AI worker poll failed: ${message}`);
@@ -70,6 +78,19 @@ export class CommentAiWorkerService implements OnModuleInit, OnModuleDestroy {
     return typeof candidate.message === 'string' && candidate.message.includes('CommentAiTask');
   }
 
+  private pauseAfterTransientDatabaseError(error: unknown) {
+    const now = Date.now();
+    this.transientDatabasePauseUntil = now + this.getTransientDatabasePauseMs();
+
+    if (now - this.lastTransientDatabaseWarningAt < 300000) {
+      return;
+    }
+
+    this.lastTransientDatabaseWarningAt = now;
+    const code = getPrismaErrorCode(error) ?? 'TRANSIENT';
+    this.logger.warn(`Comment AI worker paused briefly because database is temporarily unavailable (${code})`);
+  }
+
   private getPollIntervalMs() {
     const value = Number(this.configService.get<string>('COMMENT_AI_POLL_INTERVAL_MS') || 5000);
     if (!Number.isFinite(value) || value < 1000) {
@@ -82,6 +103,14 @@ export class CommentAiWorkerService implements OnModuleInit, OnModuleDestroy {
     const value = Number(this.configService.get<string>('COMMENT_AI_BATCH_SIZE') || 5);
     if (!Number.isFinite(value) || value < 1) {
       return 5;
+    }
+    return Math.floor(value);
+  }
+
+  private getTransientDatabasePauseMs() {
+    const value = Number(this.configService.get<string>('COMMENT_AI_TRANSIENT_PAUSE_MS') || 30000);
+    if (!Number.isFinite(value) || value < 5000) {
+      return 30000;
     }
     return Math.floor(value);
   }

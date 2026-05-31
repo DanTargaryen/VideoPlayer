@@ -31,6 +31,7 @@ import {
 
 import { ok } from '../../common/dto/api-response.dto';
 import { VIDEO_CATEGORY_CODES } from '../../common/constants/categories';
+import { VIDEO_COIN_LIMIT_PER_USER } from '../../common/constants/coins';
 import { AuthService } from '../auth/auth.service';
 import { VideoService } from './video.service';
 
@@ -135,7 +136,7 @@ class RecordPlayDto {
 class CoinVideoDto {
   @IsInt()
   @Min(1)
-  @Max(5)
+  @Max(VIDEO_COIN_LIMIT_PER_USER)
   amount!: number;
 }
 

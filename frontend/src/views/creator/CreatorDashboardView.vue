@@ -262,7 +262,12 @@
       </div>
 
       <section class="panel">
-        <h2>我的作品</h2>
+        <div class="panel-head my-work-head">
+          <div>
+            <h2>我的作品</h2>
+            <span class="subtle">共 {{ dashboard.totalVideos }} 个作品</span>
+          </div>
+        </div>
         <div class="video-list">
           <article v-for="item in videos" :key="item.id" class="video-card">
             <button class="video-cover-button" type="button" @click="openVideoPreview(item)">
@@ -747,6 +752,10 @@ import {
 } from '@/api/platform';
 import { resolveVideoCategoryCodes, videoCategoryOptions } from '@/constants/categories';
 import { useAppStore } from '@/stores/app';
+import {
+  isRecoverableUploadSubmissionError,
+  resolveApiErrorMessage,
+} from '@/utils/apiErrors';
 import type {
   CreatorDashboardData,
   CreatorFollowerTrendPoint,
@@ -1105,6 +1114,14 @@ function handleUseAutoCover() {
     selectedCoverFile.value = autoCoverFile.value;
     ElMessage.success({ message: '已选择自动截取的画面作为封面', duration: 1500 });
   }
+}
+
+function resetCreateDraftFiles() {
+  selectedVideoFile.value = null;
+  selectedCoverFile.value = null;
+  autoCoverPreview.value = null;
+  autoCoverFile.value = null;
+  captureTimeSeconds.value = 1;
 }
 
 function openVideoPreview(video: CreatorVideo) {
@@ -1562,8 +1579,12 @@ async function handleCreateDraft() {
     return;
   }
   creating.value = true;
+  let shouldRefreshAfterSubmit = false;
+  let originalUploaded = false;
+  let draftCreateStarted = false;
   try {
     const upload = await uploadVideo(selectedVideoFile.value, 'ORIGINAL');
+    originalUploaded = true;
     let coverUploadToken: string | undefined;
     let coverAssetId: number | undefined;
     const coverToUpload = selectedCoverFile.value || autoCoverFile.value;
@@ -1572,6 +1593,7 @@ async function handleCreateDraft() {
       coverAssetId = coverUpload.assetId;
       coverUploadToken = coverUpload.uploadToken;
     }
+    draftCreateStarted = true;
     await createVideo({
       assetId: upload.assetId,
       uploadToken: upload.uploadToken,
@@ -1583,17 +1605,42 @@ async function handleCreateDraft() {
       coverAssetId,
       coverUploadToken,
     });
-    selectedVideoFile.value = null;
-    selectedCoverFile.value = null;
-    autoCoverPreview.value = null;
-    autoCoverFile.value = null;
-    captureTimeSeconds.value = 1;
+    resetCreateDraftFiles();
+    shouldRefreshAfterSubmit = true;
     ElMessage.success({ message: '稿件创建成功', duration: 1500 });
-  } catch {
-    ElMessage.error({ message: '创建稿件失败，请确认 MinIO 服务已启动且已使用用户账号登录', duration: 4000 });
-    return;
+  } catch (error: unknown) {
+    if (isRecoverableUploadSubmissionError(error)) {
+      if (draftCreateStarted) {
+        resetCreateDraftFiles();
+        shouldRefreshAfterSubmit = true;
+        ElMessage.warning({
+          message: '请求没有及时返回，但视频文件已上传，稿件可能已经创建并在后台处理，列表稍后会同步。',
+          duration: 6000,
+        });
+      } else if (originalUploaded) {
+        ElMessage.warning({
+          message: '视频文件已上传，但稿件提交暂时没有收到确认，请稍后刷新列表，若没有出现再重新提交。',
+          duration: 6000,
+        });
+      } else {
+        ElMessage.warning({
+          message: '上传请求没有及时返回，服务器可能仍在保存文件，请稍后确认后再重试。',
+          duration: 6000,
+        });
+      }
+    } else {
+      ElMessage.error({
+        message: resolveApiErrorMessage(error, '创建稿件失败，请确认 MinIO 服务已启动且已使用用户账号登录'),
+        duration: 4000,
+      });
+      return;
+    }
   } finally {
     creating.value = false;
+  }
+
+  if (!shouldRefreshAfterSubmit) {
+    return;
   }
 
   try {
