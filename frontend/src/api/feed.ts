@@ -2,6 +2,7 @@ import http from './http';
 import type {
   ApiResponse,
   DynamicFeedResponse,
+  DynamicSidebarOverview,
   DynamicPostItem,
   DynamicPostCommentItem,
   DynamicPostCommentList,
@@ -25,6 +26,11 @@ export async function getDynamicFeed(params?: {
 
 export async function getSidebarLive() {
   const { data } = await http.get<ApiResponse<{ list: SidebarLiveItem[] }>>('/feed/sidebar/live');
+  return data.data;
+}
+
+export async function getSidebarOverview() {
+  const { data } = await http.get<ApiResponse<DynamicSidebarOverview>>('/feed/sidebar/overview');
   return data.data;
 }
 

@@ -1,16 +1,13 @@
 <template>
   <nav class="floating-actions" aria-label="动态页快捷操作">
-    <button type="button" @click="scrollToTop">
+    <button type="button" aria-label="回到顶部" title="回到顶部" @click="scrollToTop">
       <el-icon><Top /></el-icon>
-      <span>回到顶部</span>
     </button>
-    <button type="button" @click="openFeedback">
+    <button type="button" aria-label="反馈建议" title="反馈建议" @click="openFeedback">
       <el-icon><ChatDotRound /></el-icon>
-      <span>反馈建议</span>
     </button>
-    <button type="button" @click="$emit('compose')">
+    <button type="button" aria-label="发布动态" title="发布动态" @click="$emit('compose')">
       <el-icon><EditPen /></el-icon>
-      <span>发布动态</span>
     </button>
   </nav>
 </template>
@@ -38,33 +35,29 @@ function openFeedback() {
   right: clamp(14px, 1.6vw, 28px);
   bottom: 84px;
   z-index: 20;
-  display: grid;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 16px 34px rgba(15, 23, 42, 0.12);
   backdrop-filter: blur(12px);
+  padding: 6px;
 }
 
 .floating-actions button {
   display: grid;
-  justify-items: center;
-  gap: 4px;
-  width: 62px;
-  min-height: 64px;
+  place-items: center;
+  width: 44px;
+  height: 44px;
   border: 0;
-  border-bottom: 1px solid var(--color-border-soft);
+  border-radius: 50%;
   background: transparent;
   color: var(--color-text-secondary);
   cursor: pointer;
-  font-size: 11px;
-  font-weight: 800;
   transition: background var(--gl-transition), color var(--gl-transition), transform var(--gl-transition);
-}
-
-.floating-actions button:last-child {
-  border-bottom: 0;
 }
 
 .floating-actions button:hover {

@@ -478,26 +478,54 @@ export class FeedService {
       ];
     }
 
-    const videos = await this.prisma.video.findMany({
-      where: {
-        creatorId: { in: followingIds },
-        status: 'PUBLISHED',
-      },
-      select: {
-        creatorId: true,
-        category: true,
-        categories: { select: { code: true } },
-      },
-    });
-
     const creatorCategoryIndex = new Map<number, Set<string>>();
-    for (const video of videos) {
-      const categories = creatorCategoryIndex.get(video.creatorId) ?? new Set<string>();
-      categories.add(video.category);
-      for (const category of video.categories) {
-        categories.add(category.code);
+    const addCategoryCodes = (creatorId: number, codes: string[]) => {
+      if (codes.length === 0) {
+        return;
       }
-      creatorCategoryIndex.set(video.creatorId, categories);
+
+      const categories = creatorCategoryIndex.get(creatorId) ?? new Set<string>();
+      for (const code of codes) {
+        categories.add(code);
+      }
+      creatorCategoryIndex.set(creatorId, categories);
+    };
+
+    const [videos, dynamicPosts] = await Promise.all([
+      this.prisma.video.findMany({
+        where: {
+          creatorId: { in: followingIds },
+          status: 'PUBLISHED',
+        },
+        select: {
+          creatorId: true,
+          category: true,
+          categories: { select: { code: true } },
+        },
+      }),
+      this.prisma.dynamicPost.findMany({
+        where: {
+          authorId: { in: followingIds },
+          status: 'NORMAL',
+        },
+        select: {
+          authorId: true,
+          content: true,
+        },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 240,
+      }),
+    ]);
+
+    for (const video of videos) {
+      addCategoryCodes(video.creatorId, [
+        video.category,
+        ...video.categories.map((category) => category.code),
+      ]);
+    }
+
+    for (const post of dynamicPosts) {
+      addCategoryCodes(post.authorId, this.inferDynamicPostCategoryCodes(post.content));
     }
 
     return [
@@ -516,6 +544,30 @@ export class FeedService {
         };
       }),
     ];
+  }
+
+  private inferDynamicPostCategoryCodes(content: string) {
+    const normalized = content.toLowerCase();
+    const codes = new Set<string>();
+
+    if (['学习', '知识', '英语', '考试', 'study'].some((keyword) => normalized.includes(keyword))) {
+      codes.add('study');
+    }
+    if (
+      ['编程', '科技', '技术', 'typescript', 'java', 'next', 'coding', 'tech'].some((keyword) =>
+        normalized.includes(keyword),
+      )
+    ) {
+      codes.add('tech');
+    }
+    if (['游戏', '实况', 'game'].some((keyword) => normalized.includes(keyword))) {
+      codes.add('game');
+    }
+    if (['影视', '电影', '娱乐', 'media', 'film'].some((keyword) => normalized.includes(keyword))) {
+      codes.add('film');
+    }
+
+    return Array.from(codes);
   }
 
   private async fetchPublishedVideos(options: { creatorIds?: number[]; take: number }) {

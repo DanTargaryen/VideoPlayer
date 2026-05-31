@@ -69,6 +69,12 @@ export class FeedController {
     return ok(await this.feedService.getSidebarLive(user?.id));
   }
 
+  @Get('sidebar/overview')
+  async getSidebarOverview(@Headers('authorization') authorization: string | undefined) {
+    const user = await this.authService.getCurrentUser(authorization);
+    return ok(await this.feedService.getDynamicSidebarOverview(user?.id));
+  }
+
   @Get('sidebar/recent-updates')
   async getRecentUpdates(@Headers('authorization') authorization: string | undefined) {
     const user = await this.authService.getCurrentUser(authorization);
