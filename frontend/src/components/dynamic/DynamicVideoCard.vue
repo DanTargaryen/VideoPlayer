@@ -2,16 +2,17 @@
   <RouterLink :to="`/video/${videoId}`" class="video-content">
     <div class="media-frame">
       <img :src="item.cover" :alt="item.title" />
+      <span class="play-button" aria-hidden="true">
+        <el-icon><VideoPlay /></el-icon>
+      </span>
       <span v-if="durationLabel" class="duration">{{ durationLabel }}</span>
     </div>
     <div class="video-copy">
       <h3>{{ item.title }}</h3>
-      <p>{{ item.description || '这个创作者刚刚发布了一个新视频。' }}</p>
       <span v-if="item.category" class="category">{{ item.category }}</span>
       <div class="stat-row">
-        <span><el-icon><VideoPlay /></el-icon>{{ formatCompactNumber(item.stats?.views ?? 0) }}</span>
+        <span><el-icon><View /></el-icon>{{ formatCompactNumber(item.stats?.views ?? 0) }}</span>
         <span><el-icon><ChatDotRound /></el-icon>{{ formatCompactNumber(item.stats?.comments ?? 0) }}</span>
-        <span><el-icon><Pointer /></el-icon>{{ formatCompactNumber(item.stats?.likes ?? 0) }}</span>
       </div>
     </div>
   </RouterLink>
@@ -19,7 +20,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { ChatDotRound, Pointer, VideoPlay } from '@element-plus/icons-vue';
+import { ChatDotRound, VideoPlay, View } from '@element-plus/icons-vue';
 
 import type { DynamicFeedItem } from '@/types/api';
 
@@ -45,16 +46,17 @@ function formatCompactNumber(value: number) {
 <style scoped>
 .video-content {
   display: grid;
-  grid-template-columns: minmax(260px, 1.05fr) minmax(220px, 0.95fr);
-  gap: 22px;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 16px;
   align-items: center;
 }
 
 .media-frame {
   position: relative;
   overflow: hidden;
-  aspect-ratio: 16 / 9;
-  border-radius: 10px;
+  width: 160px;
+  height: 90px;
+  border-radius: 8px;
   background: var(--color-bg-muted);
 }
 
@@ -69,58 +71,68 @@ function formatCompactNumber(value: number) {
   transform: scale(1.025);
 }
 
+.play-button,
 .duration {
   position: absolute;
+  color: #ffffff;
+}
+
+.play-button {
+  top: 50%;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.64);
+  transform: translate(-50%, -50%);
+}
+
+.duration {
   right: 8px;
   bottom: 8px;
   padding: 3px 7px;
   border-radius: 7px;
   background: rgba(15, 23, 42, 0.78);
-  color: #ffffff;
   font-size: 12px;
   font-weight: 800;
 }
 
 .video-copy {
   display: grid;
-  align-content: center;
-  gap: 12px;
+  gap: 8px;
   min-width: 0;
 }
 
 .video-copy h3 {
-  margin: 0;
-  color: var(--color-text-main);
-  font-size: 19px;
-  line-height: 1.35;
-}
-
-.video-copy p {
   display: -webkit-box;
   margin: 0;
   overflow: hidden;
-  color: var(--color-text-secondary);
-  line-height: 1.6;
+  color: var(--color-text-main);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.45;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
 
 .category {
   justify-self: start;
-  padding: 5px 9px;
-  border-radius: 8px;
+  padding: 4px 8px;
+  border-radius: 7px;
   background: var(--color-primary-light);
   color: var(--color-primary);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
 }
 
 .stat-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 18px;
+  gap: 14px;
   color: var(--color-text-secondary);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .stat-row span {
@@ -129,9 +141,15 @@ function formatCompactNumber(value: number) {
   gap: 5px;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 560px) {
   .video-content {
-    grid-template-columns: 1fr;
+    grid-template-columns: 130px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .media-frame {
+    width: 130px;
+    height: 73px;
   }
 }
 </style>

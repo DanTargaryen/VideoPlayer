@@ -5,7 +5,7 @@ import { VideoService } from '../video/video.service';
 import { LiveService } from '../live/live.service';
 import { DynamicPostsService, type DynamicPostItem } from './dynamic-posts.service';
 
-export type DynamicFeedType = 'all' | 'video' | 'post' | 'live';
+export type DynamicFeedType = 'all' | 'video' | 'post' | 'image_text' | 'text' | 'image' | 'live';
 type DynamicFeedSource = 'following' | 'recommended';
 
 type FeedAuthor = {
@@ -24,7 +24,7 @@ type FeedStats = {
 
 type DynamicFeedItem = {
   id: string;
-  type: 'video' | 'post' | 'live';
+  type: 'video' | 'image_text' | 'text' | 'image' | 'live';
   source: DynamicFeedSource;
   author: FeedAuthor;
   actionText: string;
@@ -64,6 +64,23 @@ type PublishedVideo = {
     avatarUrl?: string | null;
   } | null;
 };
+
+const FOLLOW_GROUPS = [
+  { id: 'study', name: '学习区', icon: 'S', categoryCodes: ['study'] },
+  { id: 'programming', name: '编程区', icon: 'C', categoryCodes: ['tech'] },
+  { id: 'game', name: '游戏区', icon: 'G', categoryCodes: ['game'] },
+  { id: 'film', name: '影视区', icon: 'F', categoryCodes: ['film', 'entertainment', 'animation', 'music'] },
+] as const;
+
+const HOT_TOPIC_CANDIDATES = [
+  { id: 'ai-agent', name: 'AI Agent', keywords: ['ai agent', 'ai智能体', '智能体', 'agent', 'aigc'] },
+  { id: 'java-backend', name: 'Java后端', keywords: ['java', '后端', 'spring', 'nestjs', 'prisma'] },
+  { id: 'math-model', name: '数学建模', keywords: ['数学建模', '建模', '模型', '动态规划', '优化'] },
+  { id: 'game-live', name: '游戏实况', keywords: ['游戏实况', '游戏', '手柄', '独立游戏', '打机'] },
+  { id: 'final-review', name: '期末复习', keywords: ['期末', '复习', '考试', '课程', '答辩'] },
+  { id: 'video-tools', name: '视频工具链', keywords: ['ffmpeg', '转码', '抽帧', '封面', '上传'] },
+  { id: 'campus-vlog', name: '校园Vlog', keywords: ['校园', '宿舍', 'vlog', '旅行', '生活'] },
+] as const;
 
 @Injectable()
 export class FeedService {
@@ -151,6 +168,136 @@ export class FeedService {
         recommendedItemCount: Math.max(0, combined.length - filteredFollowingItems.length),
       },
     };
+  }
+
+  async getDynamicSidebarOverview(currentUserId?: number) {
+    const [user, followingIds] = await Promise.all([
+      currentUserId
+        ? this.prisma.user.findUnique({
+            where: { id: currentUserId },
+            select: {
+              _count: {
+                select: {
+                  followingRelations: true,
+                  followerRelations: true,
+                  dynamicPosts: true,
+                  createdVideos: true,
+                },
+              },
+            },
+          })
+        : null,
+      this.getFollowingIds(currentUserId),
+    ]);
+
+    const groups = await this.buildFollowGroups(followingIds);
+
+    return {
+      profileStats: {
+        followingCount: user?._count.followingRelations ?? followingIds.length,
+        followerCount: user?._count.followerRelations ?? 0,
+        dynamicCount: (user?._count.dynamicPosts ?? 0) + (user?._count.createdVideos ?? 0),
+      },
+      groups,
+    };
+  }
+
+  async getHotTopics() {
+    const [videos, posts] = await Promise.all([
+      this.prisma.video.findMany({
+        where: { status: 'PUBLISHED' },
+        select: {
+          title: true,
+          description: true,
+          category: true,
+          playCount: true,
+          likeCount: true,
+          favoriteCount: true,
+          commentCount: true,
+          publishedAt: true,
+          createdAt: true,
+          categories: { select: { code: true } },
+        },
+        orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }],
+        take: 120,
+      }),
+      this.prisma.dynamicPost.findMany({
+        where: { status: 'NORMAL' },
+        select: {
+          content: true,
+          likeCount: true,
+          commentCount: true,
+          favoriteCount: true,
+          createdAt: true,
+        },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 120,
+      }),
+    ]);
+
+    const now = Date.now();
+    const topicScores = HOT_TOPIC_CANDIDATES.map((topic) => {
+      let discussionCount = 0;
+      let recentScore = 0;
+
+      for (const video of videos) {
+        const corpus = [
+          video.title,
+          video.description,
+          video.category,
+          ...video.categories.map((category) => category.code),
+        ]
+          .join(' ')
+          .toLowerCase();
+        if (!topic.keywords.some((keyword) => corpus.includes(keyword.toLowerCase()))) {
+          continue;
+        }
+
+        const score = Math.round(
+          Number(video.playCount ?? 0) / 18 +
+            Number(video.likeCount ?? 0) * 8 +
+            Number(video.favoriteCount ?? 0) * 5 +
+            Number(video.commentCount ?? 0) * 22 +
+            180,
+        );
+        discussionCount += score;
+        if (now - this.resolveVideoTime(video).getTime() < 72 * 60 * 60 * 1000) {
+          recentScore += score;
+        }
+      }
+
+      for (const post of posts) {
+        const corpus = post.content.toLowerCase();
+        if (!topic.keywords.some((keyword) => corpus.includes(keyword.toLowerCase()))) {
+          continue;
+        }
+
+        const score = Math.round(
+          Number(post.likeCount ?? 0) * 8 +
+            Number(post.favoriteCount ?? 0) * 5 +
+            Number(post.commentCount ?? 0) * 28 +
+            120,
+        );
+        discussionCount += score;
+        if (now - post.createdAt.getTime() < 72 * 60 * 60 * 1000) {
+          recentScore += score;
+        }
+      }
+
+      return {
+        id: topic.id,
+        name: topic.name,
+        discussionCount,
+        isRising: recentScore > 0 && recentScore >= discussionCount * 0.45,
+      };
+    });
+
+    const list = topicScores
+      .filter((topic) => topic.discussionCount > 0)
+      .sort((left, right) => right.discussionCount - left.discussionCount)
+      .slice(0, 6);
+
+    return { list };
   }
 
   async getSidebarLive(currentUserId?: number) {
@@ -318,6 +465,59 @@ export class FeedService {
     return relations.map((item) => item.followingId);
   }
 
+  private async buildFollowGroups(followingIds: number[]) {
+    if (followingIds.length === 0) {
+      return [
+        { id: 'all', name: '全部关注', count: 0, icon: 'A' },
+        ...FOLLOW_GROUPS.map((group) => ({
+          id: group.id,
+          name: group.name,
+          count: 0,
+          icon: group.icon,
+        })),
+      ];
+    }
+
+    const videos = await this.prisma.video.findMany({
+      where: {
+        creatorId: { in: followingIds },
+        status: 'PUBLISHED',
+      },
+      select: {
+        creatorId: true,
+        category: true,
+        categories: { select: { code: true } },
+      },
+    });
+
+    const creatorCategoryIndex = new Map<number, Set<string>>();
+    for (const video of videos) {
+      const categories = creatorCategoryIndex.get(video.creatorId) ?? new Set<string>();
+      categories.add(video.category);
+      for (const category of video.categories) {
+        categories.add(category.code);
+      }
+      creatorCategoryIndex.set(video.creatorId, categories);
+    }
+
+    return [
+      { id: 'all', name: '全部关注', count: followingIds.length, icon: 'A' },
+      ...FOLLOW_GROUPS.map((group) => {
+        const count = followingIds.filter((id) => {
+          const categories = creatorCategoryIndex.get(id);
+          return categories ? group.categoryCodes.some((code) => categories.has(code)) : false;
+        }).length;
+
+        return {
+          id: group.id,
+          name: group.name,
+          count,
+          icon: group.icon,
+        };
+      }),
+    ];
+  }
+
   private async fetchPublishedVideos(options: { creatorIds?: number[]; take: number }) {
     if (options.creatorIds && options.creatorIds.length === 0) {
       return [];
@@ -411,54 +611,21 @@ export class FeedService {
     };
   }
 
-  private buildPostItemsFromVideos(videos: PublishedVideo[], source: DynamicFeedSource) {
-    return videos.slice(0, 12).map((video, index): DynamicFeedItem => {
-      const createdAt = new Date(this.resolveVideoTime(video).getTime() + 30_000).toISOString();
-      return {
-        id: `post-${video.id}`,
-        type: 'post',
-        source,
-        author: this.videoAuthor(video),
-        actionText: source === 'following' ? '发布了图文动态' : '推荐给你',
-        title: video.title,
-        description: video.description || `分享一个关于「${video.title}」的新想法。`,
-        cover: this.resolveCover(video.coverUrl, `post-${video.id}`),
-        images: [
-          this.resolveCover(video.coverUrl, `post-${video.id}-1`),
-          this.resolveCover(video.coverUrl, `post-${video.id}-2`),
-          this.resolveCover(video.coverUrl, `post-${video.id}-3`),
-        ],
-        category: this.formatCategoryLabel(video.category),
-        createdAt,
-        stats: {
-          likes: Math.max(0, Math.round(video.likeCount * 0.8)),
-          comments: Math.max(0, Math.round(video.commentCount * 0.7)),
-          favorites: Math.max(0, Math.round(video.favoriteCount * 0.5)),
-        },
-        score: this.calculateDynamicScore({
-          createdAt,
-          views: video.playCount,
-          likes: video.likeCount,
-          comments: video.commentCount,
-          favorites: video.favoriteCount,
-          source,
-          recommendationScore: source === 'following' ? 0.78 : this.rankToRecommendationScore(index, videos.length),
-        }),
-      };
-    });
-  }
-
   private dynamicPostToFeedItem(
     post: DynamicPostItem,
     source: DynamicFeedSource,
   ): DynamicFeedItem {
+    const hasText = post.content.trim().length > 0;
+    const hasImages = post.images.length > 0;
+    const type = hasImages && hasText ? 'image_text' : hasImages ? 'image' : 'text';
+
     return {
       id: post.id,
-      type: 'post',
+      type,
       source,
       author: post.author,
-      actionText: source === 'following' ? '发布了图文动态' : '推荐给你',
-      title: post.content.slice(0, 40) || '图文动态',
+      actionText: source === 'following' ? this.dynamicPostActionText(type) : '推荐给你',
+      title: post.content.slice(0, 40) || this.dynamicPostTitle(type),
       description: post.content,
       images: post.images,
       createdAt: post.createdAt,
@@ -523,7 +690,25 @@ export class FeedService {
       return items;
     }
 
+    if (type === 'post') {
+      return items.filter((item) => ['image_text', 'text', 'image'].includes(item.type));
+    }
+
     return items.filter((item) => item.type === type);
+  }
+
+  private dynamicPostActionText(type: DynamicFeedItem['type']) {
+    if (type === 'image_text') return '发布了图文动态';
+    if (type === 'image') return '发布了图片动态';
+    if (type === 'text') return '发布了文字动态';
+    return '发布了动态';
+  }
+
+  private dynamicPostTitle(type: DynamicFeedItem['type']) {
+    if (type === 'image_text') return '图文动态';
+    if (type === 'image') return '图片动态';
+    if (type === 'text') return '文字动态';
+    return '动态';
   }
 
   private async attachInteractionState(items: DynamicFeedItem[], currentUserId?: number) {
@@ -616,7 +801,7 @@ export class FeedService {
     };
   }
 
-  private resolveVideoTime(video: PublishedVideo) {
+  private resolveVideoTime(video: { publishedAt?: Date | null; createdAt?: Date | null }) {
     return video.publishedAt ?? video.createdAt ?? new Date(0);
   }
 
@@ -637,7 +822,7 @@ export class FeedService {
   }
 
   private normalizeType(type?: DynamicFeedType) {
-    return type && ['all', 'video', 'post', 'live'].includes(type) ? type : 'all';
+    return type && ['all', 'video', 'post', 'image_text', 'text', 'image', 'live'].includes(type) ? type : 'all';
   }
 
   private normalizePage(page?: number) {
