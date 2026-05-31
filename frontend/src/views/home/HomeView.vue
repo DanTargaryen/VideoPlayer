@@ -8,6 +8,7 @@
       <section
         v-if="carousel.length > 0"
         class="hero-shell"
+        data-tour="home-hero"
         aria-label="热门推荐轮播"
         @mouseenter="stopCarouselTimer"
         @mouseleave="startCarouselTimer"
@@ -110,7 +111,7 @@
         </aside>
       </section>
 
-      <section class="category-shell" aria-label="内容分类">
+      <section class="category-shell" aria-label="内容分类" data-tour="home-category">
         <div class="category-rail">
           <button
             v-for="category in categoryTabs"
@@ -138,7 +139,7 @@
       </div>
 
       <template v-if="cards.length > 0">
-        <div class="cards" aria-label="为你推荐视频流">
+        <div class="cards" aria-label="为你推荐视频流" data-tour="home-recommend-list">
           <VideoMediaCard
             v-for="card in cards"
             :key="card.id"

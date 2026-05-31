@@ -25,7 +25,7 @@
 
     <div class="layout">
       <aside class="sidebar">
-        <section class="sidebar-card">
+        <section class="sidebar-card" data-tour="messages-conversations">
           <div class="section-head">
             <h2>会话</h2>
             <span class="subtle">未读 {{ totalUnreadCount }}</span>
@@ -55,7 +55,7 @@
         </section>
       </aside>
 
-      <section class="chat-card">
+      <section class="chat-card" data-tour="messages-chat">
         <template v-if="activeConversation">
           <div class="chat-head">
             <div class="chat-user">

@@ -1,0 +1,38 @@
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
+
+const ffmpegStatic = require('ffmpeg-static') as string | null | undefined;
+const ffprobeStatic = require('ffprobe-static') as { path?: string } | null | undefined;
+
+export type FfmpegBinaryEnvKey = 'FFMPEG_PATH' | 'FFPROBE_PATH';
+export type FfmpegBinaryName = 'ffmpeg' | 'ffprobe';
+
+export function getBinaryCandidates(envKey: FfmpegBinaryEnvKey, defaultName: FfmpegBinaryName) {
+  const configured = process.env[envKey]?.trim();
+  const bundled = getBundledBinaryPath(defaultName);
+  const homebrewName = defaultName === 'ffmpeg' ? '/opt/homebrew/bin/ffmpeg' : '/opt/homebrew/bin/ffprobe';
+  const usrLocalName = defaultName === 'ffmpeg' ? '/usr/local/bin/ffmpeg' : '/usr/local/bin/ffprobe';
+
+  return Array.from(new Set([configured, bundled, defaultName, homebrewName, usrLocalName].filter(Boolean) as string[]));
+}
+
+export async function findWorkingBinary(candidates: string[]) {
+  for (const candidate of candidates) {
+    try {
+      await execFileAsync(candidate, ['-version']);
+      return candidate;
+    } catch {}
+  }
+
+  return null;
+}
+
+function getBundledBinaryPath(binaryName: FfmpegBinaryName) {
+  if (binaryName === 'ffmpeg') {
+    return typeof ffmpegStatic === 'string' && ffmpegStatic.trim() ? ffmpegStatic : undefined;
+  }
+
+  return ffprobeStatic?.path?.trim() || undefined;
+}

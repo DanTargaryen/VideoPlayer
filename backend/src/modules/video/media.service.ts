@@ -7,6 +7,7 @@ import { promisify } from 'node:util';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { MinioService } from '../storage/minio.service';
+import { findWorkingBinary, getBinaryCandidates } from '../../common/utils/ffmpeg-binary';
 
 const execFileAsync = promisify(execFile);
 
@@ -24,12 +25,8 @@ export class MediaService {
   ) {}
 
   private async checkFfmpegAvailable(): Promise<boolean> {
-    const ffmpegBin = await this.findWorkingBinary(
-      this.getBinaryCandidates('FFMPEG_PATH', 'ffmpeg'),
-    );
-    const ffprobeBin = await this.findWorkingBinary(
-      this.getBinaryCandidates('FFPROBE_PATH', 'ffprobe'),
-    );
+    const ffmpegBin = await findWorkingBinary(getBinaryCandidates('FFMPEG_PATH', 'ffmpeg'));
+    const ffprobeBin = await findWorkingBinary(getBinaryCandidates('FFPROBE_PATH', 'ffprobe'));
 
     if (ffmpegBin && ffprobeBin) {
       const changed =
@@ -48,31 +45,13 @@ export class MediaService {
     if (now - this.lastBinaryWarningAt > 30_000) {
       this.lastBinaryWarningAt = now;
       this.logger.warn(
-        `FFmpeg/FFprobe not found (ffmpeg candidates=${this.getBinaryCandidates('FFMPEG_PATH', 'ffmpeg').join(', ')}, ` +
-          `ffprobe candidates=${this.getBinaryCandidates('FFPROBE_PATH', 'ffprobe').join(', ')}). ` +
+        `FFmpeg/FFprobe not found (ffmpeg candidates=${getBinaryCandidates('FFMPEG_PATH', 'ffmpeg').join(', ')}, ` +
+          `ffprobe candidates=${getBinaryCandidates('FFPROBE_PATH', 'ffprobe').join(', ')}). ` +
           'Video processing (duration probe, cover generation, transcoding) will be skipped. ' +
           'Please install FFmpeg and ensure it is in PATH, or set FFMPEG_PATH / FFPROBE_PATH in .env.',
       );
     }
     return false;
-  }
-
-  private getBinaryCandidates(envKey: 'FFMPEG_PATH' | 'FFPROBE_PATH', defaultName: 'ffmpeg' | 'ffprobe') {
-    const configured = process.env[envKey]?.trim();
-    const homebrewName = defaultName === 'ffmpeg' ? '/opt/homebrew/bin/ffmpeg' : '/opt/homebrew/bin/ffprobe';
-    const usrLocalName = defaultName === 'ffmpeg' ? '/usr/local/bin/ffmpeg' : '/usr/local/bin/ffprobe';
-    return Array.from(new Set([configured, defaultName, homebrewName, usrLocalName].filter(Boolean) as string[]));
-  }
-
-  private async findWorkingBinary(candidates: string[]) {
-    for (const candidate of candidates) {
-      try {
-        await execFileAsync(candidate, ['-version']);
-        return candidate;
-      } catch {}
-    }
-
-    return null;
   }
 
   async probeVideoDuration(videoId: number, originalAssetId: number): Promise<number> {

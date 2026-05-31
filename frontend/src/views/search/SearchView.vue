@@ -1,6 +1,6 @@
 <template>
   <section class="page">
-    <section class="filters">
+    <section class="filters" data-tour="search-filters">
       <el-segmented v-model="category" :options="categorySegmentOptions" @change="submitSearch" />
       <el-select v-model="sortBy" class="sort-select" @change="submitSearch">
         <el-option label="综合排序" value="best" />
@@ -19,13 +19,13 @@
       </el-button>
     </section>
 
-    <el-tabs v-model="activeTab" class="tabs" @tab-change="handleTabChange">
+    <el-tabs v-model="activeTab" class="tabs" data-tour="search-tabs" @tab-change="handleTabChange">
       <el-tab-pane :label="`视频 (${result.video.length})`" name="video" />
       <el-tab-pane :label="`用户 (${result.user.length})`" name="user" />
       <el-tab-pane :label="`直播 (${result.live.length})`" name="live" />
     </el-tabs>
 
-    <section v-if="activeTab === 'video'" class="cards">
+    <section v-if="activeTab === 'video'" class="cards" data-tour="search-results">
       <VideoMediaCard v-for="card in result.video" :key="card.id" :item="card" />
       <el-empty v-if="result.video.length === 0" description="当前条件下没有找到相关视频" />
     </section>
