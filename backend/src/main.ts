@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import * as express from 'express';
 
 import { AppModule } from './app.module';
+import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 import { getStorageMode, LOCAL_STORAGE_ROOT } from './modules/storage/minio.service';
 
 async function bootstrap() {
@@ -17,6 +18,7 @@ async function bootstrap() {
     app.use('/storage', express.static(LOCAL_STORAGE_ROOT));
   }
   app.setGlobalPrefix('api/v1');
+  app.useGlobalFilters(new PrismaExceptionFilter());
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

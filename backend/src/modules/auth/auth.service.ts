@@ -1,6 +1,11 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 
+import { INITIAL_COIN_BALANCE } from '../../common/constants/coins';
+import {
+  getPrismaErrorCode,
+  isTransientPrismaError,
+} from '../../common/prisma/transient-prisma-error';
 import { PrismaService } from '../prisma/prisma.service';
 
 const ADMIN_SECRET = '123456';
@@ -27,6 +32,7 @@ const BUILTIN_USERS = [
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   private readonly activeSessionNonceByUserId = new Map<number, string>();
 
   constructor(private readonly prisma: PrismaService) {}
@@ -50,6 +56,7 @@ export class AuthService {
         password: payload.password,
         role: 'USER',
         nickname: payload.nickname || payload.username,
+        coinBalance: INITIAL_COIN_BALANCE,
         favoriteFolders: {
           create: {
             name: '默认收藏夹',
@@ -166,6 +173,7 @@ export class AuthService {
         password: ADMIN_USER.password,
         role: 'ADMIN',
         nickname: ADMIN_USER.nickname,
+        coinBalance: INITIAL_COIN_BALANCE,
         favoriteFolders: {
           create: {
             name: '默认收藏夹',
@@ -204,6 +212,7 @@ export class AuthService {
         password: payload.password,
         role: 'USER',
         nickname: payload.nickname,
+        coinBalance: INITIAL_COIN_BALANCE,
         favoriteFolders: {
           create: {
             name: '默认收藏夹',
@@ -240,6 +249,23 @@ export class AuthService {
   }
 
   async getCurrentUser(authHeader?: string) {
+    return this.resolveCurrentUser(authHeader, { allowAnonymousOnDatabaseError: true });
+  }
+
+  async requireUser(authHeader?: string) {
+    const user = await this.resolveCurrentUser(authHeader, { allowAnonymousOnDatabaseError: false });
+
+    if (!user) {
+      throw new UnauthorizedException('Login required');
+    }
+
+    return user;
+  }
+
+  private async resolveCurrentUser(
+    authHeader: string | undefined,
+    options: { allowAnonymousOnDatabaseError: boolean },
+  ) {
     const parsed = this.parseToken(authHeader);
 
     if (!parsed) {
@@ -250,17 +276,25 @@ export class AuthService {
       return null;
     }
 
-    return this.prisma.user.findUnique({ where: { id: parsed.userId } });
-  }
+    try {
+      return await this.prisma.runWithTransientRetry(
+        () => this.prisma.user.findUnique({ where: { id: parsed.userId } }),
+        { operationName: 'auth.resolveCurrentUser' },
+      );
+    } catch (error) {
+      if (!isTransientPrismaError(error)) {
+        throw error;
+      }
 
-  async requireUser(authHeader?: string) {
-    const user = await this.getCurrentUser(authHeader);
+      const code = getPrismaErrorCode(error) ?? 'TRANSIENT';
+      this.logger.warn(`Could not resolve current user because database is unavailable (${code})`);
 
-    if (!user) {
-      throw new UnauthorizedException('Login required');
+      if (options.allowAnonymousOnDatabaseError) {
+        return null;
+      }
+
+      throw new ServiceUnavailableException('数据库连接暂时不可用，请稍后重试');
     }
-
-    return user;
   }
 
   private issueToken(userId: number) {

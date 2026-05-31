@@ -94,7 +94,7 @@ model User {
   avatarUrl             String?          @db.VarChar(255)
   bio                   String?          @db.VarChar(255)
   phone                 String?          @unique @db.VarChar(20)
-  coinBalance           Int              @default(0)
+  coinBalance           Int              @default(10)
   messagePrivacy        DirectMessagePrivacy @default(ALLOW_ALL)
   createdAt             DateTime         @default(now())
   updatedAt             DateTime         @updatedAt

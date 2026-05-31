@@ -42,12 +42,14 @@
         <span v-for="label in categoryLabels.slice(0, 3)" :key="label" class="category-pill">{{ label }}</span>
       </div>
       <div class="meta">
-        <div class="meta-leading">
-          <span v-if="showPlayCount" class="meta-text">{{ formattedPlayCount }}次观看</span>
-          <span v-if="showPlayCount && formattedTime" class="dot">·</span>
-          <span v-if="formattedTime" class="meta-text time">{{ formattedTime }}</span>
+        <div v-if="formattedTime" class="meta-leading">
+          <span class="meta-text time">{{ formattedTime }}</span>
         </div>
         <div class="meta-stats">
+          <span class="stat-item" title="浏览量" aria-label="浏览量">
+            <el-icon class="meta-icon"><View /></el-icon>
+            {{ formattedPlayCount }}
+          </span>
           <span class="stat-item" title="点赞数" aria-label="点赞数">
             <svg class="meta-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M7 22V11L10.5 3.5C10.78 2.87 11.41 2.5 12.1 2.5C13.1 2.5 13.85 3.42 13.65 4.4L12.8 9H20c1.1 0 2 .9 2 2v1c0 .15-.02.3-.05.44l-2.19 8C19.5 21.35 18.68 22 17.73 22H7ZM3 22h2V11H3v11Z" />
@@ -55,10 +57,12 @@
             {{ formattedLikeCount }}
           </span>
           <span class="stat-item" title="收藏数" aria-label="收藏数">
-            <svg class="meta-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2Z" />
-            </svg>
+            <el-icon class="meta-icon"><Star /></el-icon>
             {{ formattedFavoriteCount }}
+          </span>
+          <span class="stat-item" title="投币数" aria-label="投币数">
+            <el-icon class="meta-icon"><Coin /></el-icon>
+            {{ formattedCoinCount }}
           </span>
         </div>
       </div>
@@ -68,6 +72,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { Coin, Star, View } from '@element-plus/icons-vue';
 
 import { formatVideoCategoryLabels } from '@/constants/categories';
 import type { VideoCard } from '@/types/api';
@@ -75,7 +80,6 @@ import type { VideoCard } from '@/types/api';
 const props = defineProps<{
   item: VideoCard;
   hoverPreview?: boolean;
-  showPlayCount?: boolean;
   disableAuthorLink?: boolean;
 }>();
 
@@ -92,6 +96,7 @@ const showAuthorLink = computed(() => Boolean(creatorId.value) && !props.disable
 const formattedPlayCount = computed(() => formatCount(props.item.playCount ?? 0));
 const formattedLikeCount = computed(() => formatCount(props.item.likeCount ?? 0));
 const formattedFavoriteCount = computed(() => formatCount(props.item.favoriteCount ?? 0));
+const formattedCoinCount = computed(() => formatCount(props.item.coinCount ?? 0));
 const durationLabel = computed(() => formatDuration(props.item.durationSeconds));
 const categoryLabels = computed(() => formatVideoCategoryLabels(props.item));
 
@@ -342,7 +347,7 @@ function stopPreview() {
   align-items: center;
   gap: 5px;
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
 }
 
 .meta-text {
@@ -352,9 +357,11 @@ function stopPreview() {
 .meta-stats {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px 10px;
   margin-left: auto;
   flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .stat-item {

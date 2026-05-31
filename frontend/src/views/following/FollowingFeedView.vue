@@ -12,15 +12,7 @@
     </div>
 
     <div class="cards">
-      <article v-for="card in cards" :key="card.id" class="card">
-        <img :src="card.coverUrl" :alt="card.title" class="cover" />
-        <div class="card-body">
-          <h3>{{ card.title }}</h3>
-          <p>{{ card.description }}</p>
-          <span class="meta">发布者：{{ card.creator?.nickname ?? card.creatorId }}</span>
-          <RouterLink :to="`/video/${card.id}`" class="enter-link">查看详情</RouterLink>
-        </div>
-      </article>
+      <VideoMediaCard v-for="card in cards" :key="card.id" :item="card" />
       <el-empty v-if="cards.length === 0" description="你还没有关注任何用户，或关注用户尚未发布内容" />
     </div>
   </section>
@@ -32,6 +24,7 @@ import { ElMessage } from 'element-plus';
 import { RefreshRight } from '@element-plus/icons-vue';
 
 import { fetchFollowingFeed } from '@/api/platform';
+import VideoMediaCard from '@/components/VideoMediaCard.vue';
 import type { VideoCard } from '@/types/api';
 import { takeRandomItems } from '@/utils/randomVideos';
 
@@ -88,49 +81,5 @@ onMounted(() => {
   grid-template-columns: repeat(auto-fill, 280px);
   gap: 16px;
   justify-content: center;
-}
-
-.card {
-  overflow: hidden;
-  border-radius: 16px;
-  background: #ffffff;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.1);
-}
-
-.cover {
-  width: 100%;
-  height: 180px;
-  object-fit: cover;
-}
-
-.card-body {
-  display: grid;
-  gap: 12px;
-  padding: 18px;
-}
-
-.card-body h3 {
-  margin: 0;
-  color: #111827;
-}
-
-.card-body p {
-  margin: 0;
-  color: #4b5563;
-}
-
-.meta {
-  color: #6b7280;
-}
-
-.enter-link {
-  color: #2563eb;
 }
 </style>

@@ -43,14 +43,7 @@
     </div>
 
     <div class="cards" v-if="homepage">
-      <article v-for="card in displayedItems" :key="card.id" class="card">
-        <img :src="card.coverUrl" :alt="card.title" class="cover" />
-        <div class="card-body">
-          <h3>{{ card.title }}</h3>
-          <p>{{ card.description }}</p>
-          <RouterLink :to="`/video/${card.id}`" class="enter-link">查看详情</RouterLink>
-        </div>
-      </article>
+      <VideoMediaCard v-for="card in displayedItems" :key="card.id" :item="card" />
       <el-empty v-if="homepage.items.length === 0" description="该用户还没有发布内容" />
     </div>
   </section>
@@ -63,6 +56,7 @@ import { ElMessage } from 'element-plus';
 import { ArrowLeft, RefreshRight } from '@element-plus/icons-vue';
 
 import { fetchUserHomepage, followUser, unfollowUser } from '@/api/platform';
+import VideoMediaCard from '@/components/VideoMediaCard.vue';
 import { useAppStore } from '@/stores/app';
 import type { UserHomepage, VideoCard } from '@/types/api';
 import { takeRandomItems } from '@/utils/randomVideos';
@@ -241,45 +235,5 @@ watch(
   grid-template-columns: repeat(auto-fill, 280px);
   gap: 16px;
   justify-content: center;
-}
-
-.card {
-  overflow: hidden;
-  border-radius: 16px;
-  background: #ffffff;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.1);
-}
-
-.cover {
-  width: 100%;
-  height: 180px;
-  object-fit: cover;
-}
-
-.card-body {
-  display: grid;
-  gap: 12px;
-  padding: 18px;
-}
-
-.card-body h3 {
-  margin: 0;
-  color: #111827;
-}
-
-.card-body p {
-  margin: 0;
-  color: #4b5563;
-}
-
-.enter-link {
-  color: #2563eb;
 }
 </style>

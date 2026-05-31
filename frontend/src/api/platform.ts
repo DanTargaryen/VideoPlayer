@@ -53,6 +53,9 @@ import type {
   VideoWatchProgressPayload,
 } from '@/types/api';
 
+const uploadTimeoutMs = Number(import.meta.env.VITE_UPLOAD_TIMEOUT_MS ?? 0);
+const resolvedUploadTimeoutMs = Number.isFinite(uploadTimeoutMs) && uploadTimeoutMs > 0 ? uploadTimeoutMs : 0;
+
 export async function login(payload: { account?: string; password?: string; adminSecret?: string }) {
   const { data } = await http.post<ApiResponse<LoginResponse>>('/auth/login', payload);
   return data.data;
@@ -329,7 +332,7 @@ export async function uploadVideo(file: File, assetType: 'ORIGINAL' | 'COVER' | 
       'Content-Type': 'multipart/form-data',
     },
     params: { assetType },
-    timeout: 300000,
+    timeout: resolvedUploadTimeoutMs,
   });
   return data.data;
 }
@@ -348,7 +351,9 @@ export async function saveLiveReplay(
     coverUploadToken?: string;
   },
 ) {
-  const { data } = await http.post<ApiResponse<LiveReplaySaveResponse>>(`/lives/rooms/${roomId}/replay`, payload);
+  const { data } = await http.post<ApiResponse<LiveReplaySaveResponse>>(`/lives/rooms/${roomId}/replay`, payload, {
+    timeout: resolvedUploadTimeoutMs,
+  });
   return data.data;
 }
 
@@ -363,7 +368,9 @@ export async function createVideo(payload: {
   coverAssetId?: number;
   coverUploadToken?: string;
 }) {
-  const { data } = await http.post<ApiResponse<CreatorVideo>>('/videos', payload);
+  const { data } = await http.post<ApiResponse<CreatorVideo>>('/videos', payload, {
+    timeout: resolvedUploadTimeoutMs,
+  });
   return data.data;
 }
 

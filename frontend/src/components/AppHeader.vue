@@ -89,7 +89,9 @@ const route = useRoute();
 const { siteName, avatarUrl, isLoggedIn, isAdmin, token, unreadDirectMessageCount } = storeToRefs(store);
 const searchKeyword = ref(String(route.query.keyword ?? ''));
 const messageBadgeCount = computed(() => unreadDirectMessageCount.value);
+const HEADER_SYNC_INTERVAL_MS = 15000;
 let headerSyncTimer: number | null = null;
+let headerSyncInFlight = false;
 
 function isNavActive(item: HeaderNavItem) {
   if (item.path === '/') {
@@ -156,6 +158,19 @@ async function syncAvatar() {
   }
 }
 
+async function syncHeaderState() {
+  if (headerSyncInFlight) {
+    return;
+  }
+
+  headerSyncInFlight = true;
+  try {
+    await Promise.all([syncUnreadCount(), syncAvatar()]);
+  } finally {
+    headerSyncInFlight = false;
+  }
+}
+
 function submitSearch(keyword?: string) {
   const normalizedKeyword = (keyword ?? searchKeyword.value).trim();
   router.push({
@@ -168,8 +183,7 @@ function submitSearch(keyword?: string) {
 }
 
 watch(token, () => {
-  void syncUnreadCount();
-  void syncAvatar();
+  void syncHeaderState();
   if (token.value) {
     startHeaderSync();
     return;
@@ -186,8 +200,7 @@ watch(
 );
 
 onMounted(() => {
-  void syncUnreadCount();
-  void syncAvatar();
+  void syncHeaderState();
   if (token.value) {
     startHeaderSync();
   }
@@ -207,9 +220,8 @@ function stopHeaderSync() {
 function startHeaderSync() {
   stopHeaderSync();
   headerSyncTimer = window.setInterval(() => {
-    void syncUnreadCount();
-    void syncAvatar();
-  }, 3000);
+    void syncHeaderState();
+  }, HEADER_SYNC_INTERVAL_MS);
 }
 </script>
 

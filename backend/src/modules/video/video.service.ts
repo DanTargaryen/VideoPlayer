@@ -7,6 +7,7 @@ import {
   resolveCategoryCode,
   resolveCategoryId,
 } from '../../common/constants/categories';
+import { VIDEO_COIN_LIMIT_PER_USER } from '../../common/constants/coins';
 import { PrismaService } from '../prisma/prisma.service';
 import { FollowService } from '../follow/follow.service';
 import { UserProfileService, type UserRecommendationProfileDto } from '../user/user-profile.service';
@@ -169,13 +170,10 @@ export class VideoService {
       });
     }
 
-    await this.mediaService.probeVideoDuration(video.id, asset.id);
+    const createdVideo = await this.findVideoWithCategories(video.id);
+    this.scheduleMediaProcessing(video.id, asset.id, coverAsset?.id ?? null);
 
-    this.mediaService.processVideo(video.id, asset.id, coverAsset?.id ?? null).catch((err) =>
-      this.logger.error(`Media processing failed for video ${video.id}: ${err.message}`, err.stack),
-    );
-
-    return this.findVideoWithCategories(video.id);
+    return createdVideo;
   }
 
   async updateDraft(
@@ -439,7 +437,7 @@ export class VideoService {
       isLiked,
       isFavorited,
       myCoinCount,
-      myCoinLimit: 5,
+      myCoinLimit: VIDEO_COIN_LIMIT_PER_USER,
     };
   }
 
@@ -945,8 +943,8 @@ export class VideoService {
   }
 
   async coinVideo(videoId: number, user: { id: number }, amount: number) {
-    if (!Number.isInteger(amount) || amount < 1 || amount > 5) {
-      throw new BadRequestException('投币数量必须是 1 到 5 的整数');
+    if (!Number.isInteger(amount) || amount < 1 || amount > VIDEO_COIN_LIMIT_PER_USER) {
+      throw new BadRequestException(`投币数量必须是 1 到 ${VIDEO_COIN_LIMIT_PER_USER} 的整数`);
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -961,8 +959,8 @@ export class VideoService {
       });
       const existingAmount = existing?.amount ?? 0;
 
-      if (existingAmount + amount > 5) {
-        throw new BadRequestException('每个视频最多投币 5 个');
+      if (existingAmount + amount > VIDEO_COIN_LIMIT_PER_USER) {
+        throw new BadRequestException(`每个视频最多投币 ${VIDEO_COIN_LIMIT_PER_USER} 个`);
       }
 
       const userUpdate = await tx.user.updateMany({
@@ -977,12 +975,12 @@ export class VideoService {
       let userVideoCoinCount = amount;
       if (existing) {
         const contributionUpdate = await tx.videoCoinContribution.updateMany({
-          where: { id: existing.id, amount: { lte: 5 - amount } },
+          where: { id: existing.id, amount: { lte: VIDEO_COIN_LIMIT_PER_USER - amount } },
           data: { amount: { increment: amount } },
         });
 
         if (contributionUpdate.count !== 1) {
-          throw new BadRequestException('每个视频最多投币 5 个');
+          throw new BadRequestException(`每个视频最多投币 ${VIDEO_COIN_LIMIT_PER_USER} 个`);
         }
         userVideoCoinCount = existing.amount + amount;
       } else {
@@ -1574,6 +1572,16 @@ export class VideoService {
     }
 
     throw new NotFoundException(errorMessage);
+  }
+
+  private scheduleMediaProcessing(videoId: number, originalAssetId: number, coverAssetId: number | null) {
+    setImmediate(() => {
+      void this.mediaService.processVideo(videoId, originalAssetId, coverAssetId).catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        const stack = error instanceof Error ? error.stack : undefined;
+        this.logger.error(`Media processing failed for video ${videoId}: ${message}`, stack);
+      });
+    });
   }
 
   private async findVideoWithCategories(videoId: number) {
