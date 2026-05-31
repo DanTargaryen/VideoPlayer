@@ -7,7 +7,7 @@
       </div>
     </div>
 
-    <div class="upload-form-wrapper">
+    <div class="upload-form-wrapper" data-tour="upload-form">
       <el-form :model="form" label-position="top">
         <el-form-item label="标题">
           <el-input v-model="form.title" placeholder="请输入视频标题" />
@@ -49,7 +49,7 @@
           >
         </el-form-item>
         <div class="form-actions">
-          <el-button :loading="creating" type="primary" @click="handleCreateDraft">创建稿件</el-button>
+          <el-button :loading="creating" type="primary" data-tour="upload-create" @click="handleCreateDraft">创建稿件</el-button>
           <RouterLink to="/user/dashboard" class="back-link">返回个人主页</RouterLink>
         </div>
       </el-form>

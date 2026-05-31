@@ -13,6 +13,8 @@
     >
       <RouterView />
     </main>
+    <AssistantBuddy />
+    <AssistantTourOverlay />
   </div>
 </template>
 
@@ -21,6 +23,8 @@ import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 
 import AppHeader from '@/components/AppHeader.vue';
+import AssistantBuddy from '@/components/assistant/AssistantBuddy.vue';
+import AssistantTourOverlay from '@/components/assistant/AssistantTourOverlay.vue';
 import { resolveSectionTheme } from '@/utils/sectionThemes';
 
 const route = useRoute();

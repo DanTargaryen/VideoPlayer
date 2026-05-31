@@ -22,6 +22,7 @@ import { CaptchaModule } from './modules/captcha/captcha.module';
 import { EmailModule } from './modules/email/email.module';
 import { MessageModule } from './modules/message/message.module';
 import { FeedModule } from './modules/feed/feed.module';
+import { AssistantModule } from './modules/assistant/assistant.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { FeedModule } from './modules/feed/feed.module';
     EmailModule,
     MessageModule,
     FeedModule,
+    AssistantModule,
   ],
 })
 export class AppModule {}

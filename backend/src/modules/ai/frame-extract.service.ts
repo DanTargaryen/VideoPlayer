@@ -6,6 +6,8 @@ import { mkdir, readdir, readFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
 
+import { findWorkingBinary, getBinaryCandidates } from '../../common/utils/ffmpeg-binary';
+
 const execFileAsync = promisify(execFile);
 
 interface ExtractFramesOptions {
@@ -18,7 +20,13 @@ export class FrameExtractService {
   constructor(private readonly configService: ConfigService) {}
 
   async extractFrames(options: ExtractFramesOptions): Promise<string[]> {
-    const ffmpegBin = this.configService.get<string>('FFMPEG_PATH') || 'ffmpeg';
+    const ffmpegBin = await findWorkingBinary(getBinaryCandidates('FFMPEG_PATH', 'ffmpeg'));
+    if (!ffmpegBin) {
+      throw new BadRequestException(
+        '视频智能体当前不可用：后端没有找到可用的 FFmpeg。请安装 FFmpeg，或在 backend/.env 配置 FFMPEG_PATH。',
+      );
+    }
+
     const fps = this.getFrameFps();
     const minFrameCount = this.getMinFrameCount();
     const maxFrameCount = Math.max(this.getMaxFrameCount(), minFrameCount);

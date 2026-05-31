@@ -11,8 +11,8 @@
         @update:active-group-id="handleGroupChange"
       />
 
-      <main class="feed-column">
-        <section v-if="store.isLoggedIn" ref="composerCardRef" class="post-composer">
+      <main class="feed-column" data-tour="dynamic-feed">
+        <section v-if="store.isLoggedIn" ref="composerCardRef" class="post-composer" data-tour="dynamic-composer">
           <div class="composer-main">
             <img v-if="store.avatarUrl" :src="store.avatarUrl" :alt="store.nickname" class="composer-avatar" />
             <span v-else class="composer-avatar fallback">{{ store.nickname.slice(0, 1) }}</span>

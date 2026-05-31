@@ -52,7 +52,8 @@
           class="video-agent-message"
           :class="item.role === 'user' ? 'video-agent-message-user' : 'video-agent-message-assistant'"
         >
-          <p>{{ item.content }}</p>
+          <p v-if="item.role === 'user'" class="video-agent-message-body">{{ item.content }}</p>
+          <div v-else class="video-agent-message-body video-agent-message-markdown" v-html="renderMarkdown(item.content)"></div>
         </div>
       </div>
 
@@ -124,6 +125,7 @@ import {
   type VideoAgentQuickActionConfig,
   type VideoAgentTaskType,
 } from './videoAgentConfig';
+import { renderMarkdown } from '@/utils/markdown';
 
 interface AgentPanelMessage {
   id: number;
@@ -453,7 +455,7 @@ watch(
   display: flex;
 }
 
-.video-agent-message p {
+.video-agent-message-body {
   max-width: 90%;
   margin: 0;
   padding: 12px 14px;
@@ -468,19 +470,78 @@ watch(
   justify-content: flex-end;
 }
 
-.video-agent-message-user p {
+.video-agent-message-user .video-agent-message-body {
   border-bottom-right-radius: 6px;
   background: linear-gradient(180deg, #2f7dff, var(--agent-blue-deep));
   color: #ffffff;
   box-shadow: 0 12px 24px rgba(23, 104, 255, 0.2);
 }
 
-.video-agent-message-assistant p {
+.video-agent-message-assistant .video-agent-message-body {
   border: 1px solid rgba(146, 177, 235, 0.26);
   border-bottom-left-radius: 6px;
   background: rgba(255, 255, 255, 0.95);
   color: #24324f;
   box-shadow: 0 10px 22px rgba(45, 84, 144, 0.06);
+}
+
+.video-agent-message-markdown {
+  white-space: normal;
+}
+
+.video-agent-message-markdown :deep(p) {
+  margin: 0 0 8px;
+}
+
+.video-agent-message-markdown :deep(p:last-child),
+.video-agent-message-markdown :deep(ul:last-child),
+.video-agent-message-markdown :deep(ol:last-child),
+.video-agent-message-markdown :deep(pre:last-child) {
+  margin-bottom: 0;
+}
+
+.video-agent-message-markdown :deep(ul),
+.video-agent-message-markdown :deep(ol) {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.video-agent-message-markdown :deep(li) {
+  margin: 4px 0;
+}
+
+.video-agent-message-markdown :deep(h1),
+.video-agent-message-markdown :deep(h2),
+.video-agent-message-markdown :deep(h3),
+.video-agent-message-markdown :deep(h4) {
+  margin: 10px 0 6px;
+  color: #102145;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.video-agent-message-markdown :deep(code) {
+  padding: 2px 5px;
+  border-radius: 6px;
+  background: rgba(37, 99, 235, 0.08);
+  color: #1d4ed8;
+  font-family: Consolas, Monaco, 'Courier New', monospace;
+  font-size: 0.92em;
+}
+
+.video-agent-message-markdown :deep(pre) {
+  margin: 10px 0;
+  padding: 10px 12px;
+  overflow-x: auto;
+  border-radius: 12px;
+  background: #0f172a;
+  color: #e5e7eb;
+}
+
+.video-agent-message-markdown :deep(pre code) {
+  padding: 0;
+  background: transparent;
+  color: inherit;
 }
 
 .video-agent-thinking {
