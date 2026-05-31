@@ -129,6 +129,7 @@ import {
   getRecentUpdates,
   getRecommendedUsers,
   getSidebarLive,
+  getSidebarOverview,
   uploadDynamicPostImage,
 } from '@/api/feed';
 import { fetchFollowing, fetchRecommendFeed } from '@/api/platform';
@@ -185,9 +186,9 @@ const postForm = reactive({
 let observer: IntersectionObserver | null = null;
 
 const sidebarProfileStats = ref<SidebarProfileStats>({
-  followingCount: 485,
-  followerCount: 12000,
-  dynamicCount: 326,
+  followingCount: 0,
+  followerCount: 0,
+  dynamicCount: 0,
 });
 const followGroups = ref<FollowGroupItem[]>(defaultFollowGroups());
 const hotTopics = ref<HotTopicItem[]>([
@@ -325,11 +326,27 @@ function getHotScore(item: DynamicFeedItem) {
 
 async function loadSidebar() {
   await Promise.all([
+    loadSidebarOverview(),
     loadSidebarLive(),
     loadRecentUpdates(),
     loadRecommendedUsers(),
     loadFollowingUsers(),
   ]);
+}
+
+async function loadSidebarOverview() {
+  try {
+    const overview = await getSidebarOverview();
+    sidebarProfileStats.value = overview.profileStats;
+    followGroups.value = overview.groups.length > 0 ? overview.groups : defaultFollowGroups();
+  } catch {
+    sidebarProfileStats.value = {
+      followingCount: 0,
+      followerCount: 0,
+      dynamicCount: 0,
+    };
+    followGroups.value = defaultFollowGroups();
+  }
 }
 
 async function loadSidebarLive() {
@@ -371,11 +388,11 @@ async function loadFollowingUsers() {
 
 function defaultFollowGroups(): FollowGroupItem[] {
   return [
-    { id: 'all', name: '全部关注', count: 485, icon: 'A' },
-    { id: 'study', name: '学习区', count: 128, icon: 'S' },
-    { id: 'programming', name: '编程区', count: 96, icon: 'C' },
-    { id: 'game', name: '游戏区', count: 77, icon: 'G' },
-    { id: 'film', name: '影视区', count: 62, icon: 'F' },
+    { id: 'all', name: '全部关注', count: 0, icon: 'A' },
+    { id: 'study', name: '学习区', count: 0, icon: 'S' },
+    { id: 'programming', name: '编程区', count: 0, icon: 'C' },
+    { id: 'game', name: '游戏区', count: 0, icon: 'G' },
+    { id: 'film', name: '影视区', count: 0, icon: 'F' },
   ];
 }
 
@@ -430,7 +447,7 @@ async function handleRecommendedFollow(user: SidebarRecommendedUser) {
       item.userId === user.userId ? { ...item, followed: true } : item,
     );
     ElMessage.success('关注成功');
-    await Promise.all([loadFollowingUsers(), loadRecentUpdates(), loadFeed(true)]);
+    await Promise.all([loadSidebarOverview(), loadFollowingUsers(), loadRecentUpdates(), loadFeed(true)]);
   } catch {
     ElMessage.error('关注失败，请稍后重试');
   } finally {
@@ -481,7 +498,7 @@ async function submitDynamicPost() {
     composerExpanded.value = false;
     ElMessage.success('动态已发布');
     activeType.value = 'post';
-    await Promise.all([loadFeed(true), loadRecentUpdates()]);
+    await Promise.all([loadFeed(true), loadSidebarOverview(), loadRecentUpdates()]);
     await nextTick();
     setupObserver();
   } catch {

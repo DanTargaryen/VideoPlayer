@@ -11,7 +11,10 @@
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.js",
     "seed:demo-engagement": "node prisma/seed-demo-engagement.js",
-    "seed:demo-engagement:clean": "node prisma/seed-demo-engagement.js --clean"
+    "seed:demo-engagement:clean": "node prisma/seed-demo-engagement.js --clean",
+    "seed:demo-dynamic-feed": "node prisma/seed-demo-dynamic-feed.js",
+    "seed:demo-dynamic-feed:clean": "node prisma/seed-demo-dynamic-feed.js --clean",
+    "seed:demo-dynamic-feed:sync": "node prisma/seed-demo-dynamic-feed.js --sync-only"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
