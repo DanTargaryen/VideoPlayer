@@ -261,7 +261,7 @@
         </aside>
       </div>
 
-      <section class="panel">
+      <section class="panel" data-tour="creator-work-list">
         <div class="panel-head my-work-head">
           <div>
             <h2>我的作品</h2>
@@ -311,10 +311,12 @@
               <el-button
                 :icon="CircleCheck"
                 type="primary"
-                :disabled="item.status !== 'DRAFT' && item.status !== 'REJECTED'"
+                data-tour="creator-submit-review"
+                :loading="submittingReviewVideoId === item.id"
+                :disabled="(item.status !== 'DRAFT' && item.status !== 'REJECTED') || submittingReviewVideoId === item.id"
                 @click="handleSubmitReview(Number(item.id))"
               >
-                提交审核
+                {{ getSubmitReviewButtonText(item) }}
               </el-button>
               <el-button
                 :icon="Delete"
@@ -786,6 +788,7 @@ const deletingVideoId = ref<number | null>(null);
 const streakInfo = ref<StreakInfo>({ streak: 0, claimedToday: false, milestones: [] });
 const claimingMilestone = ref<number | null>(null);
 const loadingStreak = ref(false);
+const submittingReviewVideoId = ref<number | null>(null);
 
 const dashboard = ref<CreatorDashboardData>({
   id: 0,
@@ -1029,6 +1032,22 @@ const statusLabel: Record<string, string> = {
 
 function getStatusLabel(status: string) {
   return statusLabel[status] || status;
+}
+
+function getSubmitReviewButtonText(item: CreatorVideo) {
+  if (submittingReviewVideoId.value === item.id) {
+    return '提交中...';
+  }
+
+  if (item.status === 'PENDING_REVIEW') {
+    return '审核中……';
+  }
+
+  if (item.status === 'REJECTED') {
+    return '重新提交审核';
+  }
+
+  return '提交审核';
 }
 
 function normalizeSearchKeyword(value: string) {
@@ -1701,11 +1720,19 @@ async function openReviewDialog(video: CreatorVideo) {
 }
 
 async function handleSubmitReview(videoId: number) {
+  submittingReviewVideoId.value = videoId;
   try {
     await submitReview(videoId);
   } catch {
     ElMessage.error({ message: '提交审核失败', duration: 3000 });
+    submittingReviewVideoId.value = null;
     return;
+  }
+
+  const targetVideo = videos.value.find((item) => item.id === videoId);
+  if (targetVideo) {
+    targetVideo.status = 'PENDING_REVIEW';
+    targetVideo.submittedAt = new Date().toISOString();
   }
 
   ElMessage.success({ message: '已提交审核', duration: 1500 });
@@ -1713,6 +1740,8 @@ async function handleSubmitReview(videoId: number) {
     await refreshAll();
   } catch {
     // 提交已成功，刷新列表失败时不重复提示失败。
+  } finally {
+    submittingReviewVideoId.value = null;
   }
 }
 

@@ -1,6 +1,6 @@
 <template>
   <section class="page">
-    <div class="card">
+    <div class="card" data-tour="login-card">
       <div class="intro">
         <span class="eyebrow">Account</span>
         <h1>{{ adminMode ? '管理员登录' : '用户登录' }}</h1>

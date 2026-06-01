@@ -1,6 +1,6 @@
 <template>
-  <header class="header">
-    <RouterLink to="/" class="brand-wrap">
+  <header class="header" data-tour="site-header">
+    <RouterLink to="/" class="brand-wrap" data-tour="header-brand">
       <img src="/assets/guanlan-brand-logo.jpg" alt="观澜视频" class="brand-mark" />
       <div class="brand-copy">
         <div class="brand">{{ siteName }}</div>
@@ -8,28 +8,29 @@
       </div>
     </RouterLink>
 
-    <nav class="nav">
+    <nav class="nav" data-tour="header-nav">
       <RouterLink
         v-for="item in headerNavItems"
         :key="item.path"
         :to="item.path"
         class="nav-link"
         :class="{ active: isNavActive(item) }"
+        :data-tour="getNavTour(item.path)"
       >
         <span>{{ item.label }}</span>
       </RouterLink>
     </nav>
 
-    <div class="search-box">
+    <div class="search-box" data-tour="header-search">
       <SearchSuggestBox v-model="searchKeyword" placeholder="搜索视频、UP主或内容" @search="submitSearch" />
     </div>
 
     <div class="actions">
-      <RouterLink :to="isLoggedIn ? '/upload' : '/login'" class="action-icon-link" aria-label="上传">
+      <RouterLink :to="isLoggedIn ? '/upload' : '/login'" class="action-icon-link" aria-label="上传" data-tour="header-upload">
         <el-icon :size="22"><Upload /></el-icon>
         <span class="action-label">上传</span>
       </RouterLink>
-      <RouterLink :to="isLoggedIn ? '/messages' : '/login'" class="action-icon-link" aria-label="消息">
+      <RouterLink :to="isLoggedIn ? '/messages' : '/login'" class="action-icon-link" aria-label="消息" data-tour="header-messages">
         <span class="action-icon-stack">
           <el-icon :size="22"><Message /></el-icon>
           <span v-if="isLoggedIn && messageBadgeCount > 0" class="badge">{{ messageBadgeCount }}</span>
@@ -41,13 +42,13 @@
           <el-icon :size="22"><DocumentChecked /></el-icon>
           <span class="action-label">审核</span>
         </RouterLink>
-        <RouterLink to="/user/dashboard" class="avatar-link" aria-label="用户中心">
+        <RouterLink to="/user/dashboard" class="avatar-link" aria-label="用户中心" data-tour="header-account">
           <img v-if="avatarUrl" :src="avatarUrl" alt="avatar" class="header-avatar" />
           <el-icon v-else :size="22"><User /></el-icon>
           <el-icon :size="13" class="avatar-arrow"><ArrowDown /></el-icon>
         </RouterLink>
       </template>
-      <RouterLink v-else to="/login" class="login-btn">登录</RouterLink>
+      <RouterLink v-else to="/login" class="login-btn" data-tour="header-login">登录</RouterLink>
     </div>
   </header>
 </template>
@@ -118,6 +119,13 @@ function isNavActive(item: HeaderNavItem) {
   }
 
   return route.path === url.pathname && route.query.category === itemCategory;
+}
+
+function getNavTour(path: string) {
+  if (path === '/') return 'header-nav-home';
+  if (path === '/live') return 'header-nav-live';
+  if (path === '/notifications') return 'header-nav-dynamic';
+  return undefined;
 }
 
 async function syncUnreadCount() {

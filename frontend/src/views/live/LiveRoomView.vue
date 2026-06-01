@@ -1,11 +1,11 @@
 <template>
   <section class="live-page">
-    <header v-if="!routeRoomId" class="live-hero">
+    <header v-if="!routeRoomId" class="live-hero" data-tour="live-hero">
       <div class="hero-copy">
         <span class="eyebrow">LIVE CENTER</span>
         <h1>直播</h1>
         <p>一键开播，和观众实时互动，分享你的内容。</p>
-        <div class="hero-actions">
+        <div class="hero-actions" data-tour="live-actions">
           <el-button type="primary" size="large" @click="scrollToStudio">
             <el-icon><VideoCameraFilled /></el-icon>
             <span>我要开播</span>
@@ -55,7 +55,7 @@
       </section>
     </header>
 
-    <section v-if="!routeRoomId" ref="studioSectionRef" class="live-console-grid">
+    <section v-if="!routeRoomId" ref="studioSectionRef" class="live-console-grid" data-tour="live-studio">
       <section class="panel studio-workbench">
         <h2>我的直播工作台</h2>
         <div class="studio-main">
