@@ -56,7 +56,7 @@
           </div>
         </header>
 
-        <section class="watch-panel">
+        <section class="watch-panel" data-tour="video-player">
           <div class="player-wrapper">
             <video
               v-if="video?.playUrl"
@@ -104,23 +104,25 @@
           </div>
         </section>
 
-        <VideoActionBar
-          :video="video"
-          :remaining-coin-limit="remainingCoinLimit"
-          :coining-video="coiningVideo"
-          :has-previous-video="hasPreviousVideo"
-          @previous="goToPreviousVideo"
-          @like="toggleLikeAction"
-          @favorite="toggleFavoriteAction"
-          @coin="handleCoinVideo"
-          @comments="scrollToComments"
-          @more="openAgentPanel"
-          @report="openVideoReportDialog"
-        />
+        <div data-tour="video-actions">
+          <VideoActionBar
+            :video="video"
+            :remaining-coin-limit="remainingCoinLimit"
+            :coining-video="coiningVideo"
+            :has-previous-video="hasPreviousVideo"
+            @previous="goToPreviousVideo"
+            @like="toggleLikeAction"
+            @favorite="toggleFavoriteAction"
+            @coin="handleCoinVideo"
+            @comments="scrollToComments"
+            @more="openAgentPanel"
+            @report="openVideoReportDialog"
+          />
+        </div>
 
         <VideoIntroCard :video="video" />
 
-        <section id="comments" class="comments" v-if="video">
+        <section id="comments" class="comments" v-if="video" data-tour="video-comments">
           <div class="comments-head">
             <div>
               <h2>评论 <span>{{ formatCompactNumber(video.commentCount) }}</span></h2>
@@ -131,7 +133,7 @@
             </el-button>
           </div>
 
-          <div class="comment-composer">
+          <div class="comment-composer" data-tour="video-comment-composer">
             <span class="viewer-avatar">
               <img v-if="appStore.avatarUrl" :src="appStore.avatarUrl" :alt="appStore.nickname" />
               <span v-else>{{ currentUserInitial }}</span>
