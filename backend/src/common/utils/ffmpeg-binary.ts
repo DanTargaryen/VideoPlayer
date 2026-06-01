@@ -1,10 +1,13 @@
 import { execFile } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { promisify } from 'node:util';
 
+const optionalRequire = createRequire(__filename);
 const execFileAsync = promisify(execFile);
 
-const ffmpegStatic = require('ffmpeg-static') as string | null | undefined;
-const ffprobeStatic = require('ffprobe-static') as { path?: string } | null | undefined;
+// These packages are convenient, but we still need to boot cleanly when they are absent.
+const ffmpegStatic = loadOptionalModule<string>('ffmpeg-static');
+const ffprobeStatic = loadOptionalModule<{ path?: string }>('ffprobe-static');
 
 export type FfmpegBinaryEnvKey = 'FFMPEG_PATH' | 'FFPROBE_PATH';
 export type FfmpegBinaryName = 'ffmpeg' | 'ffprobe';
@@ -23,10 +26,33 @@ export async function findWorkingBinary(candidates: string[]) {
     try {
       await execFileAsync(candidate, ['-version']);
       return candidate;
-    } catch {}
+    } catch {
+      // Try the next configured binary candidate.
+    }
   }
 
   return null;
+}
+
+function loadOptionalModule<T>(moduleName: string): T | null {
+  try {
+    return optionalRequire(moduleName) as T;
+  } catch (error) {
+    if (isModuleNotFoundError(error, moduleName)) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
+function isModuleNotFoundError(error: unknown, moduleName: string) {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const err = error as NodeJS.ErrnoException;
+  return err.code === 'MODULE_NOT_FOUND' && typeof err.message === 'string' && err.message.includes(moduleName);
 }
 
 function getBundledBinaryPath(binaryName: FfmpegBinaryName) {

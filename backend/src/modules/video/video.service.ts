@@ -317,7 +317,9 @@ export class VideoService {
     for (const asset of video.assets) {
       try {
         await this.minioService.deleteFile(asset.bucket, asset.objectKey);
-      } catch {
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.warn(`Failed to delete storage object ${asset.bucket}/${asset.objectKey}: ${message}`);
       }
     }
 
