@@ -1,24 +1,4 @@
-<template>
-  <section class="sidebar-card hot-topic-card">
-    <header class="sidebar-head">
-      <h2>热门话题</h2>
-      <RouterLink to="/search?tab=video">更多</RouterLink>
-    </header>
-    <div class="topic-list">
-      <RouterLink
-        v-for="topic in topics"
-        :key="topic.id"
-        :to="{ path: '/search', query: { keyword: topic.name, tab: 'video' } }"
-        class="topic-item"
-      >
-        <span class="topic-mark">#</span>
-        <strong># {{ topic.name }}</strong>
-        <small>{{ formatCompactNumber(topic.discussionCount) }}讨论</small>
-        <em v-if="topic.isRising">热</em>
-      </RouterLink>
-    </div>
-  </section>
-</template>
+
 
 <script setup lang="ts">
 import type { HotTopicItem } from '@/types/api';

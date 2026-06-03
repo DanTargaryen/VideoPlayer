@@ -45,9 +45,6 @@
                   <span class="play-triangle"></span>
                   <span>立即播放</span>
                 </RouterLink>
-                <button type="button" class="hero-add" aria-label="加入稍后看">
-                  <el-icon :size="23"><Plus /></el-icon>
-                </button>
               </div>
             </div>
           </article>
