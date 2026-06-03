@@ -687,49 +687,54 @@ export class VideoService {
     const pageSize = this.normalizePageSize(options.pageSize);
     const category = resolveCategoryCode(options.categoryCode);
     const normalizedKeyword = keyword.trim();
+    const categoryWhere = this.buildOptionalCategoryWhere(category);
+    const hasCategoryFilter = Boolean(category);
     const keywordCategoryCodes = this.resolveSearchCategoryCodes(normalizedKeyword);
 
     if (options.sortBy === 'latest' || options.sortBy === 'hot') {
+      const keywordWhere = normalizedKeyword
+        ? {
+            OR: [
+              {
+                title: {
+                  contains: normalizedKeyword,
+                },
+              },
+              {
+                description: {
+                  contains: normalizedKeyword,
+                },
+              },
+              {
+                creator: {
+                  nickname: {
+                    contains: normalizedKeyword,
+                  },
+                },
+              },
+              ...(keywordCategoryCodes.length > 0
+                ? [
+                    {
+                      categories: {
+                        some: {
+                          code: {
+                            in: keywordCategoryCodes,
+                          },
+                        },
+                      },
+                    },
+                  ]
+                : []),
+            ],
+          }
+        : null;
+
       const videos = await this.prisma.video.findMany({
         where: {
           status: 'PUBLISHED',
-          ...this.buildOptionalCategoryWhere(category),
-          ...(normalizedKeyword
-            ? {
-                OR: [
-                  {
-                    title: {
-                      contains: normalizedKeyword,
-                    },
-                  },
-                  {
-                    description: {
-                      contains: normalizedKeyword,
-                    },
-                  },
-                  {
-                    creator: {
-                      nickname: {
-                        contains: normalizedKeyword,
-                      },
-                    },
-                  },
-                  ...(keywordCategoryCodes.length > 0
-                    ? [
-                        {
-                          categories: {
-                            some: {
-                              code: {
-                                in: keywordCategoryCodes,
-                              },
-                            },
-                          },
-                        },
-                      ]
-                    : []),
-                ],
-              }
-            : {}),
+          ...(hasCategoryFilter && keywordWhere ? { AND: [categoryWhere, keywordWhere] } : {}),
+          ...(hasCategoryFilter && !keywordWhere ? categoryWhere : {}),
+          ...(keywordWhere && !hasCategoryFilter ? keywordWhere : {}),
         },
         include: {
           creator: {
@@ -765,38 +770,41 @@ export class VideoService {
     const tokens = this.tokenizeSearchKeyword(normalizedKeyword);
     const recallTerms = [...new Set([normalizedKeyword.toLowerCase(), ...tokens])];
     const candidateTake = Math.min(120, Math.max(page * pageSize * 6, 60));
+    const recallWhere = {
+      OR: recallTerms.flatMap((term) => [
+        {
+          title: {
+            contains: term,
+          },
+        },
+        {
+          description: {
+            contains: term,
+          },
+        },
+        {
+          creator: {
+            nickname: {
+              contains: term,
+            },
+          },
+        },
+        {
+          categories: {
+            some: {
+              code: {
+                in: this.resolveSearchCategoryCodes(term),
+              },
+            },
+          },
+        },
+      ]),
+    };
+
     const candidates = await this.prisma.video.findMany({
       where: {
         status: 'PUBLISHED',
-        ...this.buildOptionalCategoryWhere(category),
-        OR: recallTerms.flatMap((term) => [
-          {
-            title: {
-              contains: term,
-            },
-          },
-          {
-            description: {
-              contains: term,
-            },
-          },
-          {
-            creator: {
-              nickname: {
-                contains: term,
-              },
-            },
-          },
-          {
-            categories: {
-              some: {
-                code: {
-                  in: this.resolveSearchCategoryCodes(term),
-                },
-              },
-            },
-          },
-        ]),
+        ...(hasCategoryFilter ? { AND: [categoryWhere, recallWhere] } : recallWhere),
       },
       include: {
         creator: {
