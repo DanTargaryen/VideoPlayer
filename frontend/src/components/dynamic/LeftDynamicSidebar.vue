@@ -27,23 +27,27 @@
     <section class="sidebar-panel">
       <header class="panel-head">
         <h2>关注分组</h2>
-        <button type="button">管理</button>
+        <button type="button" @click="$emit('toggle-manage')">{{ manageMode ? '完成' : '管理' }}</button>
       </header>
       <div class="group-list">
-        <button
-          v-for="group in groups"
-          :key="group.id"
-          type="button"
-          class="group-item"
-          :class="{ active: activeGroupId === group.id }"
-          @click="$emit('update:activeGroupId', group.id)"
-        >
-          <span class="group-icon">{{ group.icon }}</span>
-          <strong>{{ group.name }}</strong>
-          <small>{{ group.count }}</small>
-        </button>
+        <div v-for="group in groups" :key="group.id" class="group-item" :class="{ active: activeGroupId === group.id }">
+          <button
+            v-if="manageMode && group.id !== 'all'"
+            type="button"
+            class="delete-group"
+            aria-label="删除分组"
+            @click.stop="$emit('delete-group', group.id)"
+          >
+            -
+          </button>
+          <button type="button" class="group-main" @click="$emit('update:activeGroupId', group.id)">
+            <span class="group-icon">{{ group.icon }}</span>
+            <strong>{{ group.name }}</strong>
+            <small>{{ group.count }}</small>
+          </button>
+        </div>
       </div>
-      <button type="button" class="new-group">
+      <button type="button" class="new-group" @click="$emit('create-group')">
         <span>+</span>
         <strong>新建分组</strong>
       </button>
@@ -90,10 +94,14 @@ const props = defineProps<{
   groups: FollowGroupItem[];
   activeGroupId: string;
   liveItems: SidebarLiveItem[];
+  manageMode: boolean;
 }>();
 
 defineEmits<{
   'update:activeGroupId': [value: string];
+  'create-group': [];
+  'toggle-manage': [];
+  'delete-group': [value: string];
 }>();
 
 const visibleLiveItems = computed(() => props.liveItems.slice(0, 3));
@@ -302,11 +310,39 @@ function formatCompactNumber(value: number) {
 }
 
 .group-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.group-item.active .group-main {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.delete-group {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 50%;
+  background: #fee2e2;
+  color: #dc2626;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.group-main {
+  appearance: none;
   display: grid;
   grid-template-columns: 24px minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   min-height: 36px;
+  flex: 1;
+  min-width: 0;
   border: 0;
   border-radius: 999px;
   padding: 0 10px;
@@ -317,13 +353,12 @@ function formatCompactNumber(value: number) {
   transition: background var(--gl-transition), color var(--gl-transition), transform var(--gl-transition);
 }
 
-.group-item:hover,
-.group-item.active {
+.group-main:hover {
   background: var(--color-primary-light);
   color: var(--color-primary);
 }
 
-.group-item:active {
+.group-main:active {
   transform: translateY(1px) scale(0.99);
 }
 
@@ -343,14 +378,14 @@ function formatCompactNumber(value: number) {
   background: #dbeafe;
 }
 
-.group-item strong {
+.group-main strong {
   overflow: hidden;
   font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.group-item small {
+.group-main small {
   color: inherit;
   font-size: 12px;
   font-weight: 800;

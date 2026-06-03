@@ -29,7 +29,6 @@ const tabs: Array<{ label: string; value: DynamicFeedType }> = [
   { label: '视频投稿', value: 'video' },
   { label: '图文动态', value: 'post' },
   { label: '直播', value: 'live' },
-  { label: '推荐', value: 'recommend' },
 ];
 </script>
 
