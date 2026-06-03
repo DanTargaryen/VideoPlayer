@@ -2,7 +2,6 @@
   <section class="recent-following-card">
     <header>
       <h2>最近更新的关注</h2>
-      <button type="button" @click="$emit('select', '')">全部关注</button>
     </header>
     <div class="recent-scroll">
       <button
@@ -83,12 +82,31 @@ defineEmits<{
   display: flex;
   gap: 16px;
   overflow-x: auto;
-  padding-bottom: 2px;
-  scrollbar-width: none;
+  padding-bottom: 8px;
+  scrollbar-color: rgba(37, 99, 235, 0.5) rgba(226, 232, 240, 0.9);
+  scrollbar-gutter: stable both-edges;
+  scrollbar-width: thin;
 }
 
 .recent-scroll::-webkit-scrollbar {
-  display: none;
+  height: 10px;
+}
+
+.recent-scroll::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgba(226, 232, 240, 0.9);
+}
+
+.recent-scroll::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(100, 116, 139, 0.72);
+  background-clip: content-box;
+}
+
+.recent-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(37, 99, 235, 0.78);
+  background-clip: content-box;
 }
 
 .recent-user {

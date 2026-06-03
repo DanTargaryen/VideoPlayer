@@ -2,7 +2,6 @@
   <section class="sidebar-card">
     <header class="sidebar-head">
       <h2>最近更新</h2>
-      <span>更多</span>
     </header>
     <div v-if="items.length > 0" class="update-list">
       <RouterLink v-for="item in items" :key="item.userId" :to="`/users/${item.userId}`" class="update-item">
