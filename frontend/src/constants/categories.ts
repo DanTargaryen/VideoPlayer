@@ -115,20 +115,19 @@ export function formatVideoCategoryLabels(video: {
 
 export function normalizeVideoCategories(value?: string[] | null, fallback?: string | null) {
   const validCodes = new Set(videoCategoryOptions.map((item) => item.code));
+  const fallbackCode = extractCategoryCode(fallback);
   const normalized = Array.from(
     new Set(
-      (value ?? [])
-        .map((item) => extractCategoryCode(item))
-        .filter((item): item is VideoCategoryCode => Boolean(item && validCodes.has(item as VideoCategoryCode))),
+      [
+        ...(fallbackCode && validCodes.has(fallbackCode as VideoCategoryCode)
+          ? [fallbackCode as VideoCategoryCode]
+          : []),
+        ...(value ?? [])
+          .map((item) => extractCategoryCode(item))
+          .filter((item): item is VideoCategoryCode => Boolean(item && validCodes.has(item as VideoCategoryCode))),
+      ],
     ),
   );
 
-  if (normalized.length > 0) {
-    return normalized;
-  }
-
-  const fallbackCode = extractCategoryCode(fallback);
-  return fallbackCode && validCodes.has(fallbackCode as VideoCategoryCode)
-    ? [fallbackCode as VideoCategoryCode]
-    : [];
+  return normalized;
 }

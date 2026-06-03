@@ -26,7 +26,12 @@
     </el-tabs>
 
     <section v-if="activeTab === 'video'" class="cards" data-tour="search-results">
-      <VideoMediaCard v-for="card in result.video" :key="card.id" :item="card" />
+      <VideoMediaCard
+        v-for="card in result.video"
+        :key="card.id"
+        :item="card"
+        :preferred-category-code="category !== 'recommend' ? category : undefined"
+      />
       <el-empty v-if="result.video.length === 0" description="当前条件下没有找到相关视频" />
     </section>
 
