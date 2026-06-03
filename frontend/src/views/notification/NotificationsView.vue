@@ -8,7 +8,11 @@
         :groups="followGroups"
         :active-group-id="activeGroupId"
         :live-items="sidebarLive"
+        :manage-mode="manageGroups"
         @update:active-group-id="handleGroupChange"
+        @create-group="handleCreateGroup"
+        @toggle-manage="manageGroups = !manageGroups"
+        @delete-group="handleDeleteGroup"
       />
 
       <main class="feed-column" data-tour="dynamic-feed">
@@ -36,13 +40,9 @@
             <input ref="postImageInputRef" type="file" accept="image/*" hidden @change="handlePostImageChange" />
             <div class="composer-tool-row">
               <el-button plain :loading="uploadingPostImage" @click="postImageInputRef?.click()">图片</el-button>
-              <el-button plain @click="showComingSoon('视频动态')">视频</el-button>
-              <el-button plain @click="showComingSoon('话题选择')">话题</el-button>
-              <el-button plain @click="showComingSoon('投票')">投票</el-button>
             </div>
             <div class="publish-row">
               <el-button type="primary" :loading="publishingPost" @click="submitDynamicPost">发布</el-button>
-              <button type="button" class="publish-more" aria-label="更多发布设置">v</button>
             </div>
           </div>
         </section>
@@ -114,6 +114,21 @@
       />
     </div>
     <FloatingDynamicActions @compose="focusComposer" />
+
+    <el-dialog v-model="createGroupDialogVisible" title="新建分组" width="360px">
+      <el-select v-model="selectedGroupName" placeholder="请选择分区" style="width: 100%">
+        <el-option
+          v-for="option in availableGroupOptions"
+          :key="option.name"
+          :label="option.name"
+          :value="option.name"
+        />
+      </el-select>
+      <template #footer>
+        <el-button @click="createGroupDialogVisible = false">取消</el-button>
+        <el-button type="primary" :disabled="!selectedGroupName" @click="confirmCreateGroup">确定</el-button>
+      </template>
+    </el-dialog>
   </section>
 </template>
 
@@ -153,6 +168,23 @@ import type {
   SidebarRecommendedUser,
 } from '@/types/api';
 
+interface CustomFollowGroup extends FollowGroupItem {
+  keywords: string[];
+}
+
+const CUSTOM_GROUP_STORAGE_KEY = 'vp_custom_follow_groups';
+const GROUP_OPTIONS: CustomFollowGroup[] = [
+  { id: 'custom-entertainment', name: '娱乐区', count: 0, icon: 'E', keywords: ['娱乐', 'entertainment'] },
+  { id: 'custom-tech', name: '科技区', count: 0, icon: 'T', keywords: ['科技', 'tech'] },
+  { id: 'custom-music', name: '音乐区', count: 0, icon: 'M', keywords: ['音乐', 'music'] },
+  { id: 'custom-life', name: '生活区', count: 0, icon: 'L', keywords: ['生活', 'life'] },
+  { id: 'custom-travel', name: '旅行区', count: 0, icon: 'T', keywords: ['旅行', '旅游', 'travel'] },
+  { id: 'custom-food', name: '美食区', count: 0, icon: 'F', keywords: ['美食', 'food'] },
+  { id: 'custom-sports', name: '体育区', count: 0, icon: 'S', keywords: ['体育', 'sports'] },
+  { id: 'custom-anime', name: '动画区', count: 0, icon: 'A', keywords: ['动画', 'anime'] },
+  { id: 'custom-knowledge', name: '知识区', count: 0, icon: 'K', keywords: ['知识', 'knowledge'] },
+];
+
 const store = useAppStore();
 const router = useRouter();
 
@@ -179,6 +211,9 @@ const uploadingPostImage = ref(false);
 const publishingPost = ref(false);
 const composerExpanded = ref(false);
 const newDynamicCount = ref(0);
+const manageGroups = ref(false);
+const createGroupDialogVisible = ref(false);
+const selectedGroupName = ref('');
 const postForm = reactive({
   content: '',
   images: [] as string[],
@@ -190,6 +225,7 @@ const sidebarProfileStats = ref<SidebarProfileStats>({
   followerCount: 0,
   dynamicCount: 0,
 });
+const customFollowGroups = ref<CustomFollowGroup[]>(loadCustomFollowGroups());
 const followGroups = ref<FollowGroupItem[]>(defaultFollowGroups());
 const hotTopics = ref<HotTopicItem[]>([
   { id: 'ai-agent', name: 'AI Agent', discussionCount: 126000, isRising: true },
@@ -200,6 +236,9 @@ const hotTopics = ref<HotTopicItem[]>([
 
 const currentNickname = computed(() => store.nickname || '演示用户');
 const recentFollowingUsers = computed(() => followingUsers.value.slice(0, 12));
+const availableGroupOptions = computed(() =>
+  GROUP_OPTIONS.filter((option) => !followGroups.value.some((group) => group.name === option.name)),
+);
 const displayedFeedItems = computed(() => {
   const filtered = feedItems.value.filter((item) => {
     if (activeType.value === 'recommend' && item.source !== 'recommended') {
@@ -310,6 +349,10 @@ function matchesActiveGroup(item: DynamicFeedItem) {
   }
 
   const category = `${item.category ?? ''} ${item.title ?? ''} ${item.description ?? ''}`.toLowerCase();
+  const customGroup = customFollowGroups.value.find((group) => group.id === activeGroupId.value);
+  if (customGroup) {
+    return customGroup.keywords.some((keyword) => category.includes(keyword));
+  }
   const groupKeywords: Record<string, string[]> = {
     study: ['学习', '知识', '英语', '考试', 'study'],
     programming: ['编程', '科技', '技术', 'typescript', 'java', 'next', 'coding', 'tech'],
@@ -338,14 +381,15 @@ async function loadSidebarOverview() {
   try {
     const overview = await getSidebarOverview();
     sidebarProfileStats.value = overview.profileStats;
-    followGroups.value = overview.groups.length > 0 ? overview.groups : defaultFollowGroups();
+    const baseGroups = overview.groups.length > 0 ? overview.groups : defaultFollowGroups();
+    followGroups.value = mergeFollowGroups(baseGroups, customFollowGroups.value);
   } catch {
     sidebarProfileStats.value = {
       followingCount: 0,
       followerCount: 0,
       dynamicCount: 0,
     };
-    followGroups.value = defaultFollowGroups();
+    followGroups.value = mergeFollowGroups(defaultFollowGroups(), customFollowGroups.value);
   }
 }
 
@@ -396,6 +440,127 @@ function defaultFollowGroups(): FollowGroupItem[] {
   ];
 }
 
+function mergeFollowGroups(baseGroups: FollowGroupItem[], customGroups: CustomFollowGroup[]) {
+  return [...baseGroups, ...customGroups];
+}
+
+function loadCustomFollowGroups(): CustomFollowGroup[] {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+
+  try {
+    const raw = window.localStorage.getItem(CUSTOM_GROUP_STORAGE_KEY);
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw) as CustomFollowGroup[];
+    return parsed
+      .filter(
+        (group) =>
+          typeof group.id === 'string' &&
+          typeof group.name === 'string' &&
+          typeof group.icon === 'string' &&
+          Array.isArray(group.keywords),
+      )
+      .map((group) => ({
+        ...group,
+        icon: getGroupIcon(group.name),
+      }));
+  } catch {
+    return [];
+  }
+}
+
+/*
+function getGroupIconBroken(name: string) {
+  const normalizedName = name.trim();
+  const englishInitialByChineseName: Record<string, string> = {
+    娱乐: 'E',
+    娱乐区: 'E',
+    学习: 'S',
+    学习区: 'S',
+    编程: 'C',
+    编程区: 'C',
+    游戏: 'G',
+    游戏区: 'G',
+    影视: 'F',
+    影视区: 'F',
+    科技: 'T',
+    科技区: 'T',
+    音乐: 'M',
+    音乐区: 'M',
+    生活: 'L',
+    生活区: 'L',
+    旅行: 'T',
+    旅行区: 'T',
+    美食: 'F',
+    美食区: 'F',
+    体育: 'S',
+    体育区: 'S',
+    动画: 'A',
+    动画区: 'A',
+    知识: 'K',
+    知识区: 'K',
+  };
+
+  if (englishInitialByChineseName[normalizedName]) {
+    return englishInitialByChineseName[normalizedName];
+  }
+
+  const firstAsciiLetter = normalizedName.match(/[A-Za-z]/)?.[0];
+  if (firstAsciiLetter) {
+    return firstAsciiLetter.toUpperCase();
+  }
+
+  return '#';
+}
+
+function getGroupKeywords(name: string, keywordInput: string | null) {
+  return (keywordInput ?? name)
+    .split(/[，,、\s]+/)
+    .map((keyword) => keyword.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function isValidCustomGroup(group: CustomFollowGroup) {
+  return (
+          typeof group.id === 'string' &&
+          typeof group.name === 'string' &&
+          typeof group.icon === 'string' &&
+          Array.isArray(group.keywords)
+  );
+}
+
+*/
+
+function getGroupIcon(name: string) {
+  const normalizedName = name.trim();
+  const option = GROUP_OPTIONS.find((group) => group.name === normalizedName);
+  return option?.icon ?? normalizedName.match(/[A-Za-z]/)?.[0]?.toUpperCase() ?? '#';
+}
+
+function getGroupKeywords(name: string, keywordInput?: string | null) {
+  if (keywordInput) {
+    return keywordInput
+      .split(/[\uFF0C,\u3001\s]+/)
+      .map((keyword) => keyword.trim().toLowerCase())
+      .filter(Boolean);
+  }
+
+  const option = GROUP_OPTIONS.find((group) => group.name === name);
+  return option?.keywords ?? [name.toLowerCase()];
+}
+
+function saveCustomFollowGroups(groups: CustomFollowGroup[]) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.localStorage.setItem(CUSTOM_GROUP_STORAGE_KEY, JSON.stringify(groups));
+}
+
 async function reloadPage() {
   await Promise.all([loadFeed(true), loadSidebar()]);
   await nextTick();
@@ -405,6 +570,89 @@ async function reloadPage() {
 function handleGroupChange(groupId: string) {
   activeGroupId.value = groupId;
   activeAuthorId.value = '';
+}
+
+function handleCreateGroupLegacy() {
+  const name = window.prompt('请输入分组名称');
+  const normalizedName = name?.trim();
+  if (!normalizedName) {
+    return;
+  }
+
+  if (followGroups.value.some((group) => group.name === normalizedName)) {
+    ElMessage.warning('该分组已存在');
+    return;
+  }
+
+  const keywordInput = window.prompt('请输入筛选关键词，多个关键词用逗号分隔', normalizedName);
+  const keywords = getGroupKeywords(normalizedName, keywordInput);
+
+  const customGroup: CustomFollowGroup = {
+    id: `custom-${Date.now()}`,
+    name: normalizedName,
+    count: 0,
+    icon: getGroupIcon(normalizedName),
+    keywords: keywords.length > 0 ? keywords : [normalizedName.toLowerCase()],
+  };
+
+  customFollowGroups.value = [...customFollowGroups.value, customGroup];
+  saveCustomFollowGroups(customFollowGroups.value);
+  followGroups.value = mergeFollowGroups(
+    followGroups.value.filter((group) => !group.id.startsWith('custom-')),
+    customFollowGroups.value,
+  );
+  activeGroupId.value = customGroup.id;
+  activeAuthorId.value = '';
+  ElMessage.success('分组已创建');
+}
+
+function handleCreateGroup() {
+  if (availableGroupOptions.value.length === 0) {
+    ElMessage.info('暂无可新建的分区');
+    return;
+  }
+
+  selectedGroupName.value = availableGroupOptions.value[0]?.name ?? '';
+  createGroupDialogVisible.value = true;
+}
+
+function confirmCreateGroup() {
+  const option = GROUP_OPTIONS.find((group) => group.name === selectedGroupName.value);
+  if (!option) {
+    return;
+  }
+
+  const customGroup: CustomFollowGroup = {
+    id: option.id,
+    name: option.name,
+    count: 0,
+    icon: option.icon,
+    keywords: option.keywords,
+  };
+
+  customFollowGroups.value = [...customFollowGroups.value, customGroup];
+  saveCustomFollowGroups(customFollowGroups.value);
+  followGroups.value = mergeFollowGroups(
+    followGroups.value.filter((group) => !group.id.startsWith('custom-')),
+    customFollowGroups.value,
+  );
+  activeGroupId.value = customGroup.id;
+  activeAuthorId.value = '';
+  createGroupDialogVisible.value = false;
+  selectedGroupName.value = '';
+  ElMessage.success('分组已创建');
+}
+
+function handleDeleteGroup(groupId: string) {
+  customFollowGroups.value = customFollowGroups.value.filter((group) => group.id !== groupId);
+  saveCustomFollowGroups(customFollowGroups.value);
+  followGroups.value = followGroups.value.filter((group) => group.id !== groupId);
+
+  if (activeGroupId.value === groupId) {
+    activeGroupId.value = 'all';
+  }
+
+  ElMessage.success('分组已删除');
 }
 
 function handleAuthorSelect(authorId: string) {
@@ -690,28 +938,6 @@ onUnmounted(() => {
 .publish-row :deep(.el-button) {
   min-width: 82px;
   border-radius: 999px;
-}
-
-.publish-more {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 32px;
-  border: 1px solid #bfdbfe;
-  border-radius: 999px;
-  background: #ffffff;
-  color: var(--color-primary);
-  cursor: pointer;
-  font-weight: 900;
-  transition: background var(--gl-transition), transform var(--gl-transition);
-}
-
-.publish-more:hover {
-  background: var(--color-primary-light);
-}
-
-.publish-more:active {
-  transform: translateY(1px) scale(0.98);
 }
 
 .feed-control-panel {
