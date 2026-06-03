@@ -9,11 +9,6 @@
           <span>{{ item.actionText }} · {{ relativeTime }}</span>
         </span>
       </RouterLink>
-      <button type="button" class="more-button" aria-label="更多操作">
-        <span></span>
-        <span></span>
-        <span></span>
-      </button>
       <span class="type-badge" :class="`type-${renderType}`">{{ typeLabel }}</span>
     </header>
 
@@ -345,7 +340,7 @@ function formatCompactNumber(value: number) {
 
 .feed-card-head {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
 }
@@ -388,48 +383,13 @@ function formatCompactNumber(value: number) {
   font-size: 12px;
 }
 
-.more-button {
-  display: inline-grid;
-  place-items: center;
-  gap: 3px;
-  width: 28px;
-  height: 28px;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  cursor: pointer;
-  transition: background var(--gl-transition), transform var(--gl-transition);
-}
-
-.more-button span {
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: var(--color-text-secondary);
-}
-
-.more-button:hover {
-  background: var(--color-primary-light);
-}
-
-.more-button:active {
-  transform: translateY(1px) scale(0.95);
-}
-
 .type-badge {
-  grid-column: 2;
-  grid-row: 1;
   padding: 5px 10px;
   border-radius: 999px;
   background: var(--color-primary-light);
   color: var(--color-primary);
   font-size: 12px;
   font-weight: 900;
-}
-
-.more-button {
-  grid-column: 3;
-  grid-row: 1;
 }
 
 .type-image_text {
