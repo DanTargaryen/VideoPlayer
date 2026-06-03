@@ -42,20 +42,6 @@
         <span>评论</span>
         <strong>{{ formatCompactNumber(commentCount) }}</strong>
       </button>
-      <button
-        v-if="hasCollectButton"
-        type="button"
-        class="interaction-button"
-        :class="{ active: collected }"
-        @click="handleCollect"
-      >
-        <el-icon><Star /></el-icon>
-        <span>{{ collected ? '已收藏' : '收藏' }}</span>
-      </button>
-      <button type="button" class="interaction-button" @click="handleRepost">
-        <el-icon><Share /></el-icon>
-        <span>转发</span>
-      </button>
     </footer>
 
     <section v-if="commentPanelVisible && dynamicPostId" class="comment-panel">
