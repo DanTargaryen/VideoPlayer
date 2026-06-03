@@ -72,26 +72,51 @@ export class DynamicPostsService {
     private readonly minioService: MinioService,
   ) {}
 
-  async listPosts(currentUserId?: number, take = 20, skip = 0) {
-    const posts = await this.prisma.$queryRaw<DynamicPostRow[]>`
-      SELECT
-        p.id,
-        p.authorId,
-        p.content,
-        p.imageUrls,
-        p.likeCount,
-        p.commentCount,
-        p.favoriteCount,
-        p.createdAt,
-        u.id AS authorUserId,
-        u.nickname AS authorNickname,
-        u.avatarUrl AS authorAvatarUrl
-      FROM DynamicPost p
-      INNER JOIN User u ON u.id = p.authorId
-      WHERE p.status = 'NORMAL'
-      ORDER BY p.createdAt DESC, p.id DESC
-      LIMIT ${take} OFFSET ${skip}
-    `;
+  async listPosts(currentUserId?: number, take = 20, skip = 0, authorIds?: number[]) {
+    const posts = authorIds && authorIds.length === 0
+      ? []
+      : authorIds && authorIds.length > 0
+        ? await this.prisma.$queryRaw<DynamicPostRow[]>(
+            Prisma.sql`
+              SELECT
+                p.id,
+                p.authorId,
+                p.content,
+                p.imageUrls,
+                p.likeCount,
+                p.commentCount,
+                p.favoriteCount,
+                p.createdAt,
+                u.id AS authorUserId,
+                u.nickname AS authorNickname,
+                u.avatarUrl AS authorAvatarUrl
+              FROM DynamicPost p
+              INNER JOIN User u ON u.id = p.authorId
+              WHERE p.status = 'NORMAL'
+                AND p.authorId IN (${Prisma.join(authorIds)})
+              ORDER BY p.createdAt DESC, p.id DESC
+              LIMIT ${take} OFFSET ${skip}
+            `,
+          )
+        : await this.prisma.$queryRaw<DynamicPostRow[]>`
+            SELECT
+              p.id,
+              p.authorId,
+              p.content,
+              p.imageUrls,
+              p.likeCount,
+              p.commentCount,
+              p.favoriteCount,
+              p.createdAt,
+              u.id AS authorUserId,
+              u.nickname AS authorNickname,
+              u.avatarUrl AS authorAvatarUrl
+            FROM DynamicPost p
+            INNER JOIN User u ON u.id = p.authorId
+            WHERE p.status = 'NORMAL'
+            ORDER BY p.createdAt DESC, p.id DESC
+            LIMIT ${take} OFFSET ${skip}
+          `;
 
     const likedPostIds = await this.findLikedPostIds(currentUserId, posts.map((post) => post.id));
 
