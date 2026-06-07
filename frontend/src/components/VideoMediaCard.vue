@@ -38,8 +38,8 @@
         <RouterLink v-if="showAuthorLink" :to="`/users/${creatorId}`" class="author">{{ creatorLabel }}</RouterLink>
         <span v-else class="author static">{{ creatorLabel }}</span>
       </div>
-      <div v-if="categoryLabels.length > 0" class="category-row">
-        <span v-for="label in categoryLabels.slice(0, 3)" :key="label" class="category-pill">{{ label }}</span>
+      <div v-if="visibleCategoryLabels.length > 0" class="category-row">
+        <span v-for="label in visibleCategoryLabels" :key="label" class="category-pill">{{ label }}</span>
       </div>
       <div class="meta">
         <div v-if="formattedTime" class="meta-leading">
@@ -74,13 +74,14 @@
 import { computed, ref } from 'vue';
 import { Coin, Star, View } from '@element-plus/icons-vue';
 
-import { formatVideoCategoryLabels } from '@/constants/categories';
+import { formatCategoryLabel, resolveVideoCategoryCodes } from '@/constants/categories';
 import type { VideoCard } from '@/types/api';
 
 const props = defineProps<{
   item: VideoCard;
   hoverPreview?: boolean;
   disableAuthorLink?: boolean;
+  preferredCategoryCode?: string;
 }>();
 
 const previewVideoRef = ref<HTMLVideoElement | null>(null);
@@ -98,7 +99,18 @@ const formattedLikeCount = computed(() => formatCount(props.item.likeCount ?? 0)
 const formattedFavoriteCount = computed(() => formatCount(props.item.favoriteCount ?? 0));
 const formattedCoinCount = computed(() => formatCount(props.item.coinCount ?? 0));
 const durationLabel = computed(() => formatDuration(props.item.durationSeconds));
-const categoryLabels = computed(() => formatVideoCategoryLabels(props.item));
+const categoryLabels = computed(() => {
+  const codes = resolveVideoCategoryCodes(props.item);
+  const preferredCategoryCode = props.preferredCategoryCode?.trim();
+
+  if (!preferredCategoryCode || !codes.includes(preferredCategoryCode)) {
+    return codes.map((code) => formatCategoryLabel(code));
+  }
+
+  const orderedCodes = [preferredCategoryCode, ...codes.filter((code) => code !== preferredCategoryCode)];
+  return orderedCodes.map((code) => formatCategoryLabel(code));
+});
+const visibleCategoryLabels = computed(() => categoryLabels.value.slice(0, 3));
 
 const formattedTime = computed(() => {
   const raw = props.item.publishedAt ?? props.item.createdAt;

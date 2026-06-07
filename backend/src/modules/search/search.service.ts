@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { resolveCategoryCode } from '../../common/constants/categories';
+import { CATEGORY_DEFINITIONS, resolveCategoryCode } from '../../common/constants/categories';
 import { LiveService } from '../live/live.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { VideoService } from '../video/video.service';
@@ -16,6 +16,12 @@ interface SearchOptions extends ListOptions {
   keyword: string;
   tab?: 'video' | 'live' | 'user';
   sortBy?: 'best' | 'hot' | 'latest';
+}
+
+interface SearchCounts {
+  video: number;
+  user: number;
+  live: number;
 }
 
 @Injectable()
@@ -57,6 +63,11 @@ export class SearchService {
     const pageSize = this.normalizePageSize(options.pageSize);
     const skip = (page - 1) * pageSize;
     const category = resolveCategoryCode(options.categoryCode);
+    const counts = await this.countSearchResults({
+      keyword: normalizedKeyword,
+      categoryCode: options.categoryCode,
+      sortBy: options.sortBy,
+    });
 
     const video =
       normalizedTab === 'user' || normalizedTab === 'live'
@@ -110,6 +121,7 @@ export class SearchService {
       categoryCode: options.categoryCode ?? 'recommend',
       page,
       pageSize,
+      counts,
       video,
       live,
       user,
@@ -170,5 +182,211 @@ export class SearchService {
     }
 
     return Math.min(50, Math.floor(pageSize));
+  }
+
+  private async countSearchResults(options: Pick<SearchOptions, 'keyword' | 'categoryCode' | 'sortBy'>) {
+    const [video, user, live] = await Promise.all([
+      this.countVideoResults(options),
+      this.countUserResults(options.keyword),
+      this.countLiveResults(options.keyword, options.categoryCode),
+    ]);
+
+    return {
+      video,
+      user,
+      live,
+    } satisfies SearchCounts;
+  }
+
+  private countUserResults(keyword: string) {
+    const normalizedKeyword = keyword.trim();
+
+    return this.prisma.user.count({
+      where: normalizedKeyword
+        ? {
+            OR: [
+              {
+                nickname: {
+                  contains: normalizedKeyword,
+                },
+              },
+              {
+                username: {
+                  contains: normalizedKeyword,
+                },
+              },
+            ],
+          }
+        : {},
+    });
+  }
+
+  private countLiveResults(keyword: string, categoryCode?: string) {
+    const category = resolveCategoryCode(categoryCode);
+
+    return this.liveService.countRooms({
+      keyword,
+      category: category ?? undefined,
+    });
+  }
+
+  private countVideoResults(options: Pick<SearchOptions, 'keyword' | 'categoryCode' | 'sortBy'>) {
+    const normalizedKeyword = options.keyword.trim();
+    const category = resolveCategoryCode(options.categoryCode);
+    const categoryWhere = this.buildOptionalCategoryWhere(category);
+    const keywordCategoryCodes = this.resolveSearchCategoryCodes(normalizedKeyword);
+
+    if (!normalizedKeyword) {
+      return this.prisma.video.count({
+        where: {
+          status: 'PUBLISHED',
+          ...categoryWhere,
+        },
+      });
+    }
+
+    if (options.sortBy === 'latest' || options.sortBy === 'hot') {
+      const keywordWhere = {
+        OR: [
+          {
+            title: {
+              contains: normalizedKeyword,
+            },
+          },
+          {
+            description: {
+              contains: normalizedKeyword,
+            },
+          },
+          {
+            creator: {
+              nickname: {
+                contains: normalizedKeyword,
+              },
+            },
+          },
+          ...(keywordCategoryCodes.length > 0
+            ? [
+                {
+                  categories: {
+                    some: {
+                      code: {
+                        in: keywordCategoryCodes,
+                      },
+                    },
+                  },
+                },
+              ]
+            : []),
+        ],
+      };
+
+      return this.prisma.video.count({
+        where: {
+          status: 'PUBLISHED',
+          ...(category ? { AND: [categoryWhere, keywordWhere] } : keywordWhere),
+        },
+      });
+    }
+
+    const tokens = this.tokenizeSearchKeyword(normalizedKeyword);
+    const recallTerms = [...new Set([normalizedKeyword.toLowerCase(), ...tokens])];
+    const recallWhere = {
+      OR: recallTerms.flatMap((term) => [
+        {
+          title: {
+            contains: term,
+          },
+        },
+        {
+          description: {
+            contains: term,
+          },
+        },
+        {
+          creator: {
+            nickname: {
+              contains: term,
+            },
+          },
+        },
+        {
+          categories: {
+            some: {
+              code: {
+                in: this.resolveSearchCategoryCodes(term),
+              },
+            },
+          },
+        },
+      ]),
+    };
+
+    return this.prisma.video.count({
+      where: {
+        status: 'PUBLISHED',
+        ...(category ? { AND: [categoryWhere, recallWhere] } : recallWhere),
+      },
+    });
+  }
+
+  private buildOptionalCategoryWhere(category?: string) {
+    if (!category) {
+      return {};
+    }
+
+    return {
+      OR: [
+        { category: { in: [category] } },
+        {
+          categories: {
+            some: {
+              code: {
+                in: [category],
+              },
+            },
+          },
+        },
+      ],
+    };
+  }
+
+  private resolveSearchCategoryCodes(keyword: string) {
+    const normalizedKeyword = keyword.trim().toLowerCase();
+
+    if (!normalizedKeyword) {
+      return [];
+    }
+
+    return CATEGORY_DEFINITIONS.filter(
+      (item) =>
+        item.id !== null &&
+        item.code !== 'live' &&
+        (item.code.toLowerCase().includes(normalizedKeyword) || item.label.toLowerCase().includes(normalizedKeyword)),
+    ).map((item) => item.code);
+  }
+
+  private tokenizeSearchKeyword(keyword: string) {
+    const lowered = keyword.toLowerCase().trim();
+    const splitTokens = lowered.split(/\s+/).filter(Boolean);
+
+    if (splitTokens.length > 1) {
+      return splitTokens;
+    }
+
+    const compact = lowered.replace(/\s+/g, '');
+    if (compact.length <= 2) {
+      return compact ? [compact] : [];
+    }
+
+    const grams = [];
+    for (let index = 0; index < compact.length - 1; index += 1) {
+      grams.push(compact.slice(index, index + 2));
+      if (grams.length >= 6) {
+        break;
+      }
+    }
+
+    return [...new Set([compact, ...grams])];
   }
 }

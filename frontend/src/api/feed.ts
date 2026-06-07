@@ -17,6 +17,7 @@ export async function getDynamicFeed(params?: {
   type?: DynamicFeedType;
   page?: number;
   pageSize?: number;
+  authorId?: number;
 }) {
   const { data } = await http.get<ApiResponse<DynamicFeedResponse>>('/feed/dynamic', {
     params,
