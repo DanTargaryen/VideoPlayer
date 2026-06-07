@@ -20,13 +20,18 @@
     </section>
 
     <el-tabs v-model="activeTab" class="tabs" data-tour="search-tabs" @tab-change="handleTabChange">
-      <el-tab-pane :label="`视频 (${result.video.length})`" name="video" />
-      <el-tab-pane :label="`用户 (${result.user.length})`" name="user" />
-      <el-tab-pane :label="`直播 (${result.live.length})`" name="live" />
+      <el-tab-pane :label="`视频 (${result.counts.video})`" name="video" />
+      <el-tab-pane :label="`用户 (${result.counts.user})`" name="user" />
+      <el-tab-pane :label="`直播 (${result.counts.live})`" name="live" />
     </el-tabs>
 
     <section v-if="activeTab === 'video'" class="cards" data-tour="search-results">
-      <VideoMediaCard v-for="card in result.video" :key="card.id" :item="card" />
+      <VideoMediaCard
+        v-for="card in result.video"
+        :key="card.id"
+        :item="card"
+        :preferred-category-code="category !== 'recommend' ? category : undefined"
+      />
       <el-empty v-if="result.video.length === 0" description="当前条件下没有找到相关视频" />
     </section>
 
@@ -76,6 +81,11 @@ const result = reactive<SearchResultResponse>({
   categoryCode: 'recommend',
   page: 1,
   pageSize: 20,
+  counts: {
+    video: 0,
+    live: 0,
+    user: 0,
+  },
   video: [],
   live: [],
   user: [],

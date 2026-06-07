@@ -96,6 +96,7 @@ export class FeedService {
     type?: DynamicFeedType;
     page?: number;
     pageSize?: number;
+    authorId?: number;
   }) {
     const type = this.normalizeType(options.type);
     const page = this.normalizePage(options.page);
@@ -103,23 +104,38 @@ export class FeedService {
     const requiredCount = page * pageSize + 1;
     const followingIds = await this.getFollowingIds(options.currentUserId);
     const followingIdSet = new Set(followingIds);
+    const authorId = this.normalizeAuthorId(options.authorId);
+    const isOwnAuthor = authorId !== undefined && authorId === options.currentUserId;
+    const isFollowedAuthor = authorId !== undefined && followingIdSet.has(authorId);
+    const canFilterByAuthor = authorId !== undefined && (isOwnAuthor || isFollowedAuthor);
+    const targetAuthorIds = canFilterByAuthor ? [authorId] : followingIds;
+    const sourceTake = canFilterByAuthor ? requiredCount * 3 : requiredCount * 2;
 
     const [followingVideos, recommendedVideos, liveRooms, dynamicPosts] = await Promise.all([
       this.fetchPublishedVideos({
-        creatorIds: followingIds,
-        take: requiredCount,
+        creatorIds: targetAuthorIds,
+        take: sourceTake,
       }),
-      this.fetchRecommendedVideos(options.currentUserId, requiredCount * 2, followingIds),
-      this.fetchLiveRoomsWithAvatars(requiredCount * 2),
-      this.dynamicPostsService.listPosts(options.currentUserId, requiredCount * 2),
+      canFilterByAuthor ? Promise.resolve([]) : this.fetchRecommendedVideos(options.currentUserId, requiredCount * 2, followingIds),
+      this.fetchLiveRoomsWithAvatars(sourceTake, canFilterByAuthor ? targetAuthorIds : undefined),
+      this.dynamicPostsService.listPosts(options.currentUserId, sourceTake, 0, targetAuthorIds),
     ]);
 
     const followingItems = [
       ...followingVideos.map((video) => this.videoToFeedItem(video, 'following')),
       ...dynamicPosts.list
-        .filter((post) => followingIdSet.has(Number(post.author.id)) || post.author.id === String(options.currentUserId ?? ''))
+        .filter((post) =>
+          canFilterByAuthor
+            ? post.author.id === String(authorId)
+            : followingIdSet.has(Number(post.author.id)) || post.author.id === String(options.currentUserId ?? ''),
+        )
         .map((post) => this.dynamicPostToFeedItem(post, 'following')),
-      ...this.liveRoomsToFeedItems(liveRooms.filter((room) => followingIdSet.has(Number(room.broadcaster.id))), 'following'),
+      ...this.liveRoomsToFeedItems(
+        liveRooms.filter((room) =>
+          canFilterByAuthor ? Number(room.broadcaster.id) === authorId : followingIdSet.has(Number(room.broadcaster.id)),
+        ),
+        'following',
+      ),
     ];
 
     const filteredFollowingItems = this.filterByType(followingItems, type)
@@ -128,7 +144,7 @@ export class FeedService {
 
     let combined = filteredFollowingItems;
 
-    if (combined.length < requiredCount) {
+    if (!canFilterByAuthor && combined.length < requiredCount) {
       const usedIds = new Set(combined.map((item) => item.id));
       const recommendedItems = [
         ...recommendedVideos.map((video, index) => this.videoToFeedItem(video, 'recommended', index, recommendedVideos.length)),
@@ -605,13 +621,19 @@ export class FeedService {
     return videos.filter((video) => !blockedCreatorIds.has(video.creatorId));
   }
 
-  private async fetchLiveRoomsWithAvatars(limit: number) {
-    const rooms = this.liveService.listRooms({ status: 'LIVING', limit });
-    const broadcasterIds = Array.from(new Set(rooms.map((room) => Number(room.broadcaster.id))));
+  private async fetchLiveRoomsWithAvatars(limit: number, filterBroadcasterIds?: number[]) {
+    const rooms = this.liveService.listRooms({
+      status: 'LIVING',
+      limit,
+      ...(filterBroadcasterIds && filterBroadcasterIds.length > 0
+        ? { broadcasterId: filterBroadcasterIds[0] }
+        : {}),
+    });
+    const roomBroadcasterIds = Array.from(new Set(rooms.map((room) => Number(room.broadcaster.id))));
     const users =
-      broadcasterIds.length > 0
+      roomBroadcasterIds.length > 0
         ? await this.prisma.user.findMany({
-            where: { id: { in: broadcasterIds } },
+            where: { id: { in: roomBroadcasterIds } },
             select: { id: true, avatarUrl: true },
           })
         : [];
@@ -891,6 +913,14 @@ export class FeedService {
     }
 
     return Math.min(30, Math.floor(pageSize));
+  }
+
+  private normalizeAuthorId(authorId?: number) {
+    if (!authorId || !Number.isFinite(authorId) || authorId < 1) {
+      return undefined;
+    }
+
+    return Math.floor(authorId);
   }
 
   private withoutScore<T extends { score: number }>(item: T) {

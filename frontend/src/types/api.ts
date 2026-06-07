@@ -294,6 +294,11 @@ export interface SearchResultResponse {
   categoryCode: string;
   page: number;
   pageSize: number;
+  counts: {
+    video: number;
+    live: number;
+    user: number;
+  };
   video: VideoCard[];
   live: LiveRoomInfo[];
   user: Array<{ id: number; nickname: string }>;

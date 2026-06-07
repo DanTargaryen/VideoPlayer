@@ -284,6 +284,7 @@ async function loadFeed(reset = false) {
       type: activeType.value === 'recommend' ? 'all' : activeType.value,
       page: page.value,
       pageSize,
+      ...(activeAuthorId.value ? { authorId: Number(activeAuthorId.value) } : {}),
     });
     feedItems.value = reset ? result.list : mergeItems(feedItems.value, result.list);
     hasMore.value = result.hasMore;
@@ -305,7 +306,7 @@ async function loadFeed(reset = false) {
 }
 
 async function loadRecommendFallback(targetPage: number) {
-  if (['live', 'post', 'image_text', 'text', 'image'].includes(activeType.value)) {
+  if (activeAuthorId.value || ['live', 'post', 'image_text', 'text', 'image'].includes(activeType.value)) {
     return [];
   }
 
@@ -657,6 +658,7 @@ function handleDeleteGroup(groupId: string) {
 
 function handleAuthorSelect(authorId: string) {
   activeAuthorId.value = authorId;
+  void loadFeed(true).then(() => nextTick(setupObserver));
 }
 
 async function handleNewDynamicClick() {

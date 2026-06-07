@@ -155,6 +155,27 @@ export class LiveService {
       .map((room) => this.serializeRoom(room));
   }
 
+  countRooms(options?: {
+    keyword?: string;
+    category?: string;
+    broadcasterId?: number;
+    status?: 'IDLE' | 'LIVING' | 'ENDED';
+  }) {
+    const keyword = options?.keyword?.trim().toLowerCase();
+
+    return Array.from(this.rooms.values())
+      .filter((room) => !options?.status || room.status === options.status)
+      .filter((room) => !options?.category || room.category === options.category)
+      .filter((room) => !options?.broadcasterId || room.broadcasterId === options.broadcasterId)
+      .filter((room) => {
+        if (!keyword) {
+          return true;
+        }
+
+        return `${room.title} ${room.broadcasterNickname}`.toLowerCase().includes(keyword);
+      }).length;
+  }
+
   async getCenterOverview(currentUser?: AuthUser | null) {
     const rooms = Array.from(this.rooms.values());
     const livingRooms = rooms.filter((room) => room.status === 'LIVING');

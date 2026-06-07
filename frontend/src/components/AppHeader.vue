@@ -45,7 +45,6 @@
         <RouterLink to="/user/dashboard" class="avatar-link" aria-label="用户中心" data-tour="header-account">
           <img v-if="avatarUrl" :src="avatarUrl" alt="avatar" class="header-avatar" />
           <el-icon v-else :size="22"><User /></el-icon>
-          <el-icon :size="13" class="avatar-arrow"><ArrowDown /></el-icon>
         </RouterLink>
       </template>
       <RouterLink v-else to="/login" class="login-btn" data-tour="header-login">登录</RouterLink>
@@ -58,7 +57,6 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useRoute, useRouter } from 'vue-router';
 import {
-  ArrowDown,
   DocumentChecked,
   Message,
   Upload,
@@ -539,9 +537,6 @@ function startHeaderSync() {
   box-shadow: 0 3px 10px rgba(15, 23, 42, 0.1);
 }
 
-.avatar-arrow {
-  color: var(--color-text-muted);
-}
 
 @media (max-width: 1320px) {
   .header {

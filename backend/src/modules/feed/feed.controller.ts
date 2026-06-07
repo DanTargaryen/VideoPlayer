@@ -51,6 +51,7 @@ export class FeedController {
     @Query('type') type?: DynamicFeedType,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
+    @Query('authorId') authorId?: string,
   ) {
     const user = await this.authService.getCurrentUser(authorization);
     return ok(
@@ -59,6 +60,7 @@ export class FeedController {
         type,
         page: page !== undefined ? Number(page) : undefined,
         pageSize: pageSize !== undefined ? Number(pageSize) : undefined,
+        authorId: authorId !== undefined ? Number(authorId) : undefined,
       }),
     );
   }
