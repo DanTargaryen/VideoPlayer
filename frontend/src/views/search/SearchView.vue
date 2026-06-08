@@ -1,7 +1,20 @@
 <template>
   <section class="page">
     <section class="filters" data-tour="search-filters">
-      <el-segmented v-model="category" :options="categorySegmentOptions" @change="submitSearch" />
+      <div class="category-rail" role="tablist" aria-label="视频分类">
+        <button
+          v-for="item in categoryButtonOptions"
+          :key="item.code"
+          type="button"
+          class="category-pill"
+          :class="{ active: category === item.code }"
+          role="tab"
+          :aria-selected="category === item.code"
+          @click="selectCategory(item.code)"
+        >
+          {{ item.label }}
+        </button>
+      </div>
       <el-select v-model="sortBy" class="sort-select" @change="submitSearch">
         <el-option label="综合排序" value="best" />
         <el-option label="最新优先" value="latest" />
@@ -49,7 +62,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue';
+import { reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { RefreshRight } from '@element-plus/icons-vue';
@@ -84,12 +97,33 @@ const result = reactive<SearchResultResponse>({
 const SEARCH_VIDEO_DISPLAY_SIZE = 20;
 const SEARCH_VIDEO_CANDIDATE_SIZE = 50;
 
-const categorySegmentOptions = computed(() =>
-  categoryOptions.map((item) => ({
-    label: item.label,
-    value: item.code,
-  })),
-);
+const categoryOrder: CategoryCode[] = [
+  'recommend',
+  'entertainment',
+  'tech',
+  'animation',
+  'game',
+  'life',
+  'study',
+  'music',
+  'film',
+  'sports',
+  'comedy',
+  'food',
+  'travel',
+];
+
+const categoryLabelOverrides: Partial<Record<CategoryCode, string>> = {
+  recommend: '全部',
+};
+
+const categoryButtonOptions = categoryOrder.map((code) => {
+  const option = categoryOptions.find((item) => item.code === code);
+  return {
+    code,
+    label: categoryLabelOverrides[code] ?? option?.label ?? code,
+  };
+});
 
 function normalizeTab(value: unknown): 'video' | 'user' | 'live' {
   if (value === 'user' || value === 'live') {
@@ -149,6 +183,15 @@ async function refreshVideos() {
   result.video = takeRandomItems(videoCandidates.value, SEARCH_VIDEO_DISPLAY_SIZE);
 }
 
+function selectCategory(nextCategory: CategoryCode) {
+  if (category.value === nextCategory) {
+    return;
+  }
+
+  category.value = nextCategory;
+  submitSearch();
+}
+
 function submitSearch() {
   router.replace({
     path: '/search',
@@ -182,9 +225,63 @@ watch(
 
 .filters {
   display: flex;
-  gap: 12px;
+  gap: 16px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.category-rail {
+  display: flex;
+  align-items: center;
+  flex: 1 1 720px;
+  min-width: 0;
+  gap: 14px;
+  overflow-x: auto;
+  padding: 2px 2px 5px;
+  scrollbar-width: none;
+}
+
+.category-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.category-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  padding: 0 22px;
+  border: 1px solid #e3e9f2;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #253044;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.035);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 760;
+  white-space: nowrap;
+  transition:
+    transform 0.26s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.26s cubic-bezier(0.16, 1, 0.3, 1),
+    background 0.22s ease,
+    border-color 0.22s ease,
+    color 0.22s ease;
+}
+
+.category-pill:hover {
+  color: var(--color-primary);
+  border-color: #cfe0ff;
+}
+
+.category-pill.active {
+  color: #ffffff;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  box-shadow: 0 12px 24px rgba(47, 111, 237, 0.2);
+}
+
+.category-pill:active {
+  transform: translateY(-1px) scale(0.98);
 }
 
 .sort-select {
@@ -228,6 +325,26 @@ watch(
 
 .primary-link {
   color: #2563eb;
+}
+
+@media (max-width: 720px) {
+  .filters {
+    gap: 12px;
+  }
+
+  .category-rail {
+    flex-basis: 100%;
+    gap: 10px;
+  }
+
+  .category-pill {
+    height: 36px;
+    padding: 0 17px;
+  }
+
+  .sort-select {
+    width: min(100%, 180px);
+  }
 }
 
 </style>
