@@ -20,6 +20,7 @@ type FeedStats = {
   comments?: number;
   favorites?: number;
   liked?: boolean;
+  favorited?: boolean;
 };
 
 type DynamicFeedItem = {
@@ -798,14 +799,24 @@ export class FeedService {
       return items;
     }
 
-    const likedVideos = await this.prisma.videoLike.findMany({
-      where: {
-        userId: currentUserId,
-        videoId: { in: videoIds },
-      },
-      select: { videoId: true },
-    });
+    const [likedVideos, favoritedVideos] = await Promise.all([
+      this.prisma.videoLike.findMany({
+        where: {
+          userId: currentUserId,
+          videoId: { in: videoIds },
+        },
+        select: { videoId: true },
+      }),
+      this.prisma.favorite.findMany({
+        where: {
+          userId: currentUserId,
+          videoId: { in: videoIds },
+        },
+        select: { videoId: true },
+      }),
+    ]);
     const likedVideoIds = new Set(likedVideos.map((item) => item.videoId));
+    const favoritedVideoIds = new Set(favoritedVideos.map((item) => item.videoId));
 
     return items.map((item) => {
       if (item.type !== 'video') {
@@ -818,6 +829,7 @@ export class FeedService {
         stats: {
           ...item.stats,
           liked: videoId ? likedVideoIds.has(videoId) : false,
+          favorited: videoId ? favoritedVideoIds.has(videoId) : false,
         },
       };
     });
