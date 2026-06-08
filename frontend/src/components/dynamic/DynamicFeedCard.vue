@@ -37,6 +37,17 @@
         <span>评论</span>
         <strong>{{ formatCompactNumber(commentCount) }}</strong>
       </button>
+      <button
+        v-if="hasCollectButton"
+        type="button"
+        class="interaction-button"
+        :class="{ active: collected }"
+        :disabled="collecting || favoriteFolderLoading"
+        @click="handleCollect"
+      >
+        <el-icon><Star /></el-icon>
+        <span>{{ collected ? '已收藏' : '收藏' }}</span>
+      </button>
     </footer>
 
     <section v-if="commentPanelVisible && dynamicPostId" class="comment-panel">
@@ -75,6 +86,46 @@
       </div>
       <button v-else type="button" class="comment-login" @click="goToLogin">登录后评论</button>
     </section>
+
+    <el-dialog
+      v-model="favoriteDialogVisible"
+      title="选择收藏夹"
+      width="min(420px, calc(100vw - 32px))"
+      append-to-body
+      align-center
+      destroy-on-close
+      modal-class="dynamic-favorite-modal"
+      class="dynamic-favorite-dialog"
+      :close-on-click-modal="false"
+    >
+      <div class="favorite-dialog-body" v-loading="favoriteFolderLoading">
+        <div v-if="favoriteFolderOptions.length > 0" class="favorite-dialog-list">
+          <label
+            v-for="folder in favoriteFolderOptions"
+            :key="folder.id"
+            class="favorite-dialog-item"
+            :class="{ active: selectedFavoriteFolderId === folder.id }"
+          >
+            <el-radio v-model="selectedFavoriteFolderId" :value="folder.id">
+              {{ folder.name }}
+            </el-radio>
+            <span class="favorite-dialog-count">{{ folder.videoCount }} 个视频</span>
+          </label>
+        </div>
+        <el-empty v-else description="暂无可用收藏夹" :image-size="60" />
+      </div>
+      <template #footer>
+        <el-button @click="favoriteDialogVisible = false">取消</el-button>
+        <el-button
+          type="primary"
+          :loading="collecting"
+          :disabled="favoriteFolderLoading || !selectedFavoriteFolderId"
+          @click="confirmCollectVideo"
+        >
+          确认收藏
+        </el-button>
+      </template>
+    </el-dialog>
   </article>
 </template>
 
@@ -82,7 +133,7 @@
 import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { ChatDotRound, Pointer, Share, Star } from '@element-plus/icons-vue';
+import { ChatDotRound, Pointer, Star } from '@element-plus/icons-vue';
 
 import {
   createDynamicPostComment,
@@ -90,9 +141,15 @@ import {
   likeDynamicPost,
   unlikeDynamicPost,
 } from '@/api/feed';
-import { likeVideo, unlikeVideo } from '@/api/platform';
+import {
+  favoriteVideo,
+  fetchMyFavoriteFolders,
+  likeVideo,
+  unfavoriteVideo,
+  unlikeVideo,
+} from '@/api/platform';
 import { useAppStore } from '@/stores/app';
-import type { DynamicFeedItem, DynamicPostCommentItem } from '@/types/api';
+import type { DynamicFeedItem, DynamicPostCommentItem, FavoriteFolderSummary } from '@/types/api';
 import { normalizeDynamicType } from '@/utils/dynamicFeed';
 import DynamicLiveCard from './DynamicLiveCard.vue';
 import DynamicVideoCard from './DynamicVideoCard.vue';
@@ -113,12 +170,17 @@ const collected = ref(false);
 const likeCount = ref(0);
 const commentCount = ref(0);
 const liking = ref(false);
+const collecting = ref(false);
 const commentPanelVisible = ref(false);
 const commentsLoading = ref(false);
 const commentSubmitting = ref(false);
 const commentsLoaded = ref(false);
 const commentDraft = ref('');
 const postComments = ref<DynamicPostCommentItem[]>([]);
+const favoriteDialogVisible = ref(false);
+const favoriteFolderOptions = ref<FavoriteFolderSummary[]>([]);
+const favoriteFolderLoading = ref(false);
+const selectedFavoriteFolderId = ref<number | null>(null);
 
 const relativeTime = computed(() => formatRelativeTime(props.item.createdAt));
 const renderType = computed(() => normalizeDynamicType(props.item));
@@ -135,7 +197,7 @@ const typeLabel = computed(() => {
 });
 const dynamicPostId = computed(() => parseItemId('dynamic-post-'));
 const videoTargetId = computed(() => (renderType.value === 'video' ? parseItemId('video-') : null));
-const hasCollectButton = computed(() => renderType.value !== 'text');
+const hasCollectButton = computed(() => Boolean(videoTargetId.value));
 
 watch(
   () => props.item,
@@ -147,24 +209,88 @@ watch(
 
 function syncInteractionState() {
   liked.value = Boolean(props.item.stats?.liked);
-  collected.value = false;
+  collected.value = Boolean(props.item.stats?.favorited);
   likeCount.value = Math.max(0, Number(props.item.stats?.likes ?? 0));
   commentCount.value = Math.max(0, Number(props.item.stats?.comments ?? 0));
+  collecting.value = false;
   commentPanelVisible.value = false;
   commentsLoading.value = false;
   commentSubmitting.value = false;
   commentsLoaded.value = false;
   commentDraft.value = '';
   postComments.value = [];
+  favoriteDialogVisible.value = false;
+  favoriteFolderLoading.value = false;
+  selectedFavoriteFolderId.value = null;
+  favoriteFolderOptions.value = [];
 }
 
-function handleRepost() {
-  ElMessage.info('转发能力正在建设中');
+async function handleCollect() {
+  if (!store.isLoggedIn) {
+    ElMessage.warning('请先登录后收藏');
+    await router.push('/login');
+    return;
+  }
+
+  const videoId = videoTargetId.value;
+  if (!videoId) {
+    ElMessage.info('这条动态暂不支持收藏');
+    return;
+  }
+
+  if (collecting.value || favoriteFolderLoading.value) {
+    return;
+  }
+
+  if (collected.value) {
+    collecting.value = true;
+    try {
+      const result = await unfavoriteVideo(videoId);
+      collected.value = result.favorited;
+      ElMessage.success(result.favorited ? '收藏成功' : '已取消收藏');
+    } catch {
+      ElMessage.error('操作失败，请确认已登录');
+    } finally {
+      collecting.value = false;
+    }
+    return;
+  }
+
+  await openFavoriteDialog();
 }
 
-function handleCollect() {
-  collected.value = !collected.value;
-  ElMessage.success(collected.value ? '已收藏' : '已取消收藏');
+async function openFavoriteDialog() {
+  favoriteFolderLoading.value = true;
+  try {
+    const folders = await fetchMyFavoriteFolders();
+    favoriteFolderOptions.value = folders;
+    selectedFavoriteFolderId.value = folders.find((folder) => folder.isDefault)?.id ?? folders[0]?.id ?? null;
+    favoriteDialogVisible.value = true;
+  } catch {
+    ElMessage.error('加载收藏夹失败，请确认已登录');
+  } finally {
+    favoriteFolderLoading.value = false;
+  }
+}
+
+async function confirmCollectVideo() {
+  const videoId = videoTargetId.value;
+  if (!videoId || !selectedFavoriteFolderId.value) {
+    ElMessage.warning('请选择一个收藏夹');
+    return;
+  }
+
+  collecting.value = true;
+  try {
+    await favoriteVideo(videoId, { folderId: selectedFavoriteFolderId.value });
+    collected.value = true;
+    favoriteDialogVisible.value = false;
+    ElMessage.success('收藏成功');
+  } catch {
+    ElMessage.error('收藏失败，请确认已登录');
+  } finally {
+    collecting.value = false;
+  }
 }
 
 function parseItemId(prefix: string) {
@@ -414,13 +540,13 @@ function formatCompactNumber(value: number) {
 
 .interaction-row {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   border-top: 1px solid var(--color-border-soft);
   padding-top: 9px;
 }
 
 .interaction-row.without-collect {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .interaction-button {
@@ -615,6 +741,85 @@ function formatCompactNumber(value: number) {
 
 .comment-login:hover {
   background: var(--color-primary-light);
+}
+
+.favorite-dialog-body {
+  min-height: 120px;
+}
+
+.favorite-dialog-list {
+  display: grid;
+  gap: 10px;
+}
+
+.favorite-dialog-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: border-color var(--gl-transition), background var(--gl-transition);
+}
+
+.favorite-dialog-item.active {
+  border-color: #bfdbfe;
+  background: var(--color-primary-light);
+}
+
+.favorite-dialog-item :deep(.el-radio) {
+  margin-right: 0;
+}
+
+.favorite-dialog-count {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+:global(.dynamic-favorite-modal) {
+  background: rgba(15, 23, 42, 0.48);
+  backdrop-filter: blur(2px);
+}
+
+:global(.dynamic-favorite-dialog.el-dialog) {
+  overflow: hidden;
+  border-radius: 18px;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.18);
+}
+
+:global(.dynamic-favorite-dialog .el-dialog__header) {
+  margin: 0;
+  padding: 24px 24px 12px;
+}
+
+:global(.dynamic-favorite-dialog .el-dialog__title) {
+  color: var(--color-text-main);
+  font-size: 20px;
+  font-weight: 800;
+}
+
+:global(.dynamic-favorite-dialog .el-dialog__headerbtn) {
+  top: 18px;
+  right: 18px;
+}
+
+:global(.dynamic-favorite-dialog .el-dialog__body) {
+  padding: 10px 24px 4px;
+}
+
+:global(.dynamic-favorite-dialog .el-dialog__footer) {
+  padding: 16px 24px 22px;
+}
+
+:global(.dynamic-favorite-dialog .el-dialog__footer .el-button) {
+  min-width: 88px;
+  border-radius: 999px;
+  font-weight: 700;
 }
 
 @keyframes feed-card-in {

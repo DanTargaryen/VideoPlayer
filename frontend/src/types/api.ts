@@ -511,6 +511,7 @@ export interface DynamicFeedItem {
     comments?: number;
     favorites?: number;
     liked?: boolean;
+    favorited?: boolean;
   };
   live?: {
     isLive: boolean;
