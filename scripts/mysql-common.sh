@@ -40,12 +40,18 @@ load_mysql_config() {
 }
 
 mysql_ping() {
-  MYSQL_PWD="$DB_PASSWORD" mysqladmin ping -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" >/dev/null 2>&1
+  MYSQL_PWD="$DB_PASSWORD" mysqladmin --connect-timeout=5 ping -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" >/dev/null 2>&1
 }
 
 mysql_exec_file() {
   local sql_file="$1"
-  MYSQL_PWD="$DB_PASSWORD" mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" < "$sql_file"
+  MYSQL_PWD="$DB_PASSWORD" mysql --connect-timeout=5 -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" < "$sql_file"
+}
+
+mysql_database_exists() {
+  MYSQL_PWD="$DB_PASSWORD" mysql --connect-timeout=5 -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -Nse \
+    "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '${DB_NAME}'" |
+    grep -qx "$DB_NAME"
 }
 
 detect_mysql_service_name() {
@@ -149,5 +155,10 @@ ensure_mysql_available() {
 
 ensure_database_exists() {
   echo "Ensuring database '$DB_NAME' exists..."
+  if mysql_database_exists; then
+    echo "Database '$DB_NAME' already exists."
+    return 0
+  fi
+
   mysql_exec_file "$ROOT_DIR/deploy/mysql/init.sql"
 }

@@ -74,6 +74,7 @@ const props = defineProps<{
   paused?: boolean;
   likedIds?: Set<number>;
   currentUserId?: number;
+  instantDanmakuId?: number | null;
 }>();
 
 const emit = defineEmits<{
@@ -157,16 +158,17 @@ function scheduleCleanup(item: ActiveDanmaku) {
   pendingTimers.push(timer);
 }
 
-function addSingleDanmaku(d: DanmakuItem) {
+function addSingleDanmaku(d: DanmakuItem, options: { immediate?: boolean } = {}) {
   if (activeDanmakus.value.some((a) => a.raw.id === d.id)) return;
 
   const currentMs = props.currentTimeMs;
-  if (d.timeOffsetMs < currentMs - 100 || d.timeOffsetMs > currentMs + WINDOW_MS) return;
+  if (!options.immediate && (d.timeOffsetMs < currentMs - 100 || d.timeOffsetMs > currentMs + WINDOW_MS)) return;
 
-  const trackIndex = findAvailableTrack(d.timeOffsetMs);
+  const trackTimeMs = options.immediate ? currentMs : d.timeOffsetMs;
+  const trackIndex = findAvailableTrack(trackTimeMs);
   if (trackIndex === -1) return;
 
-  const delayS = Math.max(0, (d.timeOffsetMs - currentMs) / 1000);
+  const delayS = options.immediate ? 0 : Math.max(0, (d.timeOffsetMs - currentMs) / 1000);
 
   const item: ActiveDanmaku = {
     trackKey: `${d.id}-${d.timeOffsetMs}-${Date.now()}`,
@@ -184,7 +186,7 @@ function addSingleDanmaku(d: DanmakuItem) {
   activeDanmakus.value = [...activeDanmakus.value, item];
 
   trackLastEnd.value[trackIndex] =
-    d.timeOffsetMs + ANIMATION_DURATION_S * 1000 * 0.3;
+    trackTimeMs + ANIMATION_DURATION_S * 1000 * 0.3;
 
   scheduleCleanup(item);
 }
@@ -422,6 +424,18 @@ watch(
       }
     }
   },
+);
+
+watch(
+  () => props.instantDanmakuId,
+  (id) => {
+    if (!id) return;
+    const danmaku = props.danmakus.find((item) => item.id === id);
+    if (danmaku) {
+      addSingleDanmaku(danmaku, { immediate: true });
+    }
+  },
+  { flush: 'post' },
 );
 
 watch(

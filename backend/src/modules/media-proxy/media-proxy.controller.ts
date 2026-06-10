@@ -22,7 +22,19 @@ export class MediaProxyController {
       return;
     }
 
-    Readable.fromWeb(upstream.body as unknown as Parameters<typeof Readable.fromWeb>[0]).pipe(response);
+    const stream = Readable.fromWeb(upstream.body as unknown as Parameters<typeof Readable.fromWeb>[0]);
+
+    response.on('close', () => {
+      stream.destroy();
+    });
+
+    stream.on('error', () => {
+      if (!response.destroyed) {
+        response.end();
+      }
+    });
+
+    stream.pipe(response);
   }
 
   private parseAllowedUrl(rawUrl: string | undefined) {

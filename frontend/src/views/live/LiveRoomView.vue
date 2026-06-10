@@ -245,7 +245,7 @@
             <span class="message-count">{{ liveMessages.length }}</span>
           </div>
 
-          <div v-if="currentRoomId" class="message-list">
+          <div v-if="currentRoomId" ref="messageListRef" class="message-list">
             <article v-for="item in liveMessages" :key="item.id" class="message-item" :class="item.kind === 'SYSTEM' ? 'message-item-system' : ''">
               <div class="message-meta">
                 <strong>{{ item.sender.nickname }}</strong>
@@ -439,7 +439,7 @@ const appStore = useAppStore();
 const { isLoggedIn, nickname, userId } = storeToRefs(appStore);
 const studioVisible = ref(false), saveReplayVisible = ref(false), preparing = ref(false), starting = ref(false), joining = ref(false), stopping = ref(false), sendingMessage = ref(false), savingReplay = ref(false), uploadingStudioCover = ref(false), uploadingReplayCover = ref(false);
 const previewRef = ref<HTMLVideoElement | null>(null), viewerRef = ref<HTMLVideoElement | null>(null), studioCoverInputRef = ref<HTMLInputElement | null>(null), replayCoverInputRef = ref<HTMLInputElement | null>(null);
-const studioSectionRef = ref<HTMLElement | null>(null), plazaSectionRef = ref<HTMLElement | null>(null);
+const studioSectionRef = ref<HTMLElement | null>(null), plazaSectionRef = ref<HTMLElement | null>(null), messageListRef = ref<HTMLElement | null>(null);
 const previewStream = ref<MediaStream | null>(null), remoteStream = ref<MediaStream | null>(null), mediaRecorder = ref<MediaRecorder | null>(null), recordedBlob = ref<Blob | null>(null), recordingPreviewUrl = ref(''), liveFrameUrl = ref(''), liveFrameUpdatedAt = ref<string | null>(null);
 const cameraEnabled = ref(false), microphoneEnabled = ref(false);
 const activeRoom = ref<LiveRoomInfo | null>(null), liveSession = ref<LiveSessionInfo | null>(null), fetchedSession = ref<LiveSessionInfo | null>(null), hubRooms = ref<LiveRoomInfo[]>([]), liveMessages = ref<LiveMessage[]>([]), activeDanmaku = ref<DanmakuOverlayItem[]>([]), chatDraft = ref('');
@@ -540,9 +540,10 @@ function pushDanmaku(message: LiveMessage) { if (!routeRoomId.value || danmakuRo
 const seedDanmaku = (messages: LiveMessage[]) => messages.filter((item) => item.kind === 'CHAT').slice(-4).forEach((item) => pushDanmaku(item));
 function isMatchingOptimisticMessage(local: LiveMessage, remote: LiveMessage) { return local.id < 0 && local.roomId === remote.roomId && local.kind === remote.kind && local.content === remote.content && (local.sender.id !== null && remote.sender.id !== null ? local.sender.id === remote.sender.id : local.sender.nickname === remote.sender.nickname); }
 function appendLiveMessage(message: LiveMessage) { const optimisticMatch = liveMessages.value.find((item) => isMatchingOptimisticMessage(item, message)); if (optimisticMatch) { replaceOptimisticMessage(optimisticMatch.id, message); return; } const next = [...liveMessages.value.filter((item) => item.id !== message.id), message]; next.sort((left, right) => left.id - right.id); liveMessages.value = next.slice(-80); pushDanmaku(message); }
-function replaceOptimisticMessage(optimisticId: number, message: LiveMessage) { const next = [...liveMessages.value.filter((item) => item.id !== optimisticId && item.id !== message.id), message]; next.sort((left, right) => left.id - right.id); liveMessages.value = next.slice(-80); displayedDanmakuIds.delete(optimisticId); displayedDanmakuIds.add(message.id); }
+function replaceOptimisticMessage(optimisticId: number, message: LiveMessage) { const hadActiveOptimisticDanmaku = activeDanmaku.value.some((item) => item.messageId === optimisticId); const next = [...liveMessages.value.filter((item) => item.id !== optimisticId && item.id !== message.id), message]; next.sort((left, right) => left.id - right.id); liveMessages.value = next.slice(-80); activeDanmaku.value = activeDanmaku.value.map((item) => item.messageId === optimisticId ? { ...item, messageId: message.id } : item); displayedDanmakuIds.delete(optimisticId); if (hadActiveOptimisticDanmaku) { displayedDanmakuIds.add(message.id); } else { pushDanmaku(message); } }
 function removeLocalMessage(messageId: number) { const removing = activeDanmaku.value.filter((item) => item.messageId === messageId); removing.forEach((item) => { const timer = danmakuTimers.get(item.uid); if (timer) window.clearTimeout(timer); danmakuTimers.delete(item.uid); }); activeDanmaku.value = activeDanmaku.value.filter((item) => item.messageId !== messageId); liveMessages.value = liveMessages.value.filter((item) => item.id !== messageId); displayedDanmakuIds.delete(messageId); }
 function createOptimisticLiveMessage(roomId: number, content: string): LiveMessage { return { id: nextOptimisticMessageId--, roomId, kind: 'CHAT', content, createdAt: new Date().toISOString(), sender: { id: userId.value ?? null, nickname: nickname.value || '我' } }; }
+async function scrollMessageListToBottom() { await nextTick(); const list = messageListRef.value; if (list) list.scrollTop = list.scrollHeight; }
 const closeRoomEventSource = () => { roomEventSource?.close(); roomEventSource = null; };
 const closePublisherEventSource = () => { publisherEventSource?.close(); publisherEventSource = null; };
 const closeViewerEventSource = () => { viewerEventSource?.close(); viewerEventSource = null; };
@@ -583,7 +584,7 @@ async function handleStartLive() { if (!previewStream.value) { ElMessage.warning
 async function handleStopLive() { stopping.value = true; try { if (activeRoom.value && isLive.value) await stopLiveRoom(activeRoom.value.id); await stopLocalRecording(); } catch { ElMessage.warning('直播已结束，但远端状态同步失败'); } finally { cleanupPublisherPeers(); stopFramePublishing(); stopPreviewStream(); if (liveSession.value) liveSession.value = { ...liveSession.value, status: 'ENDED', endedAt: new Date().toISOString() }; void loadHubRooms(); stopping.value = false; if (recordedBlob.value) { prepareReplayForm(); saveReplayVisible.value = true; } ElMessage.success('直播已结束'); } }
 async function ensureViewerConnection(roomId: number, silentFallback = false) { if (joining.value || (viewerRoomId.value === roomId && (viewerPeer.value || viewerId.value))) return; joining.value = true; cleanupViewerPeer(); startFramePolling(roomId); try { const ticket = await createLiveViewer(roomId); const peer = createPeerConnection(); const inboundStream = new MediaStream(); viewerPeer.value = peer; viewerRoomId.value = roomId; viewerId.value = ticket.viewerId; peer.addTransceiver('video', { direction: 'recvonly' }); peer.addTransceiver('audio', { direction: 'recvonly' }); peer.addEventListener('track', (event) => { const incomingTrack = event.track; if (!inboundStream.getTracks().some((track) => track.id === incomingTrack.id)) inboundStream.addTrack(incomingTrack); remoteStream.value = inboundStream; void attachViewerStream(); }); peer.addEventListener('connectionstatechange', () => { if (['closed', 'failed', 'disconnected'].includes(peer.connectionState) && viewerPeer.value === peer) { viewerPeer.value = null; clearRemoteStream(); } }); const offer = await peer.createOffer(); await peer.setLocalDescription(offer); await waitForIceGatheringComplete(peer); if (!peer.localDescription) throw new Error('观众 offer 生成失败'); const answer = await playLiveRoom(roomId, { type: 'offer', sdp: peer.localDescription.sdp ?? '' }); await peer.setRemoteDescription(new RTCSessionDescription(answer)); } catch { viewerPeer.value?.close(); viewerPeer.value = null; clearRemoteStream(); if (!silentFallback && viewerCompatNotifiedRoomId !== roomId) { viewerCompatNotifiedRoomId = roomId; ElMessage.warning('RTC 观看链路未连通，已自动切换为兼容模式画面。'); } } finally { joining.value = false; } }
 const handleJoinViewer = async () => { if (routeRoomId.value) { viewerCompatNotifiedRoomId = null; await ensureViewerConnection(routeRoomId.value); } };
-const handleLeaveViewer = () => { cleanupViewerPeer(); stopFramePolling(true); ElMessage.success('已离开直播'); };
+const handleLeaveViewer = async () => { cleanupViewerPeer(); stopFramePolling(true); ElMessage.success('已离开直播'); await router.push('/live'); };
 const handleToggleCamera = () => { togglePreviewTrack('video'); };
 const handleToggleMicrophone = () => { togglePreviewTrack('audio'); };
 function prepareReplayForm() { replayForm.title = `${activeRoom.value?.title ?? '直播内容'} 回放`; replayForm.description = activeRoom.value ? `直播回放：${activeRoom.value.title}` : '直播回放'; replayForm.coverUrl = activeRoom.value?.coverUrl ?? studioForm.coverUrl ?? ''; }
@@ -644,6 +645,7 @@ async function loadHubRooms() {
 function startHubPolling() { clearHubPolling(); hubPollTimer = setInterval(() => { void loadHubRooms(); }, 5000); }
 watch(previewRef, () => { void attachPreviewStream(); });
 watch(viewerRef, () => { void attachViewerStream(); });
+watch(() => liveMessages.value.length, () => { void scrollMessageListToBottom(); });
 watch(() => route.params.id, () => { if (activeRoom.value && routeRoomId.value !== activeRoom.value.id) closePublisherEventSource(); void syncRouteSession(); void loadHubRooms(); });
 watch(selectedPlazaCategory, () => { void loadHubRooms(); });
 watch(() => [isCurrentHostRoom.value, isLive.value, Boolean(previewStream.value)] as const, () => undefined);
