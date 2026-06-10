@@ -11,6 +11,7 @@
   },
   "scripts": {
     "dev": "bash ./scripts/dev.sh",
+    "dev:lan": "bash ./scripts/dev-lan.sh",
     "dev:down": "bash ./scripts/dev-down.sh",
     "db:init": "bash ./scripts/init-db.sh",
     "dev:frontend": "npm --workspace frontend run dev",

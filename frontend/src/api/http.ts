@@ -11,6 +11,66 @@ export const http = axios.create({
 });
 
 let handlingSessionExpired = false;
+const MEDIA_PROXY_PATH = '/api/v1/media-proxy';
+
+function shouldProxyMediaUrl(value: string) {
+  if (typeof window === 'undefined' || window.location.protocol !== 'https:') {
+    return false;
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return false;
+  }
+
+  if (parsed.protocol !== 'http:') {
+    return false;
+  }
+
+  return parsed.port === '9000' || parsed.hostname === '182.92.132.80';
+}
+
+function rewriteMediaUrl(value: string) {
+  if (!shouldProxyMediaUrl(value)) {
+    return value;
+  }
+
+  return `${MEDIA_PROXY_PATH}?url=${encodeURIComponent(value)}`;
+}
+
+function rewriteMediaUrls<T>(payload: T, seen = new WeakSet<object>()): T {
+  if (typeof payload === 'string') {
+    return rewriteMediaUrl(payload) as T;
+  }
+
+  if (!payload || typeof payload !== 'object') {
+    return payload;
+  }
+
+  if (payload instanceof Blob || payload instanceof File || payload instanceof Date) {
+    return payload;
+  }
+
+  if (seen.has(payload)) {
+    return payload;
+  }
+  seen.add(payload);
+
+  if (Array.isArray(payload)) {
+    payload.forEach((item, index) => {
+      payload[index] = rewriteMediaUrls(item, seen);
+    });
+    return payload;
+  }
+
+  Object.entries(payload as Record<string, unknown>).forEach(([key, value]) => {
+    (payload as Record<string, unknown>)[key] = rewriteMediaUrls(value, seen);
+  });
+
+  return payload;
+}
 
 http.interceptors.request.use((config) => {
   const token = localStorage.getItem('vp_token');
@@ -23,7 +83,10 @@ http.interceptors.request.use((config) => {
 });
 
 http.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    response.data = rewriteMediaUrls(response.data);
+    return response;
+  },
   async (error) => {
     const status = error.response?.status;
     const requestUrl = String(error.config?.url ?? '');
