@@ -17,7 +17,7 @@ services:
   srs:
     image: ossrs/srs:5
     environment:
-      CANDIDATE: 10.64.132.182
+      CANDIDATE: ${SRS_CANDIDATE:-127.0.0.1}
     ports:
       - "1935:1935"
       - "8080:8080"

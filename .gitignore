@@ -68,6 +68,7 @@ temp/
 
 .codex-run/
 .runtime-storage/
+.certs/
 
 image/
 

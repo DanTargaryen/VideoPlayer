@@ -58,6 +58,14 @@
     <section v-if="!routeRoomId" ref="studioSectionRef" class="live-console-grid" data-tour="live-studio">
       <section class="panel studio-workbench">
         <h2>我的直播工作台</h2>
+        <el-alert
+          v-if="mediaCaptureUnavailableReason"
+          class="live-capture-alert"
+          :title="mediaCaptureUnavailableReason"
+          type="warning"
+          :closable="false"
+          show-icon
+        />
         <div class="studio-main">
           <div class="stage-shell preview-shell">
             <video v-if="hasPreview" ref="previewRef" class="stage-video" autoplay muted playsinline />
@@ -481,6 +489,21 @@ const placeholderTitle = computed(() => isViewerMode.value ? (displayedSession.v
 const placeholderDescription = computed(() => isViewerMode.value ? (displayedSession.value?.status === 'LIVING' ? '页面会先尝试 RTC，若失败将自动切换为兼容画面模式。' : '主播结束后，你仍然可以在右侧查看弹幕记录。') : '完成摄像头或屏幕共享预览后，即可开始直播。');
 const showQuickSaveActions = computed(() => Boolean(isCurrentHostRoom.value && recordedBlob.value && displayedSession.value?.status === 'ENDED'));
 const viewerActionText = computed(() => hasRemotePlayback.value ? '重新连接 RTC' : hasFramePlayback.value ? '刷新连接' : '进入观看');
+const mediaCaptureUnavailableReason = computed(() => {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  if (!window.isSecureContext) {
+    return '当前地址不是安全来源。请使用 HTTPS 或 localhost 打开页面后再开播。';
+  }
+
+  if (!navigator.mediaDevices) {
+    return '当前浏览器不支持摄像头、麦克风或屏幕共享采集。';
+  }
+
+  return '';
+});
 const centerMetrics = computed(() => centerOverview.value?.metrics ?? {
   livingRoomCount: plazaRooms.value.length,
   myLivingRoomCount: activeRoom.value?.status === 'LIVING' ? 1 : 0,
@@ -551,7 +574,7 @@ async function waitForIceGatheringComplete(peer: RTCPeerConnection) { if (peer.i
 const getRecordingMimeType = () => typeof MediaRecorder === 'undefined' ? '' : ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'].find((item) => MediaRecorder.isTypeSupported(item)) ?? '';
 function startLocalRecording() { if (!previewStream.value || typeof MediaRecorder === 'undefined') return; recordedChunks = []; const mimeType = getRecordingMimeType(); const recorder = mimeType ? new MediaRecorder(previewStream.value, { mimeType }) : new MediaRecorder(previewStream.value); recorder.addEventListener('dataavailable', (event) => { if (event.data && event.data.size > 0) recordedChunks.push(event.data); }); recorder.addEventListener('stop', () => { if (recordedChunks.length === 0) return; clearRecordingPreviewUrl(); recordedBlob.value = new Blob(recordedChunks, { type: recorder.mimeType || 'video/webm' }); recordingPreviewUrl.value = URL.createObjectURL(recordedBlob.value); }); mediaRecorder.value = recorder; recorder.start(1000); }
 async function stopLocalRecording() { const recorder = mediaRecorder.value; if (!recorder || recorder.state === 'inactive') { mediaRecorder.value = null; return; } await new Promise<void>((resolve) => { const finalize = () => { recorder.removeEventListener('stop', finalize); mediaRecorder.value = null; resolve(); }; recorder.addEventListener('stop', finalize); recorder.stop(); }); }
-async function requestStream(mode: CaptureMode) { if (!navigator.mediaDevices) throw new Error('当前浏览器不支持媒体采集'); if (mode === 'camera') return navigator.mediaDevices.getUserMedia({ video: true, audio: true }); const devices = navigator.mediaDevices as MediaDevices & { getDisplayMedia?: (constraints?: MediaStreamConstraints) => Promise<MediaStream> }; if (!devices.getDisplayMedia) throw new Error('当前浏览器不支持屏幕共享'); return devices.getDisplayMedia({ video: true, audio: true }); }
+async function requestStream(mode: CaptureMode) { if (!window.isSecureContext) throw new Error('当前地址不是安全来源。请使用 HTTPS 或 localhost 打开页面后再开播。'); if (!navigator.mediaDevices) throw new Error('当前浏览器不支持媒体采集'); if (mode === 'camera') return navigator.mediaDevices.getUserMedia({ video: true, audio: true }); const devices = navigator.mediaDevices as MediaDevices & { getDisplayMedia?: (constraints?: MediaStreamConstraints) => Promise<MediaStream> }; if (!devices.getDisplayMedia) throw new Error('当前浏览器不支持屏幕共享'); return devices.getDisplayMedia({ video: true, audio: true }); }
 function applySessionUpdate(session: LiveSessionInfo) { if (activeRoom.value?.id === session.roomId) { liveSession.value = { ...liveSession.value, ...session, title: activeRoom.value.title, broadcaster: activeRoom.value.broadcaster }; } else { fetchedSession.value = session; } if (session.status === 'LIVING' && routeRoomId.value === session.roomId && activeRoom.value?.id !== session.roomId) { startFramePolling(session.roomId); void ensureViewerConnection(session.roomId, true); return; } if (session.status !== 'LIVING') { if (viewerRoomId.value === session.roomId) cleanupViewerPeer(false); if (routeRoomId.value === session.roomId && activeRoom.value?.id !== session.roomId) stopFramePolling(true); } }
 function openRoomEventSourceFor(roomId: number) { closeRoomEventSource(); roomEventSource = new EventSource(buildApiUrl(`/lives/rooms/${roomId}/events`)); roomEventSource.addEventListener('snapshot', (event) => { const payload = parseSse<RoomSnapshotPayload>(event as MessageEvent<string>); applySessionUpdate(payload.session); liveMessages.value = payload.messages.slice(-80); if (danmakuRoomId !== roomId) resetDanmaku(roomId); seedDanmaku(payload.messages); }); roomEventSource.addEventListener('session', (event) => applySessionUpdate(parseSse<LiveSessionInfo>(event as MessageEvent<string>))); roomEventSource.addEventListener('chat-message', (event) => appendLiveMessage(parseSse<LiveMessage>(event as MessageEvent<string>))); roomEventSource.addEventListener('system-message', (event) => appendLiveMessage(parseSse<LiveMessage>(event as MessageEvent<string>))); }
 async function startPublisherTransport(roomId: number) { if (!previewStream.value) throw new Error('预览流不存在'); const peer = createPeerConnection(); publisherPeers.set(0, peer); previewStream.value.getTracks().forEach((track) => peer.addTrack(track, previewStream.value!)); peer.addEventListener('connectionstatechange', () => { if (['closed', 'failed', 'disconnected'].includes(peer.connectionState)) { publisherPeers.delete(0); peer.close(); } }); const offer = await peer.createOffer(); await peer.setLocalDescription(offer); await waitForIceGatheringComplete(peer); if (!peer.localDescription) throw new Error('主播 offer 生成失败'); const answer = await publishLiveRoom(roomId, { type: 'offer', sdp: peer.localDescription.sdp ?? '' }); await peer.setRemoteDescription(new RTCSessionDescription(answer)); }
@@ -796,6 +819,10 @@ onUnmounted(() => { closeRoomEventSource(); closePublisherEventSource(); closeVi
 .stage-panel,
 .side-panel {
   padding: 24px;
+}
+
+.live-capture-alert {
+  margin-top: 14px;
 }
 
 .studio-main {

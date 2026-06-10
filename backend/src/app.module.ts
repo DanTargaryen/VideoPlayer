@@ -23,6 +23,7 @@ import { EmailModule } from './modules/email/email.module';
 import { MessageModule } from './modules/message/message.module';
 import { FeedModule } from './modules/feed/feed.module';
 import { AssistantModule } from './modules/assistant/assistant.module';
+import { MediaProxyModule } from './modules/media-proxy/media-proxy.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { AssistantModule } from './modules/assistant/assistant.module';
     MessageModule,
     FeedModule,
     AssistantModule,
+    MediaProxyModule,
   ],
 })
 export class AppModule {}
