@@ -272,7 +272,7 @@ export class AuthService {
       return null;
     }
     const activeSessionNonce = this.activeSessionNonceByUserId.get(parsed.userId);
-    if (!activeSessionNonce || activeSessionNonce !== parsed.sessionNonce) {
+    if (activeSessionNonce && activeSessionNonce !== parsed.sessionNonce) {
       return null;
     }
 

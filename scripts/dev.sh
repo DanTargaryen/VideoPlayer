@@ -32,8 +32,8 @@ load_mysql_config
 ensure_mysql_available
 ensure_database_exists
 
-if [[ -n "${LAN_HOST:-}" ]] && ! docker info >/dev/null 2>&1; then
-  echo "Docker is not available. Skipping Redis, MinIO, and SRS containers for LAN dev mode."
+if ! docker info >/dev/null 2>&1; then
+  echo "Docker is not available. Skipping Redis, MinIO, and SRS containers."
   echo "SRS RTC will be unavailable; live viewing will fall back to the compatibility frame stream."
 else
   ensure_support_services

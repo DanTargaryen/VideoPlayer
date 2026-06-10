@@ -82,6 +82,7 @@
               :paused="videoPaused"
               :liked-ids="likedDanmakuIds"
               :current-user-id="appStore.userId"
+              :instant-danmaku-id="instantDanmakuId"
               @report="openReportDialog"
               @like="toggleDanmakuLike"
               @delete="handleDeleteDanmaku"
@@ -418,6 +419,7 @@ const videoDurationMs = ref(0);
 const danmakuVisible = ref(true);
 const videoPaused = ref(true);
 const likedDanmakuIds = ref<Set<number>>(new Set());
+const instantDanmakuId = ref<number | null>(null);
 const autoPlayNext = ref(true);
 
 const hasReportedPlay = ref(false);
@@ -1693,6 +1695,7 @@ async function submitDanmaku() {
     danmakuForm.content = '';
     ElMessage.success('弹幕发送成功');
     danmakus.value = [...danmakus.value, newDanmaku];
+    instantDanmakuId.value = newDanmaku.id;
   } catch {
     ElMessage.error('弹幕发送失败，请确认已登录');
   }
