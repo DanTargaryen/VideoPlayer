@@ -110,6 +110,12 @@ export class FeedService {
     const isFollowedAuthor = authorId !== undefined && followingIdSet.has(authorId);
     const canFilterByAuthor = authorId !== undefined && (isOwnAuthor || isFollowedAuthor);
     const targetAuthorIds = canFilterByAuthor ? [authorId] : followingIds;
+    const dynamicPostAuthorIds = canFilterByAuthor
+      ? [authorId]
+      : Array.from(new Set([
+          ...followingIds,
+          ...(options.currentUserId !== undefined ? [options.currentUserId] : []),
+        ]));
     const sourceTake = canFilterByAuthor ? requiredCount * 3 : requiredCount * 2;
 
     const [followingVideos, recommendedVideos, liveRooms, dynamicPosts] = await Promise.all([
@@ -119,7 +125,7 @@ export class FeedService {
       }),
       canFilterByAuthor ? Promise.resolve([]) : this.fetchRecommendedVideos(options.currentUserId, requiredCount * 2, followingIds),
       this.fetchLiveRoomsWithAvatars(sourceTake, canFilterByAuthor ? targetAuthorIds : undefined),
-      this.dynamicPostsService.listPosts(options.currentUserId, sourceTake, 0, targetAuthorIds),
+      this.dynamicPostsService.listPosts(options.currentUserId, sourceTake, 0, dynamicPostAuthorIds),
     ]);
 
     const followingItems = [
@@ -140,7 +146,7 @@ export class FeedService {
     ];
 
     const filteredFollowingItems = this.filterByType(followingItems, type)
-      .sort((left, right) => right.score - left.score || Date.parse(right.createdAt) - Date.parse(left.createdAt))
+      .sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt))
       .slice(0, requiredCount);
 
     let combined = filteredFollowingItems;
@@ -163,10 +169,12 @@ export class FeedService {
       combined = [
         ...combined,
         ...this.filterByType(recommendedItems, type).sort(
-          (left, right) => right.score - left.score || Date.parse(right.createdAt) - Date.parse(left.createdAt),
+          (left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt),
         ),
       ].slice(0, requiredCount);
     }
+
+    combined = combined.sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
 
     const pageItems = await this.attachInteractionState(
       combined.slice((page - 1) * pageSize, page * pageSize),

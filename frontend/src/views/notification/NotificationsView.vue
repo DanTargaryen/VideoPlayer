@@ -56,10 +56,6 @@
         <section class="feed-control-panel">
           <div class="feed-filter-row">
             <FeedTabs v-model="activeType" />
-            <el-select v-model="sortMode" class="sort-select" size="small" aria-label="动态排序">
-              <el-option label="最新" value="latest" />
-              <el-option label="最热" value="hot" />
-            </el-select>
           </div>
           <button v-if="newDynamicCount > 0" type="button" class="new-dynamic-notice" @click="handleNewDynamicClick">
             有 {{ newDynamicCount }} 条新动态，点击查看
@@ -159,6 +155,7 @@ import { useAppStore } from '@/stores/app';
 import type {
   DynamicFeedItem,
   DynamicFeedType,
+  DynamicPostItem,
   FollowGroupItem,
   FollowUserItem,
   HotTopicItem,
@@ -191,7 +188,6 @@ const router = useRouter();
 const activeType = ref<DynamicFeedType>('all');
 const activeGroupId = ref('all');
 const activeAuthorId = ref('');
-const sortMode = ref<'latest' | 'hot'>('latest');
 const feedItems = ref<DynamicFeedItem[]>([]);
 const sidebarLive = ref<SidebarLiveItem[]>([]);
 const recentUpdates = ref<SidebarRecentUpdateItem[]>([]);
@@ -219,6 +215,7 @@ const postForm = reactive({
   images: [] as string[],
 });
 let observer: IntersectionObserver | null = null;
+let suppressNextTypeReload = false;
 
 const sidebarProfileStats = ref<SidebarProfileStats>({
   followingCount: 0,
@@ -256,13 +253,7 @@ const displayedFeedItems = computed(() => {
     return true;
   });
 
-  return [...filtered].sort((a, b) => {
-    if (sortMode.value === 'hot') {
-      return getHotScore(b) - getHotScore(a);
-    }
-
-    return Date.parse(b.createdAt) - Date.parse(a.createdAt);
-  });
+  return [...filtered].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 });
 
 async function loadFeed(reset = false) {
@@ -364,8 +355,29 @@ function matchesActiveGroup(item: DynamicFeedItem) {
   return (groupKeywords[activeGroupId.value] ?? []).some((keyword) => category.includes(keyword));
 }
 
-function getHotScore(item: DynamicFeedItem) {
-  return Number(item.stats?.views ?? 0) + Number(item.stats?.likes ?? 0) * 8 + Number(item.stats?.comments ?? 0) * 12;
+function dynamicPostToFeedItem(post: DynamicPostItem): DynamicFeedItem {
+  const hasText = post.content.trim().length > 0;
+  const hasImages = post.images.length > 0;
+  const type: DynamicFeedItem['type'] = hasImages && hasText ? 'image_text' : hasImages ? 'image' : 'text';
+
+  return {
+    id: post.id,
+    type,
+    source: 'following',
+    author: post.author,
+    actionText: '刚刚发布',
+    title: post.content.slice(0, 40) || (hasImages ? '发布了图片动态' : '发布了动态'),
+    description: post.content,
+    images: post.images,
+    createdAt: post.createdAt,
+    stats: {
+      likes: post.likeCount,
+      comments: post.commentCount,
+      favorites: post.favoriteCount,
+      liked: post.liked,
+      favorited: false,
+    },
+  };
 }
 
 async function loadSidebar() {
@@ -739,18 +751,31 @@ async function submitDynamicPost() {
 
   publishingPost.value = true;
   try {
-    await createDynamicPost({
+    const createdPost = await createDynamicPost({
       content,
-      images: postForm.images,
+      images: [...postForm.images],
     });
+    const newFeedItem = dynamicPostToFeedItem(createdPost);
+    const wasAlreadyPostTab = activeType.value === 'post';
+
     postForm.content = '';
     postForm.images = [];
     composerExpanded.value = false;
-    ElMessage.success('动态已发布');
+    activeAuthorId.value = '';
+    activeGroupId.value = 'all';
+    newDynamicCount.value = 0;
+    page.value = 1;
+    hasMore.value = true;
+    errorMessage.value = '';
+    suppressNextTypeReload = !wasAlreadyPostTab;
     activeType.value = 'post';
-    await Promise.all([loadFeed(true), loadSidebarOverview(), loadRecentUpdates()]);
+    feedItems.value = wasAlreadyPostTab
+      ? [newFeedItem, ...feedItems.value.filter((item) => item.id !== newFeedItem.id)]
+      : [newFeedItem];
+    ElMessage.success('动态已发布');
     await nextTick();
     setupObserver();
+    void Promise.all([loadSidebarOverview(), loadRecentUpdates()]);
   } catch {
     ElMessage.error('动态发布失败，请稍后重试');
   } finally {
@@ -793,6 +818,11 @@ function setupObserver() {
 }
 
 watch(activeType, () => {
+  if (suppressNextTypeReload) {
+    suppressNextTypeReload = false;
+    return;
+  }
+
   void loadFeed(true).then(() => nextTick(setupObserver));
 });
 
@@ -958,15 +988,6 @@ onUnmounted(() => {
 .feed-filter-row :deep(.feed-tabs) {
   min-width: 0;
   flex: 1;
-}
-
-.sort-select {
-  flex: 0 0 92px;
-}
-
-.sort-select :deep(.el-select__wrapper) {
-  border-radius: 999px;
-  box-shadow: 0 0 0 1px var(--color-border) inset;
 }
 
 .new-dynamic-notice {
