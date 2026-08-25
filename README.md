@@ -80,6 +80,37 @@ npm run dev:frontend
 npm run dev:backend
 ```
 
+## 课程实践容器启动
+
+仓库提供课程实践用的完整 Compose 配置，包含前端、后端、MySQL、Redis、MinIO 和 SRS。当前配置已完成静态校验，但尚未在本机实际运行，因为本机没有可用的 Docker；首次验收应在组内指定的 Docker 主机执行并保存原始日志。
+
+```bash
+# 1. 创建只在本地保存的环境文件，并替换全部占位符
+cp deploy/practice.env.example .env.practice
+
+# 2. 构建并启动全部服务
+docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml up --build -d
+
+# 3. 查看容器和健康状态
+docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml ps
+
+# 4. 查看后端健康接口
+curl http://127.0.0.1:3000/api/v1/health
+
+# 5. 停止服务（保留数据卷）
+docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml down
+```
+
+启动后入口：
+
+- 前端：`http://127.0.0.1:5173`
+- 后端健康检查：`http://127.0.0.1:3000/api/v1/health`
+- MinIO API：`http://127.0.0.1:9000`
+- MinIO 控制台：`http://127.0.0.1:9001`
+- SRS HTTP：`http://127.0.0.1:8080`
+
+镜像默认使用 `local` 标签。流水线或正式实验必须设置 `IMAGE_TAG` 为 Git commit SHA 或明确版本号，不能只使用 `latest`。真实数据库口令、MinIO 密钥、JWT Secret 和管理员密钥只能放在 `.env.practice`、CI Secret 或 Kubernetes Secret 中，不能提交到仓库。
+
 停止由开发环境启动的 Redis、MinIO、SRS：
 
 ```bash
