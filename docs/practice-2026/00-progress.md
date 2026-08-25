@@ -52,6 +52,10 @@
   - 完成内容：新增 `.codex/skills/videoplayer-commit-pr/SKILL.md` 与 `agents/openai.yaml`，使 skill 随仓库分发；个人版继续保留用于自动发现。
   - 测试/验证：个人版和仓库版分别通过官方 `quick_validate.py`；两份 `SKILL.md` 和 `openai.yaml` 字节一致；TODO 扫描、diff check PASS。
   - 结果：仓库版 skill 可提交和推送；后续更新需同时同步个人版和仓库版并验证一致性。
+- [x] `GOV-GIT-04` 只提交核心源文件并排除生成产物。
+  - 完成内容：skill 和 PR 模板明确允许源码、测试源码、依赖/锁文件、迁移/seed、Docker/CI/K8s 配置及明确要求的仓库规范；禁止提交 artifacts、测试报告、coverage、dist/build、日志、PID、缓存、本地数据库、上传和生成报告。
+  - 测试/验证：PR #24 文件审计中生成产物已跟踪数量 `0`；`.gitignore` 对 artifacts/playwright/test-results/coverage/dist/log/pid 覆盖 PASS；个人/仓库 skill 双 validator 与字节同步 PASS；策略字段/diff check PASS。
+  - 结果：当前 PR 没有生成产物；11 个 `docs/practice-2026` 文件和仓库 skill/PR 模板属于前序明确要求的人工维护源文件，不按生成产物删除。
 - [x] `UC-CONF-01` 教师确认当前业务场景与架构方向。
   - 完成内容：按组长反馈，将 UC01-UC06 标记为已计入，并以四个业务服务作为后续实现方向。
   - 测试/验证：文档一致性检查；外部确认属于管理证据，不是代码测试。
@@ -101,7 +105,8 @@
 | GOV-GIT-01 Commit/PR 规范 | DONE | GitHub PR 模板、仓库规范、个人 Codex skill | quick_validate；模板章节/敏感信息/diff 检查 | PASS | 最终治理提交 |
 | GOV-GIT-02 分支/Commit 命名 | DONE | category 分支名、Conventional Commit 标题、Changes/Tests 正文、PR Commit 清单 | quick_validate；必填字段；diff check | PASS；应用测试 N/A（纯规范） | 最终治理提交 |
 | GOV-GIT-03 仓库内 skill | DONE | `.codex/skills/videoplayer-commit-pr` 与个人版同步 | 双 quick_validate；字节比对；TODO/diff check | PASS；应用测试 N/A（skill/docs） | 最终治理提交 |
-| PR-01 工程基线 PR | DONE | Draft PR #24，base main，完整模板与 8 个规范 Commit 清单 | URL/base/head/title/body/draft/mergeable 检查 | PASS；CI REMOTE BLOCKED BY BILLING | 本提交 |
+| PR-01 工程基线 PR | DONE | Draft PR #24，base main，完整模板与 10 个规范 Commit 清单 | URL/base/head/title/body/draft/mergeable 检查 | PASS；CI REMOTE BLOCKED BY BILLING | 本提交 |
+| GOV-GIT-04 核心文件策略 | DONE | skill/PR 模板禁止生成产物，保留明确要求的源码和规范源文件 | tracked artifact audit；ignore checks；双 skill validator | 0 tracked artifacts；PASS | 本提交 |
 
 ## 3. 最近执行记录
 
@@ -132,6 +137,7 @@
 | 2026-08-25 | PUSH-02 | 推送 `feature/PRACTICE-2026-engineering-baseline`，目标 PR 分支为 `main`，旧分支保留备份 | push PASS；远端 SHA `028278b`；ahead/behind `0/0`；PR 未创建 | 新分支可供组长创建 PR；本轮再提交本条证据并普通 push |
 | 2026-08-25 | PR-01 | 使用仓库 skill 和完整模板创建 Draft PR #24，base main，head feature/PRACTICE-2026-engineering-baseline | PR 字段检查 PASS；OPEN/DRAFT/MERGEABLE；正文完整 | PR URL：https://github.com/DanTargaryen/VideoPlayer/pull/24；等待非作者 review 和阻塞解除 |
 | 2026-08-25 | CI-01 PR run | PR #24 触发 run `32799446109`，quality/public-e2e 失败，images skipped | Jobs 0 steps、无 runner；GitHub UI Annotations 检查 | 账号仍被 Billing issue 锁定，workflow 未执行代码；不是测试失败 |
+| 2026-08-25 | GOV-GIT-04 | 审计 PR #24 并固化“只提交核心源文件、生成结果走 ignored/CI Artifact”策略 | 已跟踪生成产物 0；ignore coverage PASS；双 skill validator/sync、策略字段和 diff check PASS | 未删除此前明确要求的 skill 和课程源文档；本提交 push 后更新 PR |
 
 ## 4. 阻塞与需组长决定
 
