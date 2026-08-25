@@ -28,6 +28,10 @@
   - 完成内容：首次推送 `feature/PRACTICE-2026-engineering-baseline` 并设置 upstream；目标 PR 分支明确为 `main`；旧 `codex/practice-bootstrap` 保留备份。
   - 测试/验证：push PASS；远端 SHA `028278b`；本地/远端 ahead/behind `0/0`；`git ls-remote` PASS；PR 查询确认未创建。
   - 结果：新分支已可由组长创建目标为 `main` 的 PR；Codex 按授权停止在 push。
+- [x] `PR-01` 创建单体工程基线 Draft PR。
+  - 完成内容：创建 Draft PR #24，标题 `feat(practice): establish monolith engineering baseline`，base=`main`，head=`feature/PRACTICE-2026-engineering-baseline`；完整填写 Commit 清单、改动、测试、阻塞、风险、回滚和 AI/来源说明。
+  - 测试/验证：PR URL/base/head/title/draft/body/mergeable 检查 PASS；状态 `OPEN / DRAFT / MERGEABLE`；非作者 review 尚未完成。
+  - 结果：https://github.com/DanTargaryen/VideoPlayer/pull/24；PR 保持 Draft，等待 review、完整 smoke、Docker/K8s 和 CI 条件。
 - [x] `CHORE-01` 收口本地维护改动。
   - 完成内容：忽略 `artifacts/`；ESLint 忽略 `.vite`；规范提交 `53921bf`。
   - 测试/验证：`npm run build:frontend`、`npm run build:backend`、CRLF 感知的 `git diff --check`。
@@ -71,7 +75,7 @@
   - 已完成配置：新增质量门禁、MySQL 隔离 public E2E、测试证据上传、前后端 SHA 镜像构建三个 job。
   - 本地验证：工作流 YAML 可解析；`test:ci` 和本地 Playwright 已通过。
   - 安全配置：public E2E 使用仅存在于 GitHub Runner 生命周期内的空密码 MySQL；JWT/Admin Secret 在启动步骤动态生成。未来部署 job 仍必须使用 GitHub/K8s Secrets。
-  - 远端结果：push 已真实触发 Actions，但 GitHub 注解显示账号近期付款失败或 Actions spending limit 不足，所有 run 都在启动前被平台拒绝，0 jobs。
+  - 远端结果：PR #24 触发 run `32799446109`；quality 和 public-e2e 均为 failure、0 steps、无 runner，images skipped。GitHub UI 权威注解为：`The job was not started because your account is locked due to a billing issue.`
   - 未打勾原因：workflow 尚未实际执行 quality/E2E/images jobs；课程要求的 Kubernetes 自动部署 job 仍未实现。
 - [ ] `ARCH-01` 冻结四服务接口和 31 张表的数据归属。
   - 已完成草案：四服务职责/非职责、现有 31/31 Model 唯一归属、建议新增直播/审计表、公开/内部接口、跨服务 timeout/幂等/降级、迁移/回滚顺序。
@@ -97,6 +101,7 @@
 | GOV-GIT-01 Commit/PR 规范 | DONE | GitHub PR 模板、仓库规范、个人 Codex skill | quick_validate；模板章节/敏感信息/diff 检查 | PASS | 最终治理提交 |
 | GOV-GIT-02 分支/Commit 命名 | DONE | category 分支名、Conventional Commit 标题、Changes/Tests 正文、PR Commit 清单 | quick_validate；必填字段；diff check | PASS；应用测试 N/A（纯规范） | 最终治理提交 |
 | GOV-GIT-03 仓库内 skill | DONE | `.codex/skills/videoplayer-commit-pr` 与个人版同步 | 双 quick_validate；字节比对；TODO/diff check | PASS；应用测试 N/A（skill/docs） | 最终治理提交 |
+| PR-01 工程基线 PR | DONE | Draft PR #24，base main，完整模板与 8 个规范 Commit 清单 | URL/base/head/title/body/draft/mergeable 检查 | PASS；CI REMOTE BLOCKED BY BILLING | 本提交 |
 
 ## 3. 最近执行记录
 
@@ -125,11 +130,13 @@
 | 2026-08-25 | GIT-02 历史重写 | 从最新 `origin/main` 创建 `feature/PRACTICE-2026-engineering-baseline`，按 7 个逻辑组重建提交历史 | 每个 Commit 正文 PASS；`test:ci` PASS；Playwright 2/2 PASS；skill 双验证 PASS；树一致性/diff check PASS | 旧 `codex/practice-bootstrap` 保留备份；新分支用于目标为 `main` 的 PR |
 | 2026-08-25 | GIT-02 最终 E2E | 临时启动单体，Chrome 验证首页和前端代理 health，测试后关闭服务 | TypeScript 0 errors；health 200；Playwright 2/2 PASS；端口已释放 | 最终治理提交可创建；Docker/K8s 实跑仍独立 BLOCKED |
 | 2026-08-25 | PUSH-02 | 推送 `feature/PRACTICE-2026-engineering-baseline`，目标 PR 分支为 `main`，旧分支保留备份 | push PASS；远端 SHA `028278b`；ahead/behind `0/0`；PR 未创建 | 新分支可供组长创建 PR；本轮再提交本条证据并普通 push |
+| 2026-08-25 | PR-01 | 使用仓库 skill 和完整模板创建 Draft PR #24，base main，head feature/PRACTICE-2026-engineering-baseline | PR 字段检查 PASS；OPEN/DRAFT/MERGEABLE；正文完整 | PR URL：https://github.com/DanTargaryen/VideoPlayer/pull/24；等待非作者 review 和阻塞解除 |
+| 2026-08-25 | CI-01 PR run | PR #24 触发 run `32799446109`，quality/public-e2e 失败，images skipped | Jobs 0 steps、无 runner；GitHub UI Annotations 检查 | 账号仍被 Billing issue 锁定，workflow 未执行代码；不是测试失败 |
 
 ## 4. 阻塞与需组长决定
 
 - [ ] 提供或指定教师确认回复的截图/链接，补入证据索引。
 - [ ] 决定是否允许在当前共享远端 MySQL/MinIO 上执行会写数据的 UC smoke；默认不写。
 - [ ] 指定可运行 Docker/Kubernetes 的主机；当前机器无 Docker。
-- [ ] 组长从 `feature/PRACTICE-2026-engineering-baseline` 创建目标为 `main` 的 PR；Codex 本轮只负责规范重写和 push。
+- [ ] PR #24 由至少一名非作者 reviewer 完成检查；当前为 Draft，尚未请求合并。
 - [ ] 仓库 owner 处理 GitHub Billing & plans 的付款失败或 Actions spending limit，之后重新运行 workflow。
