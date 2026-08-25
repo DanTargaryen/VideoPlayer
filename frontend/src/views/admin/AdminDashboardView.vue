@@ -196,7 +196,9 @@ function resetPreviewPlayer() {
   player.pause();
   try {
     player.currentTime = 0;
-  } catch {}
+  } catch {
+    // Some media sources reject seeks before their metadata is ready.
+  }
 }
 
 async function handleReview(id: number, action: 'APPROVE' | 'REJECT') {

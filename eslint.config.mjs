@@ -28,6 +28,7 @@ export default [
     ignores: [
       '**/dist/**',
       '**/node_modules/**',
+      '**/.vite/**',
       'backend/prisma/prisma/**',
       'frontend/dist/**',
     ],

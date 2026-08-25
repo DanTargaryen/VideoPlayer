@@ -725,7 +725,6 @@ import {
 
 import {
   createMyFavoriteFolder,
-  createVideo,
   deleteAccount,
   deleteCreatorVideo,
   deleteMyFavoriteFolder,
@@ -748,16 +747,11 @@ import {
   updateProfile,
   updateVideoDraft,
   uploadAvatar,
-  uploadVideo,
   verifyEmailCode,
   withdrawVideoReview,
 } from '@/api/platform';
 import { resolveVideoCategoryCodes, videoCategoryOptions } from '@/constants/categories';
 import { useAppStore } from '@/stores/app';
-import {
-  isRecoverableUploadSubmissionError,
-  resolveApiErrorMessage,
-} from '@/utils/apiErrors';
 import type {
   CreatorDashboardData,
   CreatorFollowerTrendPoint,
@@ -776,7 +770,6 @@ const store = useAppStore();
 const router = useRouter();
 const route = useRoute();
 const pageLoading = ref(false);
-const creating = ref(false);
 const savingDraft = ref(false);
 const savingAvatar = ref(false);
 const activeTab = ref<'home' | 'favorites' | 'likes' | 'history' | 'settings'>('home');
@@ -832,11 +825,6 @@ const followersList = ref<FollowUserItem[]>([]);
 const followingList = ref<FollowUserItem[]>([]);
 const followingCount = ref(0);
 
-const selectedVideoFile = ref<File | null>(null);
-const selectedCoverFile = ref<File | null>(null);
-const autoCoverPreview = ref<string | null>(null);
-const autoCoverFile = ref<File | null>(null);
-const captureTimeSeconds = ref(1);
 const editDialogVisible = ref(false);
 const reviewDialogVisible = ref(false);
 const avatarDialogVisible = ref(false);
@@ -976,12 +964,6 @@ const playTrendAreaPath = computed(() => {
   return `M ${points[0].x} ${playTrendXAxisY} ${commands} L ${points[points.length - 1].x} ${playTrendXAxisY} Z`;
 });
 
-const form = reactive({
-  title: '新的演示投稿',
-  description: '这是通过用户中心上传真实文件后创建并提交审核的演示稿件。',
-  categories: ['entertainment'] as string[],
-  coverUrl: '',
-});
 const editForm = reactive({
   title: '',
   description: '',
@@ -1070,79 +1052,6 @@ function filterVideosByKeyword(items: MyVideoItem[], keyword: string) {
   });
 }
 
-function handleVideoFileChange(event: Event) {
-  const input = event.target as HTMLInputElement;
-  selectedVideoFile.value = input.files?.[0] ?? null;
-  if (selectedVideoFile.value) {
-    captureVideoFrame(selectedVideoFile.value, captureTimeSeconds.value);
-  } else {
-    autoCoverPreview.value = null;
-    autoCoverFile.value = null;
-  }
-}
-
-function handleCoverFileChange(event: Event) {
-  const input = event.target as HTMLInputElement;
-  selectedCoverFile.value = input.files?.[0] ?? null;
-}
-
-function captureVideoFrame(file: File, timeSeconds: number) {
-  const video = document.createElement('video');
-  video.preload = 'metadata';
-  video.muted = true;
-  video.playsInline = true;
-  const url = URL.createObjectURL(file);
-  video.src = url;
-  video.onloadedmetadata = () => {
-    const seekTime = Math.min(timeSeconds, Math.max(0, video.duration - 0.1));
-    video.currentTime = seekTime;
-  };
-  video.onseeked = () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) { URL.revokeObjectURL(url); return; }
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-    autoCoverPreview.value = dataUrl;
-    canvas.toBlob(
-      (blob) => {
-        if (blob) autoCoverFile.value = new File([blob], `auto-cover-${Date.now()}.jpg`, { type: 'image/jpeg' });
-        URL.revokeObjectURL(url);
-      },
-      'image/jpeg',
-      0.85,
-    );
-  };
-  video.onerror = () => {
-    URL.revokeObjectURL(url);
-    autoCoverPreview.value = null;
-    autoCoverFile.value = null;
-  };
-}
-
-function handleRecaptureFrame() {
-  if (!selectedVideoFile.value) return;
-  captureTimeSeconds.value = Math.min(captureTimeSeconds.value + 2, 30);
-  captureVideoFrame(selectedVideoFile.value, captureTimeSeconds.value);
-}
-
-function handleUseAutoCover() {
-  if (autoCoverFile.value) {
-    selectedCoverFile.value = autoCoverFile.value;
-    ElMessage.success({ message: '已选择自动截取的画面作为封面', duration: 1500 });
-  }
-}
-
-function resetCreateDraftFiles() {
-  selectedVideoFile.value = null;
-  selectedCoverFile.value = null;
-  autoCoverPreview.value = null;
-  autoCoverFile.value = null;
-  captureTimeSeconds.value = 1;
-}
-
 function openVideoPreview(video: CreatorVideo) {
   if (!video.playUrl) {
     ElMessage.warning('当前稿件暂时没有可播放的视频地址');
@@ -1161,7 +1070,9 @@ function resetPreviewPlayer() {
   player.pause();
   try {
     player.currentTime = 0;
-  } catch {}
+  } catch {
+    // Some media sources reject seeks before their metadata is ready.
+  }
 }
 
 async function refreshAll() {
@@ -1585,87 +1496,6 @@ async function openFollowingDialog() {
     followingCount.value = followingList.value.length;
   } catch {
     followingList.value = [];
-  }
-}
-
-async function handleCreateDraft() {
-  if (!selectedVideoFile.value) {
-    ElMessage.warning({ message: '请先选择视频文件', duration: 2000 });
-    return;
-  }
-  if (form.categories.length === 0) {
-    ElMessage.warning({ message: '请至少选择一个分区', duration: 2000 });
-    return;
-  }
-  creating.value = true;
-  let shouldRefreshAfterSubmit = false;
-  let originalUploaded = false;
-  let draftCreateStarted = false;
-  try {
-    const upload = await uploadVideo(selectedVideoFile.value, 'ORIGINAL');
-    originalUploaded = true;
-    let coverUploadToken: string | undefined;
-    let coverAssetId: number | undefined;
-    const coverToUpload = selectedCoverFile.value || autoCoverFile.value;
-    if (coverToUpload) {
-      const coverUpload = await uploadVideo(coverToUpload, 'COVER');
-      coverAssetId = coverUpload.assetId;
-      coverUploadToken = coverUpload.uploadToken;
-    }
-    draftCreateStarted = true;
-    await createVideo({
-      assetId: upload.assetId,
-      uploadToken: upload.uploadToken,
-      title: form.title,
-      description: form.description,
-      category: form.categories[0],
-      categories: form.categories,
-      coverUrl: form.coverUrl || undefined,
-      coverAssetId,
-      coverUploadToken,
-    });
-    resetCreateDraftFiles();
-    shouldRefreshAfterSubmit = true;
-    ElMessage.success({ message: '稿件创建成功', duration: 1500 });
-  } catch (error: unknown) {
-    if (isRecoverableUploadSubmissionError(error)) {
-      if (draftCreateStarted) {
-        resetCreateDraftFiles();
-        shouldRefreshAfterSubmit = true;
-        ElMessage.warning({
-          message: '请求没有及时返回，但视频文件已上传，稿件可能已经创建并在后台处理，列表稍后会同步。',
-          duration: 6000,
-        });
-      } else if (originalUploaded) {
-        ElMessage.warning({
-          message: '视频文件已上传，但稿件提交暂时没有收到确认，请稍后刷新列表，若没有出现再重新提交。',
-          duration: 6000,
-        });
-      } else {
-        ElMessage.warning({
-          message: '上传请求没有及时返回，服务器可能仍在保存文件，请稍后确认后再重试。',
-          duration: 6000,
-        });
-      }
-    } else {
-      ElMessage.error({
-        message: resolveApiErrorMessage(error, '创建稿件失败，请确认 MinIO 服务已启动且已使用用户账号登录'),
-        duration: 4000,
-      });
-      return;
-    }
-  } finally {
-    creating.value = false;
-  }
-
-  if (!shouldRefreshAfterSubmit) {
-    return;
-  }
-
-  try {
-    await refreshAll();
-  } catch {
-    // 稿件已创建，列表刷新失败不重复提示失败。
   }
 }
 
