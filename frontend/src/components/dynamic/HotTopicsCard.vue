@@ -6,11 +6,6 @@ import type { HotTopicItem } from '@/types/api';
 defineProps<{
   topics: HotTopicItem[];
 }>();
-
-function formatCompactNumber(value: number) {
-  if (value >= 10000) return `${(value / 10000).toFixed(value >= 100000 ? 0 : 1)}万`;
-  return String(value);
-}
 </script>
 
 <style scoped>

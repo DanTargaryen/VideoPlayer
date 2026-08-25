@@ -554,18 +554,6 @@ function getGroupIcon(name: string) {
   return option?.icon ?? normalizedName.match(/[A-Za-z]/)?.[0]?.toUpperCase() ?? '#';
 }
 
-function getGroupKeywords(name: string, keywordInput?: string | null) {
-  if (keywordInput) {
-    return keywordInput
-      .split(/[\uFF0C,\u3001\s]+/)
-      .map((keyword) => keyword.trim().toLowerCase())
-      .filter(Boolean);
-  }
-
-  const option = GROUP_OPTIONS.find((group) => group.name === name);
-  return option?.keywords ?? [name.toLowerCase()];
-}
-
 function saveCustomFollowGroups(groups: CustomFollowGroup[]) {
   if (typeof window === 'undefined') {
     return;
@@ -583,40 +571,6 @@ async function reloadPage() {
 function handleGroupChange(groupId: string) {
   activeGroupId.value = groupId;
   activeAuthorId.value = '';
-}
-
-function handleCreateGroupLegacy() {
-  const name = window.prompt('请输入分组名称');
-  const normalizedName = name?.trim();
-  if (!normalizedName) {
-    return;
-  }
-
-  if (followGroups.value.some((group) => group.name === normalizedName)) {
-    ElMessage.warning('该分组已存在');
-    return;
-  }
-
-  const keywordInput = window.prompt('请输入筛选关键词，多个关键词用逗号分隔', normalizedName);
-  const keywords = getGroupKeywords(normalizedName, keywordInput);
-
-  const customGroup: CustomFollowGroup = {
-    id: `custom-${Date.now()}`,
-    name: normalizedName,
-    count: 0,
-    icon: getGroupIcon(normalizedName),
-    keywords: keywords.length > 0 ? keywords : [normalizedName.toLowerCase()],
-  };
-
-  customFollowGroups.value = [...customFollowGroups.value, customGroup];
-  saveCustomFollowGroups(customFollowGroups.value);
-  followGroups.value = mergeFollowGroups(
-    followGroups.value.filter((group) => !group.id.startsWith('custom-')),
-    customFollowGroups.value,
-  );
-  activeGroupId.value = customGroup.id;
-  activeAuthorId.value = '';
-  ElMessage.success('分组已创建');
 }
 
 function handleCreateGroup() {
@@ -676,10 +630,6 @@ function handleAuthorSelect(authorId: string) {
 async function handleNewDynamicClick() {
   newDynamicCount.value = 0;
   await reloadPage();
-}
-
-function showComingSoon(label: string) {
-  ElMessage.info(`${label}能力正在建设中`);
 }
 
 function focusComposer() {

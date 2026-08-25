@@ -1,0 +1,4 @@
+interface:
+  display_name: "VideoPlayer Commit & PR"
+  short_description: "Prepare traceable VideoPlayer commits and pull requests"
+  default_prompt: "Use $videoplayer-commit-pr to prepare, validate, and hand off this VideoPlayer change."
