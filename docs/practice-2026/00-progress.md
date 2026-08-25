@@ -19,11 +19,15 @@
 - [x] `GIT-02` 从最新 `origin/main` 重建规范 PR 分支。
   - 完成内容：创建 `feature/PRACTICE-2026-engineering-baseline`，把探索分支内容按 lint、test、build、ci、执行资料、架构和 Git/skill 规范拆为单一逻辑 Commit；旧分支不 force-push、不删除。
   - 测试/验证：每个 Commit 均含 `Task/UC/Changes/Tests/Evidence`；最终 `test:ci` PASS、Playwright 2/2 PASS、skill 双验证 PASS、分支全树一致性和 diff check PASS。
-  - 结果：规范历史已重建并通过最终验证；待 push 后由组长向 `main` 创建 PR。
+  - 结果：规范历史已重建、通过最终验证并 push；由组长向 `main` 创建 PR。
 - [x] `PUSH-01` 发布实践启动分支。
   - 完成内容：首次推送 `codex/practice-bootstrap` 并设置 upstream；后续修复使用普通 push，不改写远端历史。
   - 测试/验证：`git fetch origin --prune`、本地/远端 SHA、ahead/behind、`git ls-remote`。
   - 结果：push 通过，本地与 `origin/codex/practice-bootstrap` 同步；按用户要求未创建 PR。
+- [x] `PUSH-02` 发布重写后的规范 PR 分支。
+  - 完成内容：首次推送 `feature/PRACTICE-2026-engineering-baseline` 并设置 upstream；目标 PR 分支明确为 `main`；旧 `codex/practice-bootstrap` 保留备份。
+  - 测试/验证：push PASS；远端 SHA `028278b`；本地/远端 ahead/behind `0/0`；`git ls-remote` PASS；PR 查询确认未创建。
+  - 结果：新分支已可由组长创建目标为 `main` 的 PR；Codex 按授权停止在 push。
 - [x] `CHORE-01` 收口本地维护改动。
   - 完成内容：忽略 `artifacts/`；ESLint 忽略 `.vite`；规范提交 `53921bf`。
   - 测试/验证：`npm run build:frontend`、`npm run build:backend`、CRLF 感知的 `git diff --check`。
@@ -120,6 +124,7 @@
 | 2026-08-25 | GOV-GIT-03 | 将个人 `videoplayer-commit-pr` skill 同步到仓库 `.codex/skills/` | 个人/仓库双 quick_validate PASS；SKILL/openai.yaml 字节一致；TODO/diff check PASS | 完成；按新 Commit 正文规范提交并 push |
 | 2026-08-25 | GIT-02 历史重写 | 从最新 `origin/main` 创建 `feature/PRACTICE-2026-engineering-baseline`，按 7 个逻辑组重建提交历史 | 每个 Commit 正文 PASS；`test:ci` PASS；Playwright 2/2 PASS；skill 双验证 PASS；树一致性/diff check PASS | 旧 `codex/practice-bootstrap` 保留备份；新分支用于目标为 `main` 的 PR |
 | 2026-08-25 | GIT-02 最终 E2E | 临时启动单体，Chrome 验证首页和前端代理 health，测试后关闭服务 | TypeScript 0 errors；health 200；Playwright 2/2 PASS；端口已释放 | 最终治理提交可创建；Docker/K8s 实跑仍独立 BLOCKED |
+| 2026-08-25 | PUSH-02 | 推送 `feature/PRACTICE-2026-engineering-baseline`，目标 PR 分支为 `main`，旧分支保留备份 | push PASS；远端 SHA `028278b`；ahead/behind `0/0`；PR 未创建 | 新分支可供组长创建 PR；本轮再提交本条证据并普通 push |
 
 ## 4. 阻塞与需组长决定
 
