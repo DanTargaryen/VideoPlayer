@@ -43,6 +43,8 @@ out/
 dist/
 build/
 coverage/
+test-results/
+playwright-report/
 
 # Nest / Vite / TS caches
 .nest/
@@ -71,4 +73,7 @@ temp/
 .certs/
 
 image/
+
+# Local inspection reports
+artifacts/
 

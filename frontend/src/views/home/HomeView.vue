@@ -174,7 +174,6 @@ import { ElMessage } from 'element-plus';
 import {
   ArrowLeft,
   ArrowRight,
-  Plus,
   RefreshRight,
 } from '@element-plus/icons-vue';
 
