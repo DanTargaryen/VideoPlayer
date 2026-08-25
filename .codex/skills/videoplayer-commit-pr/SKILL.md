@@ -28,6 +28,24 @@ Treat the repository files as the maintained source of truth. If they conflict w
 - Never infer permission for force-push, merge, branch deletion, release, or moving/deleting `monolith-start`.
 - If only a commit or push was requested, stop after that outcome.
 
+## Keep commits core-only
+
+Default to versioning only reproducible source inputs:
+
+- application source and configuration;
+- test source and test configuration;
+- dependency manifests and the matching lockfile;
+- database migrations and seed source;
+- Docker, CI, Kubernetes, proxy, and deployment source configuration;
+- repository governance files or authored source documentation only when the user explicitly requests them or the course deliverable requires them.
+
+Do not stage generated or local results:
+
+- `artifacts/`, `playwright-report/`, `test-results/`, `coverage/`, `dist/`, `build/`, caches, temporary files, logs, PID files, local databases, uploads, screenshots, archives, or generated reports;
+- compiled bundles, downloaded binaries, runtime storage, or credentials.
+
+Store runtime reports as ignored local files or CI Artifacts. Before committing, audit the changed-file list and confirm generated-result paths have zero tracked files. If a user asks for core-code-only delivery, omit authored analysis/report files unless they were separately and explicitly requested; do not silently remove previously requested repository skills, templates, migrations, tests, or required delivery source files.
+
 ## Prepare a commit
 
 1. Inspect `git status --short --branch`, the current branch/upstream, remotes, unstaged diff, staged diff, and recent commits.

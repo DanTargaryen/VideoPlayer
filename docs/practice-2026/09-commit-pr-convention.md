@@ -122,7 +122,19 @@ Evidence:
 - docs/practice-2026/00-progress.md
 ```
 
-## 4. Commit 前检查
+## 4. 核心文件与生成产物边界
+
+默认只提交可复现的源输入：应用源码/配置、测试源码/配置、依赖清单及对应 lockfile、migration/seed、Docker/CI/K8s/代理配置，以及用户明确要求或课程交付要求的仓库规范与人工源文档。
+
+以下生成或本地结果不得进入 Git：
+
+- `artifacts/`、`playwright-report/`、`test-results/`、`coverage/`、`dist/`、`build/`；
+- 日志、PID、缓存、临时目录、本地数据库、上传文件、运行时存储；
+- 测试截图、HTML 报告、压测原始输出、生成报告和下载二进制。
+
+这些结果保存在 `.gitignore` 覆盖的本地目录，或由 CI 上传为 Artifact。Commit 前必须审计文件清单，确认生成产物的已跟踪数量为 0。明确要求入库的 skill、PR 模板、migration、测试源码和课程必需的可编辑源文档不属于生成产物，不应被静默删除。
+
+## 5. Commit 前检查
 
 1. 确认当前仓库、分支和 remote。
 2. 查看 `git status --short --branch`、未暂存 diff 和已暂存 diff。
@@ -134,7 +146,7 @@ Evidence:
 8. commit 前确认标题与当前分支 category 对应：`feature` 通常用 `feat`，`bug/hotfix` 通常用 `fix`。
 9. commit 后核对 `git show --format=fuller --stat HEAD`，确认标题、`Changes`、`Tests`、文件范围和工作树状态。
 
-## 5. Push 规则
+## 6. Push 规则
 
 - push 前执行 `git fetch origin --prune`，确认目标分支没有意外变化。
 - 首次推送使用 `git push --set-upstream origin <branch>`。
@@ -142,7 +154,7 @@ Evidence:
 - 推送失败时先报告原因并检查远端状态，不循环重试破坏性命令。
 - 推送后核对本地 upstream 和 ahead/behind。
 
-## 6. PR 标题与内容
+## 7. PR 标题与内容
 
 PR 标题同样使用：
 
@@ -165,7 +177,7 @@ PR 正文必须基于 `.github/pull_request_template.md`，至少包含：
 
 没有完成全部适用检查时创建 Draft PR，并清楚标记阻塞。不要为了让模板“全绿”而虚假勾选。
 
-## 7. Review 与合并
+## 8. Review 与合并
 
 - 重要代码、架构、数据、测试和部署变更至少由一名非作者审阅。
 - reviewer 核对实际 diff，不只看 PR 描述和截图。
@@ -173,7 +185,7 @@ PR 正文必须基于 `.github/pull_request_template.md`，至少包含：
 - 保留有意义的提交历史；是否 squash/rebase 由组长按贡献证据和仓库策略决定，Codex 不自动改写历史。
 - 合并后更新看板、进度 Markdown、追溯和证据索引。
 
-## 8. Tag 与发布
+## 9. Tag 与发布
 
 - `monolith-start` 只有在教师确认范围、UC01-UC06 smoke、build 和 README 复现全部通过后创建。
 - 使用 annotated tag，并记录 commit、执行环境和证据。
