@@ -2,7 +2,7 @@
 
 > 适用任务：前端、后端、数据库容器化；push 后自动完成安装、编译、测试、镜像构建、Kubernetes 部署和健康检查。
 >
-> 方案：GitHub 仅作为 Git 远端；Jenkins 在验收机器运行；Docker Desktop 提供容器环境；Kind 提供本地 Kubernetes。
+> 方案：GitHub 仅作为 Git 远端；Jenkins 在验收机器运行；Docker Desktop 或 Colima 提供容器环境；Kind 提供本地 Kubernetes。
 
 ## 1. 当前结论
 
@@ -27,7 +27,9 @@
 | npm 依赖 | 约 880MB |
 | 前后端构建产物 | 约 8MB |
 
-结论：当前机器硬件足够；缺少 Docker、Kind、kubectl，Java 版本只有 11。
+结论：当前机器硬件足够。2026-08-26 已安装 Colima、Docker CLI/Compose、Kind、kubectl 和 OpenJDK 21，并完成 Compose 与 Kind 实跑；系统默认 Java 11 保留，Jenkins 启动时需要显式使用 OpenJDK 21。
+
+本次完成多轮带版本镜像构建和 Kind 滚动部署后的磁盘占用：Colima 目录约 31GB；Docker 镜像约 16.61GB（其中约 13.36GB 为旧版本等可回收内容）；本地卷约 5.57GB；项目工作区约 973MB。因此只做本项目的 Compose + Kind 冷启动应预留至少 35GB，继续加入 Jenkins 和构建历史时仍建议预留 40GB 以上。
 
 ## 2. 空间估算
 
@@ -98,13 +100,13 @@ Disk usage limit：40–60GB
 
 - [ ] 完整 Prisma 基线迁移
 - [ ] `Jenkinsfile`
-- [ ] `deploy/k8s/` Kubernetes 文件
+- [x] `deploy/k8s/` Kubernetes 文件
 - [ ] 数据库迁移、Seed、测试重置脚本
 - [ ] Jenkins 集成测试脚本
-- [ ] Kubernetes 部署脚本
-- [ ] Kubernetes 健康检查脚本
+- [x] Kubernetes 部署脚本
+- [x] Kubernetes 健康检查脚本
 - [ ] Kubernetes 证据收集脚本
-- [ ] Compose/Kind/Jenkins 实跑记录
+- [x] Compose/Kind 实跑记录
 - [ ] 另一台机器 README 复现记录
 
 ## 4. 阶段 A：验收机器安装环境

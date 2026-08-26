@@ -82,7 +82,7 @@ npm run dev:backend
 
 ## 课程实践容器启动
 
-仓库提供课程实践用的完整 Compose 配置，包含前端、后端、MySQL、Redis、MinIO 和 SRS。当前配置已完成静态校验，但尚未在本机实际运行，因为本机没有可用的 Docker；首次验收应在组内指定的 Docker 主机执行并保存原始日志。
+仓库提供课程实践用的完整 Compose 配置，包含前端、后端、MySQL、Redis、MinIO 和 SRS。该配置已于 2026-08-26 在 macOS + Colima 上完成构建、启动、数据库初始化、容器健康和浏览器冒烟实测。其他机器仍应按以下步骤从空环境复现并保存原始日志。
 
 ```bash
 # 1. 创建只在本地保存的环境文件，并替换全部占位符
@@ -101,6 +101,8 @@ curl http://127.0.0.1:3000/api/v1/health
 docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml down
 ```
 
+如果本机安装的是独立版 Compose，可把上述 `docker compose` 替换为 `docker-compose`。
+
 启动后入口：
 
 - 前端：`http://127.0.0.1:5173`
@@ -110,6 +112,28 @@ docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml do
 - SRS HTTP：`http://127.0.0.1:8080`
 
 镜像默认使用 `local` 标签。流水线或正式实验必须设置 `IMAGE_TAG` 为 Git commit SHA 或明确版本号，不能只使用 `latest`。真实数据库口令、MinIO 密钥、JWT Secret 和管理员密钥只能放在 `.env.practice`、CI Secret 或 Kubernetes Secret 中，不能提交到仓库。
+
+## Kind / Kubernetes 本地部署
+
+Kubernetes 最低验收范围包含 MySQL StatefulSet/PVC、数据库同步 Job、后端 Deployment、前端 Deployment，以及就绪和存活探针。部署脚本会读取本地 `.env.practice` 创建 Kubernetes Secret，不会把真实凭据写入仓库。
+
+```bash
+# 先按上文构建带版本号的前后端镜像
+IMAGE_TAG=$(git rev-parse --short=12 HEAD)
+docker build -f backend/Dockerfile -t "video-player/backend:$IMAGE_TAG" .
+docker build -f frontend/Dockerfile -t "video-player/frontend:$IMAGE_TAG" .
+
+# 创建或复用 kind-video-player 集群并部署
+./scripts/k8s-deploy.sh "$IMAGE_TAG"
+
+# 执行集群内 MySQL、后端、前端和前端代理健康检查
+./scripts/k8s-health-check.sh
+
+# 需要从宿主机访问时另开终端
+kubectl -n video-player port-forward service/frontend 15173:80
+```
+
+端口转发后访问 `http://127.0.0.1:15173`。删除测试集群可执行 `kind delete cluster --name video-player`；该命令会同时删除集群中的 MySQL PVC 数据。
 
 停止由开发环境启动的 Redis、MinIO、SRS：
 

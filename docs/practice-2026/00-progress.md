@@ -2,7 +2,7 @@
 
 > 维护规则：这是本轮实践的唯一进度源。每完成一项，必须同时更新复选框、改动说明、测试命令/环境、测试结果和对应 commit；没有实际验证的事项不能标记为 `[x]`。
 >
-> 当前本地和远端分支均仅保留 `main`；最新提交 SHA 以 `git rev-parse origin/main` 为准。
+> 受保护基线为 `main`，任务改动使用独立规范分支；最新远端基线 SHA 以 `git rev-parse origin/main` 为准。
 >
 > 教师确认：组长于 2026-08-24 报告 UC01-UC06 与当前四服务方向已获确认；外部回复截图/链接仍需组长补入证据索引。
 
@@ -127,10 +127,14 @@
   - 测试/验证：后端 Jest 2/2；前端 Vitest 3/3；Playwright 2/2；`npm run test:ci` 整体通过。
   - 结果：首批共 7 个测试全部通过；Playwright 只读访问首页和 health，未写共享数据库。
   - 已知限制：由于 npm 网络两次 `ECONNRESET`，首批前端测试暂用 Vitest `node` 环境；Vue 组件级 `@vue/test-utils/jsdom` 后续再补。
-- [ ] `CTR-01` 完成前端、后端、MySQL 容器化和一键初始化。
-  - 已完成配置：前端 Nginx 多阶段 Dockerfile、后端 Node 多阶段 Dockerfile、完整 Compose、MySQL/Redis/MinIO 健康依赖、SRS、环境占位模板、SPA/API 代理、README 启停说明。
-  - 静态验证：Compose YAML 可解析；Dockerfile 关键阶段/健康检查/版本镜像字段存在；`npm run test:ci` 仍通过。
-  - 未打勾原因：本机无 Docker，尚未执行 `docker compose config/build/up`、容器 health、数据库自动初始化和换机复现。
+- [x] `CTR-01` 完成前端、后端、MySQL 容器化和一键初始化。
+  - 完成内容：前端 Nginx 与后端 Node 多阶段镜像、完整 Compose、MySQL/Redis/MinIO/SRS、环境模板、数据库建表与受保护 Seed；修复镜像内 npm 网络重试和 Seed 守卫脚本缺失。
+  - 测试/验证：Compose config/build/up；6 个服务运行、5 个健康；31 张表；Seed 6 用户/14 视频；最新基线 `test:ci` 共 107 个规则/单元测试、Playwright Compose smoke 2/2；HTTP health 200。
+  - 结果：PASS；本机 Colima 实跑完成，Compose 数据卷保留。另一台机器从零复现仍需由组员执行。
+- [x] `K8S-01` 完成 Kind 最低验收部署和健康检查。
+  - 完成内容：MySQL StatefulSet + 2Gi PVC、数据库同步 Job、前后端 Deployment/Service、readiness/liveness、Secret 动态创建、SHA 镜像加载、部署与健康脚本。
+  - 测试/验证：Kind v0.32.0 / Kubernetes v1.36.1；Node Ready；迁移 Job Completed；MySQL/Backend/Frontend Ready；隔离 `video_player_test` API 16/16；集群内 health；端口转发后 Playwright 3/3。
+  - 结果：PASS；K8s 数据库 Seed 6 用户/14 视频；Pod 0 次重启。正式 Prisma 基线 migration 和 Jenkins 自动触发仍是后续任务。
 - [ ] `CI-01` 建立单体 GitHub Actions 流水线并保留成功/失败记录。
   - 已完成配置：新增质量门禁、MySQL 隔离 public E2E、测试证据上传、前后端 SHA 镜像构建三个 job。
   - 本地验证：工作流 YAML 可解析；`test:ci` 和本地 Playwright 已通过。
@@ -155,8 +159,9 @@
 | LINT-01 前端 lint 基线 | DONE | 清理 6 个文件中的 12 个错误；移除不可达旧代码，不改变当前模板入口 | `npm run lint:frontend`; `npm run build:frontend`; `git diff --check` | PASS；0 errors；build PASS | `53921bf` |
 | TEST-01 测试基础设施 | DONE | Jest/Supertest/Vitest/Playwright；后端 unit+API、前端 unit、公开 E2E | `npm run test:backend`; `npm run test:frontend`; `npm run test:e2e`; `npm run test:ci` | PASS；7/7 | `7b310d0` |
 | BASE-READONLY 只读启动检查 | DONE | 启动单体并验证 TypeScript watch、health、首页和前端代理；测试后关闭服务 | `npm run dev`; Playwright Chrome | PASS；2/2 E2E；未写数据库 | `7b310d0` |
-| CTR-01 容器配置 | PARTIAL | 前/后 Dockerfile、全栈 Compose、Nginx、环境模板、README | YAML 解析；字段静态检查；`test:ci` | STATIC PASS；Docker runtime BLOCKED | `0cfca75` |
-| CI-01 流水线配置 | PARTIAL | quality、public-e2e、versioned images jobs | YAML 解析；本地 `test:ci`、Playwright；GitHub 注解 | LOCAL PASS；REMOTE BLOCKED BY BILLING；K8s PENDING | `f151429` |
+| CTR-01 容器配置 | DONE | 前/后 Dockerfile、全栈 Compose、Nginx、环境模板、Seed、README | Compose build/up/health；31 表；`test:ci` 107 项；Compose E2E 2/2 | PASS；6 服务在线；Seed 6 用户/14 视频 | 本提交 |
+| K8S-01 Kind 部署 | DONE | MySQL StatefulSet/PVC、同步 Job、前后端 Deployment/Service、探针与脚本 | Node/Pod/Job/PVC；隔离 API 16/16；集群 health；E2E 3/3 | PASS；3 工作负载 Ready；Pod 0 restart | 本提交 |
+| CI-01 流水线配置 | PARTIAL | quality、public-e2e、versioned images jobs；K8s 部署基线已补 | YAML 解析；本地 `test:ci`、API、Playwright、Kind 实跑；GitHub 注解 | LOCAL PASS；REMOTE BLOCKED BY BILLING；Jenkins PENDING | `f151429` + 本提交 |
 | ARCH-01 服务/数据草案 | PARTIAL | 4 服务、31 表归属、接口、失败策略、迁移/回滚 | Prisma Model 自动比对；唯一 owner 检查 | DRAFT PASS；TEAM REVIEW PENDING | `bcbc873` |
 | GOV-GIT-01 Commit/PR 规范 | DONE | GitHub PR 模板、仓库规范、个人 Codex skill | quick_validate；模板章节/敏感信息/diff 检查 | PASS | 最终治理提交 |
 | GOV-GIT-02 分支/Commit 命名 | DONE | category 分支名、Conventional Commit 标题、Changes/Tests 正文、PR Commit 清单 | quick_validate；必填字段；diff check | PASS；应用测试 N/A（纯规范） | 最终治理提交 |
@@ -204,11 +209,13 @@
 | 2026-08-26 | CI-RUNBOOK-01 | 编写换机 CI/CD Runbook 与空间估算 | 主机/项目实测；命令与路径检查；Markdown 结构 | PASS；建议 16GB/6–8 核/40GB，完整环境 50–80GB |
 | 2026-08-26 | REG-UC01-04 | 修复注册后首页推荐流、找回密码验证码倒计时、投稿时长、审核记录重复展示和投币累计提示；补充端到端测试说明与回归记录 | `npm run lint:backend`；`npm run lint:frontend`；`npm run build:backend`；`npm run build:frontend`；`npm run test:backend`；`npm run test:frontend`；`npx playwright test tests/e2e/public-smoke.spec.ts` | PASS；lint 0 errors；后端 Jest 3 suites/4 tests；前端 Vitest 1 file/3 tests；Playwright 3/3；前端 build 仅保留既有 chunk 警告 |
 | 2026-08-26 | REG-UC06 | 修复举报处理完成后无通知、可重复处理、隐藏/删除动作重复和缺少“已处理”标记的问题；管理后台保留“保留/删除”处置，已处理记录只能删除记录本身 | `npm run lint:backend`；`npm run lint:frontend`；`npm run build:backend`；`npm run build:frontend`；`npm run test:backend`；`npm run test:frontend` | PASS；后端 Jest 3 suites/7 tests；前端 Vitest 1 file/3 tests；前后端 build PASS；前端 build 仅保留既有 chunk 警告 |
+| 2026-08-26 | CTR-01 Compose 实跑 | 安装 Colima/Docker/Compose，构建带版本标签镜像，启动 MySQL/Redis/MinIO/SRS/Backend/Frontend，初始化数据库与测试数据 | 6 容器运行；5 health；31 表；Seed 6/14；最新基线 `test:ci` 107 项 PASS；Compose Playwright 2/2 | PASS；Dockerfile 增加 npm 重试并补入 Seed 守卫脚本；验收后 Compose 容器已停止但数据卷保留 |
+| 2026-08-26 | K8S-01 Kind 实跑 | 创建 Kubernetes v1.36.1 单节点集群，离线加载前后端/MySQL 镜像，部署 MySQL/PVC、同步 Job、前后端和探针 | Node Ready；Job Completed；3 工作负载 Ready；Pod 0 restart；隔离 API 16/16；集群 health；Playwright 3/3 | PASS；本地入口 `http://127.0.0.1:15173`（需保持 port-forward）；真实 Agent/AI 套件因需外部密钥和付费调用授权未运行 |
 
 ## 4. 阻塞与需组长决定
 
 - [ ] 提供或指定教师确认回复的截图/链接，补入证据索引。
 - [ ] 决定是否允许在当前共享远端 MySQL/MinIO 上执行会写数据的 UC smoke；默认不写。
-- [ ] 指定可运行 Docker/Kubernetes 的主机；当前机器无 Docker。
+- [x] 当前 Mac 已配置 Colima、Docker CLI、Kind 和 kubectl，并完成 Compose/Kubernetes 本地验收。
 - [x] PR #24 已合并到 `main`；远端功能分支已清理。
 - [ ] 仓库 owner 处理 GitHub Billing & plans 的付款失败或 Actions spending limit，之后重新运行 workflow。
