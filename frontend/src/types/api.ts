@@ -281,7 +281,10 @@ export interface ReportItem {
   reason: string;
   status: 'PENDING' | 'PROCESSED' | 'REJECTED';
   createdAt: string;
+  handledAt?: string | null;
+  handleNote?: string | null;
   reporter?: { id: number; nickname: string } | null;
+  handler?: { id: number; nickname: string } | null;
   video?: { id: number; title: string } | null;
   comment?: { id: number; content: string; status: string } | null;
   danmaku?: { id: number; content: string; status: string } | null;

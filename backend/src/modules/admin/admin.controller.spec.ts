@@ -107,4 +107,121 @@ describe('AdminController', () => {
       }),
     );
   });
+
+  it('handles a pending report once and notifies the reporter', async () => {
+    const tx = {
+      comment: {
+        update: jest.fn().mockResolvedValue({ id: 44, status: 'DELETED' }),
+      },
+      videoDanmaku: {
+        update: jest.fn(),
+      },
+      video: {
+        update: jest.fn(),
+      },
+      reportRecord: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({
+          id: 21,
+          reporterId: 2,
+          status: 'PROCESSED',
+          handlerId: 1,
+          handleNote: '违规内容',
+        }),
+      },
+      notification: {
+        create: jest.fn().mockResolvedValue({ id: 99 }),
+      },
+    };
+    const { controller, prisma } = createController({
+      reportRecord: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 21,
+          reporterId: 2,
+          targetType: 'COMMENT',
+          commentId: 44,
+          status: 'PENDING',
+        }),
+      },
+      $transaction: jest.fn((callback: (client: typeof tx) => unknown) => callback(tx)),
+    });
+
+    const response = await controller.handleReport('Bearer admin-token', 21, {
+      action: 'DELETE',
+      reason: '违规内容',
+    });
+
+    expect(tx.comment.update).toHaveBeenCalledWith({
+      where: { id: 44 },
+      data: { status: 'DELETED' },
+    });
+    expect(tx.reportRecord.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 21, status: 'PENDING' },
+        data: expect.objectContaining({
+          status: 'PROCESSED',
+          handlerId: 1,
+          handleNote: '违规内容',
+        }),
+      }),
+    );
+    expect(tx.reportRecord.findUniqueOrThrow).toHaveBeenCalledWith({ where: { id: 21 } });
+    expect(tx.notification.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        recipientId: 2,
+        actorId: 1,
+        type: 'REPORT',
+        title: '举报处理完成',
+        relatedType: 'REPORT',
+        relatedId: 21,
+      }),
+    });
+    expect(response.data).toEqual(expect.objectContaining({ id: 21, status: 'PROCESSED' }));
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects repeated handling for an already processed report', async () => {
+    const { controller, prisma } = createController({
+      reportRecord: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 21,
+          reporterId: 2,
+          targetType: 'COMMENT',
+          commentId: 44,
+          status: 'PROCESSED',
+        }),
+      },
+      $transaction: jest.fn(),
+    });
+
+    await expect(
+      controller.handleReport('Bearer admin-token', 21, {
+        action: 'DELETE',
+        reason: '重复处理',
+      }),
+    ).rejects.toThrow('Report already handled');
+
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('allows deleting a handled report record without reverting the moderation result', async () => {
+    const reportRecord = {
+      findUnique: jest.fn().mockResolvedValue({
+        id: 21,
+        status: 'PROCESSED',
+      }),
+      delete: jest.fn().mockResolvedValue({ id: 21 }),
+    };
+    const { controller } = createController({
+      reportRecord: {
+        findUnique: reportRecord.findUnique,
+        delete: reportRecord.delete,
+      },
+    });
+
+    const response = await controller.deleteReportRecord('Bearer admin-token', 21);
+
+    expect(reportRecord.delete).toHaveBeenCalledWith({ where: { id: 21 } });
+    expect(response.data).toEqual({ deleted: true, reportId: 21 });
+  });
 });
