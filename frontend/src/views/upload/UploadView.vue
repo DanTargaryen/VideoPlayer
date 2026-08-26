@@ -84,10 +84,12 @@ const selectedCoverFile = ref<File | null>(null);
 const autoCoverPreview = ref<string | null>(null);
 const autoCoverFile = ref<File | null>(null);
 const captureTimeSeconds = ref(1);
+const selectedVideoDurationSeconds = ref<number | null>(null);
 
 function handleVideoFileChange(event: Event) {
   const input = event.target as HTMLInputElement;
   selectedVideoFile.value = input.files?.[0] ?? null;
+  selectedVideoDurationSeconds.value = null;
   if (selectedVideoFile.value) {
     captureVideoFrame(selectedVideoFile.value, captureTimeSeconds.value);
   } else {
@@ -120,6 +122,7 @@ function captureVideoFrame(file: File, timeSeconds: number) {
 
   video.onloadedmetadata = () => {
     const duration = video.duration;
+    selectedVideoDurationSeconds.value = Number.isFinite(duration) && duration > 0 ? Math.round(duration) : null;
     if (timeSeconds >= duration) {
       captureTimeSeconds.value = 1;
       video.currentTime = 1;
@@ -157,6 +160,30 @@ function captureVideoFrame(file: File, timeSeconds: number) {
   };
 }
 
+function readVideoDuration(file: File): Promise<number | null> {
+  return new Promise((resolve) => {
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    const blobUrl = URL.createObjectURL(file);
+    video.src = blobUrl;
+
+    const cleanup = () => {
+      URL.revokeObjectURL(blobUrl);
+    };
+
+    video.onloadedmetadata = () => {
+      const duration = video.duration;
+      cleanup();
+      resolve(Number.isFinite(duration) && duration > 0 ? Math.round(duration) : null);
+    };
+
+    video.onerror = () => {
+      cleanup();
+      resolve(null);
+    };
+  });
+}
+
 function handleUseAutoCover() {
   if (autoCoverPreview.value) {
     form.coverUrl = '';
@@ -170,6 +197,7 @@ function resetSelectedUploadFiles() {
   autoCoverPreview.value = null;
   autoCoverFile.value = null;
   captureTimeSeconds.value = 1;
+  selectedVideoDurationSeconds.value = null;
 }
 
 async function handleCreateDraft() {
@@ -194,6 +222,9 @@ async function handleCreateDraft() {
   let draftCreateStarted = false;
 
   try {
+    const durationSeconds = selectedVideoDurationSeconds.value ?? (await readVideoDuration(selectedVideoFile.value));
+    selectedVideoDurationSeconds.value = durationSeconds;
+
     const uploadedVideo = await uploadVideo(selectedVideoFile.value, 'ORIGINAL');
     originalUploaded = true;
     let coverUrl = form.coverUrl.trim() || undefined;
@@ -216,6 +247,7 @@ async function handleCreateDraft() {
       description: form.description,
       category: form.categories[0],
       categories: form.categories,
+      durationSeconds: durationSeconds ?? undefined,
       coverUrl,
       coverAssetId,
       coverUploadToken,

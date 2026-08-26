@@ -119,6 +119,7 @@ export class VideoService {
       coverUrl?: string;
       coverAssetId?: number;
       coverUploadToken?: string;
+      durationSeconds?: number;
     },
   ) {
     const asset = await this.resolveAsset(payload.assetId, payload.uploadToken, 'Uploaded asset not found');
@@ -152,6 +153,7 @@ export class VideoService {
         playUrl: asset.url,
         status: 'DRAFT',
         uploadToken: asset.objectKey,
+        durationSeconds: this.normalizeDurationSeconds(payload.durationSeconds),
         categories: {
           create: categoryCodes.map((code) => ({ code })),
         },
@@ -458,7 +460,7 @@ export class VideoService {
       throw new NotFoundException('Video not found');
     }
 
-    const recommendationContext = await this.getRecommendationContext(currentUserId);
+    const recommendationContext = await this.getRecommendationContextOrAnonymous(currentUserId);
     const currentCategoryCodes = this.extractCategoryCodes(current);
     const currentCategoryWhere = currentCategoryCodes.length > 0 ? this.buildCategoryWhere(currentCategoryCodes) : null;
     const currentCategoryFilters = currentCategoryWhere ? [currentCategoryWhere] : [];
@@ -655,7 +657,7 @@ export class VideoService {
     const pageSize = this.normalizePageSize(options.pageSize);
     const category = resolveCategoryCode(options.categoryCode);
     const candidateTake = this.getRecommendCandidateTake(page, pageSize);
-    const recommendationContext = await this.getRecommendationContext(options.currentUserId);
+    const recommendationContext = await this.getRecommendationContextOrAnonymous(options.currentUserId);
 
     const candidates = await this.prisma.video.findMany({
       where: {
@@ -766,7 +768,7 @@ export class VideoService {
       });
     }
 
-    const recommendationContext = await this.getRecommendationContext(options.currentUserId);
+    const recommendationContext = await this.getRecommendationContextOrAnonymous(options.currentUserId);
     const tokens = this.tokenizeSearchKeyword(normalizedKeyword);
     const recallTerms = [...new Set([normalizedKeyword.toLowerCase(), ...tokens])];
     const candidateTake = Math.min(120, Math.max(page * pageSize * 6, 60));
@@ -1594,6 +1596,14 @@ export class VideoService {
     });
   }
 
+  private normalizeDurationSeconds(durationSeconds?: number | null) {
+    if (!durationSeconds || !Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+      return 0;
+    }
+
+    return Math.min(24 * 60 * 60, Math.round(durationSeconds));
+  }
+
   private async findVideoWithCategories(videoId: number) {
     const video = await this.prisma.video.findUnique({
       where: { id: videoId },
@@ -2044,6 +2054,16 @@ export class VideoService {
       creatorViewerTendency: profile.summary.creatorViewerTendency,
       isColdStart: false,
     };
+  }
+
+  private async getRecommendationContextOrAnonymous(currentUserId?: number) {
+    try {
+      return await this.getRecommendationContext(currentUserId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Recommendation profile unavailable for user ${currentUserId ?? 'anonymous'}: ${message}`);
+      return undefined;
+    }
   }
 
   private normalizePreferenceScores<T extends { score: number }>(

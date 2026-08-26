@@ -17,7 +17,8 @@ import { AuthService } from '../auth/auth.service';
 
 class ReviewVideoDto {
   @IsString()
-  action!: string;
+  @IsIn(['APPROVE', 'REJECT'])
+  action!: 'APPROVE' | 'REJECT';
 
   @IsOptional()
   @IsString()
@@ -76,7 +77,18 @@ export class AdminController {
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
 
-    return ok(items);
+    const latestReviewItems = Array.from(
+      items
+        .reduce((index, item) => {
+          if (!index.has(item.videoId)) {
+            index.set(item.videoId, item);
+          }
+          return index;
+        }, new Map<number, (typeof items)[number]>())
+        .values(),
+    );
+
+    return ok(latestReviewItems);
   }
 
   @Post('reviews/videos/:id')
@@ -87,32 +99,36 @@ export class AdminController {
   ) {
     const user = await this.requireAdmin(authorization);
 
-    const review = await this.prisma.videoReview.findUnique({ where: { id } });
+    const review = await this.prisma.videoReview.findUnique({
+      where: { id },
+      include: { video: true },
+    });
 
     if (!review) {
       throw new UnauthorizedException('Review not found');
     }
-
     const approve = dto.action === 'APPROVE';
+    const rejectReason = dto.reason ?? '需要修改后重新提交';
 
-    const updatedReview = await this.prisma.videoReview.update({
-      where: { id },
-      data: {
-        reviewerId: user.id,
-        reviewedAt: new Date(),
-        status: approve ? 'APPROVED' : 'REJECTED',
-        reason: approve ? null : dto.reason ?? '需要修改后重新提交',
-      },
-    });
-
-    const updatedVideo = await this.prisma.video.update({
-      where: { id: review.videoId },
-      data: {
-        status: approve ? 'PUBLISHED' : 'REJECTED',
-        publishedAt: approve ? new Date() : null,
-        rejectReason: approve ? null : updatedReview.reason,
-      },
-    });
+    const [updatedReview, updatedVideo] = await this.prisma.$transaction([
+      this.prisma.videoReview.update({
+        where: { id },
+        data: {
+          reviewerId: user.id,
+          reviewedAt: new Date(),
+          status: approve ? 'APPROVED' : 'REJECTED',
+          reason: approve ? null : rejectReason,
+        },
+      }),
+      this.prisma.video.update({
+        where: { id: review.videoId },
+        data: {
+          status: approve ? 'PUBLISHED' : 'REJECTED',
+          publishedAt: approve ? new Date() : null,
+          rejectReason: approve ? null : rejectReason,
+        },
+      }),
+    ]);
 
     return ok({
       id: updatedReview.id,

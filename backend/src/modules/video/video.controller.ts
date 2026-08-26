@@ -73,6 +73,12 @@ class CreateVideoDto {
   tagIds?: number[];
 
   @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(24 * 60 * 60)
+  durationSeconds?: number;
+
+  @IsOptional()
   @IsString()
   coverUrl?: string;
 

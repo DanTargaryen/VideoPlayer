@@ -364,6 +364,7 @@ export async function createVideo(payload: {
   description: string;
   category?: string;
   categories?: string[];
+  durationSeconds?: number;
   coverUrl?: string;
   coverAssetId?: number;
   coverUploadToken?: string;

@@ -346,8 +346,15 @@ async function loadInitialFeed() {
 
   try {
     const pages = Array.from({ length: INITIAL_PAGE_COUNT }, (_, index) => index + 1);
-    const groups = await Promise.all(pages.map((page) => fetchCategoryPage(page)));
+    const results = await Promise.allSettled(pages.map((page) => fetchCategoryPage(page)));
     if (requestId !== feedRequestId) return;
+
+    const groups = results
+      .filter((result): result is PromiseFulfilledResult<VideoCard[]> => result.status === 'fulfilled')
+      .map((result) => result.value);
+    if (groups.length === 0) {
+      throw results.find((result) => result.status === 'rejected')?.reason ?? new Error('No feed page loaded');
+    }
 
     const candidates = mergeUniqueById(groups);
     cards.value = takeRandomItems(candidates, candidates.length);

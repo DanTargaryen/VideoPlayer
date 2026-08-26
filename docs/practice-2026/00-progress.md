@@ -202,6 +202,7 @@
 | 2026-08-26 | CI-MANUAL-01 | 删除 push/PR 自动触发器，只保留 workflow_dispatch | YAML 解析；字段检查；diff check；远端文件与 run 查询 | PASS；`main@44d44f1`，本次 push 无 Actions run，后续仅手动触发 |
 | 2026-08-26 | CI-RUN-CLEAN-01 | 删除 9 条 Billing 锁导致的历史失败 workflow runs | run 列表/失败计数；两次提交 Check Runs；远端 SHA | PASS；Actions runs 0、失败 0、提交 checks 0；日志不可恢复 |
 | 2026-08-26 | CI-RUNBOOK-01 | 编写换机 CI/CD Runbook 与空间估算 | 主机/项目实测；命令与路径检查；Markdown 结构 | PASS；建议 16GB/6–8 核/40GB，完整环境 50–80GB |
+| 2026-08-26 | REG-UC01-04 | 修复注册后首页推荐流、找回密码验证码倒计时、投稿时长、审核记录重复展示和投币累计提示；补充端到端测试说明与回归记录 | `npm run lint:backend`；`npm run lint:frontend`；`npm run build:backend`；`npm run build:frontend`；`npm run test:backend`；`npm run test:frontend`；`npx playwright test tests/e2e/public-smoke.spec.ts` | PASS；lint 0 errors；后端 Jest 3 suites/4 tests；前端 Vitest 1 file/3 tests；Playwright 3/3；前端 build 仅保留既有 chunk 警告 |
 
 ## 4. 阻塞与需组长决定
 
