@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const { describe, it } = require('node:test');
-const { UnauthorizedException } = require('@nestjs/common');
+const { NotFoundException, UnauthorizedException } = require('@nestjs/common');
 
 const { AdminController } = require('../../backend/dist/modules/admin/admin.controller.js');
 
@@ -42,12 +42,29 @@ function makeController(role = 'ADMIN') {
       count: createMockFn(async () => 1),
     },
     reportRecord: {
-      findUnique: createMockFn(async () => ({ id: 30, targetType: 'VIDEO', videoId: 20 })),
+      findUnique: createMockFn(async () => ({
+        id: 30,
+        targetType: 'VIDEO',
+        videoId: 20,
+        reporterId: 2,
+        status: 'PENDING',
+      })),
       update: createMockFn(async ({ where, data }) => ({ id: where.id, ...data })),
+      updateMany: createMockFn(async () => ({ count: 1 })),
+      findUniqueOrThrow: createMockFn(async ({ where }) => ({ id: where.id, status: 'PROCESSED' })),
       findMany: createMockFn(async () => []),
       count: createMockFn(async () => 1),
     },
+    notification: {
+      create: createMockFn(async ({ data }) => ({ id: 40, ...data })),
+    },
   };
+  prisma.$transaction = createMockFn(async (input) => {
+    if (Array.isArray(input)) {
+      return Promise.all(input);
+    }
+    return input(prisma);
+  });
   return { controller: new AdminController(authService, prisma), authService, prisma };
 }
 
@@ -101,7 +118,8 @@ describe('AdminController governance handling', () => {
       where: { id: 20 },
       data: { status: 'REJECTED', rejectReason: 'illegal' },
     });
-    assert.equal(prisma.reportRecord.update.calls[0][0].data.handlerId, 1);
+    assert.equal(prisma.reportRecord.updateMany.calls[0][0].data.handlerId, 1);
+    assert.equal(prisma.notification.create.calls[0][0].data.recipientId, 2);
   });
 
   it('throws when a review or report record is missing', async () => {
@@ -110,6 +128,6 @@ describe('AdminController governance handling', () => {
     prisma.reportRecord.findUnique.setImpl(async () => null);
 
     await assert.rejects(controller.reviewVideo('Bearer token', 404, { action: 'APPROVE' }), (error) => error instanceof UnauthorizedException);
-    await assert.rejects(controller.handleReport('Bearer token', 404, { action: 'KEEP' }), (error) => error instanceof UnauthorizedException);
+    await assert.rejects(controller.handleReport('Bearer token', 404, { action: 'KEEP' }), (error) => error instanceof NotFoundException);
   });
 });

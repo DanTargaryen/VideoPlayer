@@ -80,60 +80,97 @@ npm run dev:frontend
 npm run dev:backend
 ```
 
-## 课程实践容器启动
+## Clean-machine 课程实践复现
 
-仓库提供课程实践用的完整 Compose 配置，包含前端、后端、MySQL、Redis、MinIO 和 SRS。该配置已于 2026-08-26 在 macOS + Colima 上完成构建、启动、数据库初始化、容器健康和浏览器冒烟实测。其他机器仍应按以下步骤从空环境复现并保存原始日志。
+以下顺序用于空机器验收，覆盖依赖安装、CI 等价测试、Compose、MySQL、Seed、HTTP 入口和 Kind。禁止复制其他工作区的 `node_modules`、`.env.practice`、Docker Volume、`dist/` 或镜像；每次复现使用新的 Compose project、镜像 tag 和 Kind cluster。需要 Node.js 22+、npm、Docker Engine + Compose、Kind、kubectl、curl，以及 Bash。Windows 请使用 Git Bash，并在检出仓库前设置 `git config --global core.autocrlf false`，否则 CRLF 会使 `scripts/*.sh` 报 `pipefail\r` 错误。
+
+### 1. 安装与 CI 等价测试
 
 ```bash
-# 1. 创建只在本地保存的环境文件，并替换全部占位符
-cp deploy/practice.env.example .env.practice
+rm -rf node_modules frontend/node_modules backend/node_modules \
+  backend/dist frontend/dist coverage test-results playwright-report
+npm ci
 
-# 2. 构建并启动全部服务
-docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml up --build -d
-
-# 3. 查看容器和健康状态
-docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml ps
-
-# 4. 查看后端健康接口
-curl http://127.0.0.1:3000/api/v1/health
-
-# 5. 停止服务（保留数据卷）
-docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml down
+# npm ci 不生成 Prisma Client；需求测试又会直接加载 backend/dist。
+npm --workspace backend run prisma:generate
+npm run build:backend
+npm run test:ci
 ```
 
-如果本机安装的是独立版 Compose，可把上述 `docker compose` 替换为 `docker-compose`。
+`npm run test:ci` 必须以退出码 `0` 结束才算通过。若 `ffmpeg-static` 或 Prisma 下载报告自签名证书错误，应把组织 CA 安装到 Node/npm 信任链；不要把长期关闭 TLS 校验写入项目配置。只修改 npm registry 并不能改变 `ffmpeg-static` 的二进制下载地址；可为本次命令设置可信的 `FFMPEG_BINARIES_URL` 镜像，或使用经官方 SHA-256 校验后由本机临时 HTTP 服务提供的官方文件。不要使用 `NODE_TLS_REJECT_UNAUTHORIZED=0`、`strict-ssl=false` 或 `curl -k` 作为复现步骤。
 
-启动后入口：
+### 2. 创建全新 Compose 环境
 
-- 前端：`http://127.0.0.1:5173`
-- 后端健康检查：`http://127.0.0.1:3000/api/v1/health`
-- MinIO API：`http://127.0.0.1:9000`
-- MinIO 控制台：`http://127.0.0.1:9001`
-- SRS HTTP：`http://127.0.0.1:8080`
-
-镜像默认使用 `local` 标签。流水线或正式实验必须设置 `IMAGE_TAG` 为 Git commit SHA 或明确版本号，不能只使用 `latest`。真实数据库口令、MinIO 密钥、JWT Secret 和管理员密钥只能放在 `.env.practice`、CI Secret 或 Kubernetes Secret 中，不能提交到仓库。
-
-## Kind / Kubernetes 本地部署
-
-Kubernetes 最低验收范围包含 MySQL StatefulSet/PVC、数据库同步 Job、后端 Deployment、前端 Deployment，以及就绪和存活探针。部署脚本会读取本地 `.env.practice` 创建 Kubernetes Secret，不会把真实凭据写入仓库。
+从示例创建本次专用的 `.env.practice`，逐项替换占位符；不得复用其他机器或上一次运行的文件。该文件已被 Git 忽略，不能提交。
 
 ```bash
-# 先按上文构建带版本号的前后端镜像
-IMAGE_TAG=$(git rev-parse --short=12 HEAD)
-docker build -f backend/Dockerfile -t "video-player/backend:$IMAGE_TAG" .
-docker build -f frontend/Dockerfile -t "video-player/frontend:$IMAGE_TAG" .
+cp deploy/practice.env.example .env.practice
+$EDITOR .env.practice
 
-# 创建或复用 kind-video-player 集群并部署
+export IMAGE_TAG="repro-$(git rev-parse --short=12 HEAD)"
+export COMPOSE_PROJECT_NAME="video-player-$IMAGE_TAG"
+
+docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml config --quiet
+docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml build --no-cache
+docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml up -d
+docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml ps
+```
+
+新的 `COMPOSE_PROJECT_NAME` 会创建隔离的 MySQL、Redis、MinIO Volume，而不会读取或删除旧项目数据。`ps` 中 MySQL、Redis、MinIO、Backend、Frontend 应为 healthy，SRS 应为 running。
+
+### 3. MySQL 建表与 Seed
+
+后端启动命令会先执行 Prisma `db:push`。应检查表数非零，再为本次隔离数据库设置一次性 Seed Guard 确认值。`db:seed` 会清空目标库数据，禁止对共享或生产数据库执行。
+
+```bash
+docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml exec -T mysql sh -lc \
+  'mysql -N -uroot -p"$MYSQL_ROOT_PASSWORD" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=\"video_player\";"'
+
+read -r -s -p "Set one-time db:seed confirmation: " SEED_CONFIRM; echo
+docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml exec -T \
+  -e SEED_GUARD_PASSWORD="$SEED_CONFIRM" -e SEED_GUARD_CONFIRM="$SEED_CONFIRM" \
+  backend npm --workspace backend run db:seed
+unset SEED_CONFIRM
+
+docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml exec -T mysql sh -lc \
+  'mysql -N -uroot -p"$MYSQL_ROOT_PASSWORD" video_player -e "SELECT CONCAT((SELECT COUNT(*) FROM User),\" users / \",(SELECT COUNT(*) FROM Video),\" videos\");"'
+```
+
+当前 schema 应创建 31 张表；Seed 应报告 6 users、14 videos、11 published videos。
+
+### 4. Compose HTTP 验收
+
+```bash
+curl -fsS http://127.0.0.1:5173/ | grep -q '<div id="app"></div>'
+curl -fsS http://127.0.0.1:3000/api/v1/health
+```
+
+首页命令退出码应为 `0`；后端应返回 `code: 0` 且 `data.status: ok`。其他入口包括 MinIO API `http://127.0.0.1:9000`、MinIO Console `http://127.0.0.1:9001` 和 SRS HTTP `http://127.0.0.1:8080`。
+
+### 5. 全新 Kind 部署与 Health
+
+复用本次刚刚从源码无缓存构建的带版本 tag 镜像，不使用其他构建产物。设置新的集群名，避免复用已有集群和 PVC。
+
+```bash
+export KIND_CLUSTER_NAME="video-player-$IMAGE_TAG"
 ./scripts/k8s-deploy.sh "$IMAGE_TAG"
-
-# 执行集群内 MySQL、后端、前端和前端代理健康检查
 ./scripts/k8s-health-check.sh
+```
 
-# 需要从宿主机访问时另开终端
+部署应得到 Ready 的 MySQL StatefulSet/PVC、Completed 的 `db-migrate` Job、Ready 的 Backend/Frontend Deployment；Health 脚本会检查 MySQL、后端、前端首页和前端代理 Health。需要宿主机访问时另开终端执行：
+
+```bash
 kubectl -n video-player port-forward service/frontend 15173:80
 ```
 
-端口转发后访问 `http://127.0.0.1:15173`。删除测试集群可执行 `kind delete cluster --name video-player`；该命令会同时删除集群中的 MySQL PVC 数据。
+端口转发后访问 `http://127.0.0.1:15173`。验收结束后只清理本次隔离资源：
+
+```bash
+docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml down --volumes
+kind delete cluster --name "$KIND_CLUSTER_NAME"
+```
+
+`down --volumes` 和 `kind delete cluster` 会永久删除本次隔离的 MySQL 数据，执行前必须再次核对 `COMPOSE_PROJECT_NAME` 和 `KIND_CLUSTER_NAME`。
 
 停止由开发环境启动的 Redis、MinIO、SRS：
 
