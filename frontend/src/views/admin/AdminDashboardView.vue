@@ -100,17 +100,31 @@
       <div class="review-list">
         <article v-for="item in reports" :key="item.id" class="review-card">
           <div>
-            <h3>{{ item.targetType }} 举报</h3>
+            <h3 class="report-title">
+              <span>{{ formatReportTargetType(item.targetType) }} 举报</span>
+              <el-tag size="small" :type="item.status === 'PENDING' ? 'warning' : 'success'">
+                {{ formatReportStatus(item.status) }}
+              </el-tag>
+            </h3>
             <p>原因：{{ item.reason }}</p>
             <p v-if="item.video">视频：{{ item.video.title }}</p>
             <p v-if="item.comment">评论：{{ item.comment.content }}</p>
             <p v-if="item.danmaku">弹幕：{{ item.danmaku.content }}</p>
-            <span class="status">状态：{{ item.status }} · 举报人：{{ item.reporter?.nickname }}</span>
+            <span class="status">举报人：{{ item.reporter?.nickname || '未知用户' }} · 提交时间：{{ formatTime(item.createdAt) }}</span>
+            <span v-if="isReportHandled(item)" class="status">
+              处理时间：{{ formatTime(item.handledAt) }} · 处理人：{{ item.handler?.nickname || '管理员' }}
+            </span>
+            <span v-if="item.handleNote" class="status">处理备注：{{ item.handleNote }}</span>
           </div>
           <div class="actions">
-            <el-button @click="handleReportAction(item.id, 'KEEP')">保留</el-button>
-            <el-button type="warning" @click="handleReportAction(item.id, 'HIDE')">隐藏</el-button>
-            <el-button type="danger" plain @click="handleReportAction(item.id, 'DELETE')">删除</el-button>
+            <template v-if="item.status === 'PENDING'">
+              <el-button @click="handleReportAction(item.id, 'KEEP')">保留</el-button>
+              <el-button type="danger" plain @click="handleReportAction(item.id, 'DELETE')">删除</el-button>
+            </template>
+            <template v-else>
+              <el-button disabled>已处理</el-button>
+              <el-button type="danger" plain @click="deleteHandledReport(item.id)">删除记录</el-button>
+            </template>
           </div>
         </article>
         <el-empty v-if="reports.length === 0" description="当前没有举报记录" />
@@ -125,6 +139,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { RefreshRight } from '@element-plus/icons-vue';
 
 import {
+  deleteReportRecord,
   fetchAdminDashboard,
   fetchReports,
   fetchReviewQueue,
@@ -161,6 +176,21 @@ function formatReviewStatus(status: ReviewQueueItem['status']) {
   if (status === 'APPROVED') return '已通过';
   if (status === 'REJECTED') return '已驳回';
   return '待审核';
+}
+
+function formatReportTargetType(targetType: ReportItem['targetType']) {
+  if (targetType === 'VIDEO') return '视频';
+  if (targetType === 'COMMENT') return '评论';
+  return '弹幕';
+}
+
+function formatReportStatus(status: ReportItem['status']) {
+  if (status === 'PENDING') return '待处理';
+  return '已处理';
+}
+
+function isReportHandled(item: ReportItem) {
+  return item.status !== 'PENDING';
 }
 
 function isUserCancelled(error: unknown) {
@@ -250,7 +280,7 @@ async function handleTextModeration(
   }
 }
 
-async function handleReportAction(id: number, action: 'KEEP' | 'HIDE' | 'DELETE') {
+async function handleReportAction(id: number, action: 'KEEP' | 'DELETE') {
   let reason: string | undefined;
 
   try {
@@ -276,6 +306,30 @@ async function handleReportAction(id: number, action: 'KEEP' | 'HIDE' | 'DELETE'
     await refreshAll();
   } catch {
     // 处理已成功，刷新列表失败时不重复提示失败。
+  }
+}
+
+async function deleteHandledReport(id: number) {
+  try {
+    await ElMessageBox.confirm('删除后该举报记录不再显示，已完成的内容处置结果不会回退。', '删除举报记录', {
+      confirmButtonText: '确认删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    });
+    await deleteReportRecord(id);
+  } catch (error) {
+    if (isUserCancelled(error)) {
+      return;
+    }
+    ElMessage.error('举报记录删除失败');
+    return;
+  }
+
+  ElMessage.success('举报记录已删除');
+  try {
+    await refreshAll();
+  } catch {
+    // 记录已删除，刷新列表失败时不重复提示失败。
   }
 }
 
@@ -387,6 +441,13 @@ onMounted(async () => {
 .review-card h3 {
   margin: 0;
   color: #111827;
+}
+
+.report-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .review-card p {

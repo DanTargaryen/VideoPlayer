@@ -112,18 +112,11 @@ export class MediaService {
     try {
       await this.minioService.downloadObjectToFile(originalAsset.objectKey, inputPath);
 
-      const video = await this.prisma.video.findUnique({
-        where: { id: videoId },
-        select: { durationSeconds: true },
-      });
-      const alreadyHasDuration = video && video.durationSeconds != null && video.durationSeconds > 0;
       const videoUpdate: { durationSeconds?: number; playUrl?: string; coverUrl?: string } = {};
 
-      if (!alreadyHasDuration) {
-        const durationSeconds = await this.probeDuration(inputPath);
-        if (durationSeconds > 0) {
-          videoUpdate.durationSeconds = durationSeconds;
-        }
+      const durationSeconds = await this.probeDuration(inputPath);
+      if (durationSeconds > 0) {
+        videoUpdate.durationSeconds = durationSeconds;
       }
 
       if (!existingCoverAssetId) {

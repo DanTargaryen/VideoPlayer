@@ -364,6 +364,7 @@ export async function createVideo(payload: {
   description: string;
   category?: string;
   categories?: string[];
+  durationSeconds?: number;
   coverUrl?: string;
   coverAssetId?: number;
   coverUploadToken?: string;
@@ -485,11 +486,16 @@ export async function fetchReports() {
   return data.data;
 }
 
-export async function handleReport(reportId: number, action: 'KEEP' | 'HIDE' | 'DELETE', reason?: string) {
+export async function handleReport(reportId: number, action: 'KEEP' | 'DELETE', reason?: string) {
   const { data } = await http.post<ApiResponse<Record<string, unknown>>>(`/admin/reports/${reportId}`, {
     action,
     reason,
   });
+  return data.data;
+}
+
+export async function deleteReportRecord(reportId: number) {
+  const { data } = await http.delete<ApiResponse<{ deleted: boolean; reportId: number }>>(`/admin/reports/${reportId}`);
   return data.data;
 }
 

@@ -1507,7 +1507,7 @@ async function handleCoinVideo() {
     video.value.coinCount = result.videoCoinCount;
     video.value.myCoinCount = result.userVideoCoinCount;
     coinAmount.value = Math.max(1, Math.min(coinAmount.value, remainingCoinLimit.value || 1));
-    ElMessage.success(`投币成功，已投 ${result.amount} 个`);
+    ElMessage.success(`投币成功，已投 ${result.userVideoCoinCount} 个`);
   } catch (error) {
     const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
     ElMessage.error(message || '投币失败，请确认已登录且余额充足');

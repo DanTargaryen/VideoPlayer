@@ -47,7 +47,7 @@
       </div>
     </div>
 
-    <el-dialog v-model="forgotDialogVisible" title="忘记密码" width="420px" destroy-on-close>
+    <el-dialog v-model="forgotDialogVisible" title="忘记密码" width="420px" destroy-on-close @closed="handleForgotDialogClosed">
       <el-form :model="forgotForm" label-position="top" @submit.prevent>
         <el-form-item label="用户名">
           <el-input v-model="forgotForm.username" placeholder="请输入用户名" />
@@ -77,7 +77,7 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="forgotDialogVisible = false">取消</el-button>
+        <el-button @click="closeForgotDialog">取消</el-button>
         <el-button type="primary" :loading="resettingPassword" @click="handleResetPassword">确认重置</el-button>
       </template>
     </el-dialog>
@@ -85,7 +85,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue';
+import { computed, onBeforeUnmount, reactive, ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 
@@ -120,6 +120,7 @@ const codeCountdown = ref(0);
 const sendingEmailCode = ref(false);
 const resettingPassword = ref(false);
 let codeTimer: number | null = null;
+let forgotDialogCycle = 0;
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -185,13 +186,18 @@ async function handleLogin() {
 }
 
 async function refreshCaptcha() {
+  const currentCycle = forgotDialogCycle;
   const result = await fetchCaptcha();
+  if (!forgotDialogVisible.value || currentCycle !== forgotDialogCycle) {
+    return;
+  }
   captchaDataUrl.value = result.dataUrl;
   forgotForm.captchaId = result.id;
   forgotForm.captchaCode = '';
 }
 
 async function sendResetEmail() {
+  const currentCycle = forgotDialogCycle;
   const email = forgotForm.email.trim();
   const username = forgotForm.username.trim();
   const captchaCode = forgotForm.captchaCode.trim();
@@ -212,9 +218,15 @@ async function sendResetEmail() {
   sendingEmailCode.value = true;
   try {
     await sendResetEmailCode(username, email, forgotForm.captchaId, captchaCode);
+    if (!forgotDialogVisible.value || currentCycle !== forgotDialogCycle) {
+      return;
+    }
     ElMessage.success('验证码已发送');
     startCodeCountdown();
   } catch (e: unknown) {
+    if (!forgotDialogVisible.value || currentCycle !== forgotDialogCycle) {
+      return;
+    }
     const msg = getErrorMessage(e, '发送失败');
     if (msg.includes('图形验证码不正确')) {
       ElMessage.error('图形验证码不正确');
@@ -225,28 +237,37 @@ async function sendResetEmail() {
     }
     await refreshCaptcha();
   } finally {
-    sendingEmailCode.value = false;
+    if (currentCycle === forgotDialogCycle) {
+      sendingEmailCode.value = false;
+    }
   }
 }
 
-function startCodeCountdown() {
-  codeCountdown.value = 60;
-  if (codeTimer) {
+function stopCodeCountdown(resetCountdown = false) {
+  if (codeTimer !== null) {
     clearInterval(codeTimer);
+    codeTimer = null;
   }
+  if (resetCountdown) {
+    codeCountdown.value = 0;
+  }
+}
+
+function startCodeCountdown(seconds = 60) {
+  stopCodeCountdown();
+  codeCountdown.value = seconds;
   codeTimer = window.setInterval(() => {
-    if (codeCountdown.value > 0) {
-      codeCountdown.value--;
-    } else {
-      if (codeTimer) {
-        clearInterval(codeTimer);
-        codeTimer = null;
-      }
+    if (codeCountdown.value <= 1) {
+      stopCodeCountdown(true);
+      return;
     }
+
+    codeCountdown.value--;
   }, 1000);
 }
 
 async function handleResetPassword() {
+  const currentCycle = forgotDialogCycle;
   const email = forgotForm.email.trim();
   const username = forgotForm.username.trim();
   const emailCode = forgotForm.emailCode.trim();
@@ -268,30 +289,60 @@ async function handleResetPassword() {
   resettingPassword.value = true;
   try {
     await resetPassword(username, email, emailCode, newPassword);
-    ElMessage.success('密码重置成功，请使用新密码登录');
-    forgotDialogVisible.value = false;
-    if (codeTimer) {
-      clearInterval(codeTimer);
-      codeTimer = null;
+    if (!forgotDialogVisible.value || currentCycle !== forgotDialogCycle) {
+      return;
     }
+    ElMessage.success('密码重置成功，请使用新密码登录');
+    stopCodeCountdown(true);
+    forgotDialogVisible.value = false;
   } catch (e: unknown) {
+    if (!forgotDialogVisible.value || currentCycle !== forgotDialogCycle) {
+      return;
+    }
     const msg = getErrorMessage(e, '重置失败');
     ElMessage.error(msg);
   } finally {
-    resettingPassword.value = false;
+    if (currentCycle === forgotDialogCycle) {
+      resettingPassword.value = false;
+    }
   }
 }
 
-function openForgotDialog() {
-  forgotDialogVisible.value = true;
+function resetForgotForm() {
   forgotForm.username = form.account.includes('@') ? '' : form.account;
   forgotForm.email = form.account.includes('@') ? form.account : '';
   forgotForm.captchaId = '';
   forgotForm.captchaCode = '';
   forgotForm.emailCode = '';
   forgotForm.newPassword = '';
+}
+
+function closeForgotDialog() {
+  forgotDialogVisible.value = false;
+}
+
+function handleForgotDialogClosed() {
+  forgotDialogCycle++;
+  stopCodeCountdown(true);
+  sendingEmailCode.value = false;
+  resettingPassword.value = false;
+  resetForgotForm();
+}
+
+function openForgotDialog() {
+  forgotDialogCycle++;
+  stopCodeCountdown(true);
+  sendingEmailCode.value = false;
+  resettingPassword.value = false;
+  resetForgotForm();
+  forgotDialogVisible.value = true;
   void refreshCaptcha();
 }
+
+onBeforeUnmount(() => {
+  forgotDialogCycle++;
+  stopCodeCountdown(true);
+});
 </script>
 
 <style scoped>

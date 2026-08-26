@@ -1,8 +1,11 @@
 import {
+  BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
+  NotFoundException,
   Param,
   ParseIntPipe,
   Post,
@@ -17,7 +20,8 @@ import { AuthService } from '../auth/auth.service';
 
 class ReviewVideoDto {
   @IsString()
-  action!: string;
+  @IsIn(['APPROVE', 'REJECT'])
+  action!: 'APPROVE' | 'REJECT';
 
   @IsOptional()
   @IsString()
@@ -36,8 +40,8 @@ class ModerateTextDto {
 
 class HandleReportDto {
   @IsString()
-  @IsIn(['KEEP', 'HIDE', 'DELETE'])
-  action!: 'KEEP' | 'HIDE' | 'DELETE';
+  @IsIn(['KEEP', 'DELETE'])
+  action!: 'KEEP' | 'DELETE';
 
   @IsOptional()
   @IsString()
@@ -76,7 +80,18 @@ export class AdminController {
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
 
-    return ok(items);
+    const latestReviewItems = Array.from(
+      items
+        .reduce((index, item) => {
+          if (!index.has(item.videoId)) {
+            index.set(item.videoId, item);
+          }
+          return index;
+        }, new Map<number, (typeof items)[number]>())
+        .values(),
+    );
+
+    return ok(latestReviewItems);
   }
 
   @Post('reviews/videos/:id')
@@ -87,32 +102,36 @@ export class AdminController {
   ) {
     const user = await this.requireAdmin(authorization);
 
-    const review = await this.prisma.videoReview.findUnique({ where: { id } });
+    const review = await this.prisma.videoReview.findUnique({
+      where: { id },
+      include: { video: true },
+    });
 
     if (!review) {
       throw new UnauthorizedException('Review not found');
     }
-
     const approve = dto.action === 'APPROVE';
+    const rejectReason = dto.reason ?? '需要修改后重新提交';
 
-    const updatedReview = await this.prisma.videoReview.update({
-      where: { id },
-      data: {
-        reviewerId: user.id,
-        reviewedAt: new Date(),
-        status: approve ? 'APPROVED' : 'REJECTED',
-        reason: approve ? null : dto.reason ?? '需要修改后重新提交',
-      },
-    });
-
-    const updatedVideo = await this.prisma.video.update({
-      where: { id: review.videoId },
-      data: {
-        status: approve ? 'PUBLISHED' : 'REJECTED',
-        publishedAt: approve ? new Date() : null,
-        rejectReason: approve ? null : updatedReview.reason,
-      },
-    });
+    const [updatedReview, updatedVideo] = await this.prisma.$transaction([
+      this.prisma.videoReview.update({
+        where: { id },
+        data: {
+          reviewerId: user.id,
+          reviewedAt: new Date(),
+          status: approve ? 'APPROVED' : 'REJECTED',
+          reason: approve ? null : rejectReason,
+        },
+      }),
+      this.prisma.video.update({
+        where: { id: review.videoId },
+        data: {
+          status: approve ? 'PUBLISHED' : 'REJECTED',
+          publishedAt: approve ? new Date() : null,
+          rejectReason: approve ? null : rejectReason,
+        },
+      }),
+    ]);
 
     return ok({
       id: updatedReview.id,
@@ -203,6 +222,7 @@ export class AdminController {
     const items = await this.prisma.reportRecord.findMany({
       include: {
         reporter: { select: { id: true, nickname: true } },
+        handler: { select: { id: true, nickname: true } },
         video: { select: { id: true, title: true } },
         comment: { select: { id: true, content: true, status: true } },
         danmaku: { select: { id: true, content: true, status: true } },
@@ -224,35 +244,88 @@ export class AdminController {
     const report = await this.prisma.reportRecord.findUnique({ where: { id } });
 
     if (!report) {
-      throw new UnauthorizedException('Report not found');
+      throw new NotFoundException('Report not found');
     }
 
-    const targetStatus = dto.action === 'KEEP' ? 'NORMAL' : dto.action === 'HIDE' ? 'HIDDEN' : 'DELETED';
+    if (report.status !== 'PENDING') {
+      throw new BadRequestException('Report already handled');
+    }
 
-    if (report.targetType === 'COMMENT' && report.commentId) {
-      await this.prisma.comment.update({ where: { id: report.commentId }, data: { status: targetStatus } });
-    }
-    if (report.targetType === 'VIDEO_DANMAKU' && report.danmakuId) {
-      await this.prisma.videoDanmaku.update({ where: { id: report.danmakuId }, data: { status: targetStatus } });
-    }
-    if (report.targetType === 'VIDEO' && report.videoId && dto.action !== 'KEEP') {
-      await this.prisma.video.update({
-        where: { id: report.videoId },
-        data: { status: 'REJECTED', rejectReason: dto.reason ?? '被举报后下架' },
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const reportUpdate = await tx.reportRecord.updateMany({
+        where: { id, status: 'PENDING' },
+        data: {
+          status: dto.action === 'KEEP' ? 'REJECTED' : 'PROCESSED',
+          handlerId: admin.id,
+          handledAt: new Date(),
+          handleNote: dto.reason ?? null,
+        },
       });
-    }
 
-    const updated = await this.prisma.reportRecord.update({
-      where: { id },
-      data: {
-        status: dto.action === 'KEEP' ? 'REJECTED' : 'PROCESSED',
-        handlerId: admin.id,
-        handledAt: new Date(),
-        handleNote: dto.reason ?? null,
-      },
+      if (reportUpdate.count !== 1) {
+        throw new BadRequestException('Report already handled');
+      }
+
+      if (report.targetType === 'COMMENT' && report.commentId) {
+        await tx.comment.update({
+          where: { id: report.commentId },
+          data: { status: dto.action === 'KEEP' ? 'NORMAL' : 'DELETED' },
+        });
+      }
+      if (report.targetType === 'VIDEO_DANMAKU' && report.danmakuId) {
+        await tx.videoDanmaku.update({
+          where: { id: report.danmakuId },
+          data: { status: dto.action === 'KEEP' ? 'NORMAL' : 'DELETED' },
+        });
+      }
+      if (report.targetType === 'VIDEO' && report.videoId && dto.action === 'DELETE') {
+        await tx.video.update({
+          where: { id: report.videoId },
+          data: { status: 'REJECTED', rejectReason: dto.reason ?? '被举报后下架' },
+        });
+      }
+
+      const handledReport = await tx.reportRecord.findUniqueOrThrow({
+        where: { id },
+      });
+
+      const resultText = dto.action === 'KEEP' ? '经审核暂不删除目标内容' : '违规内容已删除或下架';
+      await tx.notification.create({
+        data: {
+          recipientId: report.reporterId,
+          actorId: admin.id,
+          type: 'REPORT',
+          title: '举报处理完成',
+          content: dto.reason ? `${resultText}：${dto.reason}` : resultText,
+          relatedType: 'REPORT',
+          relatedId: handledReport.id,
+        },
+      });
+
+      return handledReport;
     });
 
     return ok(updated);
+  }
+
+  @Delete('reports/:id')
+  async deleteReportRecord(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    await this.requireAdmin(authorization);
+    const report = await this.prisma.reportRecord.findUnique({ where: { id } });
+
+    if (!report) {
+      throw new NotFoundException('Report not found');
+    }
+
+    if (report.status === 'PENDING') {
+      throw new BadRequestException('Pending reports cannot be deleted before handling');
+    }
+
+    await this.prisma.reportRecord.delete({ where: { id } });
+    return ok({ deleted: true, reportId: id });
   }
 
   @Get('dashboard')
