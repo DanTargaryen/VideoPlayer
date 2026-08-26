@@ -21,10 +21,11 @@
     "lint:frontend": "npm --workspace frontend run lint",
     "lint:backend": "npm --workspace backend run lint",
     "test": "npm run test:backend && npm run test:frontend",
+    "test:requirements": "node test/run-unit-tests.js",
     "test:backend": "npm --workspace backend run test",
     "test:frontend": "npm --workspace frontend run test",
     "test:e2e": "playwright test",
-    "test:ci": "npm run lint:backend && npm run lint:frontend && npm run build:backend && npm run build:frontend && npm test"
+    "test:ci": "npm run test:requirements && npm run lint:backend && npm run lint:frontend && npm run build:backend && npm run build:frontend && npm test"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
