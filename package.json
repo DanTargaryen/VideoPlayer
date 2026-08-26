@@ -23,6 +23,8 @@
     "test": "npm run test:backend && npm run test:frontend",
     "test:requirements": "node test/run-unit-tests.js",
     "test:backend": "npm --workspace backend run test",
+    "test:api": "npm --workspace backend run test:api",
+    "test:agent-ai": "npm --workspace backend run test:agent-ai",
     "test:frontend": "npm --workspace frontend run test",
     "test:e2e": "playwright test",
     "test:ci": "npm run test:requirements && npm run lint:backend && npm run lint:frontend && npm run build:backend && npm run build:frontend && npm test"
