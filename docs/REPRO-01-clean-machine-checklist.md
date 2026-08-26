@@ -5,7 +5,9 @@
 ## 复现身份
 
 - [x] 分支：`docs/REPRO-01-clean-machine-startup`
-- [x] 基线：`2e9cb60`
+- [x] 复现基线：`origin/main@54e30d94cc90137b297b262d6728f3e49a476de1`（GitHub 可解析的远端目标分支提交）
+- [x] 发布 Commit：`023f28831cbf26bfd36955a6f98de6b06287483f`（PR 中提交 clean-machine 复现文档与 AdminController 测试修正）
+- [x] 本地隔离标识：`2e9cb60-r2`（仅用于本机 Compose project、镜像 tag 与 Kind cluster 命名；不是远端 Git commit）
 - [x] 日期：2026-08-26
 - [x] 环境：Windows 11、Node.js `v24.14.1`、npm `11.11.0`、Docker Desktop `4.66.1` / Engine `29.3.1`、Compose `v5.1.0`、Kind `v0.32.0`、kubectl `v1.34.1`
 - [x] 隔离：删除工作区依赖和构建结果；新建 `.env.practice`；使用 `video-player-repro-2e9cb60-r2` Compose project、全新 Volume、`repro-2e9cb60-r2` 镜像 tag、`video-player-repro-2e9cb60-r2` Kind cluster
