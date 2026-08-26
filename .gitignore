@@ -52,12 +52,19 @@ playwright-report/
 *.tsbuildinfo
 .eslintcache
 
+# Compiled JavaScript emitted beside Nest TypeScript sources
+backend/src/**/*.js
+backend/src/**/*.js.map
+
 # Prisma / local database artifacts
-backend/prisma/*.db
-backend/prisma/*.db-*
+backend/prisma/**/*.db
+backend/prisma/**/*.db-*
 *.sqlite
 *.sqlite3
 *.db-journal
+
+# Local database backups
+backups/
 
 # Local storage and uploads
 data/
@@ -76,4 +83,8 @@ image/
 
 # Local inspection reports
 artifacts/
+
+# Generated document exports
+docs/**/*.pdf
+docs/**/*.zip
 
