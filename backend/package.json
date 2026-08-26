@@ -17,6 +17,7 @@
     "prisma:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "node prisma/seed.js",
+    "db:baseline-existing": "node scripts/db-baseline-existing.js",
     "db:test-reset": "node scripts/db-target-safety.js test-reset && prisma migrate reset --force --skip-seed",
     "seed:demo-engagement": "node prisma/seed-demo-engagement.js",
     "seed:demo-engagement:clean": "node prisma/seed-demo-engagement.js --clean",
