@@ -10,6 +10,9 @@
 - 基线 / 目标版本：
 - 源分支：`feature/...` / `bug/...` / `test/...` / 其他规范 category
 - 目标分支：
+- 同步基线：`origin/<target>@<commit-sha>`
+- 同步方式：从最新 `origin/<target>` 创建 / `git rebase origin/<target>`
+- 基线检查：`merge-base --is-ancestor` PASS；目标侧计数 `0`
 
 ## 变更类型
 
@@ -98,6 +101,9 @@
 
 - [ ] PR 标题符合 `type(scope): summary`
 - [ ] 源分支符合 `feature/`、`bug/`、`hotfix/`、`test/`、`docs/`、`build/`、`ci/`、`refactor/`、`perf/` 或 `chore/` 规范
+- [ ] 源分支是独立任务分支，与目标分支不同，且没有直接 commit/push 到 `main`、`master`、`develop`、release 或本 PR 目标分支
+- [ ] 已在创建/更新 PR 前 fetch，并从最新 `origin/<target>` 创建源分支或将源分支 rebase 到该基线
+- [ ] `git merge-base --is-ancestor origin/<target> HEAD` 通过，且 `git rev-list --left-right --count origin/<target>...HEAD` 的目标侧计数为 `0`
 - [ ] 每个 commit 是单一逻辑变更，消息符合仓库规范
 - [ ] 每个 commit 正文都包含简要 `Changes` 和实际 `Tests`；未运行项说明原因
 - [ ] 关联了任务 ID 和 REQ/UC，或清楚说明 `N/A`
@@ -115,5 +121,5 @@
 
 - [ ] 所有阻塞评论已解决
 - [ ] CI 必需检查通过，或阻塞已获得明确书面豁免
-- [ ] 分支已同步目标分支且无未解决冲突
+- [ ] 合并前已再次 fetch，并将源分支 rebase 到最新目标分支；祖先检查通过、目标侧计数为 `0`，且无未解决冲突
 - [ ] 不会移动或改写 `monolith-start` 等已发布基线标签

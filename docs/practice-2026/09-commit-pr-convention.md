@@ -50,6 +50,21 @@ ci/CI-01-monolith-pipeline
 - Codex 以后也使用此 category 规范；除非用户明确指定，不再默认创建新的 `codex/...` 分支。
 - 已经存在的历史分支不为改名而强制重写或 force-push。
 
+### 受保护基线与独立分支门禁
+
+PR 的目标分支以及 `main`、`master`、`develop`、release 分支等共享基线均视为受保护分支。任务改动不得直接 commit 或 push 到受保护/目标分支，受保护/目标分支也不得作为 PR 的源分支。每个可审阅目标必须使用一个符合上述命名规范的独立任务分支。
+
+在首次任务 commit、每次 push、创建 PR 或更新 PR 前，必须完成以下检查：
+
+1. 执行 `git fetch origin --prune`，明确本次 PR 的准确目标分支。
+2. 新任务应从最新的 `origin/<target>` 创建独立分支；这样创建、且尚无任务 commit 的分支，视为已经位于最新目标基线上。
+3. 已有本地任务分支必须在该任务分支上执行 `git rebase origin/<target>`，把任务 commit 重放到最新目标分支之后。
+4. 执行 `git merge-base --is-ancestor origin/<target> HEAD`，并使用 `git rev-list --left-right --count origin/<target>...HEAD` 确认目标侧计数为 `0`。任一检查失败时，禁止 push、创建 PR 或更新 PR。
+5. 只允许 push 独立任务分支，并确认 PR 的源分支与目标分支不同；不得使用 refspec 把任务 commit 写入受保护/目标分支。
+6. 如果目标分支在检查后再次前进，下一次 push 或 PR 更新前必须重新 fetch、rebase 和验证。
+
+如果当前位于受保护/目标分支且已有未提交任务改动，必须保留这些改动并先迁移到合规的独立任务分支；不得通过丢弃、覆盖或重置用户改动来满足规则。如果任务分支已经推送，rebase 可能改写远端历史，则必须先说明准确分支与风险，并单独获得 rebase 和 `--force-with-lease` 授权；未获授权时停止交付。禁止普通 `--force`，也不得用 merge 目标分支替代本规范要求的 rebase。
+
 ## 3. Commit 格式
 
 标题采用：
@@ -137,22 +152,24 @@ Evidence:
 ## 5. Commit 前检查
 
 1. 确认当前仓库、分支和 remote。
-2. 查看 `git status --short --branch`、未暂存 diff 和已暂存 diff。
-3. 只暂存本任务文件，不使用无条件 `git add .` 带入未知文件。
-4. 检查没有 `.env`、真实口令、Token、Secret、日志、PID、构建产物和个人临时文件。
-5. 运行与风险相称的 lint、build、unit、API、E2E、Docker/K8s 检查。
-6. 更新 `00-progress.md`；只有实际完成并验证的项目才能打 `[x]`。
-7. 运行 diff check；CRLF 仓库文件可使用 `git -c core.whitespace=cr-at-eol diff --cached --check`。
-8. commit 前确认标题与当前分支 category 对应：`feature` 通常用 `feat`，`bug/hotfix` 通常用 `fix`。
-9. commit 后核对 `git show --format=fuller --stat HEAD`，确认标题、`Changes`、`Tests`、文件范围和工作树状态。
+2. 执行第 2 节的受保护基线与独立分支门禁；当前分支为受保护/目标分支时禁止暂存或提交任务改动。
+3. 查看 `git status --short --branch`、未暂存 diff 和已暂存 diff。
+4. 只暂存本任务文件，不使用无条件 `git add .` 带入未知文件。
+5. 检查没有 `.env`、真实口令、Token、Secret、日志、PID、构建产物和个人临时文件。
+6. 运行与风险相称的 lint、build、unit、API、E2E、Docker/K8s 检查。
+7. 更新 `00-progress.md`；只有实际完成并验证的项目才能打 `[x]`。
+8. 运行 diff check；CRLF 仓库文件可使用 `git -c core.whitespace=cr-at-eol diff --cached --check`。
+9. commit 前确认标题与当前分支 category 对应：`feature` 通常用 `feat`，`bug/hotfix` 通常用 `fix`。
+10. commit 后核对 `git show --format=fuller --stat HEAD`，确认标题、`Changes`、`Tests`、文件范围和工作树状态。
 
 ## 6. Push 规则
 
-- push 前执行 `git fetch origin --prune`，确认目标分支没有意外变化。
-- 首次推送使用 `git push --set-upstream origin <branch>`。
-- 后续使用普通 `git push`；不得自动使用 `--force` 或 `--force-with-lease`。
+- 每次 push 前重新执行第 2 节的门禁：fetch、确认目标、拒绝受保护/目标源分支、按需 rebase，并确认目标侧计数为 `0`。
+- 再次核对当前任务分支、upstream 和准确的远端目标 ref；如果 push 会更新受保护/目标分支，立即停止。
+- 首次推送只能使用 `git push --set-upstream origin <task-branch>`。
+- 后续只有在不需要改写历史时才使用普通 `git push`。已发布任务分支需要 rebase 和改写远端历史时，必须先单独获得授权；获准后只能对明确命名的任务分支使用 `--force-with-lease`，禁止普通 `--force`。
 - 推送失败时先报告原因并检查远端状态，不循环重试破坏性命令。
-- 推送后核对本地 upstream 和 ahead/behind。
+- 推送后核对本地 upstream、ahead/behind、远端任务分支以及实际推送的 commit 范围。
 
 ## 7. PR 标题与内容
 
@@ -162,7 +179,7 @@ PR 标题同样使用：
 type(scope): concise summary
 ```
 
-PR 的源分支必须符合第 2 节 category 规范；PR 正文的 Commit 清单要逐条简述每个 commit 的改动和测试结果。
+PR 的源分支必须符合第 2 节 category 规范，必须是独立任务分支，且不得与目标分支相同。创建或更新 PR 前必须重新 fetch，将源分支 rebase 到最新 `origin/<target>`，并通过第 2 节的祖先关系和目标侧计数检查；否则停止，不能以 Draft PR 绕过此分支门禁。PR 正文必须记录同步基线及方式，Commit 清单要逐条简述每个 commit 的改动和测试结果。
 
 PR 正文必须基于 `.github/pull_request_template.md`，至少包含：
 
@@ -182,7 +199,7 @@ PR 正文必须基于 `.github/pull_request_template.md`，至少包含：
 - 重要代码、架构、数据、测试和部署变更至少由一名非作者审阅。
 - reviewer 核对实际 diff，不只看 PR 描述和截图。
 - 阻塞评论解决后再请求复审。
-- 保留有意义的提交历史；是否 squash/rebase 由组长按贡献证据和仓库策略决定，Codex 不自动改写历史。
+- PR 分支同步目标基线时必须遵守第 2 节的 rebase 门禁；PR 合并时是否 squash/rebase 则由组长按贡献证据和仓库策略决定。Codex 不得在未获单独授权时改写已经发布的任务分支历史。
 - 合并后更新看板、进度 Markdown、追溯和证据索引。
 
 ## 9. Tag 与发布
