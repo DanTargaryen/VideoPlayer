@@ -2,7 +2,7 @@
 
 > 维护规则：这是本轮实践的唯一进度源。每完成一项，必须同时更新复选框、改动说明、测试命令/环境、测试结果和对应 commit；没有实际验证的事项不能标记为 `[x]`。
 >
-> 当前 PR 分支：`feature/PRACTICE-2026-engineering-baseline`，目标分支：`main`。旧 `codex/practice-bootstrap` 保留为重写前备份。
+> 当前本地和远端分支均仅保留 `main`；最新提交 SHA 以 `git rev-parse origin/main` 为准。
 >
 > 教师确认：组长于 2026-08-24 报告 UC01-UC06 与当前四服务方向已获确认；外部回复截图/链接仍需组长补入证据索引。
 
@@ -31,7 +31,15 @@
 - [x] `PR-01` 创建单体工程基线 Draft PR。
   - 完成内容：创建 Draft PR #24，标题 `feat(practice): establish monolith engineering baseline`，base=`main`，head=`feature/PRACTICE-2026-engineering-baseline`；完整填写 Commit 清单、改动、测试、阻塞、风险、回滚和 AI/来源说明。
   - 测试/验证：PR URL/base/head/title/draft/body/mergeable 检查 PASS；状态 `OPEN / DRAFT / MERGEABLE`；非作者 review 尚未完成。
-  - 结果：https://github.com/DanTargaryen/VideoPlayer/pull/24；PR 保持 Draft，等待 review、完整 smoke、Docker/K8s 和 CI 条件。
+  - 结果：https://github.com/DanTargaryen/VideoPlayer/pull/24；PR 已于 2026-08-25 合并到 `main`，产生 merge commit `b459880`。
+- [x] `GIT-CLEAN-01` 清理已完成工作的远端分支。
+  - 完成内容：删除 `codex/practice-bootstrap`、`feature/PRACTICE-2026-engineering-baseline`、`feature/main-experience`、`lixm`、`lzy`、`lzy_1`、`wyh-1`、`wyh-3`、`zzz` 共 9 个远端分支；未删除本地分支。
+  - 测试/验证：刷新远端引用；检查相对 `origin/main` 的提交归属；确认 PR #24 及历史相关 PR 已合并、无 OPEN PR；使用 atomic remote delete；`git ls-remote --heads origin` 复核。
+  - 结果：通过；远端只剩 `main`，SHA 为 `b459880ffe1ab1e476df4404acdba39990f6ad26`。
+- [x] `GIT-CLEAN-02` 清理已完成工作的本地分支。
+  - 完成内容：暂存保护当前未提交文档，切换并 fast-forward 本地 `main` 到 `origin/main`，原样恢复工作区后删除 `feature/PRACTICE-2026-engineering-baseline`、`feature/main-experience`、`codex/practice-bootstrap` 三个本地分支。
+  - 测试/验证：恢复前后 5 个工作区文件 SHA-256 完全一致；无冲突；本地分支引用检查；本地 `main` 与 `origin/main` ahead/behind `0/0`。
+  - 结果：通过；本地仅保留 `main@b459880`，既有 `autostash` 保留未动，未提交文档改动未丢失。
 - [x] `CHORE-01` 收口本地维护改动。
   - 完成内容：忽略 `artifacts/`；ESLint 忽略 `.vite`；规范提交 `53921bf`。
   - 测试/验证：`npm run build:frontend`、`npm run build:backend`、CRLF 感知的 `git diff --check`。
@@ -56,10 +64,58 @@
   - 完成内容：skill 和 PR 模板明确允许源码、测试源码、依赖/锁文件、迁移/seed、Docker/CI/K8s 配置及明确要求的仓库规范；禁止提交 artifacts、测试报告、coverage、dist/build、日志、PID、缓存、本地数据库、上传和生成报告。
   - 测试/验证：PR #24 文件审计中生成产物已跟踪数量 `0`；`.gitignore` 对 artifacts/playwright/test-results/coverage/dist/log/pid 覆盖 PASS；个人/仓库 skill 双 validator 与字节同步 PASS；策略字段/diff check PASS。
   - 结果：当前 PR 没有生成产物；11 个 `docs/practice-2026` 文件和仓库 skill/PR 模板属于前序明确要求的人工维护源文件，不按生成产物删除。
+- [x] `GOV-ARTIFACT-01` 清除历史遗留的已跟踪生成产物。
+  - 完成内容：删除 60 个有对应 TypeScript 源文件的后端编译 `.js`、1 个 Prisma 本地数据库、2 个 Vite 缓存、2 个 SQL 备份和 4 个 PDF/ZIP 导出文件；补全 `.gitignore` 的精确规则。
+  - 测试/验证：60/60 JavaScript 均存在同路径 TypeScript；`npm run test:ci` PASS（Jest 2/2、Vitest 3/3）；目标产物已跟踪数量 0；本地/远端 SHA 一致；远端 run `32921374610` 启动前被 GitHub Billing 锁阻断、0 steps。
+  - 结果：该提交历史重写前为 `7945d5d`、重写后为 `8a7368d`；业务源码、必要配置、Docker/CI/部署配置和测试源码均保留；远端失败不是代码或测试失败。
+- [x] `GOV-HISTORY-01` 从 `main` 历史中清除生成与本地文件。
+  - 完成内容：使用临时 `git-filter-repo 2.47.0` 对 `main` 的 120 个提交执行路径反选重写，清除后端编译 JavaScript、本地数据库、Vite 缓存、SQL 备份和 PDF/ZIP 导出；使用绑定旧 SHA 的 `--force-with-lease` 更新远端，并同步本地 `main`。
+  - 测试/验证：重写后 `main` 可达历史的目标路径数量 0；最新树哈希保持 `a83d55a74af99e3fb12b03f8aaa459794391adb5` 不变；fresh single-branch clone、`git fsck --full`、`npm run test:ci` PASS（Jest 2/2、Vitest 3/3）；本地/远端 SHA `8a7368dd0c1f718906bbec2e8f8a25542dd9abc2` 一致；WIP 五文件恢复前后 SHA-256 一致。
+  - 结果：通过；恢复 bundle 和 old→new commit/ref 映射仅保存在 ignored `artifacts/history-rewrite-backup/`。远端 run `32921905873` 仍因 GitHub Billing 锁在启动前失败、0 steps；GitHub 平台管理的只读 `refs/pull/*` 无法由普通 force-push 改写，不计入正常 `main` 历史清理结论。
+- [x] `BASE-RUNTIME-CLEAN-01` 验证历史与产物清理后项目仍可运行。
+  - 完成内容：在 `main@8a7368d` 启动前后端，连接现有远端 MySQL，验证首页、健康接口、推荐接口、直播广场和真实浏览器页面，验收后正常停止服务。
+  - 测试/验证：Nest watch 编译 0 errors、应用启动成功；Vite 130 ms ready；前后端端口监听；首页、直连/代理 health、推荐、直播广场均 HTTP 200；浏览器登录页与直播页渲染成功，直播页 8 个标题、21 个按钮、console errors 0；日志错误扫描 PASS；停止后 3000/5173 端口释放。
+  - 结果：通过；项目可正常启动和访问。Docker 不可用，因此 Redis、MinIO、SRS 容器链路未覆盖；写入型 UC smoke 未执行。Playwright CLI 临时下载因 `ECONNRESET` 失败，改用桌面浏览器完成可视验收。
+- [x] `CI-MANUAL-01` 将 monolith-ci 改为仅手动触发。
+  - 完成内容：本地删除 `push` 和 `pull_request` 触发器，保留 `workflow_dispatch`；质量、E2E 和镜像 Job 内容不变。
+  - 测试/验证：Workflow YAML 解析、触发器字段检查和 `git diff --check`。
+  - 结果：commit `44d44f1` 已推送到 `main`；远端触发器仅剩 `workflow_dispatch`，本次 push 没有生成 Actions run。
+- [x] `CI-RUN-CLEAN-01` 删除历史失败的 Actions 运行记录。
+  - 完成内容：删除 9 条因 GitHub Billing 锁在 Runner 启动前失败的 `monolith-ci` runs，覆盖 3 条 main push、3 条 PR 和 3 条旧分支 push 记录。
+  - 测试/验证：删除后失败 run 数量 0、全部 run 列表为空；`main@44d44f1` 与前一提交 `8a7368d` 的 Check Runs 均为 0；远端代码 SHA 未变化。
+  - 结果：通过；Workflow 仍为 active/manual-only，代码与 Git 历史未修改；被删除的 Actions 日志和 Billing 注解不可恢复。
+- [x] `CI-RUNBOOK-01` 编写 Jenkins + Kind 换机执行手册和资源估算。
+  - 完成内容：新增环境安装、Compose、数据库迁移、Kind/Kubernetes、Jenkins Pipeline、push 触发、成功/失败证据、交付文件和磁盘维护清单；区分当前可执行步骤和待实现文件。
+  - 测试/验证：当前机器 CPU/RAM/磁盘与项目目录实测；命令、路径、端口冲突、文件清单和 Markdown 结构检查。
+  - 结果：通过；推荐 16GB RAM、6–8 核、40GB 可用磁盘，完整视频/录播环境建议 50–80GB。
 - [x] `UC-CONF-01` 教师确认当前业务场景与架构方向。
   - 完成内容：按组长反馈，将 UC01-UC06 标记为已计入，并以四个业务服务作为后续实现方向。
   - 测试/验证：文档一致性检查；外部确认属于管理证据，不是代码测试。
   - 结果：范围已冻结；待组长补教师回复截图/链接。
+- [x] `DOC-UC06-STATE-01` 绘制 UC06 三层状态图。
+  - 完成内容：新增并按组长反馈简化 `SYS-STATE06`、`COMP-STATE06`、`OBJ-STATE06` Mermaid 源图，只保留主状态与关键异常；同步用例、证据追溯和文件索引。
+  - 测试/验证：Mermaid 三图渲染；状态枚举/API/Prisma 字段与源码对照；追溯编号一致性检查；`git diff --check`。
+  - 结果：模型完成；应用测试未运行，`UNIT-TC06`、`INT-TC06`、`E2E-TC06` 仍为 `NOT RUN`；commit/push 待本轮后续授权。
+- [x] `DOC-SRS-01` 按小学期清单整理软件需求说明书。
+  - 完成内容：在桌面版《需求说明书》中补充 `US01-US06`、`REQ01-REQ06`、六个完整用例说明、总体用例图与概念图占位、六个系统级状态图占位和统一追溯表；移除原附录中的活动图，统一为“只绘制系统级状态图”的口径。
+  - 测试/验证：六组用户故事/需求/用例编号完整；六个用例说明和六个状态图占位完整；不存在 Mermaid 实图、顺序图或活动图；Markdown 文件统一为 UTF-8/LF。
+  - 结果：通过；源文件位于 `/Users/mumuxunzi/Desktop/需求说明书.md`，当前不在 Git 仓库内，因此 commit/push 不适用。
+- [x] `DOC-SRS-02` 替换总体用例图和概念类图占位。
+  - 完成内容：将组长提供的总体用例图和概念类图复制到桌面固定资源目录，并以相对路径插入需求说明书；追溯表和附录状态同步更新，六个系统级状态图继续保留占位。
+  - 测试/验证：两张图片格式、尺寸、SHA-256 和复制后一致性检查；Markdown 图片相对路径存在；`<用例图>`、`<概念图>` 占位已清零；六个状态图占位仍完整。
+  - 结果：通过；图片目录为 `/Users/mumuxunzi/Desktop/需求说明书.assets/`，当前不在 Git 仓库内，因此 commit/push 不适用。
+- [x] `DOC-SRS-03` 插入 UC01-UC06 六张系统级状态图。
+  - 完成内容：按组长提供顺序将六张图对应到 `UC01` 至 `UC06`，复制到桌面固定资源目录并替换全部系统状态图占位；附录中的六项状态同步改为“已插入”。
+  - 测试/验证：六张图片格式、尺寸、SHA-256 和复制后一致性检查；六条 Markdown 相对路径全部存在；`<UC0x-系统状态图>` 占位已清零；`SYS-STATE01-SYS-STATE06` 追溯编号保留。
+  - 结果：通过；图片目录为 `/Users/mumuxunzi/Desktop/需求说明书.assets/`，需求说明书更新为 v2.3；当前不在 Git 仓库内，因此 commit/push 不适用。
+- [x] `DOC-SRS-04` 精简需求说明书中的重复说明。
+  - 完成内容：删除图表章节中重复说明文档要求、解释图意和声明图表类型的文字；附录图表清单删除内容相同的状态列。
+  - 测试/验证：需求、用例、图片和追溯编号完整性检查；Markdown 结构检查。
+  - 结果：通过；需求说明书更新为 v2.4，未删除业务规则、异常流程或风险说明。
+- [x] `DOC-DESIGN-01` 插入 UC01-UC06 六张对象级状态图。
+  - 完成内容：在桌面版《详细设计说明书》新增 `2.11 UC01-UC06 对象级状态图`，按组长提供顺序插入六张图片，并标注 `OBJ-STATE01-OBJ-STATE06`。
+  - 测试/验证：六张图片格式、尺寸、SHA-256 和复制后一致性检查；六条 Markdown 相对路径及六个对象级追溯编号完整。
+  - 结果：通过；图片目录为 `/Users/mumuxunzi/Desktop/详细设计说明书.assets/`，当前不在 Git 仓库内，因此 commit/push 不适用。
 - [ ] `BASE-01` 完成 UC01-UC06 单体全场景 smoke 并创建 `monolith-start`。
   - 当前状态：未执行。写入型场景会影响数据库/MinIO，需隔离测试环境或组长明确授权使用共享远端环境。
 - [x] `LINT-01` 清零前端现有 12 个 lint 错误，建立可用于 CI 的 lint 基线。
@@ -138,11 +194,19 @@
 | 2026-08-25 | PR-01 | 使用仓库 skill 和完整模板创建 Draft PR #24，base main，head feature/PRACTICE-2026-engineering-baseline | PR 字段检查 PASS；OPEN/DRAFT/MERGEABLE；正文完整 | PR URL：https://github.com/DanTargaryen/VideoPlayer/pull/24；等待非作者 review 和阻塞解除 |
 | 2026-08-25 | CI-01 PR run | PR #24 触发 run `32799446109`，quality/public-e2e 失败，images skipped | Jobs 0 steps、无 runner；GitHub UI Annotations 检查 | 账号仍被 Billing issue 锁定，workflow 未执行代码；不是测试失败 |
 | 2026-08-25 | GOV-GIT-04 | 审计 PR #24 并固化“只提交核心源文件、生成结果走 ignored/CI Artifact”策略 | 已跟踪生成产物 0；ignore coverage PASS；双 skill validator/sync、策略字段和 diff check PASS | 未删除此前明确要求的 skill 和课程源文档；本提交 push 后更新 PR |
+| 2026-08-26 | GIT-CLEAN-01 | 合并/提交归属和 OPEN PR 审计后，以 atomic push 删除 9 个远端历史分支 | `git fetch --prune`；merge-base/cherry/tree audit；PR 查询；`git ls-remote --heads origin` | PASS；远端只保留 `main@b459880`，本地分支未删除 |
+| 2026-08-26 | GIT-CLEAN-02 | 保护工作区、更新本地 main、恢复改动并删除 3 个本地历史分支 | 文件 SHA-256 前后比对；冲突检查；本地分支/ahead-behind 检查 | PASS；本地和远端都只保留 `main@b459880`，工作区改动完整保留 |
+| 2026-08-26 | GOV-ARTIFACT-01 | 清除 69 个历史生成/本地文件并补全忽略规则 | `npm run test:ci` PASS；TS 对应关系；目标产物跟踪审计；本地/远端 SHA；Actions run `32921374610` | LOCAL PASS；`main@7945d5d`，目标产物跟踪数 0；REMOTE 0 steps BLOCKED BY BILLING；原工作区文档已恢复 |
+| 2026-08-26 | GOV-HISTORY-01 | 生成恢复 bundle，重写 120 个 main 提交并 force-with-lease 更新远端/本地 | 全历史审计；tree hash；fresh clone/fsck；`test:ci` PASS；remote/WIP SHA；run `32921905873` | LOCAL/REWRITE PASS；`main@8a7368d`，正常 main 历史目标路径 0；REMOTE 0 steps BLOCKED BY BILLING；GitHub PR refs 除外 |
+| 2026-08-26 | BASE-RUNTIME-CLEAN-01 | 清理后启动前后端，检查 API、浏览器页面和停止清理 | TS 0 errors；HTTP 200×4；浏览器页面/console；日志错误扫描；端口释放 | PASS；项目可运行；Docker/MinIO/SRS 与写入场景 NOT RUN |
+| 2026-08-26 | CI-MANUAL-01 | 删除 push/PR 自动触发器，只保留 workflow_dispatch | YAML 解析；字段检查；diff check；远端文件与 run 查询 | PASS；`main@44d44f1`，本次 push 无 Actions run，后续仅手动触发 |
+| 2026-08-26 | CI-RUN-CLEAN-01 | 删除 9 条 Billing 锁导致的历史失败 workflow runs | run 列表/失败计数；两次提交 Check Runs；远端 SHA | PASS；Actions runs 0、失败 0、提交 checks 0；日志不可恢复 |
+| 2026-08-26 | CI-RUNBOOK-01 | 编写换机 CI/CD Runbook 与空间估算 | 主机/项目实测；命令与路径检查；Markdown 结构 | PASS；建议 16GB/6–8 核/40GB，完整环境 50–80GB |
 
 ## 4. 阻塞与需组长决定
 
 - [ ] 提供或指定教师确认回复的截图/链接，补入证据索引。
 - [ ] 决定是否允许在当前共享远端 MySQL/MinIO 上执行会写数据的 UC smoke；默认不写。
 - [ ] 指定可运行 Docker/Kubernetes 的主机；当前机器无 Docker。
-- [ ] PR #24 由至少一名非作者 reviewer 完成检查；当前为 Draft，尚未请求合并。
+- [x] PR #24 已合并到 `main`；远端功能分支已清理。
 - [ ] 仓库 owner 处理 GitHub Billing & plans 的付款失败或 Actions spending limit，之后重新运行 workflow。

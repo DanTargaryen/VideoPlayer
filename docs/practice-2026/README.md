@@ -45,6 +45,8 @@
 | `07-environment-decision.md` | Docker/Kubernetes 环境选择和验收表 | D0-D1 解除环境阻塞 |
 | `08-service-boundaries-and-data-ownership.md` | 四服务边界、31 表归属、接口、失败和迁移草案 | 微服务拆分前全员评审 |
 | `09-commit-pr-convention.md` | Commit、push、PR、review、tag 和授权规范 | 每次提交/推送/PR 前读取 |
+| `10-uc06-state-diagrams.md` | UC06 系统级、组件级、对象级状态图及实现差距、测试落点 | UC06 设计评审、开发分工和测试追溯 |
+| `11-jenkins-kind-cicd-runbook.md` | Jenkins + Kind 换机执行、资源估算、验收与证据清单 | 在指定 Docker/Kubernetes 主机落地 CI/CD |
 
 ## 4. 组长今天的完成清单
 

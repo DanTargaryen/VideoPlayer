@@ -58,8 +58,9 @@ YYYYMMDD-任务ID-证据类型-简短说明.ext
 | REQ | UC | 系统级图 | 组件级图 | 对象级图 | 代码模块/commit | UNIT | INT/API | E2E | 最新结果 | 证据 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | REQ01 | UC01 | SYS-SEQ01 | COMP-SEQ01 | OBJ-SEQ01 | 待补 | UNIT-TC01 | INT-TC01 | E2E-TC01 | NOT RUN | 待补 |
+| REQ06 | UC06 | SYS-STATE06 | COMP-STATE06 | OBJ-STATE06 | `report`、`admin`、`agent`、`comment-ai`；commit 待补 | UNIT-TC06 | INT-TC06 | E2E-TC06 | MODEL PASS / TEST NOT RUN | `10-uc06-state-diagrams.md` |
 
-后续为 UC02-UC06 各增加一行或按测试路径拆分多行。
+后续为 UC02-UC05 各增加一行或按测试路径拆分多行；UC06 的测试执行结果需在实现和运行后更新，不能用模型验证代替测试通过。
 
 ## 6. 每日证据检查
 

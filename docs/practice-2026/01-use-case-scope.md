@@ -147,7 +147,7 @@
 | 前置条件 | 举报者已登录；目标存在；管理员已通过权限校验 |
 | 可验证结果 | 举报记录可查；管理员处置有状态、原因和操作者；目标内容按决定隐藏/下架或保留 |
 | 主要模块 | `report`、`admin`、`agent`、`comment-ai`、管理后台 |
-| 追溯编号 | `SYS-SEQ06`、`COMP-SEQ06`、`OBJ-SEQ06`、`UNIT-TC06`、`INT-TC06`、`E2E-TC06` |
+| 追溯编号 | 状态图：`SYS-STATE06`、`COMP-STATE06`、`OBJ-STATE06`；序列图：`SYS-SEQ06`、`COMP-SEQ06`、`OBJ-SEQ06`；测试：`UNIT-TC06`、`INT-TC06`、`E2E-TC06` |
 
 主成功流程：
 
