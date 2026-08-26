@@ -44,8 +44,10 @@ spec:
             - npm
             - --workspace
             - backend
-            - run
-            - db:push
+            - exec
+            - prisma
+            - migrate
+            - deploy
           env:
             - name: DATABASE_URL
               valueFrom:

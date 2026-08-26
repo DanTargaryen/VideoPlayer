@@ -89,7 +89,7 @@ services:
     command:
       - sh
       - -c
-      - npm --workspace backend run db:push && node backend/dist/main.js
+      - npm --workspace backend exec prisma migrate deploy && node backend/dist/main.js
     ports:
       - "3000:3000"
     depends_on:

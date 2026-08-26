@@ -200,7 +200,7 @@ MYSQL_PWD=proot mysql -h 127.0.0.1 -P 3306 -u root < deploy/mysql/init.sql
 npm --workspace backend run prisma:generate
 
 # 4. 推送表结构
-npm --workspace backend run db:push
+npm --workspace backend run db:migrate
 
 # 5. 写入演示数据
 npm --workspace backend run db:seed
@@ -266,7 +266,7 @@ docker compose -f deploy/docker-compose.example.yml up -d mysql redis minio srs
 npm --workspace backend run prisma:generate
 
 # 3. 同步数据库结构
-npm --workspace backend run db:push
+npm --workspace backend run db:migrate
 
 # 4. 写入演示数据
 npm --workspace backend run db:seed

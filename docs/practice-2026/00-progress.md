@@ -162,6 +162,7 @@
 | CTR-01 容器配置 | DONE | 前/后 Dockerfile、全栈 Compose、Nginx、环境模板、Seed、README | Compose build/up/health；31 表；`test:ci` 107 项；Compose E2E 2/2 | PASS；6 服务在线；Seed 6 用户/14 视频 | 本提交 |
 | K8S-01 Kind 部署 | DONE | MySQL StatefulSet/PVC、同步 Job、前后端 Deployment/Service、探针与脚本 | Node/Pod/Job/PVC；隔离 API 16/16；集群 health；E2E 3/3 | PASS；3 工作负载 Ready；Pod 0 restart | 本提交 |
 | REPRO-01 Clean-machine README 复现 | DONE | 按 README 从空依赖、全新 Compose project/volume/image tag 和全新 Kind cluster 完整重跑；补充 TLS/ffmpeg-static 安全复现说明；修正 AdminController 单测 mock 与异常预期 | `npm ci`；`npm run test:ci`；Compose config/build/up；MySQL 建表；Seed；首页；Backend Health；Kind 部署；Kubernetes Health | PASS；运行环境保留；结论见 `docs/REPRO-01-clean-machine-checklist.md` | 本提交 |
+| DB-01 Prisma migration 基线 | DONE | 单一初始 migration、migration lock、migrate/seed/test-reset 入口、安全守卫、K8s/Compose/CI 切换到 `migrate deploy` | 全新本机 MySQL 8.0 容器；`video_player_migration_test` 首次/重复迁移；seed；`db:test-reset`；失败阻断；schema diff；受保护 existing-database baseline 流程；Compose/K8s 启动复核 | PASS；6 用户/14 视频；失败库 `P3005` 阻断；等价库 baseline PASS；不等价库拒绝；非 test reset 拒绝；无共享远端 reset/baseline | 本提交 |
 | CI-01 流水线配置 | PARTIAL | quality、public-e2e、versioned images jobs；K8s 部署基线已补 | YAML 解析；本地 `test:ci`、API、Playwright、Kind 实跑；GitHub 注解 | LOCAL PASS；REMOTE BLOCKED BY BILLING；Jenkins PENDING | `f151429` + 本提交 |
 | ARCH-01 服务/数据草案 | PARTIAL | 4 服务、31 表归属、接口、失败策略、迁移/回滚 | Prisma Model 自动比对；唯一 owner 检查 | DRAFT PASS；TEAM REVIEW PENDING | `bcbc873` |
 | GOV-GIT-01 Commit/PR 规范 | DONE | GitHub PR 模板、仓库规范、个人 Codex skill | quick_validate；模板章节/敏感信息/diff 检查 | PASS | 最终治理提交 |
@@ -213,6 +214,7 @@
 | 2026-08-26 | CTR-01 Compose 实跑 | 安装 Colima/Docker/Compose，构建带版本标签镜像，启动 MySQL/Redis/MinIO/SRS/Backend/Frontend，初始化数据库与测试数据 | 6 容器运行；5 health；31 表；Seed 6/14；最新基线 `test:ci` 107 项 PASS；Compose Playwright 2/2 | PASS；Dockerfile 增加 npm 重试并补入 Seed 守卫脚本；验收后 Compose 容器已停止但数据卷保留 |
 | 2026-08-26 | K8S-01 Kind 实跑 | 创建 Kubernetes v1.36.1 单节点集群，离线加载前后端/MySQL 镜像，部署 MySQL/PVC、同步 Job、前后端和探针 | Node Ready；Job Completed；3 工作负载 Ready；Pod 0 restart；隔离 API 16/16；集群 health；Playwright 3/3 | PASS；本地入口 `http://127.0.0.1:15173`（需保持 port-forward）；真实 Agent/AI 套件因需外部密钥和付费调用授权未运行 |
 | 2026-08-26 | REPRO-01 Clean-machine README 复现 | 从空依赖和全新隔离运行环境按 README 顺序重跑；修正文档中 TLS/ffmpeg-static 复现说明；修正 AdminController 单测 mock 与异常预期 | `npm ci`；`npm run test:ci`；Compose config/build/up；MySQL 建表；Seed；首页；Backend Health；Kind 部署；Kubernetes Health | PASS；`README CLEAN-MACHINE REPRODUCTION: PASS`；Compose 与 Kind 按要求保留运行 |
+| 2026-08-26 | DB-01 Prisma migration 基线 | 删除分段迁移历史，生成单一初始 migration，新增 migrate/seed/test-reset 入口，并切换 Compose/K8s/CI/init-db | 本机全新 MySQL 8.0 容器 `vp-db01-mysql2`；`video_player_migration_test` 首次迁移、重复迁移、seed、test-reset、失败阻断、schema diff；受保护 existing-database baseline；Compose/K8s 启动复核 | PASS；首次迁移建 32 表；Seed 6 用户/14 视频；故意冲突库 `video_player_fail_test` 触发 `P3005`；等价库 baseline PASS；不等价库拒绝；非 test reset 拒绝；未碰共享远端库 |
 
 ## 4. 阻塞与需组长决定
 

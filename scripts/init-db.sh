@@ -28,8 +28,8 @@ ensure_database_exists
 echo "Generating Prisma client..."
 npm --workspace backend run prisma:generate
 
-echo "Pushing schema to MySQL..."
-npm --workspace backend run db:push
+echo "Applying Prisma migrations..."
+npm --workspace backend exec prisma migrate deploy
 
 echo "Seeding demo data..."
 npm --workspace backend run db:seed

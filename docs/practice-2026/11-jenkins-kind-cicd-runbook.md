@@ -233,24 +233,24 @@ docker compose \
 
 需要在隔离测试数据库中完成一次基线整理：
 
-- [ ] 备份当前迁移目录
-- [ ] 从当前 `schema.prisma` 生成完整基线 SQL
-- [ ] 在全空 MySQL 容器执行迁移
-- [ ] 执行 Seed
-- [ ] 验证测试账号和基础数据
+- [x] 备份当前迁移目录
+- [x] 从当前 `schema.prisma` 生成完整基线 SQL
+- [x] 在全空 MySQL 容器执行迁移
+- [x] 执行 Seed
+- [x] 验证测试账号和基础数据
 - [ ] 重启后端并执行集成测试
 
 最终标准命令：
 
 ```bash
 npm --workspace backend run prisma:generate
-npm --workspace backend exec prisma migrate deploy
+npm --workspace backend run db:migrate
 npm --workspace backend run db:seed
 ```
 
 Prisma 官方将 `migrate deploy` 用于生产和 CI 中应用已提交的迁移：[Prisma migrate deploy](https://www.prisma.io/docs/cli/migrate/deploy)。
 
-待新增：
+已新增：
 
 ```text
 scripts/db-migrate.sh
