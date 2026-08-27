@@ -1,6 +1,6 @@
 # 第二阶段微服务执行 TODO
 
-> 状态：`MS-00 IMPLEMENTED / REVIEW PENDING`
+> 状态：`MS-00 DONE / MS-01..04 READY`
 >
 > 冻结基线：`monolith-start` / `main@70d197dc1a1f6febfdc7dcb12d8661384ad5d31e`。
 >
@@ -14,7 +14,7 @@
 - [x] annotated `monolith-start` 已创建并固定在最终单体基线。
 - [x] ARCH-01 评审完成，全员同意默认方案。
 - [x] `docs/ARCH-01-service-boundary-freeze` PR #40 已完成 Owner 自审记录并合并到 `main`。
-- [ ] A 完成并合并 `build/MS-00-microservice-scaffold`。
+- [x] A 完成 `build/MS-00-microservice-scaffold`，PR #41 已由 Owner 自审并 squash 合并到 `main@9181e2c9655b3f0b751a0544e95b8ec77dfd5737`。
 - [ ] B/C/D/E 从包含 MS-00 的最新 `main` 创建各自 foundation 分支。
 - [ ] 四个 foundation 服务均可独立安装、lint、build、test、构建镜像和返回 health/version。
 - [ ] identity/content 只读路由完成并保留单体 fallback。
@@ -94,7 +94,7 @@ git diff --stat origin/main...HEAD
 git diff origin/main...HEAD
 ```
 
-Reviewer 默认不直接在作者分支提交。确需协作修改时，由作者明确同意提交方式；禁止未经授权的 force-push、合并、远端分支删除或标签操作。
+Reviewer 默认不直接在作者分支提交。确需协作修改时，由作者明确同意提交方式；禁止未经授权的 force-push、合并、远端分支删除或标签操作。组长已确认 Owner 可以亲自审核并直接通过；采用 Owner 自审时，必须在 PR 留下范围、测试、风险、基线和结论的书面记录。
 
 ## 3. A（组长 / 平台与集成）TODO
 
@@ -102,7 +102,7 @@ Reviewer 默认不直接在作者分支提交。确需协作修改时，由作�
 
 - 任务：MS-00、K8S-01、Gateway、内部鉴权、Jenkins 微服务矩阵和集成节奏。
 - 第一批分支：`build/MS-00-microservice-scaffold`。
-- Reviewer：E。
+- Reviewer：默认 E；MS-00 PR #41 按已确认规则由 Owner 自审通过。
 - 计划 Gate：8/31 前公共骨架可独立构建、测试和部署。
 
 ### 3.2 公共目录与工作区
@@ -204,7 +204,7 @@ services/<service>/
 - [x] JWT Guard 测试通过。
 - [x] Gateway 单体 fallback 通过。
 - [x] Kind 可以部署四个空服务。
-- [ ] E 完成非作者 Review。
+- [x] PR #41 完成 Owner 自审书面记录并 squash 合并；该记录按已确认规则替代 E 的非作者 Review。
 
 ## 4. B（身份与社区）TODO
 
@@ -455,7 +455,7 @@ services/<service>/
 
 | 作者 | Reviewer | 必查事项 |
 | --- | --- | --- |
-| A | E | contract、CI、Secret、Artifact、证据和回滚 |
+| A | E（默认）/ Owner（经确认可自审） | contract、CI、Secret、Artifact、证据和回滚；Owner 自审必须书面留痕 |
 | B | C | 用户摘要、identity owner、content 依赖 |
 | C | B | 禁止直查 User、通知调用、MinIO/媒体边界 |
 | D | A | SRS、K8s、持久化、回放、账本和故障恢复 |
@@ -492,7 +492,7 @@ services/<service>/
 - [ ] 有单体 fallback 和 rollback 说明。
 - [ ] 至少一条对应 UC 的 API/contract test。
 - [ ] 更新 `docs/practice-2026/00-progress.md`。
-- [ ] PR 由指定非作者 Reviewer 检查。
+- [ ] PR 由指定非作者 Reviewer 检查，或按已确认规则完成 Owner 自审书面记录。
 - [ ] 生成产物已跟踪数量为 0。
 
 不得提交：
@@ -510,7 +510,7 @@ services/<service>/
 
 ### 10.1 Foundation 阶段
 
-- [ ] A 的 MS-00 已合并。
+- [x] A 的 MS-00 已通过 PR #41 合并到 `main@9181e2c`。
 - [ ] B/C/D/E foundation 均从同一最新 `main` 开始。
 - [ ] 四服务独立 schema 与数据库账号就绪。
 - [ ] 四服务 health/version 和镜像就绪。
