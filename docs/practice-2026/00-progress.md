@@ -117,7 +117,9 @@
   - 测试/验证：六张图片格式、尺寸、SHA-256 和复制后一致性检查；六条 Markdown 相对路径及六个对象级追溯编号完整。
   - 结果：通过；图片目录为 `/Users/mumuxunzi/Desktop/详细设计说明书.assets/`，当前不在 Git 仓库内，因此 commit/push 不适用。
 - [ ] `BASE-01` 完成 UC01-UC06 单体全场景 smoke 并创建 `monolith-start`。
-  - 当前状态：未执行。写入型场景会影响数据库/MinIO，需隔离测试环境或组长明确授权使用共享远端环境。
+  - 完成内容：已在独立 MySQL、MinIO、Redis 和 SRS 环境执行 UC01-UC06；UC01、UC04 为 `PASS`，UC02、UC03、UC05、UC06 为 `FAIL`；仅记录 5 个缺陷，未在 Smoke 分支混入修复。
+  - 测试/验证：浏览器主成功/异常流程；隔离数据库和 MinIO 对象核对；SRS 中断与恢复；后端重启行为；根级单元测试及前后端生产构建。
+  - 结果：未通过 `monolith-start` Gate，不创建标签；可编辑结果见 `docs/practice-2026/03-smoke-checklist.md`，未提交截图、日志、报告或本地数据库。
 - [x] `LINT-01` 清零前端现有 12 个 lint 错误，建立可用于 CI 的 lint 基线。
   - 完成内容：删除模板已不再调用的旧投稿创建逻辑、旧关注分组逻辑、未使用的格式化函数和图标/生命周期导入；为空的媒体 seek catch 增加原因说明。
   - 测试/验证：`npm run lint:frontend`、`npm run build:frontend`、CRLF 感知的 `git diff --check`。
