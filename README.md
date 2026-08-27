@@ -120,7 +120,7 @@ docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml ps
 
 ### 3. MySQL 建表与 Seed
 
-后端启动命令会先执行 Prisma `db:push`。应检查表数非零，再为本次隔离数据库设置一次性 Seed Guard 确认值。`db:seed` 会清空目标库数据，禁止对共享或生产数据库执行。
+后端启动命令会先通过 `npm --workspace backend run db:migrate` 执行受目标守卫保护的 Prisma `migrate deploy`。应检查迁移表和业务表均已创建，再为本次隔离数据库设置一次性 Seed Guard 确认值。`db:seed` 会清空目标库数据，禁止对共享或生产数据库执行。
 
 ```bash
 docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml exec -T mysql sh -lc \
@@ -136,7 +136,9 @@ docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml ex
   'mysql -N -uroot -p"$MYSQL_ROOT_PASSWORD" video_player -e "SELECT CONCAT((SELECT COUNT(*) FROM User),\" users / \",(SELECT COUNT(*) FROM Video),\" videos\");"'
 ```
 
-当前 schema 应创建 31 张表；Seed 应报告 6 users、14 videos、11 published videos。
+当前 schema 应创建 31 张业务表，加上 Prisma 的 `_prisma_migrations` 表后查询总数应为 32；Seed 应报告 6 users、14 videos、11 published videos。
+
+上述流程面向本次新建的隔离 Compose Volume。复用由旧版 `db:push` 创建的已有数据库时，不要删除数据卷或直接反复启动后端；应先备份数据库，再按 `docs/practice-2026/11-jenkins-kind-cicd-runbook.md` 的 existing-database baseline 流程执行 schema diff、精确目标授权和 `migrate resolve`。Schema 不一致时必须停止，不能强行登记 migration。
 
 ### 4. Compose HTTP 验收
 
