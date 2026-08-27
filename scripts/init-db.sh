@@ -29,7 +29,7 @@ echo "Generating Prisma client..."
 npm --workspace backend run prisma:generate
 
 echo "Applying Prisma migrations..."
-npm --workspace backend exec prisma migrate deploy
+npm --workspace backend run db:migrate
 
 echo "Seeding demo data..."
 npm --workspace backend run db:seed

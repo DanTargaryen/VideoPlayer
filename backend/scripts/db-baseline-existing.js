@@ -5,7 +5,7 @@ const path = require('node:path');
 const readline = require('node:readline/promises');
 
 const { stdin, stdout } = require('node:process');
-const { assertTestDatabase, parseDatabaseUrl } = require('./db-target-safety');
+const { assertBaselineTargetAllowed, parseDatabaseUrl } = require('./db-target-safety');
 
 const backendDir = path.resolve(__dirname, '..');
 const migrationName = '20260826000000_init';
@@ -149,7 +149,7 @@ function printCommandFailure(label, result) {
 }
 
 async function main() {
-  assertTestDatabase('db:baseline-existing');
+  assertBaselineTargetAllowed('db:baseline-existing');
 
   const target = parseDatabaseUrl();
   const schemaPath = path.join(backendDir, 'prisma', 'schema.prisma');
