@@ -200,6 +200,8 @@ kind delete cluster --name "$KIND_CLUSTER_NAME"
 
 根目录 `Jenkinsfile` 提供可移植的 Pipeline from SCM，不包含个人绝对路径或真实凭据。流水线依次执行安装、Lint、Build、Unit、隔离数据库、API、Seed、Playwright、Git SHA 镜像、Kind 部署和健康检查，并将阶段标记与运行证据归档为 Jenkins Artifact。
 
+测试阶段会在 `ci-evidence/build-<BUILD_NUMBER>/test-results/junit/` 生成 11 份标准 JUnit XML：requirements、后端 Jest、前端 Vitest、六个微服务 Vitest、API Integration 和 Playwright E2E。Jenkins `post` 阶段使用 `junit` 步骤发布这些报告，因此 Build 页面可查看测试数量、失败明细和历史趋势；XML 同时保留在 Artifact 中。Unit 后故意失败时仍会发布已经生成的 9 份 Unit XML。
+
 Jenkins Job 推荐配置：
 
 ```text

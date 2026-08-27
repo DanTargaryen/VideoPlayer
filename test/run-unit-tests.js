@@ -10,7 +10,22 @@ const testFiles = fs
   .sort()
   .map((fileName) => path.join(unitTestDir, fileName));
 
-const result = spawnSync(process.execPath, ['--test', ...testFiles], {
+const junitOutputFile = process.env.JUNIT_OUTPUT_FILE;
+const nodeArguments = ['--test'];
+
+if (junitOutputFile) {
+  fs.mkdirSync(path.dirname(junitOutputFile), { recursive: true });
+  nodeArguments.push(
+    '--test-reporter=spec',
+    '--test-reporter-destination=stdout',
+    '--test-reporter=junit',
+    `--test-reporter-destination=${junitOutputFile}`,
+  );
+}
+
+nodeArguments.push(...testFiles);
+
+const result = spawnSync(process.execPath, nodeArguments, {
   cwd: workspaceRoot,
   stdio: 'inherit',
 });
