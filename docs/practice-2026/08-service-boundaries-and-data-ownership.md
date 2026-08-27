@@ -6,7 +6,7 @@
 >
 > 冻结架构：`identity-community`、`content-media`、`live-reward`、`governance-ai`。API Gateway/Ingress、前端、MySQL、Redis、MinIO、SRS 不计入业务服务数量。
 >
-> 评审依据：组长于 2026-08-27 确认评审会已完成，全体同意本文默认方案。当前仓库记录角色 A-E 及职责；真实姓名、签到或会议截图由组长后续补入管理证据索引，不在本文虚构。
+> 评审依据：组长于 2026-08-27 确认评审会已完成，全体同意本文默认方案，并明确本人承担 A（平台与集成）。当前仓库记录角色 A-E 及职责；真实姓名、签到或会议截图由组长后续补入管理证据索引，不在本文虚构。
 
 ## 0. 评审结论与执行分工
 
@@ -33,6 +33,8 @@
 | E 治理、质量与文档 | MS-04 / REG-01 | 审核、举报、处置审计、AI 辅助、contract tests、全 UC 回归和证据 | `feature/MS-04-governance-ai`、`test/REG-01-microservice-contracts` | D | 9/1 UC06；9/2 全量回归 |
 
 执行顺序冻结为：ARCH-01 文档 → MS-00 公共骨架 → 四服务 foundation 并行 → 只读路由 → 写流量切换 → REG-01。第一批 foundation 只建立独立启动、schema、migration、health/version、测试和镜像，不删除单体表、不提前切写流量。
+
+各角色逐项可勾选的执行清单见 `12-second-stage-todo.md`。
 
 ## 1. 统一边界规则
 
