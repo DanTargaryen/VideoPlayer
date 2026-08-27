@@ -78,6 +78,8 @@ temp/
 .codex-run/
 .runtime-storage/
 .certs/
+.npm-cache/
+ci-evidence/
 
 image/
 
