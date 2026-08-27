@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: videoplayer-microservice-config
+  namespace: video-player
+data:
+  GIT_SHA: local
+  GATEWAY_ROUTE_MODE: monolith
+  MONOLITH_BASE_URL: http://backend:3000
+  IDENTITY_SERVICE_URL: http://identity-community:3000
+  CONTENT_SERVICE_URL: http://content-media:3000
+  LIVE_SERVICE_URL: http://live-reward:3000
+  GOVERNANCE_SERVICE_URL: http://governance-ai:3000
+  GATEWAY_MONOLITH_FALLBACK: "true"
+  GATEWAY_UPSTREAM_TIMEOUT_MS: "2000"

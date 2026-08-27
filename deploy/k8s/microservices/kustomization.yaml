@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: video-player
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - services.yaml
+images:
+  - name: video-player/identity-community
+    newTag: local
+  - name: video-player/content-media
+    newTag: local
+  - name: video-player/live-reward
+    newTag: local
+  - name: video-player/governance-ai
+    newTag: local
+  - name: video-player/gateway
+    newTag: local

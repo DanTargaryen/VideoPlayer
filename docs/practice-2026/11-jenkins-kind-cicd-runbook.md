@@ -408,7 +408,7 @@ Jenkins 官方建议把流水线保存在仓库根目录的 `Jenkinsfile` 中：
 
 ```text
 Repository URL：https://github.com/DanTargaryen/VideoPlayer.git
-Branch：*/ci/CI-02-jenkins-kind-pipeline-v2
+Branch：*/main
 Script Path：Jenkinsfile
 Poll SCM：H/2 * * * *
 ```

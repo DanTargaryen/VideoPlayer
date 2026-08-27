@@ -55,7 +55,7 @@
 
 | 角色 | 主任务 | 第一批分支 | 第一批可验证产出 | 主 Reviewer | 截止 / 状态 |
 | --- | --- | --- | --- | --- | --- |
-| 组长 / A 平台与集成 | ARCH-01、MS-00、K8S-01 | `docs/ARCH-01-service-boundary-freeze`、`build/MS-00-microservice-scaffold` | 先冻结决策/owner/contract，再交付四服务公共目录、health/ready/version、服务 JWT、Docker/K8s/Jenkins 矩阵 | 全员核对 ARCH-01；E review MS-00 | 文档先合并；8/31 骨架 Ready |
+| 组长 / A 平台与集成 | ARCH-01、MS-00、K8S-01 | `docs/ARCH-01-service-boundary-freeze`、`build/MS-00-microservice-scaffold` | 决策/owner/contract 已冻结；四服务公共目录、health/ready/version、服务 JWT、Docker/K8s/Jenkins 矩阵已验证 | 全员核对 ARCH-01；E review MS-00 | ARCH 已合并；MS-00 Verify |
 | B 身份与社区 | MS-01 | `feature/MS-01-identity-community` | 独立 identity schema、用户摘要/存在性/通知内部 API、UC01 和 UC04 用户侧测试 | C | 8/31 / Ready |
 | C 内容与媒体 | MS-02 | `feature/MS-02-content-media` | 独立 content schema、推荐/搜索/视频只读、MinIO、审核决定与录播登记 contract | B | 8/31 / Ready |
 | D 直播与礼物 | MS-03 | `feature/MS-03-live-reward` | LiveRoom/Session/Message/ViewerEvent/ReplayRegistration 持久化、SRS、账本幂等 | A | 9/1 / Ready |

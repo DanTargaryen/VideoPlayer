@@ -168,6 +168,10 @@
   - 完成内容：组长确认 2026-08-27 评审会已完成且全员同意默认方案；冻结四服务职责/非职责、31/31 Model 唯一 owner、公开/内部接口、跨服务 timeout/幂等/降级、迁移/回滚顺序、七项开放决策、A-E 分工与交叉 Review。
   - 测试/验证：Model 名单与 `backend/prisma/schema.prisma` 自动比对；31 个现有 Model 无遗漏、无重复 owner；七项决策、五条执行线、分支命名、Reviewer 和 Gate 文档一致性检查；应用测试 `NOT RUN`（纯文档/架构冻结，无运行时代码变更）。
   - 结果：PASS；状态更新为 `DONE / FROZEN`。默认方案为 DynamicPost 归 identity、VideoAi 归 content 但首批不切写、币账本归 live、服务账号 JWT + K8s Secret、停写窗口 + 可重复迁移、直播消息 7 天/每 Session 10,000 条。真实姓名、个人备份人和会议原始截图仍由组长补入管理证据。
+- [x] `MS-00` 建立统一微服务公共脚手架。
+  - 完成内容：新增 shared-contracts、identity/content/live/governance 四个独立空服务和 monolith-first Gateway；统一 health/live、health/ready、version、API response、requestId、结构化日志、服务账号 HS256 JWT/Guard；接入 npm workspaces、Docker/Compose、K8s、Jenkins 和 Kind。
+  - 测试/验证：完整 `npm run test:ci`；MS-00 lint/build；7 个 Vitest 文件 14/14；五个约 80MB 镜像；Compose 五容器 healthy 与 15 个 HTTP contract；四个业务路由 404；隔离 Kind 两次连续部署；五 Deployment 1/1 Ready、0 restart、15 个容器内 HTTP contract；环境清理。
+  - 结果：实现与本地/容器/Kind 验证 PASS，等待 E 或 Owner 完成 PR Review 后合并。首次并行 Docker build 遇到 `ECONNRESET`，复用单体 npm retry 并限制 workspace 安装后重跑 PASS；首次重复 K8s apply 因 `kubectl set env` 与 manifest `valueFrom` 冲突，改用 ConfigMap patch 后连续两次部署 PASS。
 - [ ] `MS-01..04` 提取四个业务微服务并独立构建、测试和部署。
   - 已确认分工：组长本人承担 A，负责 MS-00/K8S-01；B 负责 MS-01 identity-community，C 负责 MS-02 content-media，D 负责 MS-03 live-reward，E 负责 MS-04 governance-ai 并协调 REG-01。
   - 执行顺序：ARCH-01 文档 → MS-00 公共骨架 → 四服务 foundation 并行 → 只读路由 → 写流量切换 → REG-01；首批不得删除单体表或提前切换写流量。
@@ -192,6 +196,7 @@
 | CI-01 流水线配置 | PARTIAL | quality、public-e2e、versioned images jobs；K8s 部署基线已补 | YAML 解析；本地 `test:ci`、API、Playwright、Kind 实跑；GitHub 注解 | LOCAL PASS；REMOTE BLOCKED BY BILLING；Jenkins PENDING | `f151429` + 本提交 |
 | CI-02 Jenkins Pipeline | DONE | 可移植 Jenkinsfile、隔离 DB 正式 migration、API/E2E、SHA 镜像、Kind、Health、Artifact、清理和本地等价入口 | Build #2 SUCCESS；#4 故意 FAILURE；#5 SCM 自动触发 SUCCESS；#7 migration SUCCESS | PASS；失败阻断、Artifact、cleanup、Poll SCM 与 `prisma migrate deploy` 均验证 | 本提交 |
 | ARCH-01 服务/数据冻结 | DONE | 4 服务、31 表唯一 owner、接口、失败策略、七项默认决策、迁移/回滚、A-E 分工与 Review | Prisma Model 自动比对；唯一 owner；决策/分工/分支/Reviewer 文档一致性 | PASS；TEAM APPROVED；真实姓名/外部会议截图待补证据索引 | 本提交 |
+| MS-00 微服务公共脚手架 | VERIFY | shared contracts/JWT、四服务 health/version、Gateway fallback、workspace、Docker/Compose、K8s/Jenkins/Kind | `npm run test:ci`；MS-00 14/14；Compose 5 healthy；Kind 重复部署 5/5 Ready、0 restart | LOCAL/COMPOSE/KIND PASS；PR REVIEW PENDING | 本提交 |
 | GOV-GIT-01 Commit/PR 规范 | DONE | GitHub PR 模板、仓库规范、个人 Codex skill | quick_validate；模板章节/敏感信息/diff 检查 | PASS | 最终治理提交 |
 | GOV-GIT-02 分支/Commit 命名 | DONE | category 分支名、Conventional Commit 标题、Changes/Tests 正文、PR Commit 清单 | quick_validate；必填字段；diff check | PASS；应用测试 N/A（纯规范） | 最终治理提交 |
 | GOV-GIT-03 仓库内 skill | DONE | `.codex/skills/videoplayer-commit-pr` 与个人版同步 | 双 quick_validate；字节比对；TODO/diff check | PASS；应用测试 N/A（skill/docs） | 最终治理提交 |
@@ -261,6 +266,7 @@
 | 2026-08-27 | BASE-01 最终统一复测 | fast-forward 到 `main@9a6f4d8`；在同一全新 Compose 隔离环境连续重跑 UC01–UC06；核对 migration、API、浏览器、数据库、MinIO、SRS、转码与回放；完成后销毁环境 | 干净 `npm ci`；Prisma generate；`npm run test:ci`；`npm run test:api`；`npm run test:e2e`；真实 API 并发/上传；Playwright CLI headed HLS 503 与 Canvas+WebAudio MediaRecorder；MinIO HEAD；Chrome metadata | PASS；requirements 113/113、backend 16/16、frontend 22/22、API 16/16、E2E 3/3；UC01–UC06 全绿；WebM 2.97MB、MP4 1.22MB、两资源 readyState=4；首次全量门禁的 FFprobe 用例冷启动超时，定点 9/9 与完整门禁复跑 PASS；API 验证先误用重新登录前 token 导致预期 401，又遗漏脚本 DATABASE_URL，修正后全量复跑 PASS；浏览器/进程/容器/volumes/端口清理 PASS |
 | 2026-08-27 | ARCH-01 评审冻结与第二阶段分工 | 依据组长确认记录全员评审通过；将边界草案更新为冻结版；固化七项默认决策、A-E 主责、分支、Reviewer、依赖和合并顺序 | 31 Model 唯一 owner；七项决策完整性；五条执行线和 Review 映射；Markdown/diff/Secret/Artifact 检查；应用测试 NOT RUN（纯文档） | PASS；ARCH-01 `DONE / FROZEN`；A→MS-00、B→MS-01、C→MS-02、D→MS-03、E→MS-04/REG-01；实名、个人备份人和会议原始截图待组长补录 |
 | 2026-08-27 | 第二阶段 TODO 与 A 角色确认 | 新增 A-E 分支领取、foundation、禁止事项、Review、统一 DoD、只读/写流量切换和管理证据清单；同步记录组长本人承担 A | TODO 章节/角色/分支/owner/Reviewer/依赖/未完成状态一致性；Markdown/diff/Secret/Artifact 检查；应用测试 NOT RUN（纯文档） | READY；组长/A 先完成 MS-00，B/C/D/E 在 MS-00 合并后创建各自 foundation；所有实现复选框保持未完成，实名和个人备份人仍待补录 |
+| 2026-08-27 | MS-00 公共微服务脚手架 | 新增 shared runtime/contracts/JWT Guard、四业务空服务、monolith-first Gateway、workspace gate、五镜像 Compose、K8s 资源、Jenkins 构建/部署/health 接入和执行文档 | `npm run test:services:ci`；完整 `npm run test:ci`；Compose build/up/HTTP；隔离 Kind create/deploy/redeploy/health；shell/compose/kustomize；cleanup | PASS；requirements 113/113、backend 16/16、frontend 22/22、MS-00 14/14；五镜像约 80MB；Compose 5 healthy；Kind 5 Deployment 1/1、0 restart；首次 Docker `ECONNRESET` 和 K8s env apply 冲突均修复并复跑；等待 PR Review/merge |
 
 ## 4. 阻塞与需组长决定
 

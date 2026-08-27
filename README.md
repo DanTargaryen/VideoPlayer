@@ -80,6 +80,32 @@ npm run dev:frontend
 npm run dev:backend
 ```
 
+## MS-00 微服务公共骨架
+
+`services/` 提供四个业务服务、兼容 Gateway 和共享 contract/JWT 运行包。MS-00 只提供独立构建、健康接口、镜像和部署骨架；业务 API、独立 Prisma schema 和流量切换由 MS-01 至 MS-04 完成。
+
+```bash
+npm run test:services:ci
+```
+
+本地 Compose Smoke 会构建并启动 Gateway `3100`、identity `3101`、content `3102`、live `3103` 和 governance `3104`，验证 `/health/live`、`/health/ready` 和 `/version` 后自动清理：
+
+```bash
+MICROSERVICE_COMPOSE_PROJECT_NAME=video-player-ms00-local \
+  bash scripts/compose-microservices-smoke.sh
+```
+
+Gateway 默认使用 `GATEWAY_ROUTE_MODE=monolith`，业务请求仍指向现有单体；只有后续受评审任务才能按路径切换微服务。Kind 中先部署单体基线，再执行：
+
+```bash
+export SERVICE_JWT_SECRET="$(node -e 'process.stdout.write(require("node:crypto").randomBytes(24).toString("hex"))')"
+bash scripts/k8s-deploy-microservices.sh "$(git rev-parse --short=12 HEAD)"
+bash scripts/k8s-health-check-microservices.sh
+unset SERVICE_JWT_SECRET
+```
+
+真实 `SERVICE_JWT_SECRET` 只能通过本地环境或 Kubernetes Secret 注入，不得写入仓库。
+
 ## Clean-machine 课程实践复现
 
 以下顺序用于空机器验收，覆盖依赖安装、CI 等价测试、Compose、MySQL、Seed、HTTP 入口和 Kind。禁止复制其他工作区的 `node_modules`、`.env.practice`、Docker Volume、`dist/` 或镜像；每次复现使用新的 Compose project、镜像 tag 和 Kind cluster。需要 Node.js 22+、npm、Docker Engine + Compose、Kind、kubectl、curl，以及 Bash。Windows 请使用 Git Bash，并在检出仓库前设置 `git config --global core.autocrlf false`，否则 CRLF 会使 `scripts/*.sh` 报 `pipefail\r` 错误。
@@ -90,14 +116,10 @@ npm run dev:backend
 rm -rf node_modules frontend/node_modules backend/node_modules \
   backend/dist frontend/dist coverage test-results playwright-report
 npm ci
-
-# npm ci 不生成 Prisma Client；需求测试又会直接加载 backend/dist。
-npm --workspace backend run prisma:generate
-npm run build:backend
 npm run test:ci
 ```
 
-`npm run test:ci` 必须以退出码 `0` 结束才算通过。若 `ffmpeg-static` 或 Prisma 下载报告自签名证书错误，应把组织 CA 安装到 Node/npm 信任链；不要把长期关闭 TLS 校验写入项目配置。只修改 npm registry 并不能改变 `ffmpeg-static` 的二进制下载地址；可为本次命令设置可信的 `FFMPEG_BINARIES_URL` 镜像，或使用经官方 SHA-256 校验后由本机临时 HTTP 服务提供的官方文件。不要使用 `NODE_TLS_REJECT_UNAUTHORIZED=0`、`strict-ssl=false` 或 `curl -k` 作为复现步骤。
+`npm run test:ci` 会先生成 Prisma Client，再依次执行单体与 MS-00 的 lint、build、需求测试和 unit tests；必须以退出码 `0` 结束才算通过。若 `ffmpeg-static` 或 Prisma 下载报告自签名证书错误，应把组织 CA 安装到 Node/npm 信任链；不要把长期关闭 TLS 校验写入项目配置。只修改 npm registry 并不能改变 `ffmpeg-static` 的二进制下载地址；可为本次命令设置可信的 `FFMPEG_BINARIES_URL` 镜像，或使用经官方 SHA-256 校验后由本机临时 HTTP 服务提供的官方文件。不要使用 `NODE_TLS_REJECT_UNAUTHORIZED=0`、`strict-ssl=false` 或 `curl -k` 作为复现步骤。
 
 ### 2. 创建全新 Compose 环境
 
@@ -182,7 +204,7 @@ Jenkins Job 推荐配置：
 
 ```text
 Repository URL：https://github.com/DanTargaryen/VideoPlayer.git
-Branch：*/ci/CI-02-jenkins-kind-pipeline-v2
+Branch：*/main
 Script Path：Jenkinsfile
 Poll SCM：H/2 * * * *
 ```

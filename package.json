@@ -4,7 +4,8 @@
   "version": "0.1.0",
   "workspaces": [
     "frontend",
-    "backend"
+    "backend",
+    "services/*"
   ],
   "overrides": {
     "picomatch": "^4.0.4"
@@ -23,18 +24,23 @@
     "test-reset": "npm run db:test-reset",
     "dev:frontend": "npm --workspace frontend run dev",
     "dev:backend": "npm --workspace backend run start:dev",
+    "dev:gateway": "npm --workspace @videoplayer/gateway run start",
     "build:frontend": "npm --workspace frontend run build",
     "build:backend": "npm --workspace backend run build",
+    "build:services": "npm --workspace @videoplayer/shared-contracts run build && npm --workspace @videoplayer/identity-community run build && npm --workspace @videoplayer/content-media run build && npm --workspace @videoplayer/live-reward run build && npm --workspace @videoplayer/governance-ai run build && npm --workspace @videoplayer/gateway run build",
     "lint:frontend": "npm --workspace frontend run lint",
     "lint:backend": "npm --workspace backend run lint",
+    "lint:services": "npm --workspace @videoplayer/shared-contracts run lint && npm --workspace @videoplayer/identity-community run lint && npm --workspace @videoplayer/content-media run lint && npm --workspace @videoplayer/live-reward run lint && npm --workspace @videoplayer/governance-ai run lint && npm --workspace @videoplayer/gateway run lint",
     "test": "npm run test:backend && npm run test:frontend",
     "test:requirements": "node test/run-unit-tests.js",
     "test:backend": "npm --workspace backend run test",
     "test:api": "npm --workspace backend run test:api",
     "test:agent-ai": "npm --workspace backend run test:agent-ai",
     "test:frontend": "npm --workspace frontend run test",
+    "test:services": "npm --workspace @videoplayer/shared-contracts run build && npm --workspace @videoplayer/shared-contracts run test && npm --workspace @videoplayer/identity-community run test && npm --workspace @videoplayer/content-media run test && npm --workspace @videoplayer/live-reward run test && npm --workspace @videoplayer/governance-ai run test && npm --workspace @videoplayer/gateway run test",
+    "test:services:ci": "npm run lint:services && npm run build:services && npm run test:services",
     "test:e2e": "playwright test",
-    "test:ci": "npm run test:requirements && npm run lint:backend && npm run lint:frontend && npm run build:backend && npm run build:frontend && npm test"
+    "test:ci": "npm --workspace backend run prisma:generate && npm run lint:backend && npm run lint:frontend && npm run lint:services && npm run build:backend && npm run build:frontend && npm run build:services && npm run test:requirements && npm test && npm run test:services"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

@@ -1,6 +1,6 @@
 # 第二阶段微服务执行 TODO
 
-> 状态：`READY AFTER ARCH-01 MERGE`
+> 状态：`MS-00 IMPLEMENTED / REVIEW PENDING`
 >
 > 冻结基线：`monolith-start` / `main@70d197dc1a1f6febfdc7dcb12d8661384ad5d31e`。
 >
@@ -13,7 +13,7 @@
 - [x] UC01–UC06 单体最终 Smoke 全部 PASS。
 - [x] annotated `monolith-start` 已创建并固定在最终单体基线。
 - [x] ARCH-01 评审完成，全员同意默认方案。
-- [ ] `docs/ARCH-01-service-boundary-freeze` PR 已由全员核对并合并到 `main`。
+- [x] `docs/ARCH-01-service-boundary-freeze` PR #40 已完成 Owner 自审记录并合并到 `main`。
 - [ ] A 完成并合并 `build/MS-00-microservice-scaffold`。
 - [ ] B/C/D/E 从包含 MS-00 的最新 `main` 创建各自 foundation 分支。
 - [ ] 四个 foundation 服务均可独立安装、lint、build、test、构建镜像和返回 health/version。
@@ -107,15 +107,15 @@ Reviewer 默认不直接在作者分支提交。确需协作修改时，由作�
 
 ### 3.2 公共目录与工作区
 
-- [ ] 从 ARCH-01 已合并的最新 `main` 创建 MS-00 分支。
-- [ ] 建立 `services/identity-community/`。
-- [ ] 建立 `services/content-media/`。
-- [ ] 建立 `services/live-reward/`。
-- [ ] 建立 `services/governance-ai/`。
-- [ ] 建立 `services/gateway/`。
-- [ ] 建立 `services/shared-contracts/`。
-- [ ] 每个服务拥有独立 `package.json`、`tsconfig.json`、入口和测试配置。
-- [ ] 根 workspace 能发现所有服务，依赖声明与 lockfile 同步。
+- [x] 从 ARCH-01 已合并的最新 `main` 创建 MS-00 分支。
+- [x] 建立 `services/identity-community/`。
+- [x] 建立 `services/content-media/`。
+- [x] 建立 `services/live-reward/`。
+- [x] 建立 `services/governance-ai/`。
+- [x] 建立 `services/gateway/`。
+- [x] 建立 `services/shared-contracts/`。
+- [x] 每个服务拥有独立 `package.json`、`tsconfig.json`、入口和测试配置。
+- [x] 根 workspace 能发现所有服务，依赖声明与 lockfile 同步。
 
 每个服务统一目录：
 
@@ -133,35 +133,35 @@ services/<service>/
 
 ### 3.3 统一运行契约
 
-- [ ] 四服务实现 `GET /health/live`。
-- [ ] 四服务实现 `GET /health/ready`。
-- [ ] 四服务实现 `GET /version`。
-- [ ] `/version` 返回 service name、Git SHA 和构建时间或版本号。
-- [ ] 统一 API response 结构。
-- [ ] 统一 requestId 生成、透传和日志字段。
-- [ ] 统一结构化日志格式。
-- [ ] 日志不打印 Token、密码、数据库口令或 Secret。
-- [ ] 每个服务有最小 health/version 单元或 API 测试。
+- [x] 四服务实现 `GET /health/live`。
+- [x] 四服务实现 `GET /health/ready`。
+- [x] 四服务实现 `GET /version`。
+- [x] `/version` 返回 service name、Git SHA 和构建时间或版本号。
+- [x] 统一 API response 结构。
+- [x] 统一 requestId 生成、透传和日志字段。
+- [x] 统一结构化日志格式。
+- [x] 日志不打印 Token、密码、数据库口令或 Secret。
+- [x] 每个服务有最小 health/version 单元或 API 测试。
 
 ### 3.4 内部 API 鉴权
 
-- [ ] 定义服务账号 JWT claim：`sub`、`aud`、`scope`、`requestId`、`iat`、`exp`。
-- [ ] 实现内部 API JWT Guard。
-- [ ] 验证调用方 service name 和 audience。
-- [ ] 验证 scope，不只验证签名。
-- [ ] Secret 通过环境变量/K8s Secret 注入，不提交真实值。
-- [ ] Token 过期、audience 错误、scope 缺失和签名错误均有测试。
-- [ ] 明确内部调用 timeout 默认值和允许覆盖方式。
+- [x] 定义服务账号 JWT claim：`sub`、`aud`、`scope`、`requestId`、`iat`、`exp`。
+- [x] 实现内部 API JWT Guard。
+- [x] 验证调用方 service name 和 audience。
+- [x] 验证 scope，不只验证签名。
+- [x] Secret 通过环境变量/K8s Secret 注入，不提交真实值。
+- [x] Token 过期、audience 错误、scope 缺失和签名错误均有测试。
+- [x] 明确内部调用 timeout 默认值和允许覆盖方式。
 
 ### 3.5 Gateway 与 fallback
 
-- [ ] 建立 Gateway 配置骨架。
-- [ ] 初始所有生产路径仍指向单体。
-- [ ] 支持按路径切换至微服务。
-- [ ] 支持按配置快速切回单体。
-- [ ] 记录上游 service/version/requestId。
-- [ ] 上游 timeout、502/503 和 fallback 行为有测试或可复现脚本。
-- [ ] 第一批 MS-00 不切换现有业务写流量。
+- [x] 建立 Gateway 配置骨架。
+- [x] 初始所有生产路径仍指向单体。
+- [x] 支持按路径切换至微服务。
+- [x] 支持按配置快速切回单体。
+- [x] 记录上游 service/version/requestId。
+- [x] 上游 timeout、502/503 和 fallback 行为有测试或可复现脚本。
+- [x] 第一批 MS-00 不切换现有业务写流量。
 
 计划路径：
 
@@ -177,33 +177,33 @@ services/<service>/
 
 ### 3.6 Docker、K8s 与 Jenkins
 
-- [ ] 提供可复用的多阶段 Dockerfile 模板。
-- [ ] 镜像使用 Git SHA，不只使用 `latest`。
-- [ ] 为四服务提供 Deployment/Service 模板。
-- [ ] 配置 readiness/liveness probes。
-- [ ] 配置 CPU/memory requests 和 limits。
-- [ ] Secret 只通过 Kubernetes Secret 引用。
-- [ ] Jenkins 能检测并构建 `services/`。
-- [ ] Jenkins 矩阵覆盖 install/lint/build/unit/contract/image/deploy/health。
-- [ ] 任一服务测试失败时阻断其镜像和部署阶段。
-- [ ] 提供 Kind 部署与清理入口。
+- [x] 提供可复用的多阶段 Dockerfile 模板。
+- [x] 镜像使用 Git SHA，不只使用 `latest`。
+- [x] 为四服务提供 Deployment/Service 模板。
+- [x] 配置 readiness/liveness probes。
+- [x] 配置 CPU/memory requests 和 limits。
+- [x] Secret 只通过 Kubernetes Secret 引用。
+- [x] Jenkins 能检测并构建 `services/`。
+- [x] Jenkins 矩阵覆盖 install/lint/build/unit/contract/image/deploy/health。
+- [x] 任一服务测试失败时阻断其镜像和部署阶段。
+- [x] 提供 Kind 部署与清理入口。
 
 ### 3.7 A 第一批禁止事项
 
-- [ ] 未在 MS-00 中迁移具体用户、视频、直播或治理业务。
-- [ ] 未删除单体代码、表、migration 或 fallback。
-- [ ] 未在真实 Secret 缺失时提交临时口令。
-- [ ] 未把四服务 foundation 的业务实现全部塞入 MS-00。
+- [x] 未在 MS-00 中迁移具体用户、视频、直播或治理业务。
+- [x] 未删除单体代码、表、migration 或 fallback。
+- [x] 未在真实 Secret 缺失时提交临时口令。
+- [x] 未把四服务 foundation 的业务实现全部塞入 MS-00。
 
 ### 3.8 A 第一批 Gate
 
-- [ ] 四服务可以独立安装。
-- [ ] 四服务可以独立 lint/build/test。
-- [ ] 四服务镜像可以构建。
-- [ ] health/live、health/ready、version 全部通过。
-- [ ] JWT Guard 测试通过。
-- [ ] Gateway 单体 fallback 通过。
-- [ ] Kind 可以部署四个空服务。
+- [x] 四服务可以独立安装。
+- [x] 四服务可以独立 lint/build/test。
+- [x] 四服务镜像可以构建。
+- [x] health/live、health/ready、version 全部通过。
+- [x] JWT Guard 测试通过。
+- [x] Gateway 单体 fallback 通过。
+- [x] Kind 可以部署四个空服务。
 - [ ] E 完成非作者 Review。
 
 ## 4. B（身份与社区）TODO

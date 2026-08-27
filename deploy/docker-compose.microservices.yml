@@ -1,0 +1,97 @@
+name: video-player-microservices
+
+x-service-health: &service-health
+  interval: 5s
+  timeout: 3s
+  retries: 20
+  start_period: 3s
+
+services:
+  identity-community:
+    build:
+      context: ..
+      dockerfile: services/identity-community/Dockerfile
+    image: video-player/identity-community:${IMAGE_TAG:-local}
+    environment:
+      PORT: 3000
+      GIT_SHA: ${GIT_SHA:-dev}
+    ports:
+      - "3101:3000"
+    healthcheck:
+      <<: *service-health
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+
+  content-media:
+    build:
+      context: ..
+      dockerfile: services/content-media/Dockerfile
+    image: video-player/content-media:${IMAGE_TAG:-local}
+    environment:
+      PORT: 3000
+      GIT_SHA: ${GIT_SHA:-dev}
+    ports:
+      - "3102:3000"
+    healthcheck:
+      <<: *service-health
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+
+  live-reward:
+    build:
+      context: ..
+      dockerfile: services/live-reward/Dockerfile
+    image: video-player/live-reward:${IMAGE_TAG:-local}
+    environment:
+      PORT: 3000
+      GIT_SHA: ${GIT_SHA:-dev}
+    ports:
+      - "3103:3000"
+    healthcheck:
+      <<: *service-health
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+
+  governance-ai:
+    build:
+      context: ..
+      dockerfile: services/governance-ai/Dockerfile
+    image: video-player/governance-ai:${IMAGE_TAG:-local}
+    environment:
+      PORT: 3000
+      GIT_SHA: ${GIT_SHA:-dev}
+    ports:
+      - "3104:3000"
+    healthcheck:
+      <<: *service-health
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: services/gateway/Dockerfile
+    image: video-player/gateway:${IMAGE_TAG:-local}
+    environment:
+      PORT: 3000
+      GIT_SHA: ${GIT_SHA:-dev}
+      GATEWAY_ROUTE_MODE: monolith
+      MONOLITH_BASE_URL: http://host.docker.internal:3000
+      IDENTITY_SERVICE_URL: http://identity-community:3000
+      CONTENT_SERVICE_URL: http://content-media:3000
+      LIVE_SERVICE_URL: http://live-reward:3000
+      GOVERNANCE_SERVICE_URL: http://governance-ai:3000
+      GATEWAY_MONOLITH_FALLBACK: "true"
+      GATEWAY_UPSTREAM_TIMEOUT_MS: 2000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "3100:3000"
+    depends_on:
+      identity-community:
+        condition: service_healthy
+      content-media:
+        condition: service_healthy
+      live-reward:
+        condition: service_healthy
+      governance-ai:
+        condition: service_healthy
+    healthcheck:
+      <<: *service-health
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
