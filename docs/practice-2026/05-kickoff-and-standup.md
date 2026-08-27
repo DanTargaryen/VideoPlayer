@@ -15,22 +15,34 @@
 
 | 角色 | 姓名 | 主责 | 协作/Review | 8/25-9/4 可用时间 | 备份人 | 已确认 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 组长 / A 平台与集成 | 待补 | Docker、CI、K8s、网关、HPA、性能、节奏 | D/E | 待补 | 待补 | [ ] |
-| B 身份与社区 | 待补 | identity-community、UC01、UC04 用户侧 | C/E | 待补 | 待补 | [ ] |
-| C 内容与媒体 | 待补 | content-media、UC02/03/04 | A/D/E | 待补 | 待补 | [ ] |
-| D 直播与礼物 | 待补 | live-reward、UC05、SRS/录播 | A/C | 待补 | 待补 | [ ] |
-| E 治理、质量与文档 | 待补 | governance-ai、UC06、E2E/追溯/交付 | 全员 | 待补 | 待补 | [ ] |
+| 组长 / A 平台与集成 | 待补 | ARCH-01、MS-00、Docker、CI、K8s、网关、HPA、性能、节奏 | E review 平台；组长 review 跨服务 | 待补 | 待补 | [x] 角色已确认 |
+| B 身份与社区 | 待补 | MS-01 identity-community、UC01、UC04 用户侧 | C review | 待补 | 待补 | [x] 角色已确认 |
+| C 内容与媒体 | 待补 | MS-02 content-media、UC02/03/04 | B review | 待补 | 待补 | [x] 角色已确认 |
+| D 直播与礼物 | 待补 | MS-03 live-reward、UC05、SRS/录播/账本 | A review | 待补 | 待补 | [x] 角色已确认 |
+| E 治理、质量与文档 | 待补 | MS-04 governance-ai、UC06、contract tests、REG-01、追溯/交付 | D review；全员协作回归 | 待补 | 待补 | [x] 角色已确认 |
 
 ## 3. 启动会决策记录
 
 | 决策项 | 结论 | 负责人 | 截止 | 证据 |
 | --- | --- | --- | --- | --- |
-| 最终 UC 范围 | 待教师确认 | 组长 + E | 8/25 | 待补 |
-| CI 平台 | 建议 GitHub Actions | A | 8/25 | 待补 |
-| K8s 环境 | Docker Desktop + kind/k3d 或远端 k3s | A | 8/25 | 待补 |
-| 镜像仓库 | 待补 | A | 8/25 | 待补 |
-| 微服务边界 | 候选 4 服务 | 全员 | 8/28 | 待补 |
-| PR/Review 规则 | 非作者审阅重要变更 | 组长 | 8/25 | 待补 |
+| 最终 UC 范围 | UC01–UC06 已确认并在 `monolith-start` 基线全部 PASS | 组长 + E | 已完成 | `01-use-case-scope.md`、`03-smoke-checklist.md` |
+| CI 平台 | Jenkins + Kind 为自动流水线；GitHub Actions 保留手动入口 | A | 已完成 | Jenkins Build #2/#4/#5/#7、`11-jenkins-kind-cicd-runbook.md` |
+| K8s 环境 | 本地 Colima/Docker + Kind；迁移、部署、探针和回滚脚本已验证 | A | 已完成 | `07-environment-decision.md`、`11-jenkins-kind-cicd-runbook.md` |
+| 镜像版本 | 使用 Git SHA，不只使用 `latest` | A | 已完成 | Jenkins/Kind 证据 |
+| 微服务边界 | 四服务、31 表唯一 owner、接口、失败策略和迁移顺序已冻结 | 全员 | 2026-08-27 已完成 | `08-service-boundaries-and-data-ownership.md` |
+| 内部鉴权 | 服务账号 JWT + K8s Secret | A + 各 owner | 第二阶段执行 | ARCH-01 第 0 节 |
+| 数据迁移 | 停写窗口 + 可重复执行脚本；不做复杂双写 | A + 各 owner | 第二阶段执行 | ARCH-01 第 0/7 节 |
+| 直播消息留存 | 7 天、每 Session 最多 10,000 条；业务事实不随聊天清理 | D | MS-03 执行 | ARCH-01 第 0 节 |
+| PR/Review 规则 | A→E、B→C、C→B、D→A、E→D；Gateway 由组长和两侧 owner 共同 review | 组长 | 已冻结 | `04-task-board.md` 第二阶段分工 |
+
+### 3.1 ARCH-01 评审记录
+
+- 日期：2026-08-27。
+- 结论来源：组长在当前项目协作会话中确认评审会已完成，全员同意默认方案。
+- 技术结论：四服务边界、31 表唯一 owner、七项默认决策、迁移/回滚顺序和交叉 Review 关系冻结。
+- 执行分工：A 负责平台/MS-00，B/C/D/E 分别负责 MS-01/MS-02/MS-03/MS-04，E 兼任 REG-01 与证据协调。
+- 证据限制：Codex 未取得参会者真实姓名、签到、会议录屏或聊天截图；这些外部材料由组长后续补入证据索引。
+- 变更控制：后续修改 owner、表归属、内部 contract 或迁移顺序必须新增决策记录并由受影响 owner 重新评审。
 
 ## 4. 每日 5 分钟站会
 
@@ -66,9 +78,9 @@
 
 ## 5. 会议结束检查
 
-- [ ] 每个 P0 任务只有一个主负责人。
-- [ ] 每个负责人有 Reviewer 和备份人。
+- [x] 每个第二阶段主任务只有一个角色 owner。
+- [ ] 每个负责人已有 Reviewer；真实备份人待组长补录。
 - [ ] 每个人的 D1 目标能在当天验证。
-- [ ] Docker/K8s 环境有确定主机和完成时间。
+- [x] Docker/K8s 已在当前 Mac 的 Colima + Kind 环境完成验证；第二阶段继续由 A 负责。
 - [ ] 教师确认消息有发送人和截止时间。
-- [ ] 次日 9:00 站会和 12:00 简报责任人已确认。
+- [ ] 次日 9:00 站会和 12:00 简报的实名责任人待组长补录。

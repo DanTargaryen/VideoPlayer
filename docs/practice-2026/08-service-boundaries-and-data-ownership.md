@@ -1,10 +1,38 @@
-# 四业务服务边界、接口与数据归属草案
+# 四业务服务边界、接口与数据归属（ARCH-01 冻结版）
 
-> 状态：`DRAFT FOR TEAM REVIEW`
+> 状态：`FROZEN / TEAM APPROVED`（2026-08-27）
 >
 > 目标：满足“至少 3 个业务微服务、每张业务表有唯一管理服务、禁止跨服务直接查询、调用失败有处理”的课程要求。
 >
-> 候选架构：`identity-community`、`content-media`、`live-reward`、`governance-ai`。API Gateway/Ingress、前端、MySQL、Redis、MinIO、SRS 不计入业务服务数量。
+> 冻结架构：`identity-community`、`content-media`、`live-reward`、`governance-ai`。API Gateway/Ingress、前端、MySQL、Redis、MinIO、SRS 不计入业务服务数量。
+>
+> 评审依据：组长于 2026-08-27 确认评审会已完成，全体同意本文默认方案。当前仓库记录角色 A-E 及职责；真实姓名、签到或会议截图由组长后续补入管理证据索引，不在本文虚构。
+
+## 0. 评审结论与执行分工
+
+### 0.1 已冻结的七项决策
+
+| 决策项 | 冻结结论 | 约束 / 后续动作 |
+| --- | --- | --- |
+| `DynamicPost*` 范围与归属 | 保留在本次范围，归 `identity-community` | 动态、点赞和评论只访问 identity schema |
+| `VideoAi*` 范围与归属 | 数据 owner 为 `content-media`，第一批微服务不切换其写流量 | 单体兼容入口保留；后续迁移必须另立任务并补外部模型验证 |
+| 礼物币与视频投币 | 统一由 `live-reward` 管理账本，同时支持直播奖励和视频投币 | 其他服务不得直接修改余额；使用 requestId 幂等内部接口 |
+| 内部 API 鉴权 | 服务账号 JWT + Kubernetes Secret | JWT 包含调用方、受众、scope 和过期时间；Secret 不入库、日志不打印完整 Token |
+| 数据迁移 | 短暂停写窗口 + 可重复执行脚本，不采用复杂双写 | 校验行数、唯一约束和抽样结果；失败停止；保留网关切回单体和数据库恢复路径 |
+| 直播消息留存 | 普通消息保留 7 天，每个 Session 最多 10,000 条 | 超限按最早消息清理；房间、Session、回放登记与审计事实不随聊天清理 |
+| 平台与备份责任 | A 负责平台/K8s/Jenkins；组长负责授权和最终 Gate；E 负责合同测试与证据；各服务 owner 负责本域 migration/rollback | 真实姓名、可用时间和个人备份人仍需组长补入 `05-kickoff-and-standup.md` |
+
+### 0.2 第二阶段分工与 Review
+
+| 角色 | 任务 | 主要范围 | 建议分支 | 主 Reviewer | 计划 Gate |
+| --- | --- | --- | --- | --- | --- |
+| 组长 / A 平台与集成 | ARCH-01 / MS-00 / K8S-01 | 决策冻结、依赖解除、合并顺序、公共脚手架、Gateway、服务 JWT、Docker/K8s/Jenkins 和最终验收 | `docs/ARCH-01-service-boundary-freeze`、`build/MS-00-microservice-scaffold` | 全员核对 ARCH-01；E review MS-00 | ARCH-01 文档先合并；8/31 骨架可独立构建/部署 |
+| B 身份与社区 | MS-01 | 账号、资料、关注、私信、通知、动态社区和用户摘要 API | `feature/MS-01-identity-community` | C | 8/31 UC01 与 UC04 用户侧通过 |
+| C 内容与媒体 | MS-02 | 视频、资产、MinIO、推荐搜索、投稿、评论弹幕、观看和创作者统计 | `feature/MS-02-content-media` | B | 8/31 UC02/03/04 内容侧通过 |
+| D 直播与礼物 | MS-03 | 直播持久化、SRS、观众/消息、录播重试、币与奖励账本 | `feature/MS-03-live-reward` | A | 9/1 UC05 与依赖故障路径通过 |
+| E 治理、质量与文档 | MS-04 / REG-01 | 审核、举报、处置审计、AI 辅助、contract tests、全 UC 回归和证据 | `feature/MS-04-governance-ai`、`test/REG-01-microservice-contracts` | D | 9/1 UC06；9/2 全量回归 |
+
+执行顺序冻结为：ARCH-01 文档 → MS-00 公共骨架 → 四服务 foundation 并行 → 只读路由 → 写流量切换 → REG-01。第一批 foundation 只建立独立启动、schema、migration、health/version、测试和镜像，不删除单体表、不提前切写流量。
 
 ## 1. 统一边界规则
 
@@ -192,15 +220,15 @@
 8. 在相同 seed 上执行 UC01-UC06 回归；通过后才停止单体写入。
 9. 保留回滚脚本：网关切回单体、停止微服务写入、恢复单体数据库快照。
 
-## 8. 需要组会评审的开放问题
+## 8. 已完成评审的开放问题
 
-- [ ] `DynamicPost*` 是否保留在本次最终范围；当前建议归 identity-community。
-- [ ] `VideoAi*` 是否保留；如果不在确认用例中，可在微服务版暂不迁移但需保留单体版本说明。
-- [ ] 礼物币是否只用于直播，还是继续支持视频投币；当前统一归 live-reward 账本。
-- [ ] 内部 API 鉴权采用共享 HMAC、服务账号 JWT 还是网格方案；10 天内建议服务账号 JWT + K8s Secret。
-- [ ] 数据迁移采用一次性脚本还是双写；10 天实践建议停写窗口 + 可重跑脚本，避免复杂双写。
-- [ ] 直播消息保存周期和容量上限。
-- [ ] 组内 Docker/K8s 主机和数据库备份负责人。
+- [x] `DynamicPost*` 保留并归 `identity-community`。
+- [x] `VideoAi*` 归 `content-media`，第一批微服务不切换其写流量，保留单体兼容说明。
+- [x] 礼物币与视频投币统一归 `live-reward` 账本。
+- [x] 内部 API 鉴权采用服务账号 JWT + K8s Secret。
+- [x] 数据迁移采用停写窗口 + 可重复执行脚本，不做复杂双写。
+- [x] 普通直播消息保留 7 天，每个 Session 最多 10,000 条；业务事实和审计记录不随聊天清理。
+- [x] A 负责平台/K8s/Jenkins，组长负责最终授权，E 负责合同测试与证据，各服务 owner 负责本域 migration/rollback；实名与个人备份人待组长补录。
 
 ## 9. ARCH-01 完成 Gate
 
@@ -209,7 +237,7 @@
 - [x] 公开/内部接口清单有首版草案。
 - [x] 关键跨服务调用有 timeout、幂等、失败结果和恢复说明。
 - [x] 数据迁移与回滚顺序有草案。
-- [ ] 全体组员完成评审并在决策记录中确认。
-- [ ] 教师/助教对重大边界变更无异议。
+- [x] 组长确认全体组员已完成评审并同意默认方案；决策记录见本文第 0 节。
+- [x] 教师/助教已确认当前四服务方向（据组长既有书面反馈）；外部回复截图/链接仍需补入证据索引。
 
-因此 `ARCH-01` 当前状态为 `PARTIAL / WAITING TEAM REVIEW`，不得标记总体完成。
+因此 `ARCH-01` 状态为 `DONE / FROZEN`。后续若修改服务 owner、表归属、内部接口或迁移顺序，必须新增决策记录并重新经过相关 owner 评审；不得移动 `monolith-start`，也不得静默改写本冻结结论。
