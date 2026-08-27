@@ -77,4 +77,47 @@ describe('gateway scaffold', () => {
     expect(await (await fetch(`${gateway}/api/v1/users/1`)).text()).toBe('monolith');
     expect((await fetch(`${gateway}/api/v1/users/1`, { method: 'POST', body: '{}' })).status).toBe(503);
   });
+
+  it('switches live writes to live-reward and rolls them back to the monolith', async () => {
+    const live = await listen(createServer((request, response) => {
+      response.setHeader('content-type', 'application/json');
+      response.end(JSON.stringify({ owner: 'live-reward', method: request.method, path: request.url }));
+    }));
+    const monolith = await listen(createServer((request, response) => {
+      response.setHeader('content-type', 'application/json');
+      response.end(JSON.stringify({ owner: 'monolith', method: request.method, path: request.url }));
+    }));
+    const serviceGateway = await listen(createGatewayServer(config({ routeMode: 'services', monolithBaseUrl: monolith, liveBaseUrl: live })));
+    for (const path of ['/api/v1/lives/rooms', '/api/v1/gift-coins/daily-claim', '/api/v1/videos/9/coin']) {
+      const response = await fetch(`${serviceGateway}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+      expect(response.status).toBe(200);
+      expect(response.headers.get('x-gateway-upstream')).toBe('live-reward');
+      expect((await response.json()).owner).toBe('live-reward');
+    }
+
+    const rollbackGateway = await listen(createGatewayServer(config({ routeMode: 'monolith', monolithBaseUrl: monolith, liveBaseUrl: live })));
+    const rollback = await fetch(`${rollbackGateway}/api/v1/lives/rooms`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+    expect(rollback.status).toBe(200);
+    expect(rollback.headers.get('x-gateway-upstream')).toBe('monolith');
+    expect((await rollback.json()).owner).toBe('monolith');
+  });
+
+  it('never replays failed live writes to the monolith', async () => {
+    let monolithWrites = 0;
+    const failingLive = await listen(createServer((_request, response) => {
+      response.statusCode = 503;
+      response.end('live unavailable');
+    }));
+    const monolith = await listen(createServer((_request, response) => {
+      monolithWrites += 1;
+      response.end('monolith');
+    }));
+    const gateway = await listen(createGatewayServer(config({ routeMode: 'services', monolithBaseUrl: monolith, liveBaseUrl: failingLive })));
+    for (const path of ['/api/v1/lives/rooms', '/api/v1/gift-coins/gift', '/api/v1/videos/9/coin']) {
+      const response = await fetch(`${gateway}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+      expect(response.status).toBe(503);
+      expect(response.headers.get('x-gateway-upstream')).toBe('live-reward');
+    }
+    expect(monolithWrites).toBe(0);
+  });
 });

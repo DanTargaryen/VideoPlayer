@@ -40,3 +40,7 @@ workspace dependencies:
 ```bash
 docker build -f services/live-reward/Dockerfile -t videoplayer-live-reward:<git-sha> .
 ```
+
+The Dockerfile also exposes a `migration` target for `prisma migrate deploy`.
+For an isolated local Kubernetes migration, rollout, Pod replacement, and
+persistence check, follow [the live-reward Kind runbook](../../deploy/k8s/live-reward/README.md).

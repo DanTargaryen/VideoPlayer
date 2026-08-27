@@ -1,0 +1,34 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: live-reward-migration
+  namespace: video-player-live-reward
+  labels:
+    app.kubernetes.io/name: live-reward-migration
+    app.kubernetes.io/part-of: video-player-live-reward
+spec:
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: live-reward-migration
+        app.kubernetes.io/part-of: video-player-live-reward
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: video-player/live-reward-migrate:local
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: LIVE_REWARD_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: live-reward-secrets
+                  key: database-url
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

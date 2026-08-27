@@ -13,3 +13,9 @@ Environment variables:
 - `GOVERNANCE_SERVICE_URL`
 - `GATEWAY_MONOLITH_FALLBACK`
 - `GATEWAY_UPSTREAM_TIMEOUT_MS`
+
+In `services` mode, live room, gift-coin, and video-coin writes are routed to
+live-reward. Write requests are never replayed to the monolith after an upstream
+failure, because replaying them could duplicate state. Rollback is an explicit
+configuration change back to `GATEWAY_ROUTE_MODE=monolith`; GET/HEAD fallback
+remains controlled separately by `GATEWAY_MONOLITH_FALLBACK`.
