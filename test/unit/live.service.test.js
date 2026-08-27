@@ -13,11 +13,19 @@ function createMockFn(impl = async () => undefined) {
   return fn;
 }
 
-function makeService() {
+function makeService(assetOverrides = {}) {
   const prisma = {
     user: { findMany: createMockFn(async () => [{ id: 1, avatarUrl: '/avatar.png' }]) },
     followRelation: { findMany: createMockFn(async () => [{ followingId: 1 }]) },
-    videoAsset: { findUnique: createMockFn(async ({ where }) => ({ id: where.id ?? 9, objectKey: where.objectKey ?? 'recording', url: '/recording.mp4' })) },
+    videoAsset: {
+      findUnique: createMockFn(async ({ where }) => ({
+        id: where.id ?? 9,
+        objectKey: where.objectKey ?? 'recording.webm',
+        url: '/recording.webm',
+        mimeType: 'video/webm',
+        ...assetOverrides,
+      })),
+    },
   };
   const videoService = { createVideo: createMockFn(async () => ({ id: 100 })) };
   return { service: new LiveService(prisma, videoService), prisma, videoService };
@@ -72,7 +80,32 @@ describe('LiveService room lifecycle and interaction', () => {
     });
 
     assert.equal(result.replayVideoId, 100);
+    assert.equal(result.replayUrl, '/recording.webm');
     assert.equal(videoService.createVideo.calls[0][1].assetId, 9);
     assert.equal(videoService.createVideo.calls[0][1].category, 'tech');
+  });
+
+  it('rejects non-video replay assets before room mutation or draft creation', async () => {
+    const { service, videoService } = makeService({ mimeType: 'text/plain', url: '/recording.webm' });
+    const user = { id: 1, nickname: 'Anchor' };
+    const room = service.createRoom(user, { title: 'Room', category: 'tech' });
+
+    await assert.rejects(
+      service.saveReplay(room.id, user, { assetId: 9, saveMode: 'UPLOAD', title: 'Replay' }),
+      BadRequestException,
+    );
+
+    assert.equal(service.getRoom(room.id).replayUrl, null);
+    assert.equal(videoService.createVideo.calls.length, 0);
+  });
+
+  it('accepts an MP4 replay asset', async () => {
+    const { service } = makeService({ mimeType: 'video/mp4', url: '/recording.mp4' });
+    const user = { id: 1, nickname: 'Anchor' };
+    const room = service.createRoom(user, { title: 'Room' });
+
+    const result = await service.saveReplay(room.id, user, { assetId: 9, saveMode: 'REPLAY' });
+
+    assert.equal(result.replayUrl, '/recording.mp4');
   });
 });

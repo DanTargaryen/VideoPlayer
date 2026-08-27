@@ -486,6 +486,7 @@ export class LiveService {
   ) {
     const room = this.requireOwnedRoom(roomId, user.id);
     const asset = await this.resolveAsset(payload.assetId, payload.uploadToken);
+    this.assertPlayableReplayAsset(asset);
 
     room.replayAssetId = asset.id;
     room.replayUrl = asset.url;
@@ -702,6 +703,13 @@ export class LiveService {
     }
 
     throw new BadRequestException('Recording asset is required');
+  }
+
+  private assertPlayableReplayAsset(asset: { mimeType: string }) {
+    const mimeType = asset.mimeType.split(';', 1)[0]?.trim().toLowerCase() ?? '';
+    if (!['video/webm', 'video/mp4'].includes(mimeType)) {
+      throw new BadRequestException('Replay asset must be a playable WebM or MP4 video');
+    }
   }
 
   private getSrsRtmpBase() {
