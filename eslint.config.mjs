@@ -46,6 +46,15 @@ export default [
     },
   },
   {
+    files: ['services/**/*.ts'],
+    languageOptions: {
+      globals: nodeGlobals,
+    },
+    rules: {
+      'no-undef': 'off',
+    },
+  },
+  {
     files: ['frontend/src/**/*.ts', 'frontend/src/**/*.vue'],
     languageOptions: {
       globals: browserGlobals,

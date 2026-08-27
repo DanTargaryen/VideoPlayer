@@ -6,6 +6,7 @@ load_runtime_env
 
 npm run test:requirements
 npm test
+npm run test:services
 bash "$ROOT_DIR/scripts/ci-mark-stage.sh" 05-unit
 
 if [[ "$FORCE_TEST_FAILURE" == "true" ]]; then

@@ -26,6 +26,7 @@ kind_cluster_name=${KIND_CLUSTER_NAME:-"video-player-ci-${build_number}"}
 mysql_root_password=$(node -e "process.stdout.write(require('node:crypto').randomBytes(18).toString('hex'))")
 jwt_secret=$(node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('hex'))")
 admin_secret=$(node -e "process.stdout.write(require('node:crypto').randomBytes(18).toString('hex'))")
+service_jwt_secret=$(node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('hex'))")
 seed_confirmation=$(node -e "process.stdout.write(require('node:crypto').randomBytes(18).toString('hex'))")
 local_storage_dir="$CI_RUN_DIR/storage"
 practice_env_file="$CI_RUN_DIR/practice.env"
@@ -43,6 +44,7 @@ mkdir -p "$local_storage_dir"
   printf 'MYSQL_ROOT_PASSWORD=%q\n' "$mysql_root_password"
   printf 'JWT_SECRET=%q\n' "$jwt_secret"
   printf 'ADMIN_SECRET=%q\n' "$admin_secret"
+  printf 'SERVICE_JWT_SECRET=%q\n' "$service_jwt_secret"
   printf 'SEED_CONFIRMATION=%q\n' "$seed_confirmation"
   printf 'STORAGE_BACKEND=%q\n' local
   printf 'LOCAL_STORAGE_DIR=%q\n' "$local_storage_dir"
@@ -61,6 +63,7 @@ mkdir -p "$local_storage_dir"
   printf 'MINIO_ROOT_PASSWORD=%s\n' "$(node -e "process.stdout.write(require('node:crypto').randomBytes(18).toString('hex'))")"
   printf 'JWT_SECRET=%s\n' "$jwt_secret"
   printf 'ADMIN_SECRET=%s\n' "$admin_secret"
+  printf 'SERVICE_JWT_SECRET=%s\n' "$service_jwt_secret"
 } > "$practice_env_file"
 chmod 600 "$CI_RUNTIME_ENV_FILE" "$practice_env_file"
 
