@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { execFile } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
@@ -8,6 +8,7 @@ import { promisify } from 'node:util';
 import { PrismaService } from '../prisma/prisma.service';
 import { MinioService } from '../storage/minio.service';
 import { findWorkingBinary, getBinaryCandidates } from '../../common/utils/ffmpeg-binary';
+import { assertVideoUploadMetadata, hasVideoStream } from './video-upload-validation';
 
 const execFileAsync = promisify(execFile);
 
@@ -23,6 +24,44 @@ export class MediaService {
     private readonly prisma: PrismaService,
     private readonly minioService: MinioService,
   ) {}
+
+  async validateVideoUpload(file: Express.Multer.File) {
+    assertVideoUploadMetadata(file);
+
+    const ffprobeBin = await findWorkingBinary(getBinaryCandidates('FFPROBE_PATH', 'ffprobe'));
+    if (!ffprobeBin) {
+      throw new ServiceUnavailableException('Video validation is unavailable');
+    }
+
+    const workDir = await mkdtemp(path.join(tmpdir(), 'videoplayer-upload-validation-'));
+    const inputPath = path.join(workDir, `upload${path.extname(file.originalname).toLowerCase()}`);
+
+    try {
+      await writeFile(inputPath, file.buffer);
+      const { stdout } = await execFileAsync(ffprobeBin, [
+        '-v',
+        'error',
+        '-select_streams',
+        'v:0',
+        '-show_entries',
+        'stream=codec_type',
+        '-of',
+        'json',
+        inputPath,
+      ]);
+
+      if (!hasVideoStream(stdout)) {
+        throw new BadRequestException('Invalid video file');
+      }
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Invalid video file');
+    } finally {
+      await rm(workDir, { recursive: true, force: true });
+    }
+  }
 
   private async checkFfmpegAvailable(): Promise<boolean> {
     const ffmpegBin = await findWorkingBinary(getBinaryCandidates('FFMPEG_PATH', 'ffmpeg'));

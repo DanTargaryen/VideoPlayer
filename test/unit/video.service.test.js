@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const { describe, it } = require('node:test');
-const { NotFoundException } = require('@nestjs/common');
+const { BadRequestException, NotFoundException } = require('@nestjs/common');
 
 const { VideoService } = require('../../backend/dist/modules/video/video.service.js');
 
@@ -22,7 +22,10 @@ function makeService() {
       findUnique: createMockFn(async () => null),
       findMany: createMockFn(async () => []),
     },
-    videoAsset: { findUnique: createMockFn(async () => null) },
+    videoAsset: {
+      findUnique: createMockFn(async () => null),
+      create: createMockFn(async ({ data }) => ({ id: 10, ...data })),
+    },
     favoriteFolder: {
       findFirst: createMockFn(async () => null),
       update: createMockFn(async ({ where, data }) => ({ id: where.id, ...data })),
@@ -30,15 +33,64 @@ function makeService() {
     },
     favorite: { updateMany: createMockFn(async () => ({ count: 0 })) },
   };
+  const mediaService = {
+    processVideo: createMockFn(async () => undefined),
+    validateVideoUpload: createMockFn(async () => undefined),
+  };
+  const minioService = {
+    uploadObject: createMockFn(async ({ objectKey }) => ({
+      bucket: 'videos',
+      objectKey,
+      url: `http://minio/videos/${objectKey}`,
+    })),
+    deleteFile: createMockFn(async () => undefined),
+  };
   const service = new VideoService(
     prisma,
     {},
     { getProfile: createMockFn(async () => ({ summary: { isColdStart: true } })) },
-    { processVideo: createMockFn(async () => undefined) },
-    {},
+    mediaService,
+    minioService,
   );
-  return { service, prisma };
+  return { service, prisma, mediaService, minioService };
 }
+
+describe('VideoService upload persistence boundary', () => {
+  const invalidTextFile = {
+    originalname: 'notes.txt',
+    mimetype: 'text/plain',
+    size: 12,
+    buffer: Buffer.from('not a video'),
+  };
+
+  it('validates original media before MinIO or Prisma writes', async () => {
+    const { service, prisma, mediaService, minioService } = makeService();
+    mediaService.validateVideoUpload.setImpl(async () => {
+      throw new BadRequestException('Invalid video file');
+    });
+
+    await assert.rejects(service.uploadFile(invalidTextFile, 'ORIGINAL'), (error) => error instanceof BadRequestException);
+    assert.equal(mediaService.validateVideoUpload.calls.length, 1);
+    assert.equal(minioService.uploadObject.calls.length, 0);
+    assert.equal(prisma.videoAsset.create.calls.length, 0);
+  });
+
+  it('deletes the uploaded object when VideoAsset creation fails', async () => {
+    const { service, prisma, minioService } = makeService();
+    prisma.videoAsset.create.setImpl(async () => {
+      throw new Error('database unavailable');
+    });
+
+    await assert.rejects(
+      service.uploadFile({ ...invalidTextFile, originalname: 'clip.mp4', mimetype: 'video/mp4' }, 'ORIGINAL'),
+      /database unavailable/,
+    );
+    assert.deepEqual(minioService.deleteFile.calls[0], [
+      'videos',
+      minioService.uploadObject.calls[0][0].objectKey,
+    ]);
+  });
+});
 
 describe('VideoService watch progress rules', () => {
   it('normalizes watch duration and current time safely', () => {

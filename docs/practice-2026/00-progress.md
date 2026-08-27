@@ -124,6 +124,10 @@
   - 完成内容：相同 reporter/target 的重复请求返回已有 PENDING；nullable unique `pendingKey` 和 P2002 回读处理并发竞态；管理员处理时释放键，允许处理完成后再次举报；迁移保留最早待处理记录并审计性驳回历史重复项。
   - 测试/验证：干净 `npm ci`；requirements 109/109、后端 Jest 7/7、前端 Vitest 3/3、前后端 lint/build；空库执行初始 + pendingKey 两个 migration；含两条重复 PENDING 的旧库升级；真实后端 12 路并发举报、管理员处理释放键、处理后再次举报。
   - 结果：PASS；空库列/唯一索引和 2 个 migration 正确；旧库升级为 1 PENDING + 1 REJECTED；12 个并发响应仅 1 个 report ID，处理后新举报获得不同 ID；原 `BASE-01` Smoke 失败记录保持不变，等待最终统一复跑。
+- [x] `BUG-BASE01-UC03-01` 拒绝伪装或不受支持的视频文件。
+  - 完成内容：前端在选取及提交前校验扩展名/MIME；后端在写入 MinIO 和数据库前校验扩展名/MIME，并用 FFprobe 确认存在视频流；若 MinIO 上传后数据库写入失败，则精确删除本次对象。
+  - 测试/验证：干净 `npm ci`；requirements 111/111、后端 Jest 16/16、前端 Vitest 11/11、前后端 lint/build；真实 MinIO/MySQL/API 伪装 MP4 与合法 MP4；Playwright Chrome 投稿页文件选择。
+  - 结果：PASS；伪装 MP4 返回 400 且 VideoAsset/Video/MinIO 对象计数均不变；合法 1 秒 MP4 返回 201 并新增 1 Asset + 1 对象；浏览器选择 README 后 files=0，选择真实 MP4 后 files=1；原 `BASE-01` Smoke 失败记录保持不变，等待最终统一复跑。
 - [x] `LINT-01` 清零前端现有 12 个 lint 错误，建立可用于 CI 的 lint 基线。
   - 完成内容：删除模板已不再调用的旧投稿创建逻辑、旧关注分组逻辑、未使用的格式化函数和图标/生命周期导入；为空的媒体 seek catch 增加原因说明。
   - 测试/验证：`npm run lint:frontend`、`npm run build:frontend`、CRLF 感知的 `git diff --check`。
@@ -244,6 +248,7 @@
 | 2026-08-27 | CI-02 Jenkins Build #7 | Poll SCM 检测 rebase 后 push 并自动执行正式 migration 流水线，检出 `237f780` | 106 requirements + backend 7 + frontend 3；安全守卫允许隔离 `video_player_ci_test`；migration `20260826000000_init`；API 16/16；E2E 3/3；SHA 镜像；Kind/Health | SUCCESS；12/12 markers；27 个 Artifact；Pod 0 restart；临时 MySQL/Kind 清理 PASS；共享远端数据库/MinIO 未使用 |
 | 2026-08-27 | BUG-BASE01-UC02-01 搜索无结果 | 移除长关键词的二元片段召回，并拒绝没有文本相关性的个性化候选；保留现有前端无结果提示 | 干净 `npm ci`；`npm --workspace backend run prisma:generate`；`npm run build:backend`；`npm run test:ci`；定点搜索/视频测试；CRLF 感知 diff check | PASS；requirements 107/107、backend Jest 7/7、frontend Vitest 3/3；前后端 lint/build PASS；定点测试 13/13 |
 | 2026-08-27 | BUG-BASE01-UC06-01 举报幂等 | rebase 最新 main，新增 nullable unique `pendingKey`、重复 PENDING 清理 migration、P2002 竞态回读和处理后释放键 | 干净 `npm ci`；`npm run test:ci`；空库 migration；含重复记录的旧库升级；真实后端 12 路并发 API；管理员 KEEP 后再次举报；diff/Secret/Artifact 审计 | PASS；requirements 109/109、backend 7/7、frontend 3/3；2 migrations；旧库 1 PENDING + 1 REJECTED；并发 12→1 ID；处理后新 ID；首次管理员登录误用临时 Secret 导致 401，改用项目演示密钥 `123456` 后复跑 PASS |
+| 2026-08-27 | BUG-BASE01-UC03-01 无效媒体拒绝 | rebase 最新 main，合并搜索测试 mock；前后端扩展名/MIME 校验，后端 FFprobe 视频流校验，写入失败精确删除对象 | 干净 `npm ci`；`npm run test:ci`；真实 MinIO/MySQL/API 伪装与合法 MP4；Playwright CLI headed 浏览器投稿页；输入 files 长度；console 审计；环境清理 | PASS；requirements 111/111、backend 16/16、frontend 11/11；伪装 MP4 400 且 0 残留；合法 MP4 201 且 Asset/Object +1；浏览器无效 files=0、合法 files=1；仅 favicon.ico 404；冷镜像 runtime npm 下载长时间无输出后主动中止，改用同代码本地 build + 真实依赖容器完成验证 |
 
 ## 4. 阻塞与需组长决定
 
