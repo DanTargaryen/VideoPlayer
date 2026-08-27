@@ -18,7 +18,10 @@ function createMockFn(impl = async () => undefined) {
 
 function makeService() {
   const prisma = {
-    video: { findUnique: createMockFn(async () => null) },
+    video: {
+      findUnique: createMockFn(async () => null),
+      findMany: createMockFn(async () => []),
+    },
     videoAsset: { findUnique: createMockFn(async () => null) },
     favoriteFolder: {
       findFirst: createMockFn(async () => null),
@@ -132,12 +135,35 @@ describe('VideoService recommendation and search scoring helpers', () => {
     const partial = { ...exact, id: 2, title: 'other', description: 'javascript tips' };
 
     assert.deepEqual(service.tokenizeSearchKeyword('hello world'), ['hello', 'world']);
-    assert.deepEqual(service.tokenizeSearchKeyword('abcd'), ['abcd', 'ab', 'bc', 'cd']);
+    assert.deepEqual(service.tokenizeSearchKeyword('abcd'), ['abcd']);
     assert.equal(
       service.calculateSearchRankingScore(exact, 'javascript', ['javascript'], now, undefined) >
         service.calculateSearchRankingScore(partial, 'javascript', ['javascript'], now, undefined),
       true,
     );
+  });
+
+  it('does not return videos that only match a short fragment of a nonexistent keyword', async () => {
+    const { service, prisma } = makeService();
+    prisma.video.findMany.setImpl(async () => [
+      {
+        id: 1,
+        title: 'BASE01 smoke video',
+        description: 'uploaded during acceptance testing',
+        creator: { id: 1, nickname: 'Teacher', avatarUrl: null },
+        category: 'tech',
+        categories: [{ code: 'tech' }],
+        likeCount: 2,
+        favoriteCount: 1,
+        commentCount: 0,
+        creatorId: 1,
+        publishedAt: new Date('2026-01-01T00:00:00Z'),
+      },
+    ]);
+
+    const result = await service.searchPublishedVideos('BASE01-不存在的视频-UC02');
+
+    assert.deepEqual(result, []);
   });
 
   it('requires published videos and resolves uploaded assets', async () => {

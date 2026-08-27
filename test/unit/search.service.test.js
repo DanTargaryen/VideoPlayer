@@ -94,12 +94,12 @@ describe('SearchService discovery rules', () => {
     assert.equal(prisma.video.findMany.calls.length >= 2, true);
   });
 
-  it('returns empty suggestion list for blank keyword and tokenizes compact keywords', async () => {
+  it('returns empty suggestion list for blank keyword and keeps compact keywords intact', async () => {
     const { service } = makeService();
 
     assert.deepEqual(await service.suggest('   '), { list: [] });
     assert.equal(service.normalizePage(-1), 1);
     assert.equal(service.normalizePageSize(999), 50);
-    assert.deepEqual(service.tokenizeSearchKeyword('abcd'), ['abcd', 'ab', 'bc', 'cd']);
+    assert.deepEqual(service.tokenizeSearchKeyword('abcd'), ['abcd']);
   });
 });

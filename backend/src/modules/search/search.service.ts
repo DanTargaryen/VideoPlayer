@@ -368,25 +368,6 @@ export class SearchService {
 
   private tokenizeSearchKeyword(keyword: string) {
     const lowered = keyword.toLowerCase().trim();
-    const splitTokens = lowered.split(/\s+/).filter(Boolean);
-
-    if (splitTokens.length > 1) {
-      return splitTokens;
-    }
-
-    const compact = lowered.replace(/\s+/g, '');
-    if (compact.length <= 2) {
-      return compact ? [compact] : [];
-    }
-
-    const grams = [];
-    for (let index = 0; index < compact.length - 1; index += 1) {
-      grams.push(compact.slice(index, index + 2));
-      if (grams.length >= 6) {
-        break;
-      }
-    }
-
-    return [...new Set([compact, ...grams])];
+    return [...new Set(lowered.split(/\s+/).filter(Boolean))];
   }
 }
