@@ -288,57 +288,59 @@ services/<service>/
 
 ### 5.2 数据 owner
 
-- [ ] `Video`
-- [ ] `VideoCategory`
-- [ ] `VideoAiSummary`（首批不切写流量）
-- [ ] `VideoAiChatSession`（首批不切写流量）
-- [ ] `VideoAiChatMessage`（首批不切写流量）
-- [ ] `UserVideoWatch`
-- [ ] `VideoAsset`
-- [ ] `Comment`
-- [ ] `VideoLike`
-- [ ] `Favorite`
-- [ ] `FavoriteFolder`
-- [ ] `VideoDanmaku`
-- [ ] `CreatorPlayDaily`
+- [x] `Video`
+- [x] `VideoCategory`
+- [x] `VideoAiSummary`（首批不切写流量）
+- [x] `VideoAiChatSession`（首批不切写流量）
+- [x] `VideoAiChatMessage`（首批不切写流量）
+- [x] `UserVideoWatch`
+- [x] `VideoAsset`
+- [x] `Comment`
+- [x] `VideoLike`
+- [x] `Favorite`
+- [x] `FavoriteFolder`
+- [x] `VideoDanmaku`
+- [x] `CreatorPlayDaily`
 
 ### 5.3 Foundation 与只读 API
 
-- [ ] 基于已合并 MS-00 的最新 `main` 创建分支。
-- [ ] 建立独立 content Prisma schema、migration 和 fixture。
-- [ ] creatorId/userId 为外部 ID，不建立跨 schema FK。
-- [ ] `GET /api/v1/feeds/recommend`。
-- [ ] `GET /api/v1/search/all`。
-- [ ] `GET /api/v1/videos/:id`。
-- [ ] `GET /api/v1/videos/:id/recommendations`。
-- [ ] 使用 identity batch-summary client，不直接查询 User。
-- [ ] 第一批可以 mock identity，但 contract 必须与 B 一致。
+- [x] 基于已合并 MS-00 的最新 `main` 创建分支。
+- [x] 建立独立 content Prisma schema、migration 和 fixture。
+- [x] creatorId/userId 为外部 ID，不建立跨 schema FK。
+- [x] `GET /api/v1/feeds/recommend`。
+- [x] `GET /api/v1/search/all`。
+- [x] `GET /api/v1/videos/:id`。
+- [x] `GET /api/v1/videos/:id/recommendations`。
+- [x] 使用 identity batch-summary client，不直接查询 User。
+- [x] 第一批可以 mock identity，但 contract 必须与 B 一致。
 
 ### 5.4 内部 API contract
 
-- [ ] `POST /internal/v1/videos/:id/review-decision`，decisionId 幂等。
-- [ ] `POST /internal/v1/videos/:id/text-status`。
-- [ ] `POST /internal/v1/replays`，requestId/objectKey 幂等。
-- [ ] `POST /internal/v1/videos/batch-summary`。
-- [ ] 依赖 identity 不可用时有 timeout 和可解释 fallback。
+- [x] `POST /internal/v1/videos/:id/review-decision`，decisionId 幂等。
+- [x] `POST /internal/v1/videos/:id/text-status`。
+- [x] `POST /internal/v1/replays`，requestId/objectKey 幂等。
+- [x] `POST /internal/v1/videos/batch-summary`。
+- [x] 依赖 identity 不可用时有 timeout 和可解释 fallback。
 
 ### 5.5 媒体边界与测试
 
-- [ ] 保留扩展名/MIME/FFprobe 视频流验证。
-- [ ] 伪装 MP4 返回 400。
-- [ ] 无效媒体不创建 VideoAsset/Video/MinIO object。
-- [ ] 写入数据库失败时精确删除本次对象。
-- [ ] 推荐、无结果搜索、视频详情和草稿隔离测试通过。
-- [ ] review-decision/replay/batch-summary contract tests 通过。
-- [ ] 服务可独立 build/test/image/health/version。
+- [x] 保留扩展名/MIME/FFprobe 视频流验证。
+- [x] 伪装 MP4 返回 400。
+- [x] 无效媒体不创建 VideoAsset/Video/MinIO object。
+- [x] 写入数据库失败时精确删除本次对象。
+- [x] 推荐、无结果搜索、视频详情和草稿隔离测试通过。
+- [x] review-decision/replay/batch-summary contract tests 通过。
+- [x] 服务可独立 build/test/image/health/version。
+
+说明：本轮已在 `content-media` foundation 中覆盖扩展名/MIME 前置拒绝、真实 `ffprobe` 视频流探测、伪装 MP4 400、无效媒体不创建内容记录、写库失败精确清理对象；运行时镜像安装 `ffmpeg`/`ffprobe`，并提供 `npm --workspace @videoplayer/content-media run verify:container` 用真实 MP4 复测 image/health/version/ffprobe。Docker Desktop 重启后已成功拉取 `node:22-bookworm-slim`，实际构建 `video-player/content-media:verify`，通过 `live`、`ready`、`container-smoke` version、`ffprobe 5.1.9` 和真实 MP4 服务探测；真实 MinIO object 仍未运行。
 
 ### 5.6 C 第一批禁止事项
 
-- [ ] 未切上传、投稿或互动写流量。
-- [ ] 未迁移 VideoAi 写路径。
-- [ ] 未直接查询 User/Notification/CoinTransaction。
-- [ ] 未删除单体 Video/Asset/Comment 等表。
-- [ ] 未自定义与 B 不兼容的用户摘要结构。
+- [x] 未切上传、投稿或互动写流量。
+- [x] 未迁移 VideoAi 写路径。
+- [x] 未直接查询 User/Notification/CoinTransaction。
+- [x] 未删除单体 Video/Asset/Comment 等表。
+- [x] 未自定义与 B 不兼容的用户摘要结构。
 
 ## 6. D（直播与礼物）TODO
 
