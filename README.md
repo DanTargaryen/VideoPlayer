@@ -174,6 +174,31 @@ kind delete cluster --name "$KIND_CLUSTER_NAME"
 
 `down --volumes` 和 `kind delete cluster` 会永久删除本次隔离的 MySQL 数据，执行前必须再次核对 `COMPOSE_PROJECT_NAME` 和 `KIND_CLUSTER_NAME`。
 
+## Jenkins + Kind 流水线
+
+根目录 `Jenkinsfile` 提供可移植的 Pipeline from SCM，不包含个人绝对路径或真实凭据。流水线依次执行安装、Lint、Build、Unit、隔离数据库、API、Seed、Playwright、Git SHA 镜像、Kind 部署和健康检查，并将阶段标记与运行证据归档为 Jenkins Artifact。
+
+Jenkins Job 推荐配置：
+
+```text
+Repository URL：https://github.com/DanTargaryen/VideoPlayer.git
+Branch：*/ci/CI-02-jenkins-kind-pipeline-v2
+Script Path：Jenkinsfile
+Poll SCM：H/2 * * * *
+```
+
+不启动 Jenkins时可先执行同构脚本：
+
+```bash
+BUILD_NUMBER=9001 FORCE_TEST_FAILURE_VALUE=false \
+  DB_MIGRATION_MODE_VALUE=push ./scripts/ci-local-run.sh
+
+BUILD_NUMBER=9002 FORCE_TEST_FAILURE_VALUE=true \
+  DB_MIGRATION_MODE_VALUE=push ./scripts/ci-local-run.sh
+```
+
+`FORCE_TEST_FAILURE=true` 会在 Unit 后故意失败，用于证明后续 Migration、API、E2E、镜像和部署不会继续。当前 `main` 尚未合并 DB-01，因此默认 `DB_MIGRATION_MODE=push`；正式 migration 合并后应切换为 `migrate`。
+
 停止由开发环境启动的 Redis、MinIO、SRS：
 
 ```bash

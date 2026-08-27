@@ -99,14 +99,14 @@ Disk usage limit：40–60GB
 ### 3.2 待实现
 
 - [ ] 完整 Prisma 基线迁移
-- [ ] `Jenkinsfile`
+- [x] `Jenkinsfile`
 - [x] `deploy/k8s/` Kubernetes 文件
 - [ ] 数据库迁移、Seed、测试重置脚本
-- [ ] Jenkins 集成测试脚本
+- [x] Jenkins 集成测试脚本
 - [x] Kubernetes 部署脚本
 - [x] Kubernetes 健康检查脚本
-- [ ] Kubernetes 证据收集脚本
-- [x] Compose/Kind 实跑记录
+- [x] Kubernetes 证据收集脚本
+- [x] Compose/Kind/Jenkins 实跑记录
 - [ ] 另一台机器 README 复现记录
 
 ## 4. 阶段 A：验收机器安装环境
@@ -368,6 +368,8 @@ scripts/k8s-collect-evidence.sh
 
 Jenkins 默认端口 8080 与当前 SRS 的宿主机端口 8080 冲突，因此建议 Jenkins 使用 8081。
 
+> 2026-08-27 实测：Jenkins `2.568.2` 使用 OpenJDK 21 在 `127.0.0.1:8081` 运行；`workflow-aggregator`、Git、Credentials Binding、JUnit 和 Workspace Cleanup 插件已加载。Job `VideoPlayer-CI-02` 从 GitHub HTTPS SCM 读取 `ci/CI-02-jenkins-kind-pipeline-v2` 和根目录 Jenkinsfile，不依赖个人磁盘路径。
+
 首次启动：
 
 ```bash
@@ -402,9 +404,20 @@ cat ~/.jenkins/secrets/initialAdminPassword
 
 Jenkins 官方建议把流水线保存在仓库根目录的 `Jenkinsfile` 中：[Jenkins Pipeline as Code](https://www.jenkins.io/doc/book/pipeline/pipeline-as-code/)。
 
+本项目 Jenkins Job 使用 Pipeline from SCM：
+
+```text
+Repository URL：https://github.com/DanTargaryen/VideoPlayer.git
+Branch：*/ci/CI-02-jenkins-kind-pipeline-v2
+Script Path：Jenkinsfile
+Poll SCM：H/2 * * * *
+```
+
+本机网络偶发 `curl 18 / early EOF`。仓库中的 Jenkinsfile 对完整 checkout 最多重试三次；Jenkins 节点可额外配置只读 Git reference cache，SCM URL 仍保持 GitHub。reference cache 属于节点环境配置，不能写入仓库 Jenkinsfile。
+
 ## 10. 阶段 G：Jenkins Pipeline
 
-待新增根文件：
+已实现根文件：
 
 ```text
 Jenkinsfile
@@ -418,12 +431,34 @@ Checkout
 → Lint
 → Build
 → Unit Test
-→ Integration Test
-→ Build Images
+→ Isolated Database Migration
+→ API Integration
+→ Seed E2E Data
+→ Playwright E2E
+→ Build Git SHA Images
 → Deploy to Kind
 → Health Check
 → Archive Evidence
 ```
+
+本地在不启动 Jenkins 时可执行同构验证：
+
+```bash
+BUILD_NUMBER=9001 FORCE_TEST_FAILURE_VALUE=false \
+  DB_MIGRATION_MODE_VALUE=push ./scripts/ci-local-run.sh
+
+BUILD_NUMBER=9002 FORCE_TEST_FAILURE_VALUE=true \
+  DB_MIGRATION_MODE_VALUE=push ./scripts/ci-local-run.sh
+```
+
+真实 Jenkins 记录：
+
+| Build | 参数 | 结果 | 关键证据 |
+| --- | --- | --- | --- |
+| `#2` | 默认成功路径 | `SUCCESS` | 12/12 markers；107 项规则/单元、API 16/16、E2E 3/3；SHA 镜像；Kind/Health；29 个 Artifact |
+| `#4` | `FORCE_TEST_FAILURE=true` | `EXPECTED FAILURE` | Unit 后退出 42；后续 Migration/API/Seed/E2E/Image/Kind/Health 全部 SKIPPED；只含 01–05 markers |
+
+Build `#1` 和 `#3` 的 GitHub checkout `curl 18 / early EOF` 作为环境失败记录保留，不冒充代码测试失败。
 
 建议骨架：
 
@@ -601,23 +636,23 @@ README.md
 
 - [ ] 剩余磁盘至少 40GB
 - [ ] 内存至少 16GB
-- [ ] Docker Desktop 正常运行
-- [ ] Java 21
-- [ ] kubectl、Kind、Jenkins 可执行
-- [ ] clone 后 `npm ci` 成功
-- [ ] `npm run test:ci` 成功
-- [ ] Compose config/build/up 成功
-- [ ] 前端、后端、MySQL 分别为容器
+- [x] Docker Desktop 或 Colima 正常运行
+- [x] Java 21
+- [x] kubectl、Kind、Jenkins 可执行
+- [x] clone 后 `npm ci` 成功
+- [x] `npm run test:ci` 成功
+- [x] Compose config/build/up 成功
+- [x] 前端、后端、MySQL 分别为容器
 - [ ] 全空数据库可 migrate + seed
-- [ ] Kind 节点 Ready
-- [ ] Kubernetes MySQL/Backend/Frontend Ready
-- [ ] 镜像使用 Git SHA 标签
-- [ ] Jenkins 能读取根目录 Jenkinsfile
+- [x] Kind 节点 Ready
+- [x] Kubernetes MySQL/Backend/Frontend Ready
+- [x] 镜像使用 Git SHA 标签
+- [x] Jenkins 能读取根目录 Jenkinsfile
 - [ ] push 后 Jenkins 自动检测提交
-- [ ] 任一步失败时后续部署不执行
-- [ ] 保存 1 次真实失败记录
-- [ ] 保存 1 次完整成功记录
-- [ ] README 由另一名组员从零复现
+- [x] 任一步失败时后续部署不执行
+- [x] 保存 1 次真实失败记录
+- [x] 保存 1 次完整成功记录
+- [x] README 由另一名组员从零复现
 
 ## 15. 日常空间维护
 
