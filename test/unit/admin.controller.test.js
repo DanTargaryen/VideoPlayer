@@ -119,6 +119,7 @@ describe('AdminController governance handling', () => {
       data: { status: 'REJECTED', rejectReason: 'illegal' },
     });
     assert.equal(prisma.reportRecord.updateMany.calls[0][0].data.handlerId, 1);
+    assert.equal(prisma.reportRecord.updateMany.calls[0][0].data.pendingKey, null);
     assert.equal(prisma.notification.create.calls[0][0].data.recipientId, 2);
   });
 

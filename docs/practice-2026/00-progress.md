@@ -120,6 +120,10 @@
   - 完成内容：已在独立 MySQL、MinIO、Redis 和 SRS 环境执行 UC01-UC06；UC01、UC04 为 `PASS`，UC02、UC03、UC05、UC06 为 `FAIL`；仅记录 5 个缺陷，未在 Smoke 分支混入修复。
   - 测试/验证：浏览器主成功/异常流程；隔离数据库和 MinIO 对象核对；SRS 中断与恢复；后端重启行为；根级单元测试及前后端生产构建。
   - 结果：未通过 `monolith-start` Gate，不创建标签；可编辑结果见 `docs/practice-2026/03-smoke-checklist.md`，未提交截图、日志、报告或本地数据库。
+- [x] `BUG-BASE01-UC06-01` 保证同一用户对同一目标只有一条待处理举报。
+  - 完成内容：相同 reporter/target 的重复请求返回已有 PENDING；nullable unique `pendingKey` 和 P2002 回读处理并发竞态；管理员处理时释放键，允许处理完成后再次举报；迁移保留最早待处理记录并审计性驳回历史重复项。
+  - 测试/验证：干净 `npm ci`；requirements 109/109、后端 Jest 7/7、前端 Vitest 3/3、前后端 lint/build；空库执行初始 + pendingKey 两个 migration；含两条重复 PENDING 的旧库升级；真实后端 12 路并发举报、管理员处理释放键、处理后再次举报。
+  - 结果：PASS；空库列/唯一索引和 2 个 migration 正确；旧库升级为 1 PENDING + 1 REJECTED；12 个并发响应仅 1 个 report ID，处理后新举报获得不同 ID；原 `BASE-01` Smoke 失败记录保持不变，等待最终统一复跑。
 - [x] `LINT-01` 清零前端现有 12 个 lint 错误，建立可用于 CI 的 lint 基线。
   - 完成内容：删除模板已不再调用的旧投稿创建逻辑、旧关注分组逻辑、未使用的格式化函数和图标/生命周期导入；为空的媒体 seek catch 增加原因说明。
   - 测试/验证：`npm run lint:frontend`、`npm run build:frontend`、CRLF 感知的 `git diff --check`。
@@ -239,6 +243,7 @@
 | 2026-08-27 | CI-02 Jenkins Build #5 | Poll SCM 检测普通 push `99fd2b8 → 800859e` 后自动排队，Cause=`Started by an SCM change` | 12/12 stages；107 项规则/单元、API 16/16、E2E 3/3；SHA 镜像；Kind/Health | SUCCESS；29 个 Artifact；Git revision=`800859e`；非人工触发；临时资源清理 PASS |
 | 2026-08-27 | CI-02 Jenkins Build #7 | Poll SCM 检测 rebase 后 push 并自动执行正式 migration 流水线，检出 `237f780` | 106 requirements + backend 7 + frontend 3；安全守卫允许隔离 `video_player_ci_test`；migration `20260826000000_init`；API 16/16；E2E 3/3；SHA 镜像；Kind/Health | SUCCESS；12/12 markers；27 个 Artifact；Pod 0 restart；临时 MySQL/Kind 清理 PASS；共享远端数据库/MinIO 未使用 |
 | 2026-08-27 | BUG-BASE01-UC02-01 搜索无结果 | 移除长关键词的二元片段召回，并拒绝没有文本相关性的个性化候选；保留现有前端无结果提示 | 干净 `npm ci`；`npm --workspace backend run prisma:generate`；`npm run build:backend`；`npm run test:ci`；定点搜索/视频测试；CRLF 感知 diff check | PASS；requirements 107/107、backend Jest 7/7、frontend Vitest 3/3；前后端 lint/build PASS；定点测试 13/13 |
+| 2026-08-27 | BUG-BASE01-UC06-01 举报幂等 | rebase 最新 main，新增 nullable unique `pendingKey`、重复 PENDING 清理 migration、P2002 竞态回读和处理后释放键 | 干净 `npm ci`；`npm run test:ci`；空库 migration；含重复记录的旧库升级；真实后端 12 路并发 API；管理员 KEEP 后再次举报；diff/Secret/Artifact 审计 | PASS；requirements 109/109、backend 7/7、frontend 3/3；2 migrations；旧库 1 PENDING + 1 REJECTED；并发 12→1 ID；处理后新 ID；首次管理员登录误用临时 Secret 导致 401，改用项目演示密钥 `123456` 后复跑 PASS |
 
 ## 4. 阻塞与需组长决定
 
