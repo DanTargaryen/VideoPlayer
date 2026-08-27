@@ -568,6 +568,7 @@ model ReportRecord {
   handlerId   Int?
   handler     User?            @relation("ReportHandlers", fields: [handlerId], references: [id])
   targetType  ReportTargetType
+  pendingKey  String?          @unique @db.VarChar(128)
   videoId     Int?
   video       Video?           @relation(fields: [videoId], references: [id])
   commentId   Int?

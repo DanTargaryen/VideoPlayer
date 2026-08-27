@@ -127,6 +127,7 @@ describe('AdminController', () => {
           status: 'PROCESSED',
           handlerId: 1,
           handleNote: '违规内容',
+          pendingKey: null,
         }),
       },
       notification: {
@@ -162,6 +163,7 @@ describe('AdminController', () => {
           status: 'PROCESSED',
           handlerId: 1,
           handleNote: '违规内容',
+          pendingKey: null,
         }),
       }),
     );

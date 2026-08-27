@@ -259,6 +259,7 @@ export class AdminController {
           handlerId: admin.id,
           handledAt: new Date(),
           handleNote: dto.reason ?? null,
+          pendingKey: null,
         },
       });
 
