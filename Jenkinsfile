@@ -46,7 +46,9 @@ pipeline {
         stage('Checkout') {
             steps {
                 deleteDir()
-                checkout scm
+                retry(3) {
+                    checkout scm
+                }
                 sh './scripts/ci-bootstrap.sh'
             }
         }
@@ -122,11 +124,15 @@ pipeline {
     post {
         always {
             script {
-                withEnv(["BUILD_RESULT=${currentBuild.currentResult}"]) {
-                    sh './scripts/ci-finalize-evidence.sh || true'
+                if (fileExists('scripts/ci-finalize-evidence.sh')) {
+                    withEnv(["BUILD_RESULT=${currentBuild.currentResult}"]) {
+                        sh './scripts/ci-finalize-evidence.sh || true'
+                    }
+                }
+                if (fileExists('scripts/k8s-collect-evidence.sh')) {
+                    sh './scripts/k8s-collect-evidence.sh || true'
                 }
             }
-            sh './scripts/k8s-collect-evidence.sh || true'
             archiveArtifacts(
                 artifacts: "ci-evidence/${CI_EVIDENCE_SUBDIR}/**",
                 allowEmptyArchive: true,
@@ -134,7 +140,11 @@ pipeline {
             )
         }
         cleanup {
-            sh './scripts/ci-cleanup.sh || true'
+            script {
+                if (fileExists('scripts/ci-cleanup.sh')) {
+                    sh './scripts/ci-cleanup.sh || true'
+                }
+            }
         }
     }
 }

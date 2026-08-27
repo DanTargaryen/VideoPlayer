@@ -227,6 +227,7 @@
 | 2026-08-27 | DB-01 合并前文档收口 | 修正 clean-machine README 的 `migrate deploy` 与 32 表口径；补全生产远端迁移精确授权、已有等价库 baseline、漂移停止和一次性确认变量说明 | 干净 `npm ci`；`prisma:generate`；`build:backend`；`npm run test:ci`；迁移变量/表数/旧 `db:push` 文案检查；CRLF 感知 diff check | PASS；requirements 106/106、backend Jest 7/7、frontend Vitest 3/3；前后端 lint/build PASS；文档变量与安全守卫源码一致 |
 | 2026-08-27 | CI-02 本地等价成功 | 修正 API/Seed 顺序和 Vite 端口变量后，执行与 Jenkins 相同的 12 阶段脚本 | 97 requirements + 7 backend + 3 frontend；API 16/16；E2E 3/3；Git SHA 镜像；Kind/Health | PASS；12/12 markers；Artifact 证据生成；临时 MySQL/Kind 自动清理 |
 | 2026-08-27 | CI-02 本地故意失败 | `FORCE_TEST_FAILURE=true` 在 Unit 后主动返回 42 | Checkout/Install/Lint/Build/Unit PASS；后续 7 阶段无 marker | PASS；证明失败阻断后续迁移、测试、镜像和部署；无运行资源残留 |
+| 2026-08-27 | CI-02 Jenkins Build #1 | Jenkins 通过 GitHub SCM 读取 Jenkinsfile 后执行完整 checkout | Git fetch 在 25% 时 `curl 18 / early EOF`；Install 及后续阶段全部 SKIPPED | FAIL（环境网络）；增加 checkout 三次重试、depth=1/no-tags 浅克隆和 checkout 失败时安全 Post 处理后重跑 |
 
 ## 4. 阻塞与需组长决定
 
