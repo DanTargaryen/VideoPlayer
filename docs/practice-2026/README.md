@@ -46,6 +46,7 @@
 | `09-commit-pr-convention.md` | Commit、push、PR、review、tag 和授权规范 | 每次提交/推送/PR 前读取 |
 | `10-uc06-state-diagrams.md` | UC06 系统级、组件级、对象级状态图及实现差距、测试落点 | UC06 设计评审、开发分工和测试追溯 |
 | `11-jenkins-kind-cicd-runbook.md` | Jenkins + Kind 换机执行、资源估算、验收与证据清单 | 在指定 Docker/Kubernetes 主机落地 CI/CD |
+| `12-second-stage-todo.md` | A–E 第二阶段分支任务、禁止事项、Review、DoD、切流与管理待办 | ARCH-01 合并后逐人领取并每日勾选 |
 
 ## 4. 组长今天的完成清单
 
