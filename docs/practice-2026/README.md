@@ -1,6 +1,6 @@
 # 2026 夏季《软件工程基础实践》启动包
 
-> 状态：`CONFIRMED SCOPE / IMPLEMENTATION STARTED`。组长于 2026-08-24 报告教师已确认当前范围；外部回复证据待补。
+> 状态：`CONFIRMED SCOPE / MONOLITH BASELINE VERIFIED`。组长于 2026-08-24 报告教师已确认当前范围；UC01–UC06 最终统一 Smoke 已全部通过，外部回复证据待补。
 >
 > 基准日期：2026-08-24。
 >
@@ -27,9 +27,8 @@
 - MySQL 与 MinIO 当前使用远端开发环境；这不能代替课程要求的容器化数据库。
 - 仓库没有自动化测试文件、前后端 Dockerfile、CI 工作流和 Kubernetes 配置。
 - 直播房间、观众和消息当前保存在后端进程内存中，不适合多副本和重启恢复。
-- 当前实践启动分支：`codex/practice-bootstrap`。
-- 当前维护提交：`7637aa0 chore: ignore local artifacts and Vite cache`。
-- 尚未创建 `monolith-start` 标签；必须在业务场景确认并完成 smoke 后再创建。
+- 当前单体基线验证提交：`9a6f4d8 fix(video): explain media playback failures (#38)`；最终证据提交合并后创建标签。
+- `monolith-start` Gate 已通过；标签使用 annotated tag，固定指向最终证据进入 `main` 后的提交，不得移动。
 
 ## 3. 文件索引
 
@@ -58,7 +57,7 @@
 - [ ] 确定 Docker/Kubernetes 验收主机和负责人。
 - [ ] 预约 60 分钟启动会，把成员 A-E 替换成真实姓名。
 - [ ] 安排 D1 全员执行 `03-smoke-checklist.md`。
-- [ ] 确认业务场景、解决阻断并形成干净基线后，再创建 `monolith-start`。
+- [x] 业务场景、阻断缺陷、干净基线和 UC01–UC06 最终 Smoke 均已确认；最终证据合并后创建 `monolith-start`。
 
 ## 5. 不应提前做的事情
 

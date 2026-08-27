@@ -116,22 +116,22 @@
   - 完成内容：在桌面版《详细设计说明书》新增 `2.11 UC01-UC06 对象级状态图`，按组长提供顺序插入六张图片，并标注 `OBJ-STATE01-OBJ-STATE06`。
   - 测试/验证：六张图片格式、尺寸、SHA-256 和复制后一致性检查；六条 Markdown 相对路径及六个对象级追溯编号完整。
   - 结果：通过；图片目录为 `/Users/mumuxunzi/Desktop/详细设计说明书.assets/`，当前不在 Git 仓库内，因此 commit/push 不适用。
-- [ ] `BASE-01` 完成 UC01-UC06 单体全场景 smoke 并创建 `monolith-start`。
-  - 完成内容：已在独立 MySQL、MinIO、Redis 和 SRS 环境执行 UC01-UC06；UC01、UC04 为 `PASS`，UC02、UC03、UC05、UC06 为 `FAIL`；仅记录 5 个缺陷，未在 Smoke 分支混入修复。
-  - 测试/验证：浏览器主成功/异常流程；隔离数据库和 MinIO 对象核对；SRS 中断与恢复；后端重启行为；根级单元测试及前后端生产构建。
-  - 结果：未通过 `monolith-start` Gate，不创建标签；可编辑结果见 `docs/practice-2026/03-smoke-checklist.md`，未提交截图、日志、报告或本地数据库。
+- [x] `BASE-01` 完成 UC01-UC06 单体全场景 smoke 并创建 `monolith-start`。
+  - 完成内容：首次 Smoke 保留 5 个缺陷的失败证据；#37、#36、#33、#35、#38 依次合并修复后，在 `main@9a6f4d8` 和同一全新 MySQL、MinIO、Redis、SRS 隔离环境统一重跑 UC01–UC06，所有主成功与关键异常流程均为 `PASS`。
+  - 测试/验证：干净 `npm ci`、Prisma generate、正式 migration；requirements 113/113、backend 16/16、frontend 22/22、API 16/16、public E2E 3/3；真实 MySQL 并发举报、MinIO 上传、SRS、headed Chrome HLS 503、Canvas+WebAudio MediaRecorder、WebM/MP4 回放；数据库/对象/Header/浏览器状态核对。
+  - 结果：PASS；32 表，最终隔离数据 10 users / 16 videos / 6 assets / 2 reports / 6 objects；WebM 2.97MB、MP4 1.22MB，Chrome 两资源 readyState=4；浏览器、进程、容器、网络、volumes 和端口全部清理。`monolith-start` 在本证据提交合并后创建并固定指向最终 `main` 提交。
 - [x] `BUG-BASE01-UC06-01` 保证同一用户对同一目标只有一条待处理举报。
   - 完成内容：相同 reporter/target 的重复请求返回已有 PENDING；nullable unique `pendingKey` 和 P2002 回读处理并发竞态；管理员处理时释放键，允许处理完成后再次举报；迁移保留最早待处理记录并审计性驳回历史重复项。
   - 测试/验证：干净 `npm ci`；requirements 109/109、后端 Jest 7/7、前端 Vitest 3/3、前后端 lint/build；空库执行初始 + pendingKey 两个 migration；含两条重复 PENDING 的旧库升级；真实后端 12 路并发举报、管理员处理释放键、处理后再次举报。
-  - 结果：PASS；空库列/唯一索引和 2 个 migration 正确；旧库升级为 1 PENDING + 1 REJECTED；12 个并发响应仅 1 个 report ID，处理后新举报获得不同 ID；原 `BASE-01` Smoke 失败记录保持不变，等待最终统一复跑。
+  - 结果：PASS；空库列/唯一索引和 2 个 migration 正确；旧库升级为 1 PENDING + 1 REJECTED；12 个并发响应仅 1 个 report ID，处理后新举报获得不同 ID；最终 BASE-01 统一复测 8 路并发再次通过，缺陷已关闭。
 - [x] `BUG-BASE01-UC03-01` 拒绝伪装或不受支持的视频文件。
   - 完成内容：前端在选取及提交前校验扩展名/MIME；后端在写入 MinIO 和数据库前校验扩展名/MIME，并用 FFprobe 确认存在视频流；若 MinIO 上传后数据库写入失败，则精确删除本次对象。
   - 测试/验证：干净 `npm ci`；requirements 111/111、后端 Jest 16/16、前端 Vitest 11/11、前后端 lint/build；真实 MinIO/MySQL/API 伪装 MP4 与合法 MP4；Playwright Chrome 投稿页文件选择。
-  - 结果：PASS；伪装 MP4 返回 400 且 VideoAsset/Video/MinIO 对象计数均不变；合法 1 秒 MP4 返回 201 并新增 1 Asset + 1 对象；浏览器选择 README 后 files=0，选择真实 MP4 后 files=1；原 `BASE-01` Smoke 失败记录保持不变，等待最终统一复跑。
+  - 结果：PASS；伪装 MP4 返回 400 且 VideoAsset/Video/MinIO 对象计数均不变；合法 1 秒 MP4 返回 201 并新增 1 Asset + 1 对象；浏览器选择 README 后 files=0，选择真实 MP4 后 files=1；最终 BASE-01 统一复测再次通过，缺陷已关闭。
 - [x] `BUG-BASE01-UC05-01` 修复直播回放对象的媒体类型传递。
   - 完成内容：确认带 codecs 参数的 MediaRecorder WebM 经 multipart/Multer 会退化为 `text/plain`；前端改为使用容器级 `video/webm`/`.webm` 上传，后端只允许 `video/webm` 或 `video/mp4` 资产登记为回放。
   - 测试/验证：干净 `npm ci`；requirements 113/113、后端 Jest 16/16、前端 Vitest 18/18、前后端 lint/build；真实 Chrome Canvas+WebAudio MediaRecorder；SRS 健康与开始/结束直播；MinIO WebM/MP4 Header；Draft 稿件；浏览器 WebM/MP4 metadata。
-  - 结果：PASS；真实 MediaRecorder 生成 1.96MB WebM，原始 Recording 与 MinIO Header 均为 `video/webm`；后台转码生成 862KB `video/mp4`；Session=ENDED、replayVideoId=15；Chrome 对两种资源 readyState=4、320×240；原 `BASE-01` Smoke 失败记录保持不变，等待最终统一复跑。
+  - 结果：PASS；真实 MediaRecorder 生成 1.96MB WebM，原始 Recording 与 MinIO Header 均为 `video/webm`；后台转码生成 862KB `video/mp4`；Session=ENDED、replayVideoId=15；Chrome 对两种资源 readyState=4、320×240；最终 BASE-01 统一复测以另一段 2.97MB WebM / 1.22MB MP4 再次通过，缺陷已关闭。
 - [x] `LINT-01` 清零前端现有 12 个 lint 错误，建立可用于 CI 的 lint 基线。
   - 完成内容：删除模板已不再调用的旧投稿创建逻辑、旧关注分组逻辑、未使用的格式化函数和图标/生命周期导入；为空的媒体 seek catch 增加原因说明。
   - 测试/验证：`npm run lint:frontend`、`npm run build:frontend`、CRLF 感知的 `git diff --check`。
@@ -255,11 +255,12 @@
 | 2026-08-27 | BUG-BASE01-UC03-01 无效媒体拒绝 | rebase 最新 main，合并搜索测试 mock；前后端扩展名/MIME 校验，后端 FFprobe 视频流校验，写入失败精确删除对象 | 干净 `npm ci`；`npm run test:ci`；真实 MinIO/MySQL/API 伪装与合法 MP4；Playwright CLI headed 浏览器投稿页；输入 files 长度；console 审计；环境清理 | PASS；requirements 111/111、backend 16/16、frontend 11/11；伪装 MP4 400 且 0 残留；合法 MP4 201 且 Asset/Object +1；浏览器无效 files=0、合法 files=1；仅 favicon.ico 404；冷镜像 runtime npm 下载长时间无输出后主动中止，改用同代码本地 build + 真实依赖容器完成验证 |
 | 2026-08-27 | BUG-BASE01-UC05-01 录播媒体类型 | rebase 最新 main；用容器级 MIME 创建回放文件；后端只登记 WebM/MP4；真实 Chrome 开播、MediaRecorder、结束、保存稿件、MinIO Header、异步转码和浏览器播放 | 干净 `npm ci`；`npm run test:ci`；SRS API；Playwright CLI headed Canvas+WebAudio 媒体源；真实 MinIO/MySQL；Session/Draft/Asset 查询；WebM/MP4 loadedmetadata；环境清理 | PASS；requirements 113/113、backend 16/16、frontend 18/18；WebM 1.96MB、Header video/webm；MP4 862KB、Header video/mp4；Session ENDED/replayVideoId=15；两资源 readyState=4、320×240；验证脚本先误用不存在的 `originalAssetId` 和错误字段 `contentType`/playUrl 相等假设，改按 uploadToken、mimeType 与异步转码设计复跑 PASS |
 | 2026-08-27 | BUG-BASE01-UC02-02 媒体失败可解释状态 | 为详情页媒体元素接入失败、恢复与重试状态；显示可访问的播放失败覆盖层并保留其余详情内容；补状态转换单测 | 干净 `npm ci`；Prisma Client generate；`npm run test:ci`；独立 MySQL/Redis/MinIO/SRS；Playwright CLI headed Chrome；媒体请求 503 路由；重试请求计数；截图视觉检查；环境清理 | PASS；requirements 113/113、backend 16/16、frontend 22/22；lint/build PASS；首次媒体请求 503 后 `role=alert` 可见；点击重试后媒体请求数 1→2 且 503 状态再次可解释；标题、简介、评论和相关推荐可用；首次 Vitest 命令误带 Jest 的 `--runInBand`，首次全量门禁又缺 Prisma Client，纠正前置步骤后标准命令复跑 PASS |
+| 2026-08-27 | BASE-01 最终统一复测 | fast-forward 到 `main@9a6f4d8`；在同一全新 Compose 隔离环境连续重跑 UC01–UC06；核对 migration、API、浏览器、数据库、MinIO、SRS、转码与回放；完成后销毁环境 | 干净 `npm ci`；Prisma generate；`npm run test:ci`；`npm run test:api`；`npm run test:e2e`；真实 API 并发/上传；Playwright CLI headed HLS 503 与 Canvas+WebAudio MediaRecorder；MinIO HEAD；Chrome metadata | PASS；requirements 113/113、backend 16/16、frontend 22/22、API 16/16、E2E 3/3；UC01–UC06 全绿；WebM 2.97MB、MP4 1.22MB、两资源 readyState=4；首次全量门禁的 FFprobe 用例冷启动超时，定点 9/9 与完整门禁复跑 PASS；API 验证先误用重新登录前 token 导致预期 401，又遗漏脚本 DATABASE_URL，修正后全量复跑 PASS；浏览器/进程/容器/volumes/端口清理 PASS |
 
 ## 4. 阻塞与需组长决定
 
 - [ ] 提供或指定教师确认回复的截图/链接，补入证据索引。
-- [ ] 决定是否允许在当前共享远端 MySQL/MinIO 上执行会写数据的 UC smoke；默认不写。
+- [x] 最终 UC smoke 使用全新隔离 MySQL/MinIO volumes 完成，不需要也未获得共享远端写入权限。
 - [x] 当前 Mac 已配置 Colima、Docker CLI、Kind 和 kubectl，并完成 Compose/Kubernetes 本地验收。
 - [x] PR #24 已合并到 `main`；远端功能分支已清理。
 - [ ] 仓库 owner 处理 GitHub Billing & plans 的付款失败或 Actions spending limit，之后重新运行 workflow。
