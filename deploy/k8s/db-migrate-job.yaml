@@ -45,7 +45,7 @@ spec:
             - --workspace
             - backend
             - run
-            - db:push
+            - db:migrate
           env:
             - name: DATABASE_URL
               valueFrom:

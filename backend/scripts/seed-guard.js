@@ -92,14 +92,60 @@ function passwordMatches(input, configuredPassword) {
 }
 
 function describeDatabaseTarget() {
-  try {
-    const databaseUrl = new URL(process.env.DATABASE_URL);
-    const port = databaseUrl.port || '3306';
-    const database = databaseUrl.pathname.replace(/^\//, '') || '(no database)';
-    return `${databaseUrl.hostname}:${port}/${database}`;
-  } catch {
+  const target = getDatabaseTarget();
+  if (!target) {
     return 'unknown database target';
   }
+
+  return `${target.hostname}:${target.port}/${target.database || '(no database)'}`;
+}
+
+function getDatabaseTarget() {
+  try {
+    const databaseUrl = new URL(process.env.DATABASE_URL);
+    return {
+      hostname: databaseUrl.hostname,
+      port: databaseUrl.port || '3306',
+      database: databaseUrl.pathname.replace(/^\//, ''),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function isLocalDatabaseHost(hostname) {
+  const normalized = hostname.toLowerCase();
+  return (
+    normalized === 'localhost' ||
+    normalized === 'mysql' ||
+    normalized === '127.0.0.1' ||
+    normalized === '::1' ||
+    normalized.startsWith('127.')
+  );
+}
+
+function ensureDestructiveSeedTargetAllowed() {
+  const target = getDatabaseTarget();
+  if (!target) {
+    return;
+  }
+
+  const isLocalDatabase = isLocalDatabaseHost(target.hostname);
+  const isRemoteTestExplicitlyAllowed =
+    process.env.SEED_GUARD_ALLOW_REMOTE_TEST === '1' &&
+    target.database.toLowerCase().includes('test');
+
+  if (isLocalDatabase || isRemoteTestExplicitlyAllowed) {
+    return;
+  }
+
+  console.error(
+    [
+      `[seed-guard] Refusing destructive db:seed for ${target.hostname}:${target.port}/${target.database}.`,
+      '[seed-guard] Destructive seed is only allowed for local databases, or for explicit remote test databases with SEED_GUARD_ALLOW_REMOTE_TEST=1.',
+    ].join('\n'),
+  );
+  process.exit(1);
 }
 
 function readHiddenLine(prompt) {
@@ -168,6 +214,8 @@ async function ensureSeedAllowed() {
   const configuredPassword = getConfiguredPassword();
   const target = describeDatabaseTarget();
 
+  ensureDestructiveSeedTargetAllowed();
+
   if (!configuredPassword) {
     console.error(
       [
@@ -200,7 +248,11 @@ async function ensureSeedAllowed() {
 }
 
 module.exports = {
+  ensureDestructiveSeedTargetAllowed,
   ensureSeedAllowed,
+  getDatabaseTarget,
+  isLocalDatabaseHost,
+  parseEnvFile,
 };
 
 if (require.main === module) {

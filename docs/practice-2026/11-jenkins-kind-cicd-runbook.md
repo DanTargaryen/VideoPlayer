@@ -233,24 +233,40 @@ docker compose \
 
 需要在隔离测试数据库中完成一次基线整理：
 
-- [ ] 备份当前迁移目录
-- [ ] 从当前 `schema.prisma` 生成完整基线 SQL
-- [ ] 在全空 MySQL 容器执行迁移
-- [ ] 执行 Seed
-- [ ] 验证测试账号和基础数据
+- [x] 备份当前迁移目录
+- [x] 从当前 `schema.prisma` 生成完整基线 SQL
+- [x] 在全空 MySQL 容器执行迁移
+- [x] 执行 Seed
+- [x] 验证测试账号和基础数据
 - [ ] 重启后端并执行集成测试
 
 最终标准命令：
 
 ```bash
 npm --workspace backend run prisma:generate
-npm --workspace backend exec prisma migrate deploy
+npm --workspace backend run db:migrate
 npm --workspace backend run db:seed
+```
+
+默认迁移范围仅覆盖全新本地验收库、Compose/Kind 内部 MySQL 以及数据库名包含 `test` 的本地隔离库。对非本地或非默认验收数据库执行迁移时，必须同时设置精确目标和显式确认：
+
+```bash
+MIGRATION_DEPLOY_ALLOWED_TARGET=host:3306/database \
+MIGRATION_DEPLOY_CONFIRM=DEPLOY_MIGRATIONS \
+npm --workspace backend run db:migrate
+```
+
+已有数据库 baseline 不作为日常入口使用。确需对已有等价数据库登记 `20260826000000_init` 时，必须先完成人工 schema diff 复核，并同时设置：
+
+```bash
+BASELINE_EXISTING_ALLOWED_TARGET=host:3306/database \
+BASELINE_EXISTING_CONFIRM=BASELINE \
+npm --workspace backend run db:baseline-existing
 ```
 
 Prisma 官方将 `migrate deploy` 用于生产和 CI 中应用已提交的迁移：[Prisma migrate deploy](https://www.prisma.io/docs/cli/migrate/deploy)。
 
-待新增：
+已新增：
 
 ```text
 scripts/db-migrate.sh

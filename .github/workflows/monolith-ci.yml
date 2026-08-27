@@ -38,11 +38,11 @@ jobs:
         image: mysql:8.0
         env:
           MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
-          MYSQL_DATABASE: video_player
+          MYSQL_DATABASE: video_player_test
         ports:
           - 3306:3306
     env:
-      DATABASE_URL: mysql://root@127.0.0.1:3306/video_player
+      DATABASE_URL: mysql://root@127.0.0.1:3306/video_player_test
       STORAGE_BACKEND: local
       LOCAL_STORAGE_DIR: ${{ github.workspace }}/.runtime-storage
       VITE_API_PROXY_TARGET: http://127.0.0.1:3000
@@ -63,7 +63,7 @@ jobs:
         run: |
           npm --workspace backend run prisma:generate
           for attempt in $(seq 1 30); do
-            if npm --workspace backend run db:push; then
+            if npm --workspace backend run db:migrate; then
               exit 0
             fi
             sleep 2
