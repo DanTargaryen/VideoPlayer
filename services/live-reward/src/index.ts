@@ -1,5 +1,7 @@
-import { startHealthService } from '@videoplayer/shared-contracts';
+import { resolvePort, writeServiceLog } from '@videoplayer/shared-contracts';
 
-import { SERVICE_OPTIONS } from './service.js';
+import { createLiveService, SERVICE_OPTIONS } from './service.js';
 
-startHealthService(SERVICE_OPTIONS);
+const port = resolvePort(SERVICE_OPTIONS.defaultPort);
+const server = createLiveService();
+server.listen(port, '0.0.0.0', () => writeServiceLog(SERVICE_OPTIONS.serviceName, 'service_started', { port }));

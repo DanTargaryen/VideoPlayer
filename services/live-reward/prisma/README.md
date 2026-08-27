@@ -1,3 +1,16 @@
-# Live schema placeholder
+# live-reward Prisma boundary
 
-MS-00 reserves this directory but does not copy monolith models. The MS-03 owner adds independently reviewed live persistence and reward schemas, migrations and fixtures after the scaffold merges.
+This schema is owned by `live-reward`. User and video identifiers are external IDs;
+there are intentionally no foreign keys to identity-community or content-media.
+
+Set `LIVE_REWARD_DATABASE_URL` to an isolated MySQL database, then run:
+
+```bash
+npm --workspace @videoplayer/live-reward run prisma:generate
+npm --workspace @videoplayer/live-reward run db:migrate
+```
+
+The service uses an in-memory adapter when the variable is absent, which keeps
+health checks and unit tests independent of external infrastructure. Production
+and integration deployments must set the variable so database state is the source
+of truth across restarts.

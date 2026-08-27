@@ -184,7 +184,13 @@
 - [ ] `MS-02..04` 提取其余三个业务微服务并独立构建、测试和部署。
   - 已确认分工：组长本人承担 A，负责 MS-00/K8S-01；B 已完成 MS-01 identity-community；C 负责 MS-02 content-media，D 负责 MS-03 live-reward，E 负责 MS-04 governance-ai 并协调 REG-01。
   - 执行顺序：ARCH-01 文档 → MS-00 公共骨架 → 四服务 foundation 并行 → 只读路由 → 写流量切换 → REG-01；首批不得删除单体表或提前切换写流量。
-  - 执行清单：`docs/practice-2026/12-second-stage-todo.md`；MS-00/MS-01 foundation 已完成；C 的 MS-02 foundation 已完成本地、真实 MySQL/MinIO、Compose 和隔离 Kind 验证，等待 PR #43 更新、最终复审和合并；D/E 继续各自 foundation。
+  - 执行清单：`docs/practice-2026/12-second-stage-todo.md`；MS-00/MS-01/MS-02 foundation 已完成，D/E 继续各自 foundation 和集成验收；未验证项保持未勾选。
+- [ ] `MS-03` live-reward foundation 与 UC05 直播/礼物边界实现。
+  - 当前分支：`feature/MS-03-live-reward`；基于 `origin/main@b166de4` 创建。
+  - 已完成源码：独立 Prisma schema/migration/fixture、数据库/内存存储适配器、房间/Session 持久化生命周期、观众事件、消息留存上限、SRS timeout/probe/RTC adapter、回放登记状态机、币账本幂等入口和 live-reward HTTP contract。
+  - 尚未完成：真实 MySQL/SRS/content-media 联调、Gateway 切流、K8s 独立部署、单体数据迁移和完整 UC05 浏览器回归；这些保持 `NOT RUN`，不提前勾选第二阶段总 Gate。
+  - 测试/验证：`npm ci --ignore-scripts`；`npm run test:ci`（requirements 113/113、backend 16/16、frontend 22/22、services 全部 PASS）；`npm --workspace @videoplayer/live-reward run prisma:generate`；`npm --workspace @videoplayer/live-reward run build`；`npm --workspace @videoplayer/live-reward run lint`；`npm --workspace @videoplayer/live-reward run test`（2 files / 4 tests PASS）；Prisma schema validation 使用 dummy `LIVE_REWARD_DATABASE_URL`，真实数据库 migration NOT RUN，Docker build BLOCKED（Docker daemon 未运行）。
+  - 结果：PARTIAL；可继续在该分支开发，待 A review SRS/K8s/持久化/回放/账本故障证据后再更新复选框。
 - [ ] `REG-01` 完成全部公开 API 和 UC01-UC06 自动回归。
 - [ ] `EXP-01` 完成 HPA 扩缩容实验。
 - [ ] `EXP-02` 完成依赖故障降级实验。
@@ -284,6 +290,7 @@
 
 | 2026-08-28 | MS-01 identity-community foundation 收口 | rebase 最新 main 并重建合规历史；将运行时从内存 Map 接入 Prisma；独立 DB/账号/Secret；修正 coin/phone/session owner；补真实 MySQL 重启/双实例测试、Docker migration/runtime、Compose/K8s 和完整文档 | clean `npm ci`；`npm run test:ci` 171；identity contract 5/5 + integration 1/1；migration 首次/重复；seed/reset/拒绝；Compose 全镜像、迁移、五服务 health/version、identity restart、schema isolation；Shell/Compose/Kustomize | PASS；三轮失败过程保留并修复：npm lock `ECONNRESET`、Docker OpenSSL/engine、Compose migration guard；最终本地 CI、MySQL 与 Compose 全绿；Kind rollout NOT RUN，新增 YAML/脚本静态 PASS |
 | 2026-08-28 | MS-02 PR #43 Owner 修复与复测 | 在新普通 commit 中修复独立 Prisma Client、默认 Compose/K8s content DB/migration、容器 OpenSSL/重试、真实 MySQL+MinIO 补偿链、文档与 UC 追溯；不切 Gateway 业务流量 | clean install/full CI；真实 MySQL 首次/重复 migration+fixture；review/replay 冲突；服务重启；容器 ffprobe；真实 MinIO+DB；Compose；隔离 Kind；Secret/Artifact/diff | PASS；requirements 115/115、backend 16/16、frontend 22/22、content 17/17；MySQL+MinIO fake=400/valid=201/db-failure=500；Compose/Kind 5/5 healthy/Ready、0 restart；隔离资源全部清理；等待 PR #43 复审 |
+| 2026-08-27 | MS-03 live-reward foundation | 在 `feature/MS-03-live-reward` 增加独立 live/reward Prisma 边界、可重启持久化接口、SRS timeout、回放 retry 状态和幂等账本 HTTP contract；保留单体 fallback 与跨服务外部 ID 边界 | `npm ci --ignore-scripts`；`npm run test:ci`；`npm --workspace @videoplayer/live-reward run prisma:generate/build/lint/test`；Prisma validate（dummy URL）；Docker build | PARTIAL；完整仓库 113/113、16/16、22/22 与 services 全部 PASS；live-reward 2 files / 4 tests PASS；Docker build BLOCKED（daemon 未运行）；真实 migration/SRS/content/Gateway/K8s/UC05 浏览器回归待后续证据 |
 
 ## 4. 阻塞与需组长决定
 

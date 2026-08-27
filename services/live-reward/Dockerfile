@@ -17,6 +17,7 @@ FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production PORT=3000
 COPY --from=build /app/services/live-reward/dist ./dist
+COPY --from=build /app/services/live-reward/generated ./generated
 COPY --from=build /app/services/shared-contracts/package.json ./node_modules/@videoplayer/shared-contracts/package.json
 COPY --from=build /app/services/shared-contracts/dist ./node_modules/@videoplayer/shared-contracts/dist
 USER node
