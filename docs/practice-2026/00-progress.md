@@ -143,6 +143,15 @@
   - 安全配置：public E2E 使用仅存在于 GitHub Runner 生命周期内的空密码 MySQL；JWT/Admin Secret 在启动步骤动态生成。未来部署 job 仍必须使用 GitHub/K8s Secrets。
   - 远端结果：PR #24 触发 run `32799446109`；quality 和 public-e2e 均为 failure、0 steps、无 runner，images skipped。GitHub UI 权威注解为：`The job was not started because your account is locked due to a billing issue.`
   - 未打勾原因：workflow 尚未实际执行 quality/E2E/images jobs；课程要求的 Kubernetes 自动部署 job 仍未实现。
+- [x] `CI-02` 建立 Jenkins + Kind 自动流水线并保留成功/失败证据。
+  - 已完成配置：新增可移植 Declarative `Jenkinsfile`，按 Checkout、Install、Lint、Build、Unit、隔离数据库、API、Seed、E2E、SHA 镜像、Kind 部署、Health 顺序执行；新增本地等价入口、阶段标记、Artifact 收集和安全清理脚本。
+  - 本地等价验证：第一次因 Seed 先于 API 导致推荐分页断言失败，调整为 API 后 Seed；第二次因 Vite 参数透传错误未监听指定端口，改用 `VITE_DEV_HOST/VITE_DEV_PORT`；第三次完整成功，107 项规则/单元测试、API 16/16、Playwright 3/3、SHA 镜像、Kind 和 Health 全部 PASS。
+  - 失败门禁验证：`FORCE_TEST_FAILURE=true` 在 Unit 后以退出码 42 失败，数据库、API、Seed、E2E、镜像、Kind 和 Health 共 7 个后续阶段均无 marker、无容器或集群残留。
+  - 真实 Jenkins：Build #2 完整 SUCCESS，归档 29 个 Artifact；Build #4 使用 `FORCE_TEST_FAILURE=true` 在 Unit 后按预期 FAILURE，后续 7 阶段全部 SKIPPED 并只归档 01–05 markers。Build #1/#3 的 GitHub checkout `curl 18` 失败记录也已保留，并通过三次重试、浅克隆和节点 reference cache 解除。
+  - 自动触发验证：普通 push `800859e` 后，Poll SCM 在 10:01 检测 `99fd2b8 → 800859e`，Build #5 Cause 为 `Started by an SCM change`；默认成功参数下 12/12 阶段 PASS、29 个 Artifact，并自动清理临时 MySQL/Kind。
+  - DB-01 合并验证：本地同构 Build 9202 对动态创建的 `video_player_ci_test` 执行 `20260826000000_init`，安全守卫与 `prisma migrate deploy` PASS；106/106 需求规则、后端 7/7、前端 3/3、API 16/16、Playwright 3/3、SHA 镜像、Kind/Health 全部通过，12/12 markers 完整，临时 MySQL/Kind 已清理。
+  - 正式 migration Jenkins 验证：rebase 后 push 由 Poll SCM 自动触发 Build #7，检出 `237f780`；隔离库 migration、API 16/16、Playwright 3/3、SHA 镜像、Kind/Health、12/12 markers 和 27 个 Artifact 全部 PASS，临时 MySQL/Kind 清理 PASS。
+  - 结果：PASS；本机 Jenkins 成功、故意失败阻断、SCM push 自动触发和正式 migration 四类证据齐全。数据库阶段只对流水线隔离测试库执行 `prisma migrate deploy`。
 - [ ] `ARCH-01` 冻结四服务接口和 31 张表的数据归属。
   - 已完成草案：四服务职责/非职责、现有 31/31 Model 唯一归属、建议新增直播/审计表、公开/内部接口、跨服务 timeout/幂等/降级、迁移/回滚顺序。
   - 验证：Model 名单与 `backend/prisma/schema.prisma` 自动比对；文档表中 31 个现有 Model 无遗漏、无重复 owner。
@@ -166,6 +175,7 @@
 | REPRO-01 Clean-machine README 复现 | DONE | 按 README 从空依赖、全新 Compose project/volume/image tag 和全新 Kind cluster 完整重跑；补充 TLS/ffmpeg-static 安全复现说明；修正 AdminController 单测 mock 与异常预期 | `npm ci`；`npm run test:ci`；Compose config/build/up；MySQL 建表；Seed；首页；Backend Health；Kind 部署；Kubernetes Health | PASS；运行环境保留；结论见 `docs/REPRO-01-clean-machine-checklist.md` | 本提交 |
 | DB-01 Prisma migration 基线 | DONE | 单一初始 migration、migration lock、migrate/seed/test-reset 入口、安全守卫、K8s/Compose/CI 切换到 `migrate deploy`，以及 clean-machine/生产部署口径同步 | 全新本机 MySQL 8.0 容器；`video_player_migration_test` 首次/重复迁移；seed；`db:test-reset`；失败阻断；schema diff；受保护 existing-database baseline 流程；Compose/K8s 启动复核；迁移入口远端精确白名单守卫 | PASS；默认支持全新验收数据库；6 用户/14 视频；失败库 `P3005` 阻断；等价库 baseline PASS；不等价库拒绝；非 test reset 拒绝；README 明确 31 个业务表 + 1 个迁移表；无共享远端 reset/baseline | 本提交 |
 | CI-01 流水线配置 | PARTIAL | quality、public-e2e、versioned images jobs；K8s 部署基线已补 | YAML 解析；本地 `test:ci`、API、Playwright、Kind 实跑；GitHub 注解 | LOCAL PASS；REMOTE BLOCKED BY BILLING；Jenkins PENDING | `f151429` + 本提交 |
+| CI-02 Jenkins Pipeline | DONE | 可移植 Jenkinsfile、隔离 DB 正式 migration、API/E2E、SHA 镜像、Kind、Health、Artifact、清理和本地等价入口 | Build #2 SUCCESS；#4 故意 FAILURE；#5 SCM 自动触发 SUCCESS；#7 migration SUCCESS | PASS；失败阻断、Artifact、cleanup、Poll SCM 与 `prisma migrate deploy` 均验证 | 本提交 |
 | ARCH-01 服务/数据草案 | PARTIAL | 4 服务、31 表归属、接口、失败策略、迁移/回滚 | Prisma Model 自动比对；唯一 owner 检查 | DRAFT PASS；TEAM REVIEW PENDING | `bcbc873` |
 | GOV-GIT-01 Commit/PR 规范 | DONE | GitHub PR 模板、仓库规范、个人 Codex skill | quick_validate；模板章节/敏感信息/diff 检查 | PASS | 最终治理提交 |
 | GOV-GIT-02 分支/Commit 命名 | DONE | category 分支名、Conventional Commit 标题、Changes/Tests 正文、PR Commit 清单 | quick_validate；必填字段；diff check | PASS；应用测试 N/A（纯规范） | 最终治理提交 |
@@ -219,6 +229,15 @@
 | 2026-08-26 | DB-01 Prisma migration 基线 | 删除分段迁移历史，生成单一初始 migration，新增 migrate/seed/test-reset 入口，并切换 Compose/K8s/CI/init-db | 本机全新 MySQL 8.0 容器 `vp-db01-mysql2`；`video_player_migration_test` 首次迁移、重复迁移、seed、test-reset、失败阻断、schema diff；受保护 existing-database baseline；Compose/K8s 启动复核 | PASS；首次迁移建 32 表；Seed 6 用户/14 视频；故意冲突库 `video_player_fail_test` 触发 `P3005`；等价库 baseline PASS；不等价库拒绝；非 test reset 拒绝；未碰共享远端库 |
 | 2026-08-27 | DB-01 远端迁移入口收口 | 将 `db:migrate`、`scripts/db-migrate.sh`、`scripts/init-db.sh`、Compose 后端启动命令和 K8s migration Job 接入迁移目标守卫；`db:baseline-existing` 改为精确白名单加 `BASELINE` 确认 | `node --test test/unit/db-target-safety.test.js test/unit/db-baseline-existing.test.js`；`node backend/scripts/db-target-safety.js db:migrate migrate-deploy` 的本地验收库/远端拒绝/远端白名单路径 | PASS；默认只支持本地/Compose/Kind 全新验收库；远端或非默认库必须设置精确 `MIGRATION_DEPLOY_ALLOWED_TARGET` + `MIGRATION_DEPLOY_CONFIRM=DEPLOY_MIGRATIONS`；existing baseline 必须设置精确 `BASELINE_EXISTING_ALLOWED_TARGET` + `BASELINE_EXISTING_CONFIRM=BASELINE` |
 | 2026-08-27 | DB-01 合并前文档收口 | 修正 clean-machine README 的 `migrate deploy` 与 32 表口径；补全生产远端迁移精确授权、已有等价库 baseline、漂移停止和一次性确认变量说明 | 干净 `npm ci`；`prisma:generate`；`build:backend`；`npm run test:ci`；迁移变量/表数/旧 `db:push` 文案检查；CRLF 感知 diff check | PASS；requirements 106/106、backend Jest 7/7、frontend Vitest 3/3；前后端 lint/build PASS；文档变量与安全守卫源码一致 |
+| 2026-08-27 | CI-02 本地等价成功 | 修正 API/Seed 顺序和 Vite 端口变量后，执行与 Jenkins 相同的 12 阶段脚本 | 97 requirements + 7 backend + 3 frontend；API 16/16；E2E 3/3；Git SHA 镜像；Kind/Health | PASS；12/12 markers；Artifact 证据生成；临时 MySQL/Kind 自动清理 |
+| 2026-08-27 | CI-02 本地故意失败 | `FORCE_TEST_FAILURE=true` 在 Unit 后主动返回 42 | Checkout/Install/Lint/Build/Unit PASS；后续 7 阶段无 marker | PASS；证明失败阻断后续迁移、测试、镜像和部署；无运行资源残留 |
+| 2026-08-27 | CI-02 正式 migration 本地同构验证 | rebase 最新 `main` 后移除失效 `db:push` 模式，固定对动态隔离库执行 DB-01 `prisma migrate deploy`；执行 Build 9202 全流程 | 106 requirements + backend 7 + frontend 3；migration `20260826000000_init`；API 16/16；E2E 3/3；SHA 镜像；Kind/Health | PASS；12/12 markers；安全守卫确认 `127.0.0.1/video_player_ci_test`；临时 MySQL/Kind 清理 PASS；共享远端数据库/MinIO 未使用 |
+| 2026-08-27 | CI-02 Jenkins Build #1 | Jenkins 通过 GitHub SCM 读取 Jenkinsfile 后执行完整 checkout | Git fetch 在 25% 时 `curl 18 / early EOF`；Install 及后续阶段全部 SKIPPED | FAIL（环境网络）；增加 checkout 三次重试、depth=1/no-tags 浅克隆和 checkout 失败时安全 Post 处理后重跑 |
+| 2026-08-27 | CI-02 Jenkins Build #2 | GitHub SCM 第二次浅克隆成功后执行完整 Declarative Pipeline | requirements 97/97；backend 7/7；frontend 3/3；API 16/16；E2E 3/3；SHA 镜像；Kind/Health | SUCCESS；12/12 markers；29 个 Artifact；Pod 0 restart；临时 MySQL/Kind 清理 PASS |
+| 2026-08-27 | CI-02 Jenkins Build #3 | 使用 `FORCE_TEST_FAILURE=true` 启动故意失败验证 | GitHub checkout 连续三次 `curl 18 / early EOF`，未进入 Unit | FAILURE（环境网络，不作为门禁证据）；Job 增加本地 Git reference cache，SCM URL 仍为 GitHub |
+| 2026-08-27 | CI-02 Jenkins Build #4 | reference cache 下检出 GitHub 分支，Unit 完成后主动返回 42 | Checkout/Install/Lint/Build/Unit PASS；Migration/API/Seed/E2E/Image/Kind/Health 全部 SKIPPED | EXPECTED FAILURE；只归档 01–05 markers 和 intentional-failure；无容器/集群残留 |
+| 2026-08-27 | CI-02 Jenkins Build #5 | Poll SCM 检测普通 push `99fd2b8 → 800859e` 后自动排队，Cause=`Started by an SCM change` | 12/12 stages；107 项规则/单元、API 16/16、E2E 3/3；SHA 镜像；Kind/Health | SUCCESS；29 个 Artifact；Git revision=`800859e`；非人工触发；临时资源清理 PASS |
+| 2026-08-27 | CI-02 Jenkins Build #7 | Poll SCM 检测 rebase 后 push 并自动执行正式 migration 流水线，检出 `237f780` | 106 requirements + backend 7 + frontend 3；安全守卫允许隔离 `video_player_ci_test`；migration `20260826000000_init`；API 16/16；E2E 3/3；SHA 镜像；Kind/Health | SUCCESS；12/12 markers；27 个 Artifact；Pod 0 restart；临时 MySQL/Kind 清理 PASS；共享远端数据库/MinIO 未使用 |
 
 ## 4. 阻塞与需组长决定
 
