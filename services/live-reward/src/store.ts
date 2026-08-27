@@ -124,6 +124,7 @@ export class MemoryStore implements Store {
   private readonly rooms = new Map<number, MemoryRoom>();
   private readonly sessions = new Map<number, SessionRecord>();
   private readonly messages: MessageRecord[] = [];
+  private readonly chatCounts = new Map<number, number>();
   private readonly viewerEvents: ViewerEventRecord[] = [];
   private readonly replays = new Map<number, ReplayRecord>();
   private readonly balances = new Map<number, number>();
@@ -172,6 +173,7 @@ export class MemoryStore implements Store {
     await this.purgeMessages(new Date(Date.now() - 7 * 86400000));
     const message = { ...input, id: this.nextMessageId++, createdAt: new Date() };
     this.messages.push(message);
+    if (message.kind === 'CHAT') this.chatCounts.set(message.sessionId, (this.chatCounts.get(message.sessionId) ?? 0) + 1);
     this.trimMessages(input.sessionId);
     return message;
   }
@@ -181,7 +183,13 @@ export class MemoryStore implements Store {
   }
   async purgeMessages(before: Date): Promise<number> {
     const initial = this.messages.length;
-    for (let index = this.messages.length - 1; index >= 0; index -= 1) if (this.messages[index]!.kind === 'CHAT' && this.messages[index]!.createdAt < before) this.messages.splice(index, 1);
+    for (let index = this.messages.length - 1; index >= 0; index -= 1) {
+      const message = this.messages[index]!;
+      if (message.kind === 'CHAT' && message.createdAt < before) {
+        this.messages.splice(index, 1);
+        this.chatCounts.set(message.sessionId, Math.max(0, (this.chatCounts.get(message.sessionId) ?? 1) - 1));
+      }
+    }
     return initial - this.messages.length;
   }
   async addViewerEvent(input: Omit<ViewerEventRecord, 'id' | 'createdAt'>): Promise<ViewerEventRecord> {
@@ -229,6 +237,8 @@ export class MemoryStore implements Store {
   async getDailyClaims(userId: number): Promise<Date[]> { return Array.from(this.dailyClaims.entries()).filter(([key]) => key.startsWith(`${userId}:`)).map(([, date]) => date); }
   async getClaimedMilestones(userId: number): Promise<number[]> { return Array.from(this.milestones).filter((key) => key.startsWith(`${userId}:`)).map((key) => Number(key.split(':')[1])); }
   async claimMilestone(userId: number, milestone: number, requestId: string): Promise<{ claimed: boolean; amount: number; balance: number; message?: string }> {
+    const existingTransaction = this.transactions.find((item) => item.requestId === requestId);
+    if (existingTransaction) return { claimed: false, amount: 0, balance: existingTransaction.balanceAfter };
     const key = `${userId}:${milestone}`;
     if (this.milestones.has(key)) return { claimed: false, amount: 0, balance: await this.getBalance(userId), message: '该里程碑已领取' };
     this.milestones.add(key);
@@ -264,10 +274,19 @@ export class MemoryStore implements Store {
     return next;
   }
   private trimMessages(sessionId: number) {
-    const sessionMessages = this.messages.filter((message) => message.sessionId === sessionId && message.kind === 'CHAT');
-    if (sessionMessages.length <= 10000) return;
-    const toRemove = new Set(sessionMessages.slice(0, sessionMessages.length - 10000).map((message) => message.id));
-    for (let index = this.messages.length - 1; index >= 0; index -= 1) if (toRemove.has(this.messages[index]!.id)) this.messages.splice(index, 1);
+    const count = this.chatCounts.get(sessionId) ?? 0;
+    if (count <= 10000) return;
+    let remaining = count - 10000;
+    for (let index = 0; index < this.messages.length && remaining > 0;) {
+      const message = this.messages[index]!;
+      if (message.sessionId === sessionId && message.kind === 'CHAT') {
+        this.messages.splice(index, 1);
+        remaining -= 1;
+      } else {
+        index += 1;
+      }
+    }
+    this.chatCounts.set(sessionId, 10000);
   }
 }
 
@@ -301,7 +320,17 @@ export class PrismaStore implements Store {
   async createReplay(input: Omit<ReplayRecord, 'id' | 'createdAt' | 'updatedAt' | 'attempts' | 'lastError' | 'nextRetryAt'>): Promise<ReplayRecord> {
     const existing = await this.getReplayBySession(input.sessionId) ?? await this.getReplayByKey(input.objectKey);
     if (existing) return existing;
-    return this.prisma.replayRegistration.create({ data: { ...input, attempts: 0, lastError: null, nextRetryAt: null } });
+    try {
+      return await this.prisma.replayRegistration.create({ data: { ...input, attempts: 0, lastError: null, nextRetryAt: null } });
+    } catch (error) {
+      if (isUniqueError(error)) {
+        const bySession = await this.getReplayBySession(input.sessionId);
+        if (bySession) return bySession;
+        const byKey = await this.getReplayByKey(input.objectKey);
+        if (byKey) return byKey;
+      }
+      throw error;
+    }
   }
   async getReplayBySession(sessionId: number): Promise<ReplayRecord | null> { return this.prisma.replayRegistration.findUnique({ where: { sessionId } }); }
   async getReplay(id: number): Promise<ReplayRecord | null> { return this.prisma.replayRegistration.findUnique({ where: { id } }); }
@@ -324,6 +353,8 @@ export class PrismaStore implements Store {
   async getDailyClaims(userId: number): Promise<Date[]> { return (await this.prisma.dailyCoinClaim.findMany({ where: { userId }, orderBy: { claimDate: 'desc' }, select: { claimDate: true } })).map((item) => item.claimDate); }
   async getClaimedMilestones(userId: number): Promise<number[]> { return (await this.prisma.streakMilestoneClaim.findMany({ where: { userId }, select: { milestone: true } })).map((item) => item.milestone); }
   async claimMilestone(userId: number, milestone: number, requestId: string) {
+    const existingTransaction = await this.prisma.coinTransaction.findUnique({ where: { requestId } });
+    if (existingTransaction) return { claimed: false, amount: 0, balance: existingTransaction.balanceAfter };
     try {
       return await this.prisma.$transaction(async (tx) => {
         await tx.streakMilestoneClaim.create({ data: { userId, milestone } });
@@ -336,26 +367,42 @@ export class PrismaStore implements Store {
   async coinVideo(userId: number, videoId: number, amount: number, requestId: string) {
     const existingTx = await this.prisma.coinTransaction.findUnique({ where: { requestId } });
     if (existingTx) return { amount: Math.abs(existingTx.amount), balance: existingTx.balanceAfter, userVideoCoinCount: (await this.prisma.videoCoinContribution.findUnique({ where: { videoId_userId: { videoId, userId } } }))?.amount ?? 0 };
-    return this.prisma.$transaction(async (tx) => {
-      const existing = await tx.videoCoinContribution.findUnique({ where: { videoId_userId: { videoId, userId } } });
-      const current = existing?.amount ?? 0;
-      if (current + amount > 2) throw new Error('每个视频最多投币 2 个');
-      const account = await tx.coinAccount.upsert({ where: { userId }, create: { userId, balance: 10 - amount }, update: { balance: { decrement: amount } } });
-      if (account.balance < 0) throw new Error('余额不足，请每日打卡获取货币');
-      const contribution = existing ? await tx.videoCoinContribution.update({ where: { id: existing.id }, data: { amount: { increment: amount } } }) : await tx.videoCoinContribution.create({ data: { videoId, userId, amount } });
-      await tx.coinTransaction.create({ data: { userId, type: 'VIDEO_COIN', amount: -amount, balanceAfter: account.balance, videoId, requestId } });
-      return { amount, balance: account.balance, userVideoCoinCount: contribution.amount };
-    });
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const existing = await tx.videoCoinContribution.findUnique({ where: { videoId_userId: { videoId, userId } } });
+        const current = existing?.amount ?? 0;
+        if (current + amount > 2) throw new Error('每个视频最多投币 2 个');
+        const account = await tx.coinAccount.upsert({ where: { userId }, create: { userId, balance: 10 - amount }, update: { balance: { decrement: amount } } });
+        if (account.balance < 0) throw new Error('余额不足，请每日打卡获取货币');
+        const contribution = existing ? await tx.videoCoinContribution.update({ where: { id: existing.id }, data: { amount: { increment: amount } } }) : await tx.videoCoinContribution.create({ data: { videoId, userId, amount } });
+        await tx.coinTransaction.create({ data: { userId, type: 'VIDEO_COIN', amount: -amount, balanceAfter: account.balance, videoId, requestId } });
+        return { amount, balance: account.balance, userVideoCoinCount: contribution.amount };
+      });
+    } catch (error) {
+      if (isUniqueError(error)) {
+        const existing = await this.prisma.coinTransaction.findUnique({ where: { requestId } });
+        if (existing) return { amount: Math.abs(existing.amount), balance: existing.balanceAfter, userVideoCoinCount: (await this.prisma.videoCoinContribution.findUnique({ where: { videoId_userId: { videoId, userId } } }))?.amount ?? 0 };
+      }
+      throw error;
+    }
   }
   async gift(userId: number, amount: number, requestId: string) {
     const existing = await this.prisma.coinTransaction.findUnique({ where: { requestId } });
     if (existing) return { amount: Math.abs(existing.amount), balance: existing.balanceAfter };
-    return this.prisma.$transaction(async (tx) => {
-      const account = await tx.coinAccount.upsert({ where: { userId }, create: { userId, balance: 10 - amount }, update: { balance: { decrement: amount } } });
-      if (account.balance < 0) throw new Error('余额不足，请每日打卡获取货币');
-      await tx.coinTransaction.create({ data: { userId, type: 'LIVE_GIFT', amount: -amount, balanceAfter: account.balance, requestId } });
-      return { amount, balance: account.balance };
-    });
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const account = await tx.coinAccount.upsert({ where: { userId }, create: { userId, balance: 10 - amount }, update: { balance: { decrement: amount } } });
+        if (account.balance < 0) throw new Error('余额不足，请每日打卡获取货币');
+        await tx.coinTransaction.create({ data: { userId, type: 'LIVE_GIFT', amount: -amount, balanceAfter: account.balance, requestId } });
+        return { amount, balance: account.balance };
+      });
+    } catch (error) {
+      if (isUniqueError(error)) {
+        const existing = await this.prisma.coinTransaction.findUnique({ where: { requestId } });
+        if (existing) return { amount: Math.abs(existing.amount), balance: existing.balanceAfter };
+      }
+      throw error;
+    }
   }
 }
 

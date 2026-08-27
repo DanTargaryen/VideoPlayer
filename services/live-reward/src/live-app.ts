@@ -66,8 +66,9 @@ export class ContentReplayClient implements ReplayClient {
   constructor(private readonly baseUrl: string, private readonly timeoutMs = 5000) {}
   async register(input: { sessionId: number; objectKey: string; mimeType: string | null; requestId: string }): Promise<{ contentVideoId: number }> {
     const secret = process.env.SERVICE_JWT_SECRET;
+    if (!secret?.trim()) throw new HttpError(503, 'Internal service authentication is not configured', 503);
     const headers: Record<string, string> = { 'content-type': 'application/json', 'x-request-id': input.requestId };
-    if (secret) headers.authorization = `Bearer ${issueServiceToken({ caller: 'live-reward', audience: 'content-media', scopes: ['content.replays.write'], secret, requestId: input.requestId })}`;
+    headers.authorization = `Bearer ${issueServiceToken({ caller: 'live-reward', audience: 'content-media', scopes: ['content.replays.write'], secret, requestId: input.requestId })}`;
     try {
       const response = await fetch(`${this.baseUrl}/internal/v1/replays`, { method: 'POST', headers, body: JSON.stringify(input), signal: AbortSignal.timeout(this.timeoutMs) });
       if (!response.ok) throw new HttpError(503, `content-media returned ${response.status}`, 503);
@@ -189,8 +190,7 @@ export class LiveApplication {
     const session = await this.latestSession(room.id);
     if (!session || session.status !== 'ENDED') throw new HttpError(409, 'Replay can be registered after the session ends', 409);
     const objectKey = input.objectKey?.trim(); if (!objectKey) throw new HttpError(400, 'objectKey is required', 400);
-    const mimeType = normalizeMime(input.mimeType);
-    if (!['video/webm', 'video/mp4'].includes(mimeType)) throw new HttpError(400, 'Replay asset must be a playable WebM or MP4 video', 400);
+    const mimeType = normalizeReplayMime(objectKey, input.mimeType);
     const requestId = input.requestId?.trim() || randomUUID();
     const replay = await this.store.createReplay({ sessionId: session.id, objectKey, contentVideoId: null, status: 'PENDING', requestId, mimeType });
     return this.attemptReplay(replay);
@@ -198,6 +198,7 @@ export class LiveApplication {
 
   async retryReplay(id: number) {
     const replay = await this.store.getReplay(id); if (!replay) throw new HttpError(404, 'Replay registration not found', 404);
+    if (replay.status === 'FAILED_FINAL') throw new HttpError(409, 'Replay registration reached the retry limit', 409);
     return this.attemptReplay(replay);
   }
 
@@ -240,7 +241,14 @@ function statusOrder(status: RoomStatus) { return status === 'LIVING' ? 0 : stat
 function serializeRoom(room: RoomRecord, viewerCount: number, session: SessionRecord | null) { return { id: room.id, title: room.title, category: room.category, coverUrl: room.coverUrl, sourceMode: room.sourceMode, streamKey: room.streamKey, rtmpUrl: room.rtmpUrl, playUrl: room.playUrl, status: room.status, viewerCount, createdAt: room.createdAt.toISOString(), startedAt: session?.status === 'LIVING' ? session.startedAt.toISOString() : null, endedAt: session?.endedAt?.toISOString() ?? null, sessionId: session?.id ?? null, replayStatus: session?.replayStatus ?? 'NONE', broadcaster: { id: room.broadcasterId } }; }
 function serializeMessage(message: MessageRecord) { return { id: message.id, sessionId: message.sessionId, kind: message.kind, content: message.content, senderId: message.senderId, createdAt: message.createdAt.toISOString() }; }
 function serializeReplay(replay: ReplayRecord) { return { ...replay, createdAt: replay.createdAt.toISOString(), updatedAt: replay.updatedAt.toISOString(), nextRetryAt: replay.nextRetryAt?.toISOString() ?? null }; }
-function normalizeMime(value?: string) { return (value?.split(';', 1)[0]?.trim().toLowerCase() || 'video/webm'); }
+function normalizeReplayMime(objectKey: string, value?: string) {
+  const mimeType = value?.split(';', 1)[0]?.trim().toLowerCase();
+  const extension = objectKey.toLowerCase().split(/[?#]/, 1)[0]!.match(/\.([a-z0-9]+)$/)?.[1];
+  const extensionMime = extension === 'webm' ? 'video/webm' : extension === 'mp4' ? 'video/mp4' : null;
+  if (!extensionMime) throw new HttpError(400, 'Replay asset filename must end with .webm or .mp4', 400);
+  if (mimeType && mimeType !== extensionMime) throw new HttpError(400, 'Replay filename extension and MIME type must match', 400);
+  return extensionMime;
+}
 function startOfDay(date: Date) { const result = new Date(date); result.setHours(0, 0, 0, 0); return result; }
 function sameDay(left: Date, right: Date) { return startOfDay(left).getTime() === startOfDay(right).getTime(); }
 function calculateStreak(claims: Date[], now: Date) { if (!claims.length) return 0; const today = startOfDay(now).getTime(); const latest = startOfDay(claims[0]!).getTime(); if (today - latest > 86400000) return 0; let result = 1; for (let i = 1; i < claims.length; i += 1) { if (startOfDay(claims[i - 1]!).getTime() - startOfDay(claims[i]!).getTime() !== 86400000) break; result += 1; } return result; }

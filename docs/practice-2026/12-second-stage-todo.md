@@ -353,52 +353,52 @@ services/<service>/
 
 ### 6.2 现有数据 owner
 
-- [ ] `CoinTransaction`
-- [ ] `DailyCoinClaim`
-- [ ] `StreakMilestoneClaim`
-- [ ] `VideoCoinContribution`
+- [x] `CoinTransaction`
+- [x] `DailyCoinClaim`
+- [x] `StreakMilestoneClaim`
+- [x] `VideoCoinContribution`
 
 ### 6.3 新增持久化模型
 
-- [ ] `LiveRoom`
-- [ ] `LiveSession`
-- [ ] `LiveMessage`
-- [ ] `LiveViewerEvent`
-- [ ] `ReplayRegistration`
-- [ ] 房间、Session、状态、开始/结束时间、streamKey 和 replay 状态以数据库为事实来源。
-- [ ] 内存只保存 PeerConnection、SSE/长连接、临时媒体流和短期连接缓存。
-- [ ] 后端重启后房间和 Session 状态仍可查询。
+- [x] `LiveRoom`
+- [x] `LiveSession`
+- [x] `LiveMessage`
+- [x] `LiveViewerEvent`
+- [x] `ReplayRegistration`
+- [x] 房间、Session、状态、开始/结束时间、streamKey 和 replay 状态以数据库为事实来源。
+- [x] 内存只保存 PeerConnection、SSE/长连接、临时媒体流和短期连接缓存。
+- [x] 后端重启后房间和 Session 状态仍可查询（隔离 MySQL migration 后关闭并重建应用验证通过）。
 
 ### 6.4 直播生命周期与 SRS
 
-- [ ] `POST /api/v1/lives/rooms`。
-- [ ] `POST /api/v1/lives/rooms/:id/start`。
-- [ ] `POST /api/v1/lives/rooms/:id/stop`。
-- [ ] `GET /api/v1/lives/rooms/:id`。
-- [ ] `GET /api/v1/lives/sessions/:id`。
-- [ ] SRS adapter 有明确 timeout。
-- [ ] SRS 正常时开播成功。
-- [ ] SRS 不可用时返回明确错误且不盲目无限重试。
-- [ ] SRS 恢复后可重新开播。
-- [ ] SRS 故障不影响其他服务 health。
+- [x] `POST /api/v1/lives/rooms`。
+- [x] `POST /api/v1/lives/rooms/:id/start`。
+- [x] `POST /api/v1/lives/rooms/:id/stop`。
+- [x] `GET /api/v1/lives/rooms/:id`。
+- [x] `GET /api/v1/lives/sessions/:id`。
+- [x] SRS adapter 有明确 timeout。
+- [x] SRS 正常时开播成功。
+- [x] SRS 不可用时返回明确错误且不盲目无限重试。
+- [x] SRS 恢复后可重新开播。
+- [x] SRS 故障不影响其他服务 health。
 
 ### 6.5 回放登记
 
-- [ ] ReplayRegistration 状态包含 PENDING/REGISTERING/COMPLETED/FAILED_RETRYABLE/FAILED_FINAL。
-- [ ] 调用 content `/internal/v1/replays`。
-- [ ] content 不可用时直播仍可正常结束。
-- [ ] attempts、lastError 和 nextRetryAt 可审计。
-- [ ] requestId/objectKey 保证不会重复创建 content video。
-- [ ] WebM/MP4 文件名、数据库 MIME 和 MinIO Header 一致。
+- [x] ReplayRegistration 状态包含 PENDING/REGISTERING/COMPLETED/FAILED_RETRYABLE/FAILED_FINAL。
+- [x] 调用 content `/internal/v1/replays`。
+- [x] content 不可用时直播仍可正常结束。
+- [x] attempts、lastError 和 nextRetryAt 可审计。
+- [x] requestId/objectKey 保证不会重复创建 content video。
+- [ ] WebM/MP4 文件名、数据库 MIME 和 MinIO Header 一致（文件名/MIME 已校验；MinIO Header 真实联调 `NOT RUN`）。
 
 ### 6.6 币账本与消息留存
 
-- [ ] 所有余额写入只由 live-reward 执行。
-- [ ] 视频投币通过内部 API 和 requestId 幂等。
-- [ ] balanceAfter、videoId、userId 和 requestId 可审计。
-- [ ] 普通直播消息保留 7 天。
-- [ ] 每个 Session 最多 10,000 条普通消息。
-- [ ] 超限清理最早消息，不删除房间、Session、回放和审计事实。
+- [x] 所有余额写入只由 live-reward 执行。
+- [x] 视频投币通过内部 API 和 requestId 幂等。
+- [x] balanceAfter、videoId、userId 和 requestId 可审计。
+- [x] 普通直播消息保留 7 天。
+- [x] 每个 Session 最多 10,000 条普通消息。
+- [x] 超限清理最早消息，不删除房间、Session、回放和审计事实。
 
 ### 6.7 D 第一批禁止事项
 

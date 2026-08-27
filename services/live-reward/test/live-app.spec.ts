@@ -1,9 +1,30 @@
-import { describe, expect, it } from 'vitest';
+import { once } from 'node:events';
+import { createServer, type Server } from 'node:http';
 
-import { HttpError, LiveApplication, createLiveHttpServer, type ReplayClient, type SrsClient } from '../src/live-app.js';
+import { issueServiceToken, verifyServiceToken } from '@videoplayer/shared-contracts';
+import { afterEach, describe, expect, it } from 'vitest';
+
+import { ContentReplayClient, FetchSrsClient, HttpError, LiveApplication, createLiveHttpServer, type ReplayClient, type SrsClient } from '../src/live-app.js';
 import { MemoryStore } from '../src/store.js';
 
 const broadcaster = { id: 7, nickname: '主播' };
+const servers: Server[] = [];
+const serviceSecret = 'live-reward-test-secret-0123456789012345';
+
+afterEach(async () => {
+  await Promise.all(servers.splice(0).map((server) => new Promise<void>((resolve) => server.close(() => resolve()))));
+  delete process.env.SERVICE_JWT_SECRET;
+});
+
+async function listen(handler: Parameters<typeof createServer>[0]): Promise<string> {
+  const server = createServer(handler);
+  servers.push(server);
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const address = server.address();
+  if (!address || typeof address === 'string') throw new Error('Expected TCP address');
+  return `http://127.0.0.1:${address.port}`;
+}
 
 class HealthySrs implements SrsClient {
   async probe() {}
@@ -42,6 +63,7 @@ describe('live-reward domain', () => {
     await app.createMessage(room.id, broadcaster, 'hello');
     expect((await app.listMessages(room.id)).some((item) => item.content === 'hello')).toBe(true);
     await app.stopRoom(room.id, broadcaster);
+    await expect(app.registerReplay(room.id, broadcaster, { objectKey: 'recordings/mismatch.mp4', mimeType: 'video/webm', requestId: 'replay-mismatch' })).rejects.toMatchObject({ status: 400 });
     const replayResult = await app.registerReplay(room.id, broadcaster, { objectKey: 'recordings/1.webm', mimeType: 'video/webm', requestId: 'replay-1' });
     expect(replayResult.status).toBe('COMPLETED');
     expect(replayResult.contentVideoId).toBe(42);
@@ -58,6 +80,54 @@ describe('live-reward domain', () => {
     expect((await app.getRoom(room.id)).status).toBe('IDLE');
   });
 
+  it('can start again after SRS recovers and keeps health available during an outage', async () => {
+    let available = false;
+    const app = new LiveApplication({ store: new MemoryStore(), srs: { probe: async () => { if (!available) throw new HttpError(503, 'SRS service is unavailable'); }, exchange: async () => ({ type: 'answer', sdp: 'answer', sessionId: null, server: null }) } });
+    const room = await app.createRoom(broadcaster, { title: '恢复测试' });
+    const server = createLiveHttpServer(app);
+    servers.push(server);
+    server.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('Expected TCP address');
+    expect((await fetch(`http://127.0.0.1:${address.port}/health/live`)).status).toBe(200);
+    await expect(app.startRoom(room.id, broadcaster)).rejects.toMatchObject({ status: 503 });
+    available = true;
+    expect((await app.startRoom(room.id, broadcaster)).status).toBe('LIVING');
+  });
+
+  it('retains replay failure state, retries after content recovery and stops at the final retry limit', async () => {
+    let available = false;
+    let calls = 0;
+    const replay: ReplayClient = { register: async () => { calls += 1; if (!available) throw new HttpError(503, 'content-media is unavailable'); return { contentVideoId: 84 }; } };
+    const app = new LiveApplication({ store: new MemoryStore(), replayClient: replay });
+    const room = await app.createRoom(broadcaster, { title: '回放重试' });
+    await app.startRoom(room.id, broadcaster);
+    await app.stopRoom(room.id, broadcaster);
+    const failed = await app.registerReplay(room.id, broadcaster, { objectKey: 'recordings/retry.webm', requestId: 'replay-retry' });
+    expect(failed.status).toBe('FAILED_RETRYABLE');
+    expect(failed.attempts).toBe(1);
+    expect(failed.lastError).toContain('content-media');
+    expect(failed.nextRetryAt).toBeTruthy();
+    expect((await app.getSession(failed.sessionId)).status).toBe('ENDED');
+    available = true;
+    const completed = await app.retryReplay(failed.id);
+    expect(completed.status).toBe('COMPLETED');
+    expect(completed.contentVideoId).toBe(84);
+    expect(calls).toBe(2);
+    expect((await app.retryReplay(failed.id)).status).toBe('COMPLETED');
+
+    available = false;
+    const finalRoom = await app.createRoom(broadcaster, { title: '最终失败' });
+    await app.startRoom(finalRoom.id, broadcaster);
+    await app.stopRoom(finalRoom.id, broadcaster);
+    let final = await app.registerReplay(finalRoom.id, broadcaster, { objectKey: 'recordings/final.mp4', mimeType: 'video/mp4', requestId: 'replay-final' });
+    for (let attempt = 1; attempt < 5; attempt += 1) final = await app.retryReplay(final.id);
+    expect(final.status).toBe('FAILED_FINAL');
+    expect(final.attempts).toBe(5);
+    await expect(app.retryReplay(final.id)).rejects.toMatchObject({ status: 409 });
+  });
+
   it('makes wallet writes idempotent and enforces the per-video limit', async () => {
     const app = new LiveApplication({ store: new MemoryStore() });
     const first = await app.claimDaily(7, 'daily-1');
@@ -69,5 +139,120 @@ describe('live-reward domain', () => {
     await expect(app.coinVideo(7, 99, 1, 'coin-2')).rejects.toThrow('最多投币 2');
     const wallet = await app.wallet(7);
     expect(wallet.balance).toBe(10);
+  });
+
+  it('reconstructs viewer state from the store boundary and trims ordinary chat at 10,000 messages', async () => {
+    const store = new MemoryStore();
+    const app = new LiveApplication({ store });
+    const room = await app.createRoom(broadcaster, { title: '重启边界' });
+    await app.startRoom(room.id, broadcaster);
+    await app.addViewer(room.id, 'viewer-restart');
+    for (let index = 0; index < 10001; index += 1) await app.createMessage(room.id, broadcaster, `message-${index}`);
+    const restarted = new LiveApplication({ store });
+    expect((await restarted.getRoom(room.id)).viewerCount).toBe(1);
+    const messages = await restarted.listMessages(room.id);
+    expect(messages).toHaveLength(100);
+    expect(messages.at(-1)?.content).toBe('message-10000');
+    const storedMessages = await store.listMessages((await store.getLatestSession(room.id))!.id, 10001);
+    expect(storedMessages.filter((message) => message.kind === 'CHAT')).toHaveLength(10000);
+    expect(storedMessages.filter((message) => message.kind === 'SYSTEM')).toHaveLength(1);
+  });
+});
+
+describe('live-reward HTTP adapters and internal auth', () => {
+  it('exposes the complete room/session HTTP lifecycle contract', async () => {
+    const app = new LiveApplication({ store: new MemoryStore(), srs: new HealthySrs(), replayClient: new ReplayStub() });
+    const server = createLiveHttpServer(app);
+    servers.push(server);
+    server.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('Expected TCP address');
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+    const userHeaders = { 'x-user-id': '7', 'x-user-nickname': 'anchor', 'content-type': 'application/json' };
+    const request = async (path: string, init: RequestInit = {}) => fetch(`${baseUrl}${path}`, { ...init, headers: { ...userHeaders, ...(init.headers ?? {}) } });
+    const created = await request('/api/v1/lives/rooms', { method: 'POST', body: JSON.stringify({ title: 'HTTP 生命周期', category: 'tech' }) });
+    expect(created.status).toBe(200);
+    const roomId = (await created.json()).data.id as number;
+    expect((await request('/api/v1/lives/rooms')).status).toBe(200);
+    expect((await request(`/api/v1/lives/rooms/${roomId}`)).status).toBe(200);
+    expect((await request(`/api/v1/lives/rooms/${roomId}/start`, { method: 'POST' })).status).toBe(200);
+    const viewer = await request(`/api/v1/lives/rooms/${roomId}/viewers`, { method: 'POST', body: JSON.stringify({ viewerId: 'http-viewer' }) });
+    expect(viewer.status).toBe(200);
+    const sessionId = (await viewer.json()).data.sessionId as number;
+    expect((await request(`/api/v1/lives/sessions/${sessionId}`)).status).toBe(200);
+    expect((await request(`/api/v1/lives/rooms/${roomId}/messages`, { method: 'POST', body: JSON.stringify({ content: 'hello' }) })).status).toBe(200);
+    expect((await request(`/api/v1/lives/rooms/${roomId}/messages`)).status).toBe(200);
+    expect((await request(`/api/v1/lives/rooms/${roomId}/events`)).status).toBe(200);
+    expect((await request(`/api/v1/lives/rooms/${roomId}/viewers/http-viewer`, { method: 'DELETE' })).status).toBe(200);
+    expect((await request(`/api/v1/lives/rooms/${roomId}/stop`, { method: 'POST' })).status).toBe(200);
+    const replay = await request(`/api/v1/lives/rooms/${roomId}/replay`, { method: 'POST', headers: { 'x-request-id': 'http-replay' }, body: JSON.stringify({ objectKey: 'recordings/http.webm', mimeType: 'video/webm' }) });
+    expect(replay.status).toBe(200);
+    expect((await request('/api/v1/gift-coins/wallet')).status).toBe(200);
+    expect((await request('/api/v1/gift-coins/daily-claim', { method: 'POST' })).status).toBe(200);
+    expect((await request('/api/v1/gift-coins/streak')).status).toBe(200);
+    expect((await request('/api/v1/gift-coins/gift', { method: 'POST', body: JSON.stringify({ amount: 1 }) })).status).toBe(200);
+  });
+
+  it('uses the SRS API with bounded timeout and exchanges RTC SDP', async () => {
+    let exchangeBody: Record<string, unknown> | null = null;
+    const baseUrl = await listen(async (request, response) => {
+      if (request.url === '/api/v1/streams/') {
+        response.end(JSON.stringify({ streams: [] }));
+        return;
+      }
+      let text = '';
+      for await (const chunk of request) text += String(chunk);
+      exchangeBody = JSON.parse(text) as Record<string, unknown>;
+      response.setHeader('content-type', 'application/json');
+      response.end(JSON.stringify({ code: 0, sdp: 'srs-answer', sessionid: 'srs-session', server: 'srs-node' }));
+    });
+    const client = new FetchSrsClient(baseUrl, 'webrtc://127.0.0.1/live', 200);
+    await expect(client.probe()).resolves.toBeUndefined();
+    await expect(client.exchange('publish', 'room-1', { type: 'offer', sdp: 'browser-offer' })).resolves.toEqual({ type: 'answer', sdp: 'srs-answer', sessionId: 'srs-session', server: 'srs-node' });
+    expect(exchangeBody).toMatchObject({ streamurl: 'webrtc://127.0.0.1/live/room-1', sdp: 'browser-offer' });
+  });
+
+  it('surfaces an SRS timeout as a bounded dependency failure', async () => {
+    const baseUrl = await listen((_request, response) => {
+      setTimeout(() => response.end(JSON.stringify({ streams: [] })), 100);
+    });
+    await expect(new FetchSrsClient(baseUrl, 'webrtc://127.0.0.1/live', 20).probe()).rejects.toMatchObject({ status: 504 });
+  });
+
+  it('registers replay through content-media with a scoped service JWT', async () => {
+    process.env.SERVICE_JWT_SECRET = serviceSecret;
+    let receivedBody: Record<string, unknown> | null = null;
+    let receivedClaims: ReturnType<typeof verifyServiceToken> | null = null;
+    const baseUrl = await listen(async (request, response) => {
+      let text = '';
+      for await (const chunk of request) text += String(chunk);
+      receivedBody = JSON.parse(text) as Record<string, unknown>;
+      const header = request.headers.authorization;
+      receivedClaims = verifyServiceToken(String(header).replace(/^Bearer\s+/i, ''), { audience: 'content-media', secret: serviceSecret, requiredScopes: ['content.replays.write'] });
+      response.setHeader('content-type', 'application/json');
+      response.end(JSON.stringify({ data: { contentVideoId: 99 } }));
+    });
+    const client = new ContentReplayClient(baseUrl, 200);
+    await expect(client.register({ sessionId: 12, objectKey: 'recordings/12.mp4', mimeType: 'video/mp4', requestId: 'replay-http' })).resolves.toEqual({ contentVideoId: 99 });
+    expect(receivedBody).toMatchObject({ sessionId: 12, objectKey: 'recordings/12.mp4', mimeType: 'video/mp4', requestId: 'replay-http' });
+    expect(receivedClaims).toMatchObject({ sub: 'live-reward', aud: 'content-media', scope: ['content.replays.write'], requestId: 'replay-http' });
+  });
+
+  it('protects internal coin writes with service JWT scope', async () => {
+    process.env.SERVICE_JWT_SECRET = serviceSecret;
+    const server = createLiveHttpServer(new LiveApplication({ store: new MemoryStore() }));
+    servers.push(server);
+    server.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('Expected TCP address');
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+    const token = issueServiceToken({ caller: 'gateway', audience: 'live-reward', scopes: ['live.ledger.write'], secret: serviceSecret, requestId: 'gateway-coin-1' });
+    const response = await fetch(`${baseUrl}/internal/v1/videos/99/coin`, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json', 'x-request-id': 'gateway-coin-1' }, body: JSON.stringify({ userId: 7, amount: 1 }) });
+    expect(response.status).toBe(200);
+    expect((await response.json()).data).toMatchObject({ amount: 1, balance: 9 });
+    const denied = await fetch(`${baseUrl}/internal/v1/videos/99/coin`, { method: 'POST', headers: { authorization: `Bearer ${issueServiceToken({ caller: 'gateway', audience: 'live-reward', scopes: [], secret: serviceSecret })}`, 'content-type': 'application/json' }, body: JSON.stringify({ userId: 7, amount: 1 }) });
+    expect(denied.status).toBe(401);
   });
 });
