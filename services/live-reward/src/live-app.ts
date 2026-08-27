@@ -159,7 +159,7 @@ export class LiveApplication {
     if (room.status !== 'LIVING') throw new HttpError(409, 'Live room is not active', 409);
     const session = await this.requireActiveSession(roomId);
     const id = viewerId?.trim().slice(0, 128) || randomUUID();
-    const viewers = this.viewerIds.get(session.id) ?? new Set<string>();
+    const viewers = this.viewerIds.get(session.id) ?? new Set(await this.store.listActiveViewers(session.id));
     viewers.add(id); this.viewerIds.set(session.id, viewers);
     await this.store.addViewerEvent({ sessionId: session.id, viewerId: id, eventType: 'JOIN' });
     return { roomId, sessionId: session.id, viewerId: id, status: room.status };
@@ -167,7 +167,7 @@ export class LiveApplication {
 
   async removeViewer(roomId: number, viewerId: string) {
     const session = await this.requireActiveSession(roomId);
-    const viewers = this.viewerIds.get(session.id);
+    const viewers = this.viewerIds.get(session.id) ?? new Set(await this.store.listActiveViewers(session.id));
     if (!viewers?.has(viewerId)) throw new HttpError(404, 'Viewer not found', 404);
     viewers.delete(viewerId);
     await this.store.addViewerEvent({ sessionId: session.id, viewerId, eventType: 'LEAVE' });
@@ -228,7 +228,7 @@ export class LiveApplication {
   private async requireOwnedRoom(id: number, userId: number) { const room = await this.requireRoom(id); if (room.broadcasterId !== userId) throw new HttpError(403, 'Only broadcaster can operate this room', 403); return room; }
   private async requireActiveSession(roomId: number) { const session = await this.latestSession(roomId); if (!session || session.status !== 'LIVING') throw new HttpError(409, 'Live room is not active', 409); return session; }
   private async activeViewerCount(roomId: number) { const session = await this.latestSession(roomId); return session ? this.activeViewerCountBySession(session.id) : 0; }
-  private async activeViewerCountBySession(sessionId: number) { const inMemory = this.viewerIds.get(sessionId); if (inMemory) return inMemory.size; return this.store.countViewers(sessionId); }
+  private async activeViewerCountBySession(sessionId: number) { const inMemory = this.viewerIds.get(sessionId); if (inMemory && !this.store.persistent) return inMemory.size; return this.store.countViewers(sessionId); }
   private isSrsConfigured() { return Boolean(process.env.SRS_API_BASE?.trim()); }
 }
 

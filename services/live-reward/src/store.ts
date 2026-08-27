@@ -95,6 +95,7 @@ export interface Store {
   purgeMessages(before: Date): Promise<number>;
   addViewerEvent(input: Omit<ViewerEventRecord, 'id' | 'createdAt'>): Promise<ViewerEventRecord>;
   countViewers(sessionId: number): Promise<number>;
+  listActiveViewers(sessionId: number): Promise<string[]>;
   createReplay(input: Omit<ReplayRecord, 'id' | 'createdAt' | 'updatedAt' | 'attempts' | 'lastError' | 'nextRetryAt'>): Promise<ReplayRecord>;
   getReplay(id: number): Promise<ReplayRecord | null>;
   getReplayBySession(sessionId: number): Promise<ReplayRecord | null>;
@@ -189,11 +190,14 @@ export class MemoryStore implements Store {
     return event;
   }
   async countViewers(sessionId: number): Promise<number> {
+    return (await this.listActiveViewers(sessionId)).length;
+  }
+  async listActiveViewers(sessionId: number): Promise<string[]> {
     const active = new Set<string>();
     for (const event of this.viewerEvents.filter((item) => item.sessionId === sessionId)) {
       if (event.eventType === 'JOIN') active.add(event.viewerId); else active.delete(event.viewerId);
     }
-    return active.size;
+    return Array.from(active);
   }
   async createReplay(input: Omit<ReplayRecord, 'id' | 'createdAt' | 'updatedAt' | 'attempts' | 'lastError' | 'nextRetryAt'>): Promise<ReplayRecord> {
     const existing = await this.getReplayBySession(input.sessionId) ?? await this.getReplayByKey(input.objectKey);
@@ -286,10 +290,13 @@ export class PrismaStore implements Store {
   private async trimPersistedMessages(sessionId: number) { const ids = await this.prisma.liveMessage.findMany({ where: { sessionId, kind: 'CHAT' }, orderBy: { createdAt: 'asc' }, select: { id: true } }); if (ids.length > 10000) await this.prisma.liveMessage.deleteMany({ where: { id: { in: ids.slice(0, ids.length - 10000).map((item) => item.id) } } }); }
   async addViewerEvent(input: Omit<ViewerEventRecord, 'id' | 'createdAt'>): Promise<ViewerEventRecord> { return this.prisma.liveViewerEvent.create({ data: input }); }
   async countViewers(sessionId: number): Promise<number> {
+    return (await this.listActiveViewers(sessionId)).length;
+  }
+  async listActiveViewers(sessionId: number): Promise<string[]> {
     const events = await this.prisma.liveViewerEvent.findMany({ where: { sessionId }, orderBy: { createdAt: 'asc' } });
     const active = new Set<string>();
     events.forEach((event) => event.eventType === 'JOIN' ? active.add(event.viewerId) : active.delete(event.viewerId));
-    return active.size;
+    return Array.from(active);
   }
   async createReplay(input: Omit<ReplayRecord, 'id' | 'createdAt' | 'updatedAt' | 'attempts' | 'lastError' | 'nextRetryAt'>): Promise<ReplayRecord> {
     const existing = await this.getReplayBySession(input.sessionId) ?? await this.getReplayByKey(input.objectKey);
