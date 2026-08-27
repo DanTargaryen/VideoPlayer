@@ -493,7 +493,16 @@ junit(
 )
 ```
 
-本地 Build `9402` 已生成并通过 XML 解析的完整 11 份报告，合计 186 tests、0 failures、0 errors，其中 requirements 115、后端 16、前端 22、六微服务 14、API 16、Playwright 3；所有 testcase 均位于标准 `testsuite` 内。Build `9305` 使用 `FORCE_TEST_FAILURE=true`，Unit 后按预期退出 42，同时保留 9 份 Unit XML、合计 167 tests。真实 Jenkins Test Result 页面和新 Build Artifact 仍需在分支 push 后运行确认。
+本地 Build `9402` 已生成并通过 XML 解析的完整 11 份报告，合计 186 tests、0 failures、0 errors，其中 requirements 115、后端 16、前端 22、六微服务 14、API 16、Playwright 3；所有 testcase 均位于标准 `testsuite` 内。Build `9305` 使用 `FORCE_TEST_FAILURE=true`，Unit 后按预期退出 42，同时保留 9 份 Unit XML、合计 167 tests。真实 Jenkins Test Result 和 Artifact 由下列 Build #9/#10 完成验证。
+
+真实 Jenkins JUnit 记录：
+
+| Build | 结果 | Test Result | XML / markers / Artifact | 部署与清理 |
+| --- | --- | --- | --- | --- |
+| `#9` | `SUCCESS` | 186 passed、0 failed、0 skipped；49 suites | 11 XML；12/12 markers；39 Artifacts | Git SHA 镜像、Kind、单体与五微服务 health PASS；MySQL/Kind 清理 PASS |
+| `#10` | `EXPECTED FAILURE` | 167 passed、0 failed、0 skipped；47 suites | 9 Unit XML；5 markers；21 Artifacts | Unit 后 exit 42；后续 Migration/API/Seed/E2E/Image/Kind/Health 全部 SKIPPED；无资源创建 |
+
+Build #9 的后端构建/运行时依赖安装和前端依赖安装出现多次 `ECONNRESET`，由 Dockerfile 既有重试机制恢复后完整成功；该网络过程保留在 Console Output，不从测试结果中隐藏。
 
 建议骨架：
 
@@ -693,7 +702,7 @@ README.md
 - [x] 任一步失败时后续部署不执行
 - [x] 保存 1 次真实失败记录
 - [x] 保存 1 次完整成功记录
-- [ ] Jenkins 成功/失败 Build 均发布标准 JUnit XML 并显示 Test Result
+- [x] Jenkins 成功/失败 Build 均发布标准 JUnit XML 并显示 Test Result
 - [x] README 由另一名组员从零复现
 
 ## 15. 日常空间维护
