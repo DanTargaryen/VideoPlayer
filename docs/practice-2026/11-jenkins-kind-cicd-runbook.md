@@ -457,6 +457,7 @@ BUILD_NUMBER=9002 FORCE_TEST_FAILURE_VALUE=true \
 | --- | --- | --- | --- |
 | `#2` | 默认成功路径 | `SUCCESS` | 12/12 markers；107 项规则/单元、API 16/16、E2E 3/3；SHA 镜像；Kind/Health；29 个 Artifact |
 | `#4` | `FORCE_TEST_FAILURE=true` | `EXPECTED FAILURE` | Unit 后退出 42；后续 Migration/API/Seed/E2E/Image/Kind/Health 全部 SKIPPED；只含 01–05 markers |
+| `#5` | Poll SCM 检测普通 push | `SUCCESS` | Cause=`Started by an SCM change`；Git revision `800859e`；12/12 markers；29 个 Artifact；临时资源清理 PASS |
 
 Build `#1` 和 `#3` 的 GitHub checkout `curl 18 / early EOF` 作为环境失败记录保留，不冒充代码测试失败。
 
@@ -648,7 +649,7 @@ README.md
 - [x] Kubernetes MySQL/Backend/Frontend Ready
 - [x] 镜像使用 Git SHA 标签
 - [x] Jenkins 能读取根目录 Jenkinsfile
-- [ ] push 后 Jenkins 自动检测提交
+- [x] push 后 Jenkins 自动检测提交
 - [x] 任一步失败时后续部署不执行
 - [x] 保存 1 次真实失败记录
 - [x] 保存 1 次完整成功记录
