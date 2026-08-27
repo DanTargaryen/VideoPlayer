@@ -24,4 +24,5 @@ and the appropriate service JWT scope. No secret value belongs in this repositor
 The service implements room creation/list/detail, start/stop, viewer join/leave,
 messages, SRS publish/play, replay registration, wallet/daily claim/streak,
 video coin and live gift routes under `/api/v1`. Internal replay retry and
-session status routes are under `/internal/v1`.
+session status and video-coin write routes are under `/internal/v1`; those routes
+require the matching service JWT scope.

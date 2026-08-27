@@ -63,6 +63,7 @@ export function resolveUpstream(pathname: string, config: GatewayConfig): string
   if (config.routeMode === 'monolith') return config.monolithBaseUrl;
   const apiPath = pathname.replace(/^\/api\/v1\//, '');
   if (/^(auth|users|messages|notifications|feed)(\/|$)/.test(apiPath)) return config.identityBaseUrl ?? config.monolithBaseUrl;
+  if (/^videos\/\d+\/coin$/.test(apiPath)) return config.liveBaseUrl ?? config.monolithBaseUrl;
   if (/^(feeds|search|videos|creator|media-proxy)(\/|$)/.test(apiPath)) return config.contentBaseUrl ?? config.monolithBaseUrl;
   if (/^(lives|gift-coins)(\/|$)/.test(apiPath)) return config.liveBaseUrl ?? config.monolithBaseUrl;
   if (/^(admin|reports|agent)(\/|$)/.test(apiPath)) return config.governanceBaseUrl ?? config.monolithBaseUrl;
@@ -73,6 +74,7 @@ export function resolveUpstreamName(pathname: string, config: GatewayConfig): 'm
   if (config.routeMode === 'monolith') return 'monolith';
   const apiPath = pathname.replace(/^\/api\/v1\//, '');
   if (/^(auth|users|messages|notifications|feed)(\/|$)/.test(apiPath) && config.identityBaseUrl) return 'identity-community';
+  if (/^videos\/\d+\/coin$/.test(apiPath) && config.liveBaseUrl) return 'live-reward';
   if (/^(feeds|search|videos|creator|media-proxy)(\/|$)/.test(apiPath) && config.contentBaseUrl) return 'content-media';
   if (/^(lives|gift-coins)(\/|$)/.test(apiPath) && config.liveBaseUrl) return 'live-reward';
   if (/^(admin|reports|agent)(\/|$)/.test(apiPath) && config.governanceBaseUrl) return 'governance-ai';

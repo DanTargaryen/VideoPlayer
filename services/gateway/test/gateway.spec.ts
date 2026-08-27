@@ -42,6 +42,8 @@ describe('gateway scaffold', () => {
     expect(resolveUpstream('/api/v1/auth/login', value)).toBe('http://identity:3000');
     expect(resolveUpstream('/api/v1/feed/dynamic', value)).toBe('http://identity:3000');
     expect(resolveUpstream('/api/v1/videos/1', value)).toBe('http://content:3000');
+    expect(resolveUpstream('/api/v1/videos/1/coin', value)).toBe('http://live:3000');
+    expect(resolveUpstreamName('/api/v1/videos/1/coin', value)).toBe('live-reward');
     expect(resolveUpstream('/api/v1/lives/rooms', value)).toBe('http://live:3000');
     expect(resolveUpstream('/api/v1/reports', value)).toBe('http://governance:3000');
     expect(resolveUpstreamName('/api/v1/reports', value)).toBe('governance-ai');

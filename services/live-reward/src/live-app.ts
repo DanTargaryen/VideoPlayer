@@ -56,6 +56,7 @@ export class FetchSrsClient implements SrsClient {
       return await globalThis.fetch(`${this.apiBase}${path}`, { ...init, headers: { 'content-type': 'application/json', ...(init.headers ?? {}) }, signal: AbortSignal.timeout(this.timeoutMs) });
     } catch (error) {
       if (error instanceof HttpError) throw error;
+      if (error instanceof Error && error.name === 'TimeoutError') throw new HttpError(504, 'SRS request timed out after 2000ms', 504);
       throw new HttpError(503, 'SRS service is unavailable', 503);
     }
   }
@@ -76,6 +77,7 @@ export class ContentReplayClient implements ReplayClient {
       return { contentVideoId: contentVideoId! };
     } catch (error) {
       if (error instanceof HttpError) throw error;
+      if (error instanceof Error && error.name === 'TimeoutError') throw new HttpError(504, 'content-media replay registration timed out after 5000ms', 504);
       throw new HttpError(503, 'content-media is unavailable', 503);
     }
   }
@@ -279,6 +281,7 @@ async function dispatch(app: LiveApplication, request: IncomingMessage, url: URL
   if (method === 'POST' && path === '/api/v1/gift-coins/video') return app.coinVideo(requireUser(user).id, numberValue(body.videoId), numberValue(body.amount), requestId);
   const giftVideoMatch = path.match(/^\/api\/v1\/gift-coins\/video\/(\d+)$/); if (giftVideoMatch && method === 'POST') return app.coinVideo(requireUser(user).id, Number(giftVideoMatch[1]), numberValue(body.amount), requestId);
   const coinMatch = path.match(/^\/api\/v1\/videos\/(\d+)\/coin$/); if (coinMatch && method === 'POST') return app.coinVideo(requireUser(user).id, Number(coinMatch[1]), numberValue(body.amount), requestId);
+  const internalCoinMatch = path.match(/^\/internal\/v1\/(?:videos\/(\d+)\/coin|coins\/videos\/(\d+))$/); if (internalCoinMatch && method === 'POST') { authorizeInternal(request, 'live.ledger.write'); return app.coinVideo(integerValue(body.userId), Number(internalCoinMatch[1] ?? internalCoinMatch[2]), numberValue(body.amount), requestId); }
   const retryMatch = path.match(/^\/internal\/v1\/live\/replays\/(\d+)\/retry$/); if (retryMatch && method === 'POST') { authorizeInternal(request, 'live.replays.retry'); return app.retryReplay(Number(retryMatch[1])); }
   const statusMatch = path.match(/^\/internal\/v1\/live\/sessions\/(\d+)\/status$/); if (statusMatch && method === 'GET') { authorizeInternal(request, 'live.sessions.read'); return app.getSession(Number(statusMatch[1])); }
   throw new HttpError(404, 'route not found', 404);
@@ -297,5 +300,6 @@ function asSrsBody(body: Record<string, unknown>): SrsExchange { if (body.type !
 function stringValue(value: unknown) { if (typeof value !== 'string') throw new HttpError(400, 'String field is required', 400); return value; }
 function optionalString(value: unknown) { return typeof value === 'string' ? value : undefined; }
 function numberValue(value: unknown) { const number = typeof value === 'number' ? value : Number(value); if (!Number.isFinite(number)) throw new HttpError(400, 'Number field is required', 400); return number; }
+function integerValue(value: unknown) { const number = numberValue(value); if (!Number.isInteger(number) || number < 1) throw new HttpError(400, 'Integer field is required', 400); return number; }
 function parseOptionalInt(value: string | null) { if (value === null) return undefined; const number = Number(value); return Number.isInteger(number) ? number : undefined; }
 function ledgerError(error: unknown) { const message = error instanceof Error ? error.message : 'ledger operation failed'; return new HttpError(400, message, 400); }
