@@ -7,9 +7,6 @@ load_runtime_env
 export DATABASE_URL
 
 case "$DB_MIGRATION_MODE" in
-  push)
-    npm --workspace backend run db:push
-    ;;
   migrate)
     if ! node -e "const scripts=require('./package.json').scripts||{}; process.exit(scripts['db:migrate'] ? 0 : 1)"; then
       echo "DB_MIGRATION_MODE=migrate requires the DB-01 db:migrate script." >&2
@@ -18,7 +15,7 @@ case "$DB_MIGRATION_MODE" in
     npm run db:migrate
     ;;
   *)
-    echo "Unsupported DB_MIGRATION_MODE: $DB_MIGRATION_MODE" >&2
+    echo "Unsupported DB_MIGRATION_MODE: $DB_MIGRATION_MODE; CI requires migrate." >&2
     exit 1
     ;;
 esac

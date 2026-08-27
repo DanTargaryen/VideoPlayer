@@ -445,11 +445,13 @@ Checkout
 
 ```bash
 BUILD_NUMBER=9001 FORCE_TEST_FAILURE_VALUE=false \
-  DB_MIGRATION_MODE_VALUE=push ./scripts/ci-local-run.sh
+  ./scripts/ci-local-run.sh
 
 BUILD_NUMBER=9002 FORCE_TEST_FAILURE_VALUE=true \
-  DB_MIGRATION_MODE_VALUE=push ./scripts/ci-local-run.sh
+  ./scripts/ci-local-run.sh
 ```
+
+DB-01 合并后的本地同构 Build `9202` 已使用默认 migration 路径完成验证：安全守卫只允许动态创建的 `127.0.0.1/video_player_ci_test`，`20260826000000_init` 由 `prisma migrate deploy` 成功应用；106/106 需求规则、后端 7/7、前端 3/3、API 16/16、E2E 3/3、SHA 镜像、Kind/Health 和 12/12 markers 全部通过，结束后临时 MySQL 与 Kind 集群均已清理。
 
 真实 Jenkins 记录：
 

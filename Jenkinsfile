@@ -13,11 +13,6 @@ pipeline {
             defaultValue: false,
             description: 'Fail after unit tests to prove that migration, images, deployment, and health stages are skipped.'
         )
-        choice(
-            name: 'DB_MIGRATION_MODE',
-            choices: ['push', 'migrate'],
-            description: 'Use push on the current main branch; switch to migrate after DB-01 is merged.'
-        )
     }
 
     triggers {
@@ -39,7 +34,7 @@ pipeline {
         K8S_NAMESPACE = 'video-player'
         KIND_CLUSTER_NAME = "video-player-ci-${BUILD_NUMBER}"
         FORCE_TEST_FAILURE_VALUE = "${params.FORCE_TEST_FAILURE}"
-        DB_MIGRATION_MODE_VALUE = "${params.DB_MIGRATION_MODE}"
+        DB_MIGRATION_MODE_VALUE = 'migrate'
     }
 
     stages {

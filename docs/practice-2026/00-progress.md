@@ -149,7 +149,8 @@
   - 失败门禁验证：`FORCE_TEST_FAILURE=true` 在 Unit 后以退出码 42 失败，数据库、API、Seed、E2E、镜像、Kind 和 Health 共 7 个后续阶段均无 marker、无容器或集群残留。
   - 真实 Jenkins：Build #2 完整 SUCCESS，归档 29 个 Artifact；Build #4 使用 `FORCE_TEST_FAILURE=true` 在 Unit 后按预期 FAILURE，后续 7 阶段全部 SKIPPED 并只归档 01–05 markers。Build #1/#3 的 GitHub checkout `curl 18` 失败记录也已保留，并通过三次重试、浅克隆和节点 reference cache 解除。
   - 自动触发验证：普通 push `800859e` 后，Poll SCM 在 10:01 检测 `99fd2b8 → 800859e`，Build #5 Cause 为 `Started by an SCM change`；默认成功参数下 12/12 阶段 PASS、29 个 Artifact，并自动清理临时 MySQL/Kind。
-  - 结果：PASS；本机 Jenkins 成功、故意失败阻断、SCM push 自动触发三类证据齐全。当前默认 `DB_MIGRATION_MODE=push`，DB-01 合并后需切换为 `migrate`。
+  - DB-01 合并验证：本地同构 Build 9202 对动态创建的 `video_player_ci_test` 执行 `20260826000000_init`，安全守卫与 `prisma migrate deploy` PASS；106/106 需求规则、后端 7/7、前端 3/3、API 16/16、Playwright 3/3、SHA 镜像、Kind/Health 全部通过，12/12 markers 完整，临时 MySQL/Kind 已清理。
+  - 结果：PASS；本机 Jenkins 成功、故意失败阻断、SCM push 自动触发三类证据齐全。数据库阶段已收口为只对流水线隔离测试库执行 `prisma migrate deploy`；待本次 push 后补充真实 Jenkins migration Build。
 - [ ] `ARCH-01` 冻结四服务接口和 31 张表的数据归属。
   - 已完成草案：四服务职责/非职责、现有 31/31 Model 唯一归属、建议新增直播/审计表、公开/内部接口、跨服务 timeout/幂等/降级、迁移/回滚顺序。
   - 验证：Model 名单与 `backend/prisma/schema.prisma` 自动比对；文档表中 31 个现有 Model 无遗漏、无重复 owner。
@@ -229,6 +230,7 @@
 | 2026-08-27 | DB-01 合并前文档收口 | 修正 clean-machine README 的 `migrate deploy` 与 32 表口径；补全生产远端迁移精确授权、已有等价库 baseline、漂移停止和一次性确认变量说明 | 干净 `npm ci`；`prisma:generate`；`build:backend`；`npm run test:ci`；迁移变量/表数/旧 `db:push` 文案检查；CRLF 感知 diff check | PASS；requirements 106/106、backend Jest 7/7、frontend Vitest 3/3；前后端 lint/build PASS；文档变量与安全守卫源码一致 |
 | 2026-08-27 | CI-02 本地等价成功 | 修正 API/Seed 顺序和 Vite 端口变量后，执行与 Jenkins 相同的 12 阶段脚本 | 97 requirements + 7 backend + 3 frontend；API 16/16；E2E 3/3；Git SHA 镜像；Kind/Health | PASS；12/12 markers；Artifact 证据生成；临时 MySQL/Kind 自动清理 |
 | 2026-08-27 | CI-02 本地故意失败 | `FORCE_TEST_FAILURE=true` 在 Unit 后主动返回 42 | Checkout/Install/Lint/Build/Unit PASS；后续 7 阶段无 marker | PASS；证明失败阻断后续迁移、测试、镜像和部署；无运行资源残留 |
+| 2026-08-27 | CI-02 正式 migration 本地同构验证 | rebase 最新 `main` 后移除失效 `db:push` 模式，固定对动态隔离库执行 DB-01 `prisma migrate deploy`；执行 Build 9202 全流程 | 106 requirements + backend 7 + frontend 3；migration `20260826000000_init`；API 16/16；E2E 3/3；SHA 镜像；Kind/Health | PASS；12/12 markers；安全守卫确认 `127.0.0.1/video_player_ci_test`；临时 MySQL/Kind 清理 PASS；共享远端数据库/MinIO 未使用 |
 | 2026-08-27 | CI-02 Jenkins Build #1 | Jenkins 通过 GitHub SCM 读取 Jenkinsfile 后执行完整 checkout | Git fetch 在 25% 时 `curl 18 / early EOF`；Install 及后续阶段全部 SKIPPED | FAIL（环境网络）；增加 checkout 三次重试、depth=1/no-tags 浅克隆和 checkout 失败时安全 Post 处理后重跑 |
 | 2026-08-27 | CI-02 Jenkins Build #2 | GitHub SCM 第二次浅克隆成功后执行完整 Declarative Pipeline | requirements 97/97；backend 7/7；frontend 3/3；API 16/16；E2E 3/3；SHA 镜像；Kind/Health | SUCCESS；12/12 markers；29 个 Artifact；Pod 0 restart；临时 MySQL/Kind 清理 PASS |
 | 2026-08-27 | CI-02 Jenkins Build #3 | 使用 `FORCE_TEST_FAILURE=true` 启动故意失败验证 | GitHub checkout 连续三次 `curl 18 / early EOF`，未进入 Unit | FAILURE（环境网络，不作为门禁证据）；Job 增加本地 Git reference cache，SCM URL 仍为 GitHub |

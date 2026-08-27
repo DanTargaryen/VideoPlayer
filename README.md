@@ -191,13 +191,13 @@ Poll SCM：H/2 * * * *
 
 ```bash
 BUILD_NUMBER=9001 FORCE_TEST_FAILURE_VALUE=false \
-  DB_MIGRATION_MODE_VALUE=push ./scripts/ci-local-run.sh
+  ./scripts/ci-local-run.sh
 
 BUILD_NUMBER=9002 FORCE_TEST_FAILURE_VALUE=true \
-  DB_MIGRATION_MODE_VALUE=push ./scripts/ci-local-run.sh
+  ./scripts/ci-local-run.sh
 ```
 
-`FORCE_TEST_FAILURE=true` 会在 Unit 后故意失败，用于证明后续 Migration、API、E2E、镜像和部署不会继续。当前 `main` 尚未合并 DB-01，因此默认 `DB_MIGRATION_MODE=push`；正式 migration 合并后应切换为 `migrate`。
+`FORCE_TEST_FAILURE=true` 会在 Unit 后故意失败，用于证明后续 Migration、API、E2E、镜像和部署不会继续。数据库阶段固定使用 DB-01 提供的 `prisma migrate deploy`，目标是流水线动态创建的隔离测试库；不对共享或远端数据库执行迁移、重置或 Seed。
 
 停止由开发环境启动的 Redis、MinIO、SRS：
 
