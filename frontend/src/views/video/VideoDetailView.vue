@@ -68,11 +68,23 @@
               preload="auto"
               @timeupdate="onTimeUpdate"
               @loadedmetadata="onLoadedMetadata"
+              @error="onMediaPlaybackError"
               @play="onVideoPlay"
               @pause="onVideoPause"
               @ended="handleVideoEnded"
             ></video>
             <div v-else class="player-empty">视频暂不可播放</div>
+            <div
+              v-if="mediaPlaybackError"
+              class="player-error"
+              role="alert"
+              aria-live="assertive"
+              data-testid="media-playback-error"
+            >
+              <strong>播放失败</strong>
+              <span>{{ mediaPlaybackError }}</span>
+              <el-button type="primary" size="small" @click="handleRetryMediaPlayback">重新加载</el-button>
+            </div>
             <DanmakuOverlay
               v-if="video?.playUrl"
               :danmakus="danmakus"
@@ -355,6 +367,7 @@ import {
 import VideoIntroCard from '@/components/video/VideoIntroCard.vue';
 import VideoRecommendationsPanel from '@/components/video/VideoRecommendationsPanel.vue';
 import { useAppStore } from '@/stores/app';
+import { useMediaPlaybackRecovery } from '@/utils/mediaPlaybackRecovery';
 import { takeRandomItems } from '@/utils/randomVideos';
 import type {
   CommentItem,
@@ -395,6 +408,12 @@ const appStore = useAppStore();
 const loading = ref(false);
 const video = ref<VideoDetail | null>(null);
 const videoRef = ref<HTMLVideoElement | null>(null);
+const {
+  mediaPlaybackError,
+  markMediaPlaybackFailed,
+  markMediaPlaybackReady,
+  retryMediaPlayback,
+} = useMediaPlaybackRecovery();
 const recommendations = ref<VideoCard[]>([]);
 const recommendationsLoading = ref(false);
 const comments = ref<CommentItem[]>([]);
@@ -598,12 +617,22 @@ function onTimeUpdate() {
 }
 
 function onLoadedMetadata() {
+  markMediaPlaybackReady();
   if (videoRef.value) {
     videoDurationMs.value = Math.floor(videoRef.value.duration * 1000);
     videoPaused.value = videoRef.value.paused;
   }
 
   handleLoadedMetadata();
+}
+
+function onMediaPlaybackError() {
+  videoPaused.value = true;
+  markMediaPlaybackFailed();
+}
+
+function handleRetryMediaPlayback() {
+  retryMediaPlayback(videoRef.value);
 }
 
 async function onVideoPlay() {
@@ -1708,6 +1737,7 @@ function handlePageHide() {
 watch(
   () => route.params.id,
   async (newId, oldId) => {
+    markMediaPlaybackReady();
     if (oldId !== undefined && Number(oldId) !== Number(newId)) {
       await flushWatchProgress('leave', { force: true });
       resetWatchTracking();
@@ -2006,6 +2036,31 @@ onBeforeUnmount(() => {
   place-items: center;
   color: rgba(255, 255, 255, 0.78);
   font-size: 14px;
+}
+
+.player-error {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  padding: 24px;
+  background: rgba(17, 24, 39, 0.92);
+  color: rgba(255, 255, 255, 0.82);
+  text-align: center;
+}
+
+.player-error strong {
+  color: #ffffff;
+  font-size: 18px;
+}
+
+.player-error span {
+  max-width: 420px;
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 .danmaku-bar {
