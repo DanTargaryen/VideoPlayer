@@ -460,6 +460,7 @@ DB-01 合并后的本地同构 Build `9202` 已使用默认 migration 路径完�
 | `#2` | 默认成功路径 | `SUCCESS` | 12/12 markers；107 项规则/单元、API 16/16、E2E 3/3；SHA 镜像；Kind/Health；29 个 Artifact |
 | `#4` | `FORCE_TEST_FAILURE=true` | `EXPECTED FAILURE` | Unit 后退出 42；后续 Migration/API/Seed/E2E/Image/Kind/Health 全部 SKIPPED；只含 01–05 markers |
 | `#5` | Poll SCM 检测普通 push | `SUCCESS` | Cause=`Started by an SCM change`；Git revision `800859e`；12/12 markers；29 个 Artifact；临时资源清理 PASS |
+| `#7` | Poll SCM 检测 rebase 后 push，正式 migration | `SUCCESS` | Git revision `237f780`；`20260826000000_init` 应用成功；106+7+3、API 16/16、E2E 3/3；12/12 markers；27 个 Artifact；临时资源清理 PASS |
 
 Build `#1` 和 `#3` 的 GitHub checkout `curl 18 / early EOF` 作为环境失败记录保留，不冒充代码测试失败。
 
