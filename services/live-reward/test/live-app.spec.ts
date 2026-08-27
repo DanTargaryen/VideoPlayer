@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { HttpError, LiveApplication, type ReplayClient, type SrsClient } from '../src/live-app.js';
+import { HttpError, LiveApplication, createLiveHttpServer, type ReplayClient, type SrsClient } from '../src/live-app.js';
 import { MemoryStore } from '../src/store.js';
 
 const broadcaster = { id: 7, nickname: '主播' };
@@ -16,6 +16,21 @@ class ReplayStub implements ReplayClient {
 }
 
 describe('live-reward domain', () => {
+  it('accepts the gateway-compatible mock user token without querying identity', async () => {
+    const server = createLiveHttpServer(new LiveApplication({ store: new MemoryStore() }));
+    server.listen(0, '127.0.0.1');
+    await new Promise<void>((resolve) => server.once('listening', () => resolve()));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('Expected TCP address');
+    try {
+      const response = await fetch(`http://127.0.0.1:${address.port}/api/v1/lives/rooms`, { method: 'POST', headers: { authorization: 'Bearer mock-token-7-session', 'content-type': 'application/json' }, body: JSON.stringify({ title: 'token session' }) });
+      expect(response.status).toBe(200);
+      expect((await response.json()).data.broadcaster.id).toBe(7);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it('persists room/session lifecycle, viewer events, messages and replay registration', async () => {
     const replay = new ReplayStub();
     const app = new LiveApplication({ store: new MemoryStore(), srs: new HealthySrs(), replayClient: replay });

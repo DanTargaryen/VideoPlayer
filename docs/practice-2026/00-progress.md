@@ -189,7 +189,8 @@
   - 当前分支：`feature/MS-03-live-reward`；基于 `origin/main@b166de4` 创建。
   - 已完成源码：独立 Prisma schema/migration/fixture、数据库/内存存储适配器、房间/Session 持久化生命周期、观众事件、消息留存上限、SRS timeout/probe/RTC adapter、回放登记状态机、币账本幂等入口和 live-reward HTTP contract。
   - 尚未完成：真实 MySQL/SRS/content-media 联调、Gateway 切流、K8s 独立部署、单体数据迁移和完整 UC05 浏览器回归；这些保持 `NOT RUN`，不提前勾选第二阶段总 Gate。
-  - 测试/验证：`npm ci --ignore-scripts`；`npm run test:ci`（requirements 113/113、backend 16/16、frontend 22/22、services 全部 PASS）；`npm --workspace @videoplayer/live-reward run prisma:generate`；`npm --workspace @videoplayer/live-reward run build`；`npm --workspace @videoplayer/live-reward run lint`；`npm --workspace @videoplayer/live-reward run test`（2 files / 4 tests PASS）；Prisma schema validation 使用 dummy `LIVE_REWARD_DATABASE_URL`，真实数据库 migration NOT RUN，Docker build BLOCKED（Docker daemon 未运行）。
+  - 测试/验证：`npm ci --ignore-scripts`；`npm run test:ci`（requirements 113/113、backend 16/16、frontend 22/22、services 全部 PASS）；`npm --workspace @videoplayer/live-reward run prisma:generate`；`npm --workspace @videoplayer/live-reward run build`；`npm --workspace @videoplayer/live-reward run lint`；`npm --workspace @videoplayer/live-reward run test`（2 files / 5 tests PASS，含 HTTP mock-token contract）；Prisma schema validation 使用 dummy `LIVE_REWARD_DATABASE_URL`，真实数据库 migration NOT RUN，Docker build BLOCKED（Docker daemon 未运行）。
+  - 兼容性：live-reward 可从 Gateway 透传的单体 `mock-token` 提取外部 userId，仍不访问 identity 数据库；生产写流量切换未执行。
   - 集成修正：Gateway 在 services 模式下将 `/api/v1/videos/:id/coin` 路由到 live-reward；同时提供受服务 JWT scope 保护的内部投币入口，避免 content-media 直接写账本。
   - 结果：PARTIAL；可继续在该分支开发，待 A review SRS/K8s/持久化/回放/账本故障证据后再更新复选框。
 - [ ] `REG-01` 完成全部公开 API 和 UC01-UC06 自动回归。
@@ -293,6 +294,7 @@
 | 2026-08-28 | MS-02 PR #43 Owner 修复与复测 | 在新普通 commit 中修复独立 Prisma Client、默认 Compose/K8s content DB/migration、容器 OpenSSL/重试、真实 MySQL+MinIO 补偿链、文档与 UC 追溯；不切 Gateway 业务流量 | clean install/full CI；真实 MySQL 首次/重复 migration+fixture；review/replay 冲突；服务重启；容器 ffprobe；真实 MinIO+DB；Compose；隔离 Kind；Secret/Artifact/diff | PASS；requirements 115/115、backend 16/16、frontend 22/22、content 17/17；MySQL+MinIO fake=400/valid=201/db-failure=500；Compose/Kind 5/5 healthy/Ready、0 restart；隔离资源全部清理；等待 PR #43 复审 |
 | 2026-08-27 | MS-03 live-reward foundation | 在 `feature/MS-03-live-reward` 增加独立 live/reward Prisma 边界、可重启持久化接口、SRS timeout、回放 retry 状态和幂等账本 HTTP contract；保留单体 fallback 与跨服务外部 ID 边界 | `npm ci --ignore-scripts`；`npm run test:ci`；`npm --workspace @videoplayer/live-reward run prisma:generate/build/lint/test`；Prisma validate（dummy URL）；Docker build | PARTIAL；完整仓库 113/113、16/16、22/22 与 services 全部 PASS；live-reward 2 files / 4 tests PASS；Docker build BLOCKED（daemon 未运行）；真实 migration/SRS/content/Gateway/K8s/UC05 浏览器回归待后续证据 |
 | 2026-08-27 | MS-03 ledger Gateway boundary | 修正 services 模式下视频投币路由，使 `/api/v1/videos/:id/coin` 与 live-reward 账本一致；补内部 JWT scope 入口与路由单测 | `npm --workspace @videoplayer/gateway run test`（3/3）；`npm --workspace @videoplayer/gateway run build`；`npm --workspace @videoplayer/gateway run lint`；live-reward 4/4 | PASS；未切 Gateway 生产写流量，真实跨服务 JWT/数据库联调 NOT RUN |
+| 2026-08-27 | MS-03 Gateway auth compatibility | live-reward 接受现有 `Bearer mock-token-<id>-...` 外部 userId 格式；补 HTTP 创建房间 contract test，保持 identity 数据库隔离 | `npm --workspace @videoplayer/live-reward run test`（2 files / 5 tests）；`npm --workspace @videoplayer/live-reward run build`；`npm --workspace @videoplayer/live-reward run lint` | PASS；生产 Gateway 写流量、nonce 跨服务校验和真实 identity 联调 NOT RUN |
 
 ## 4. 阻塞与需组长决定
 

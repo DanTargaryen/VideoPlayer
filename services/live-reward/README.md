@@ -12,6 +12,9 @@ state, then run `npm run prisma:generate` and `npm run db:migrate` in this works
 
 The gateway should pass the authenticated user's external identity as
 `x-user-id` and `x-user-nickname`; live-reward does not query the identity schema.
+For the current monolith-compatible session format, `Bearer mock-token-<id>-…`
+is also accepted for the user ID; nonce ownership and user lookup remain in
+identity-community.
 Set `SRS_API_BASE` to enable the SRS probe and RTC adapter. SRS calls have a 2s
 timeout by default. Set `CONTENT_SERVICE_URL` to enable replay registration; the
 client uses a 5s timeout and preserves a retryable registration state on failure.
