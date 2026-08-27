@@ -29,7 +29,7 @@
           <el-input v-model="form.coverUrl" placeholder="请输入封面图片URL" />
         </el-form-item>
         <el-form-item label="视频文件">
-          <input type="file" accept="video/*" @change="handleVideoFileChange" />
+          <input type="file" :accept="VIDEO_FILE_ACCEPT" @change="handleVideoFileChange" />
           <span v-if="selectedVideoFile" class="hint">已选择：{{ selectedVideoFile.name }}</span>
         </el-form-item>
         <el-form-item v-if="autoCoverPreview" label="自动截取封面预览">
@@ -68,6 +68,7 @@ import {
   isRecoverableUploadSubmissionError,
   resolveApiErrorMessage,
 } from '@/utils/apiErrors';
+import { getVideoFileValidationError, VIDEO_FILE_ACCEPT } from '@/utils/mediaFileValidation';
 
 const router = useRouter();
 
@@ -88,7 +89,18 @@ const selectedVideoDurationSeconds = ref<number | null>(null);
 
 function handleVideoFileChange(event: Event) {
   const input = event.target as HTMLInputElement;
-  selectedVideoFile.value = input.files?.[0] ?? null;
+  const file = input.files?.[0] ?? null;
+  if (file) {
+    const validationError = getVideoFileValidationError(file);
+    if (validationError) {
+      input.value = '';
+      clearSelectedVideoFile();
+      ElMessage.error(validationError);
+      return;
+    }
+  }
+
+  selectedVideoFile.value = file;
   selectedVideoDurationSeconds.value = null;
   if (selectedVideoFile.value) {
     captureVideoFrame(selectedVideoFile.value, captureTimeSeconds.value);
@@ -160,6 +172,14 @@ function captureVideoFrame(file: File, timeSeconds: number) {
   };
 }
 
+function clearSelectedVideoFile() {
+  selectedVideoFile.value = null;
+  selectedVideoDurationSeconds.value = null;
+  autoCoverPreview.value = null;
+  autoCoverFile.value = null;
+  captureTimeSeconds.value = 1;
+}
+
 function readVideoDuration(file: File): Promise<number | null> {
   return new Promise((resolve) => {
     const video = document.createElement('video');
@@ -206,8 +226,16 @@ async function handleCreateDraft() {
     return;
   }
 
-  if (!selectedVideoFile.value) {
+  const selectedFile = selectedVideoFile.value;
+  if (!selectedFile) {
     ElMessage.warning('请选择视频文件');
+    return;
+  }
+
+  const validationError = getVideoFileValidationError(selectedFile);
+  if (validationError) {
+    clearSelectedVideoFile();
+    ElMessage.error(validationError);
     return;
   }
 
@@ -222,10 +250,10 @@ async function handleCreateDraft() {
   let draftCreateStarted = false;
 
   try {
-    const durationSeconds = selectedVideoDurationSeconds.value ?? (await readVideoDuration(selectedVideoFile.value));
+    const durationSeconds = selectedVideoDurationSeconds.value ?? (await readVideoDuration(selectedFile));
     selectedVideoDurationSeconds.value = durationSeconds;
 
-    const uploadedVideo = await uploadVideo(selectedVideoFile.value, 'ORIGINAL');
+    const uploadedVideo = await uploadVideo(selectedFile, 'ORIGINAL');
     originalUploaded = true;
     let coverUrl = form.coverUrl.trim() || undefined;
     let coverAssetId: number | undefined;
@@ -287,6 +315,7 @@ async function handleCreateDraft() {
   } finally {
     creating.value = false;
   }
+
 }
 </script>
 

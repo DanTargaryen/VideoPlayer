@@ -74,6 +74,10 @@ export class VideoService {
   ) {}
 
   async uploadFile(file: Express.Multer.File, assetType: 'ORIGINAL' | 'COVER' | 'RECORDING' = 'ORIGINAL') {
+    if (assetType !== 'COVER') {
+      await this.mediaService.validateVideoUpload(file);
+    }
+
     const datePrefix = new Date().toISOString().slice(0, 10).replace(/-/g, '/');
     const folder =
       assetType === 'COVER' ? 'videos/covers' : assetType === 'RECORDING' ? 'videos/recordings' : 'videos/original';
@@ -86,17 +90,28 @@ export class VideoService {
       originalName: file.originalname,
     });
 
-    const asset = await this.prisma.videoAsset.create({
-      data: {
-        assetType,
-        objectKey: uploaded.objectKey,
-        bucket: uploaded.bucket,
-        mimeType: file.mimetype,
-        originalName: file.originalname,
-        fileSize: file.size,
-        url: uploaded.url,
-      },
-    });
+    let asset;
+    try {
+      asset = await this.prisma.videoAsset.create({
+        data: {
+          assetType,
+          objectKey: uploaded.objectKey,
+          bucket: uploaded.bucket,
+          mimeType: file.mimetype,
+          originalName: file.originalname,
+          fileSize: file.size,
+          url: uploaded.url,
+        },
+      });
+    } catch (error) {
+      try {
+        await this.minioService.deleteFile(uploaded.bucket, uploaded.objectKey);
+      } catch (cleanupError) {
+        const cleanupMessage = cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
+        this.logger.error(`Could not delete orphaned upload ${uploaded.objectKey}: ${cleanupMessage}`);
+      }
+      throw error;
+    }
 
     return {
       assetId: asset.id,
