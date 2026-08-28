@@ -1,6 +1,6 @@
 # 第二阶段微服务执行 TODO
 
-> 状态：`MS-00 / MS-01 DONE / MS-02..04 READY`
+> 状态：`MS-00 / MS-01 / MS-02 / MS-03 DONE / MS-04 READY`
 >
 > 冻结基线：`monolith-start` / `main@70d197dc1a1f6febfdc7dcb12d8661384ad5d31e`。
 >
@@ -353,60 +353,75 @@ services/<service>/
 
 ### 6.2 现有数据 owner
 
-- [ ] `CoinTransaction`
-- [ ] `DailyCoinClaim`
-- [ ] `StreakMilestoneClaim`
-- [ ] `VideoCoinContribution`
+- [x] `CoinTransaction`
+- [x] `DailyCoinClaim`
+- [x] `StreakMilestoneClaim`
+- [x] `VideoCoinContribution`
 
 ### 6.3 新增持久化模型
 
-- [ ] `LiveRoom`
-- [ ] `LiveSession`
-- [ ] `LiveMessage`
-- [ ] `LiveViewerEvent`
-- [ ] `ReplayRegistration`
-- [ ] 房间、Session、状态、开始/结束时间、streamKey 和 replay 状态以数据库为事实来源。
-- [ ] 内存只保存 PeerConnection、SSE/长连接、临时媒体流和短期连接缓存。
-- [ ] 后端重启后房间和 Session 状态仍可查询。
+- [x] `LiveRoom`
+- [x] `LiveSession`
+- [x] `LiveMessage`
+- [x] `LiveViewerEvent`
+- [x] `ReplayRegistration`
+- [x] 房间、Session、状态、开始/结束时间、streamKey 和 replay 状态以数据库为事实来源。
+- [x] 内存只保存 PeerConnection、SSE/长连接、临时媒体流和短期连接缓存。
+- [x] 后端重启后房间和 Session 状态仍可查询（隔离 MySQL migration 后关闭并重建应用验证通过）。
 
 ### 6.4 直播生命周期与 SRS
 
-- [ ] `POST /api/v1/lives/rooms`。
-- [ ] `POST /api/v1/lives/rooms/:id/start`。
-- [ ] `POST /api/v1/lives/rooms/:id/stop`。
-- [ ] `GET /api/v1/lives/rooms/:id`。
-- [ ] `GET /api/v1/lives/sessions/:id`。
-- [ ] SRS adapter 有明确 timeout。
-- [ ] SRS 正常时开播成功。
-- [ ] SRS 不可用时返回明确错误且不盲目无限重试。
-- [ ] SRS 恢复后可重新开播。
-- [ ] SRS 故障不影响其他服务 health。
+- [x] `POST /api/v1/lives/rooms`。
+- [x] `POST /api/v1/lives/rooms/:id/start`。
+- [x] `POST /api/v1/lives/rooms/:id/stop`。
+- [x] `GET /api/v1/lives/rooms/:id`。
+- [x] `GET /api/v1/lives/sessions/:id`。
+- [x] SRS adapter 有明确 timeout。
+- [x] SRS 正常时开播成功。
+- [x] SRS 不可用时返回明确错误且不盲目无限重试。
+- [x] SRS 恢复后可重新开播。
+- [x] SRS 故障不影响其他服务 health。
 
 ### 6.5 回放登记
 
-- [ ] ReplayRegistration 状态包含 PENDING/REGISTERING/COMPLETED/FAILED_RETRYABLE/FAILED_FINAL。
-- [ ] 调用 content `/internal/v1/replays`。
-- [ ] content 不可用时直播仍可正常结束。
-- [ ] attempts、lastError 和 nextRetryAt 可审计。
-- [ ] requestId/objectKey 保证不会重复创建 content video。
-- [ ] WebM/MP4 文件名、数据库 MIME 和 MinIO Header 一致。
+- [x] ReplayRegistration 状态包含 PENDING/REGISTERING/COMPLETED/FAILED_RETRYABLE/FAILED_FINAL。
+- [x] 调用 content `/internal/v1/replays`。
+- [x] content 不可用时直播仍可正常结束。
+- [x] attempts、lastError 和 nextRetryAt 可审计。
+- [x] requestId/objectKey 保证不会重复创建 content video。
+- [x] WebM/MP4 文件名、数据库 MIME 和 MinIO Header 一致（`scripts/live-reward-content-smoke.mjs` 使用真实 MinIO 分别验证 WebM/MP4；不匹配 MIME 返回 400 且不改变已完成记录）。
+
+回放 contract 已与 C 的 `content-media` 对齐：内部 JWT scope 为 `internal:replay`；请求传递 `requestId`、`objectKey`、`mimeType`、真实 `creatorId` 和直播标题；`contentVideoId` 在 D 的 `ReplayRegistration` 中以字符串保存并由 `20260828000000_content_video_id_string` migration 转换。C 的 201（新建）/200（幂等重复）/409（冲突）/401（鉴权失败）及超时均有 HTTP contract 覆盖；其中 400/401/409 在 D 侧进入 `FAILED_FINAL`，503/504 保留可补偿重试状态。
 
 ### 6.6 币账本与消息留存
 
-- [ ] 所有余额写入只由 live-reward 执行。
-- [ ] 视频投币通过内部 API 和 requestId 幂等。
-- [ ] balanceAfter、videoId、userId 和 requestId 可审计。
-- [ ] 普通直播消息保留 7 天。
-- [ ] 每个 Session 最多 10,000 条普通消息。
-- [ ] 超限清理最早消息，不删除房间、Session、回放和审计事实。
+- [x] 所有余额写入只由 live-reward 执行。
+- [x] 视频投币通过内部 API 和 requestId 幂等。
+- [x] balanceAfter、videoId、userId 和 requestId 可审计。
+- [x] 普通直播消息保留 7 天。
+- [x] 每个 Session 最多 10,000 条普通消息。
+- [x] 超限清理最早消息，不删除房间、Session、回放和审计事实。
 
 ### 6.7 D 第一批禁止事项
 
-- [ ] 未先改前端 UI 代替持久化工作。
-- [ ] 未直接写 content 的 Video/VideoAsset。
-- [ ] 未直接查 identity User。
-- [ ] 未在持久化和回滚未完成前切换直播写流量。
-- [ ] 未把全部币业务混入第一批持久化 PR。
+- [x] 未先改前端 UI 代替持久化工作。
+- [x] 未直接写 content 的 Video/VideoAsset。
+- [x] 未直接查 identity User。
+- [x] 未在持久化和回滚未完成前切换直播写流量（仅完成本地配置级切换/回滚验证，生产切换仍待窗口）。
+- [x] 未把全部币业务混入第一批持久化 PR。
+
+### 6.8 D 验收证据
+
+- [x] production 默认要求 `LIVE_REWARD_DATABASE_URL`；缺配置/数据库不可用时 readiness 与业务路由 503，MemoryStore 仅显式测试注入。
+- [x] Gateway 通过 identity `/auth/me` 验证 Bearer Token，删除伪造用户头并注入带 `live.user.forward` scope 的短期 service JWT；直接伪造 `x-user-id` 返回 401。
+- [x] 四类币账本 requestId 只有完整 payload 相同才 replay；不同 user/type/video/amount 返回 409，Memory/Prisma 和真实 MySQL 顺序/并发行为一致。
+- [x] replay requestId 全局唯一；session/objectKey/requestId/mimeType 冲突 409；content HTTP 400/401/409 均为永久失败。
+- [x] clean `npm ci`；完整 `test:ci` 207/207；live 18/18；Gateway 6/6。
+- [x] 真实双 MySQL + content/live + MinIO + SRS 回放/账本联调、标准 Compose 三 schema 隔离/重启、隔离 Kind migration/Pod replacement/PVC 全部 PASS。
+- [x] migration target guard、Prisma 6.9 pin、Docker CA/有限重试、跨 builder/architecture image load 已验证。
+- [ ] 生产切流、单体历史迁移和完整 UC05 微服务浏览器回归：`BLOCKED/NOT RUN`，作为后续独立 Gate。
+
+当前剩余门禁：Gateway 生产写流量切换与 rollback 需要 A/平台提供部署权限和切换窗口；完整 UC05 微服务浏览器回归需要前端/C 侧提供与 live-reward 一致的录播上传、回放 URL/metadata 展示 contract。单体 UC05 历史回归已有 PASS，但不能替代本分支微服务 Gateway 目标环境的回归证据；在依赖补齐前保持 `BLOCKED`。
 
 ## 7. E（治理、质量与文档）TODO
 

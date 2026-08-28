@@ -210,6 +210,16 @@ spec:
                 secretKeyRef:
                   name: videoplayer-microservice-secrets
                   key: service-jwt-secret
+            - name: LIVE_REWARD_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: videoplayer-microservice-secrets
+                  key: live-reward-database-url
+            - name: CONTENT_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: videoplayer-microservice-config
+                  key: CONTENT_SERVICE_URL
           readinessProbe:
             httpGet:
               path: /health/ready

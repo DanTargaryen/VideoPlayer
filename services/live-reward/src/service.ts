@@ -1,10 +1,10 @@
-import { createHealthServer, type ServiceRuntimeOptions } from '@videoplayer/shared-contracts';
+import { createLiveHttpServer, LiveApplication, type LiveAppOptions } from './live-app.js';
 
-export const SERVICE_OPTIONS: ServiceRuntimeOptions = {
+export const SERVICE_OPTIONS = {
   serviceName: 'live-reward',
   defaultPort: 3103,
-};
+} as const;
 
-export function createLiveService() {
-  return createHealthServer(SERVICE_OPTIONS);
+export function createLiveService(options?: LiveAppOptions) {
+  return createLiveHttpServer(new LiveApplication(options));
 }

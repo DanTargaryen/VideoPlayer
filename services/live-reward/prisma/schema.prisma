@@ -1,0 +1,186 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("LIVE_REWARD_DATABASE_URL")
+}
+
+enum LiveRoomStatus {
+  IDLE
+  LIVING
+  ENDED
+}
+
+enum LiveSessionStatus {
+  LIVING
+  ENDED
+}
+
+enum LiveSourceMode {
+  camera
+  screen
+}
+
+enum LiveMessageKind {
+  CHAT
+  SYSTEM
+}
+
+enum LiveViewerEventType {
+  JOIN
+  LEAVE
+}
+
+enum ReplayStatus {
+  NONE
+  PENDING
+  REGISTERING
+  COMPLETED
+  FAILED_RETRYABLE
+  FAILED_FINAL
+}
+
+enum CoinTransactionType {
+  DAILY_CLAIM
+  VIDEO_COIN
+  STREAK_REWARD
+  LIVE_GIFT
+}
+
+model LiveRoom {
+  id            Int            @id @default(autoincrement())
+  broadcasterId Int
+  title         String         @db.VarChar(128)
+  category      String         @default("live") @db.VarChar(64)
+  coverUrl      String?        @db.VarChar(512)
+  sourceMode    LiveSourceMode @default(camera)
+  streamKey     String         @unique @db.VarChar(128)
+  rtmpUrl       String         @db.VarChar(512)
+  playUrl       String         @db.VarChar(512)
+  status        LiveRoomStatus @default(IDLE)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  sessions      LiveSession[]
+
+  @@index([broadcasterId, status, createdAt])
+  @@index([status, createdAt])
+}
+
+model LiveSession {
+  id           Int                 @id @default(autoincrement())
+  roomId       Int
+  status       LiveSessionStatus   @default(LIVING)
+  sourceMode   LiveSourceMode
+  startedAt    DateTime            @default(now())
+  endedAt      DateTime?
+  replayStatus ReplayStatus        @default(NONE)
+  room         LiveRoom            @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  messages     LiveMessage[]
+  viewerEvents LiveViewerEvent[]
+  replay       ReplayRegistration?
+
+  @@index([roomId, startedAt])
+  @@index([status, startedAt])
+}
+
+model LiveMessage {
+  id        Int             @id @default(autoincrement())
+  sessionId Int
+  senderId  Int?
+  kind      LiveMessageKind
+  content   String          @db.VarChar(200)
+  createdAt DateTime        @default(now())
+  session   LiveSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+}
+
+model LiveViewerEvent {
+  id        Int                 @id @default(autoincrement())
+  sessionId Int
+  viewerId  String              @db.VarChar(128)
+  eventType LiveViewerEventType
+  createdAt DateTime            @default(now())
+  session   LiveSession         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+  @@index([viewerId, createdAt])
+}
+
+model ReplayRegistration {
+  id             Int          @id @default(autoincrement())
+  sessionId      Int          @unique
+  objectKey      String       @unique @db.VarChar(512)
+  contentVideoId String?      @db.VarChar(191)
+  status         ReplayStatus @default(PENDING)
+  requestId      String       @db.VarChar(128)
+  mimeType       String?      @db.VarChar(128)
+  attempts       Int          @default(0)
+  lastError      String?      @db.VarChar(1000)
+  nextRetryAt    DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  session        LiveSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([requestId])
+  @@index([status, nextRetryAt])
+}
+
+model CoinAccount {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  balance   Int      @default(10)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CoinTransaction {
+  id           Int                 @id @default(autoincrement())
+  userId       Int
+  type         CoinTransactionType
+  amount       Int
+  balanceAfter Int
+  videoId      Int?
+  requestId    String              @unique @db.VarChar(128)
+  requestPayload String             @default("") @db.VarChar(512)
+  createdAt    DateTime            @default(now())
+
+  @@index([userId, createdAt])
+  @@index([videoId, createdAt])
+}
+
+model DailyCoinClaim {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  claimDate DateTime @db.Date
+  amount    Int      @default(2)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, claimDate])
+  @@index([claimDate])
+}
+
+model StreakMilestoneClaim {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  milestone Int
+  createdAt DateTime @default(now())
+
+  @@unique([userId, milestone])
+  @@index([userId])
+}
+
+model VideoCoinContribution {
+  id        Int      @id @default(autoincrement())
+  videoId   Int
+  userId    Int
+  amount    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([videoId, userId])
+  @@index([userId, createdAt])
+}
