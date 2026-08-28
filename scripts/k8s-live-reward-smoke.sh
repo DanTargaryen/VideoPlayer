@@ -56,10 +56,22 @@ fi
 runtime_image="video-player/live-reward:$IMAGE_TAG"
 migration_image="video-player/live-reward-migrate:$IMAGE_TAG"
 mysql_image="video-player/mysql:8.0-local"
-docker build --platform linux/amd64 --provenance=false -f "$ROOT_DIR/services/live-reward/Dockerfile" -t "$runtime_image" "$ROOT_DIR"
-docker build --platform linux/amd64 --provenance=false --target migration -f "$ROOT_DIR/services/live-reward/Dockerfile" -t "$migration_image" "$ROOT_DIR"
-docker build --platform linux/amd64 --provenance=false -f "$ROOT_DIR/deploy/k8s/live-reward/Dockerfile.mysql" -t "$mysql_image" "$ROOT_DIR/deploy/k8s/live-reward"
-"$KIND_BIN" load docker-image "$runtime_image" "$migration_image" "$mysql_image" --name "$CLUSTER_NAME"
+docker_platform=$(docker info --format '{{.OSType}}/{{.Architecture}}')
+docker_build_args=(build --platform "$docker_platform")
+if docker build --help 2>&1 | grep -q -- '--provenance'; then
+  docker_build_args+=(--provenance=false)
+fi
+docker "${docker_build_args[@]}" -f "$ROOT_DIR/services/live-reward/Dockerfile" -t "$runtime_image" "$ROOT_DIR"
+docker "${docker_build_args[@]}" --target migration -f "$ROOT_DIR/services/live-reward/Dockerfile" -t "$migration_image" "$ROOT_DIR"
+docker "${docker_build_args[@]}" -f "$ROOT_DIR/deploy/k8s/live-reward/Dockerfile.mysql" -t "$mysql_image" "$ROOT_DIR/deploy/k8s/live-reward"
+"$KIND_BIN" load docker-image "$runtime_image" "$migration_image" --name "$CLUSTER_NAME"
+mysql_archive=$(mktemp "${TMPDIR:-/tmp}/live-reward-mysql.XXXXXX.tar")
+trap 'rm -f "$mysql_archive"; cleanup' EXIT
+docker save -o "$mysql_archive" "$mysql_image"
+docker exec --privileged -i "$CLUSTER_NAME-control-plane" \
+  ctr --namespace=k8s.io images import --snapshotter=overlayfs - < "$mysql_archive"
+rm -f "$mysql_archive"
+trap cleanup EXIT
 
 "$KUBECTL_BIN" apply -f "$ROOT_DIR/deploy/k8s/live-reward/namespace.yaml"
 "$KUBECTL_BIN" -n "$NAMESPACE" create secret generic live-reward-secrets \
@@ -82,15 +94,15 @@ sed "s|video-player/live-reward-migrate:local|$migration_image|" "$ROOT_DIR/depl
 sed "s|video-player/live-reward:local|$runtime_image|" "$ROOT_DIR/deploy/k8s/live-reward/service.yaml" | "$KUBECTL_BIN" apply -f -
 "$KUBECTL_BIN" -n "$NAMESPACE" rollout status deployment/live-reward --timeout=180s
 
-"$KUBECTL_BIN" -n "$NAMESPACE" exec deployment/live-reward -- node -e \
-  "const headers={'x-user-id':'7','content-type':'application/json'}; const post=(path,body={})=>fetch('http://127.0.0.1:3000'+path,{method:'POST',headers,body:JSON.stringify(body)}).then(async response=>{if(!response.ok)throw new Error(path+' '+response.status+' '+await response.text());return response.json()}); (async()=>{const title='kind-persistence-$IMAGE_TAG';const room=(await post('/api/v1/lives/rooms',{title})).data;const started=(await post('/api/v1/lives/rooms/'+room.id+'/start')).data;await post('/api/v1/lives/rooms/'+room.id+'/viewers',{viewerId:'kind-viewer'});await post('/api/v1/lives/rooms/'+room.id+'/messages',{content:'kind-message'});await post('/api/v1/gift-coins/daily-claim');console.log(JSON.stringify({title,roomId:room.id,sessionId:started.sessionId}));})().catch(error=>{console.error(error);process.exit(1)})"
+"$KUBECTL_BIN" -n "$NAMESPACE" exec deployment/live-reward -- node --input-type=module -e \
+  "import {issueServiceToken} from '@videoplayer/shared-contracts'; const requestId='kind-user-$IMAGE_TAG'; const token=issueServiceToken({caller:'gateway',audience:'live-reward',scopes:['live.user.forward'],secret:process.env.SERVICE_JWT_SECRET,requestId}); const headers={'x-user-id':'7','x-user-nickname':'kind-anchor','x-request-id':requestId,'x-gateway-authorization':'Bearer '+token,'content-type':'application/json'}; const post=(path,body={})=>fetch('http://127.0.0.1:3000'+path,{method:'POST',headers,body:JSON.stringify(body)}).then(async response=>{if(!response.ok)throw new Error(path+' '+response.status+' '+await response.text());return response.json()}); (async()=>{const title='kind-persistence-$IMAGE_TAG';const room=(await post('/api/v1/lives/rooms',{title})).data;const started=(await post('/api/v1/lives/rooms/'+room.id+'/start')).data;await post('/api/v1/lives/rooms/'+room.id+'/viewers',{viewerId:'kind-viewer'});await post('/api/v1/lives/rooms/'+room.id+'/messages',{content:'kind-message'});await post('/api/v1/gift-coins/daily-claim');console.log(JSON.stringify({title,roomId:room.id,sessionId:started.sessionId}));})().catch(error=>{console.error(error);process.exit(1)})"
 
 pod_name=$("$KUBECTL_BIN" -n "$NAMESPACE" get pod -l app.kubernetes.io/name=live-reward -o jsonpath='{.items[0].metadata.name}')
 "$KUBECTL_BIN" -n "$NAMESPACE" delete pod "$pod_name" --wait=true
 "$KUBECTL_BIN" -n "$NAMESPACE" rollout status deployment/live-reward --timeout=180s
 
-"$KUBECTL_BIN" -n "$NAMESPACE" exec deployment/live-reward -- node -e \
-  "Promise.all(['/health/live','/health/ready','/version'].map(path=>fetch('http://127.0.0.1:3000'+path).then(async response=>{if(!response.ok)throw new Error(path+' '+response.status);return [path,(await response.json()).data]}))).then(async health=>{const rooms=(await (await fetch('http://127.0.0.1:3000/api/v1/lives/rooms?keyword=kind-persistence-$IMAGE_TAG')).json()).data;const wallet=(await (await fetch('http://127.0.0.1:3000/api/v1/gift-coins/wallet',{headers:{'x-user-id':'7'}})).json()).data;if(rooms.length!==1||rooms[0].viewerCount!==1||wallet.balance!==12)throw new Error('persistent state mismatch');console.log(JSON.stringify({health,room:rooms[0],wallet}));}).catch(error=>{console.error(error);process.exit(1)})"
+"$KUBECTL_BIN" -n "$NAMESPACE" exec deployment/live-reward -- node --input-type=module -e \
+  "import {issueServiceToken} from '@videoplayer/shared-contracts'; const requestId='kind-user-read-$IMAGE_TAG'; const token=issueServiceToken({caller:'gateway',audience:'live-reward',scopes:['live.user.forward'],secret:process.env.SERVICE_JWT_SECRET,requestId}); const userHeaders={'x-user-id':'7','x-user-nickname':'kind-anchor','x-request-id':requestId,'x-gateway-authorization':'Bearer '+token}; Promise.all(['/health/live','/health/ready','/version'].map(path=>fetch('http://127.0.0.1:3000'+path).then(async response=>{if(!response.ok)throw new Error(path+' '+response.status);return [path,(await response.json()).data]}))).then(async health=>{const rooms=(await (await fetch('http://127.0.0.1:3000/api/v1/lives/rooms?keyword=kind-persistence-$IMAGE_TAG')).json()).data;const wallet=(await (await fetch('http://127.0.0.1:3000/api/v1/gift-coins/wallet',{headers:userHeaders})).json()).data;if(rooms.length!==1||rooms[0].viewerCount!==1||wallet.balance!==12)throw new Error('persistent state mismatch');console.log(JSON.stringify({health,room:rooms[0],wallet}));}).catch(error=>{console.error(error);process.exit(1)})"
 
 "$KUBECTL_BIN" -n "$NAMESPACE" get pods,jobs,services,pvc
 echo "live-reward isolated Kind smoke passed for image $IMAGE_TAG."

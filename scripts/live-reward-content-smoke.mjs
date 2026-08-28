@@ -14,7 +14,7 @@ const mysqlRootPassword = `root-${suffix}`;
 const contentPassword = `content-${suffix}`;
 const livePassword = `live-${suffix}`;
 const contentDatabase = 'content_media_integration';
-const liveDatabase = 'live_reward_integration';
+const liveDatabase = 'live_reward_integration_test';
 const containers = {
   contentMysql: `ms03-content-mysql-${suffix}`,
   liveMysql: `ms03-live-mysql-${suffix}`,
@@ -89,9 +89,10 @@ async function generateMedia(image, format) {
 
 async function main() {
   npm(['--workspace', '@videoplayer/shared-contracts', 'run', 'build']);
+  const { issueServiceToken } = await import('../services/shared-contracts/dist/index.js');
   npm(['--workspace', '@videoplayer/content-media', 'run', 'build']);
   npm(['--workspace', '@videoplayer/live-reward', 'run', 'build']);
-  docker(['build', '--platform', 'linux/amd64', '--provenance=false', '-f', 'services/content-media/Dockerfile', '-t', `video-player/content-media:integration-${suffix}`, '.']);
+  docker(['build', '-f', 'services/content-media/Dockerfile', '-t', `video-player/content-media:integration-${suffix}`, '.']);
   const mediaImage = `video-player/content-media:integration-${suffix}`;
 
   docker(['run', '--detach', '--rm', '--name', containers.contentMysql, '--publish', '127.0.0.1::3306', '-e', `MYSQL_ROOT_PASSWORD=${mysqlRootPassword}`, '-e', `MYSQL_DATABASE=${contentDatabase}`, '-e', 'MYSQL_USER=content_media', '-e', `MYSQL_PASSWORD=${contentPassword}`, 'mysql:8.0']);
@@ -134,31 +135,64 @@ async function main() {
   }
 
   const liveBase = `http://127.0.0.1:${livePort}`;
-  const headers = { 'x-user-id': '7', 'x-user-nickname': 'integration-anchor' };
-  const room = await jsonRequest(`${liveBase}/api/v1/lives/rooms`, { method: 'POST', headers, body: JSON.stringify({ title: `真实回放联调 ${suffix} WebM` }) });
-  const started = await jsonRequest(`${liveBase}/api/v1/lives/rooms/${room.id}/start`, { method: 'POST', headers });
-  await jsonRequest(`${liveBase}/api/v1/lives/rooms/${room.id}/viewers`, { method: 'POST', headers, body: JSON.stringify({ viewerId: `viewer-${suffix}-webm` }) });
-  await jsonRequest(`${liveBase}/api/v1/lives/rooms/${room.id}/messages`, { method: 'POST', headers, body: JSON.stringify({ content: '真实回放联调消息' }) });
-  await jsonRequest(`${liveBase}/api/v1/lives/rooms/${room.id}/stop`, { method: 'POST', headers });
+  let gatewayRequestCounter = 0;
+  const trustedHeaders = (userId = 7, requestId = `gateway-${suffix}-${++gatewayRequestCounter}`) => ({
+    'x-user-id': String(userId),
+    'x-user-nickname': `integration-user-${userId}`,
+    'x-request-id': requestId,
+    'x-gateway-authorization': `Bearer ${issueServiceToken({ caller: 'gateway', audience: 'live-reward', scopes: ['live.user.forward'], secret, requestId })}`,
+  });
+  const room = await jsonRequest(`${liveBase}/api/v1/lives/rooms`, { method: 'POST', headers: trustedHeaders(), body: JSON.stringify({ title: `真实回放联调 ${suffix} WebM` }) });
+  const started = await jsonRequest(`${liveBase}/api/v1/lives/rooms/${room.id}/start`, { method: 'POST', headers: trustedHeaders() });
+  await jsonRequest(`${liveBase}/api/v1/lives/rooms/${room.id}/viewers`, { method: 'POST', headers: trustedHeaders(), body: JSON.stringify({ viewerId: `viewer-${suffix}-webm` }) });
+  await jsonRequest(`${liveBase}/api/v1/lives/rooms/${room.id}/messages`, { method: 'POST', headers: trustedHeaders(), body: JSON.stringify({ content: '真实回放联调消息' }) });
+  await jsonRequest(`${liveBase}/api/v1/lives/rooms/${room.id}/stop`, { method: 'POST', headers: trustedHeaders() });
   const replays = {};
   for (const format of ['webm', 'mp4']) {
     const objectKey = `replays/${suffix}.${format}`;
     let targetRoom = room;
     if (format === 'mp4') {
-      targetRoom = await jsonRequest(`${liveBase}/api/v1/lives/rooms`, { method: 'POST', headers, body: JSON.stringify({ title: `真实回放联调 ${suffix} MP4` }) });
-      await jsonRequest(`${liveBase}/api/v1/lives/rooms/${targetRoom.id}/start`, { method: 'POST', headers });
-      await jsonRequest(`${liveBase}/api/v1/lives/rooms/${targetRoom.id}/viewers`, { method: 'POST', headers, body: JSON.stringify({ viewerId: `viewer-${suffix}-mp4` }) });
-      await jsonRequest(`${liveBase}/api/v1/lives/rooms/${targetRoom.id}/messages`, { method: 'POST', headers, body: JSON.stringify({ content: '真实回放联调消息' }) });
-      await jsonRequest(`${liveBase}/api/v1/lives/rooms/${targetRoom.id}/stop`, { method: 'POST', headers });
+      targetRoom = await jsonRequest(`${liveBase}/api/v1/lives/rooms`, { method: 'POST', headers: trustedHeaders(), body: JSON.stringify({ title: `真实回放联调 ${suffix} MP4` }) });
+      await jsonRequest(`${liveBase}/api/v1/lives/rooms/${targetRoom.id}/start`, { method: 'POST', headers: trustedHeaders() });
+      await jsonRequest(`${liveBase}/api/v1/lives/rooms/${targetRoom.id}/viewers`, { method: 'POST', headers: trustedHeaders(), body: JSON.stringify({ viewerId: `viewer-${suffix}-mp4` }) });
+      await jsonRequest(`${liveBase}/api/v1/lives/rooms/${targetRoom.id}/messages`, { method: 'POST', headers: trustedHeaders(), body: JSON.stringify({ content: '真实回放联调消息' }) });
+      await jsonRequest(`${liveBase}/api/v1/lives/rooms/${targetRoom.id}/stop`, { method: 'POST', headers: trustedHeaders() });
     }
-    replays[format] = await jsonRequest(`${liveBase}/api/v1/lives/rooms/${targetRoom.id}/replay`, { method: 'POST', headers: { ...headers, 'x-request-id': `replay-${suffix}-${format}` }, body: JSON.stringify({ objectKey, mimeType: `video/${format}` }) });
+    const replayRequestId = `replay-${suffix}-${format}`;
+    replays[format] = await jsonRequest(`${liveBase}/api/v1/lives/rooms/${targetRoom.id}/replay`, { method: 'POST', headers: trustedHeaders(7, replayRequestId), body: JSON.stringify({ objectKey, mimeType: `video/${format}` }) });
     assert(replays[format].status === 'COMPLETED', `${format} replay did not complete: ${JSON.stringify(replays[format])}`);
     assert(typeof replays[format].contentVideoId === 'string', `${format} contentVideoId is not a string`);
   }
-  const mismatchBefore = await jsonRequest(`${liveBase}/api/v1/lives/sessions/${started.sessionId}`, { headers });
-  await fetch(`${liveBase}/api/v1/lives/rooms/${room.id}/replay`, { method: 'POST', headers: { ...headers, 'x-request-id': `replay-${suffix}-mismatch` }, body: JSON.stringify({ objectKey: `replays/${suffix}.mp4`, mimeType: 'video/webm' }) }).then(async (response) => assert(response.status === 400, `mismatched replay returned ${response.status}`));
-  const mismatchAfter = await jsonRequest(`${liveBase}/api/v1/lives/sessions/${started.sessionId}`, { headers });
+  const mismatchBefore = await jsonRequest(`${liveBase}/api/v1/lives/sessions/${started.sessionId}`);
+  await fetch(`${liveBase}/api/v1/lives/rooms/${room.id}/replay`, { method: 'POST', headers: { ...trustedHeaders(7, `replay-${suffix}-mismatch`), 'content-type': 'application/json' }, body: JSON.stringify({ objectKey: `replays/${suffix}.mp4`, mimeType: 'video/webm' }) }).then(async (response) => assert(response.status === 400, `mismatched replay returned ${response.status}`));
+  const mismatchAfter = await jsonRequest(`${liveBase}/api/v1/lives/sessions/${started.sessionId}`);
   assert(mismatchBefore.replay.id === mismatchAfter.replay.id && mismatchAfter.replay.status === 'COMPLETED', 'mismatched replay mutated live state');
+
+  const replayConflict = await fetch(`${liveBase}/api/v1/lives/rooms/${room.id}/replay`, {
+    method: 'POST',
+    headers: { ...trustedHeaders(7, `replay-${suffix}-different`), 'content-type': 'application/json' },
+    body: JSON.stringify({ objectKey: `replays/${suffix}-different.webm`, mimeType: 'video/webm' }),
+  });
+  assert(replayConflict.status === 409, `live replay payload conflict returned ${replayConflict.status}`);
+
+  const ledgerRequestId = `ledger-${suffix}`;
+  const firstCoin = await jsonRequest(`${liveBase}/api/v1/videos/77/coin`, { method: 'POST', headers: trustedHeaders(7, ledgerRequestId), body: JSON.stringify({ amount: 1 }) });
+  const replayCoin = await jsonRequest(`${liveBase}/api/v1/videos/77/coin`, { method: 'POST', headers: trustedHeaders(7, ledgerRequestId), body: JSON.stringify({ amount: 1 }) });
+  assert(firstCoin.balance === replayCoin.balance && replayCoin.userVideoCoinCount === 1, 'identical ledger replay changed the result');
+  const ledgerConflict = await fetch(`${liveBase}/api/v1/videos/88/coin`, { method: 'POST', headers: { ...trustedHeaders(8, ledgerRequestId), 'content-type': 'application/json' }, body: JSON.stringify({ amount: 2 }) });
+  assert(ledgerConflict.status === 409, `ledger requestId payload conflict returned ${ledgerConflict.status}`);
+  const concurrentReplayId = `ledger-concurrent-${suffix}`;
+  const concurrentReplayResponses = await Promise.all([
+    fetch(`${liveBase}/api/v1/videos/78/coin`, { method: 'POST', headers: { ...trustedHeaders(7, concurrentReplayId), 'content-type': 'application/json' }, body: JSON.stringify({ amount: 1 }) }),
+    fetch(`${liveBase}/api/v1/videos/78/coin`, { method: 'POST', headers: { ...trustedHeaders(7, concurrentReplayId), 'content-type': 'application/json' }, body: JSON.stringify({ amount: 1 }) }),
+  ]);
+  assert(concurrentReplayResponses.every((response) => response.status === 200), `concurrent identical ledger replay returned ${concurrentReplayResponses.map((response) => response.status).join(',')}`);
+  const concurrentConflictId = `ledger-concurrent-conflict-${suffix}`;
+  const concurrentConflictResponses = await Promise.all([
+    fetch(`${liveBase}/api/v1/videos/79/coin`, { method: 'POST', headers: { ...trustedHeaders(7, concurrentConflictId), 'content-type': 'application/json' }, body: JSON.stringify({ amount: 1 }) }),
+    fetch(`${liveBase}/api/v1/videos/80/coin`, { method: 'POST', headers: { ...trustedHeaders(8, concurrentConflictId), 'content-type': 'application/json' }, body: JSON.stringify({ amount: 2 }) }),
+  ]);
+  assert(concurrentConflictResponses.map((response) => response.status).sort().join(',') === '200,409', `concurrent conflicting ledger payload returned ${concurrentConflictResponses.map((response) => response.status).join(',')}`);
 
   const { PrismaClient: LivePrismaClient } = await import('../services/live-reward/generated/index.js');
   const { PrismaClient: ContentPrismaClient } = await import('../services/content-media/generated/prisma-client/index.js');
@@ -178,6 +212,8 @@ async function main() {
       const header = stat.metaData['content-type'] ?? stat.metaData['Content-Type'];
       assert(asset?.mimeType === header, `${format} database/MinIO MIME mismatch`);
     }
+    assert(await livePrisma.coinTransaction.count({ where: { requestId: concurrentReplayId } }) === 1, 'concurrent identical ledger replay created multiple transactions');
+    assert(await livePrisma.coinTransaction.count({ where: { requestId: concurrentConflictId } }) === 1, 'concurrent conflicting ledger payload created multiple transactions');
   } finally {
     await Promise.all([livePrisma.$disconnect(), contentPrisma.$disconnect()]);
   }

@@ -33,6 +33,10 @@ identity_database_password=$(node -e "process.stdout.write(require('node:crypto'
 identity_admin_secret=$(node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('hex'))")
 identity_database_url="mysql://${identity_database_user}:${identity_database_password}@mysql:3306/${identity_database_name}"
 content_db_password=$(node -e "process.stdout.write(require('node:crypto').randomBytes(18).toString('hex'))")
+live_reward_database_name=video_player_live_reward_ci_test
+live_reward_database_user=live_reward
+live_reward_database_password=$(node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('hex'))")
+live_reward_database_url="mysql://${live_reward_database_user}:${live_reward_database_password}@mysql:3306/${live_reward_database_name}"
 seed_confirmation=$(node -e "process.stdout.write(require('node:crypto').randomBytes(18).toString('hex'))")
 local_storage_dir="$CI_RUN_DIR/storage"
 practice_env_file="$CI_RUN_DIR/practice.env"
@@ -57,6 +61,10 @@ mkdir -p "$local_storage_dir"
   printf 'IDENTITY_DATABASE_URL=%q\n' "$identity_database_url"
   printf 'IDENTITY_ADMIN_SECRET=%q\n' "$identity_admin_secret"
   printf 'CONTENT_DB_PASSWORD=%q\n' "$content_db_password"
+  printf 'LIVE_REWARD_DATABASE_NAME=%q\n' "$live_reward_database_name"
+  printf 'LIVE_REWARD_DATABASE_USER=%q\n' "$live_reward_database_user"
+  printf 'LIVE_REWARD_DATABASE_PASSWORD=%q\n' "$live_reward_database_password"
+  printf 'LIVE_REWARD_DATABASE_URL=%q\n' "$live_reward_database_url"
   printf 'SEED_CONFIRMATION=%q\n' "$seed_confirmation"
   printf 'STORAGE_BACKEND=%q\n' local
   printf 'LOCAL_STORAGE_DIR=%q\n' "$local_storage_dir"
@@ -79,6 +87,7 @@ mkdir -p "$local_storage_dir"
   printf 'IDENTITY_DATABASE_URL=%s\n' "$identity_database_url"
   printf 'IDENTITY_ADMIN_SECRET=%s\n' "$identity_admin_secret"
   printf 'CONTENT_DB_PASSWORD=%s\n' "$content_db_password"
+  printf 'LIVE_REWARD_DATABASE_URL=%s\n' "$live_reward_database_url"
 } > "$practice_env_file"
 chmod 600 "$CI_RUNTIME_ENV_FILE" "$practice_env_file"
 

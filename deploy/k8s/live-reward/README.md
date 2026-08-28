@@ -5,6 +5,10 @@ job, Secret boundary, probes, resource limits, and persistent state across an
 application Pod replacement. It does not deploy content-media, MinIO, or SRS and
 therefore does not claim the replay/browser integration gates.
 
+The write probe simulates the trusted Gateway boundary by signing the injected
+user ID with the namespace `SERVICE_JWT_SECRET` and `live.user.forward` scope;
+unsigned client `x-user-id` headers are rejected by the service.
+
 From the repository root, run:
 
 ```bash

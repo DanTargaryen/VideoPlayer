@@ -12,6 +12,24 @@ const broadcaster = { id: 7, nickname: '主播' };
 const servers: Server[] = [];
 const serviceSecret = 'live-reward-test-secret-0123456789012345';
 
+function trustedUserHeaders(id = 7, nickname = 'anchor', requestId = `trusted-${id}`) {
+  process.env.SERVICE_JWT_SECRET = serviceSecret;
+  const token = issueServiceToken({
+    caller: 'gateway',
+    audience: 'live-reward',
+    scopes: ['live.user.forward'],
+    secret: serviceSecret,
+    requestId,
+  });
+  return {
+    'x-user-id': String(id),
+    'x-user-nickname': nickname,
+    'x-request-id': requestId,
+    'x-gateway-authorization': `Bearer ${token}`,
+    'content-type': 'application/json',
+  };
+}
+
 afterEach(async () => {
   await Promise.all(servers.splice(0).map((server) => new Promise<void>((resolve) => server.close(() => resolve()))));
   delete process.env.SERVICE_JWT_SECRET;
@@ -39,14 +57,16 @@ class ReplayStub implements ReplayClient {
 }
 
 describe('live-reward domain', () => {
-  it('accepts the gateway-compatible mock user token without querying identity', async () => {
+  it('rejects client-supplied identity headers and accepts a signed gateway identity context', async () => {
     const server = createLiveHttpServer(new LiveApplication({ store: new MemoryStore() }));
     server.listen(0, '127.0.0.1');
     await new Promise<void>((resolve) => server.once('listening', () => resolve()));
     const address = server.address();
     if (!address || typeof address === 'string') throw new Error('Expected TCP address');
     try {
-      const response = await fetch(`http://127.0.0.1:${address.port}/api/v1/lives/rooms`, { method: 'POST', headers: { authorization: 'Bearer mock-token-7-session', 'content-type': 'application/json' }, body: JSON.stringify({ title: 'token session' }) });
+      const forged = await fetch(`http://127.0.0.1:${address.port}/api/v1/lives/rooms`, { method: 'POST', headers: { 'x-user-id': '999', 'content-type': 'application/json' }, body: JSON.stringify({ title: 'forged session' }) });
+      expect(forged.status).toBe(401);
+      const response = await fetch(`http://127.0.0.1:${address.port}/api/v1/lives/rooms`, { method: 'POST', headers: trustedUserHeaders(), body: JSON.stringify({ title: 'trusted session' }) });
       expect(response.status).toBe(200);
       expect((await response.json()).data.broadcaster.id).toBe(7);
     } finally {
@@ -74,6 +94,9 @@ describe('live-reward domain', () => {
     const session = await app.getSession(started.sessionId);
     expect(session.status).toBe('ENDED');
     expect(session.replay?.status).toBe('COMPLETED');
+    const duplicate = await app.registerReplay(room.id, broadcaster, { objectKey: 'recordings/1.webm', mimeType: 'video/webm', requestId: 'replay-1' });
+    expect(duplicate.id).toBe(replayResult.id);
+    await expect(app.registerReplay(room.id, broadcaster, { objectKey: 'recordings/other.webm', mimeType: 'video/webm', requestId: 'replay-other' })).rejects.toMatchObject({ status: 409 });
   });
 
   it('keeps the room idle when SRS probe fails', async () => {
@@ -132,7 +155,7 @@ describe('live-reward domain', () => {
   });
 
   it('does not retry permanent content replay conflicts or authorization failures', async () => {
-    for (const status of [401, 409]) {
+    for (const status of [400, 401, 409]) {
       const replay: ReplayClient = { register: async () => { throw new HttpError(status, `content-media returned ${status}`, status); } };
       const app = new LiveApplication({ store: new MemoryStore(), replayClient: replay });
       const room = await app.createRoom(broadcaster, { title: `永久失败-${status}` });
@@ -158,6 +181,19 @@ describe('live-reward domain', () => {
     await expect(app.coinVideo(7, 99, 1, 'coin-2')).rejects.toThrow('最多投币 2');
     const wallet = await app.wallet(7);
     expect(wallet.balance).toBe(10);
+  });
+
+  it('rejects requestId reuse with a different ledger payload', async () => {
+    const store = new MemoryStore();
+    const app = new LiveApplication({ store });
+    await app.coinVideo(7, 99, 1, 'ledger-conflict');
+    await expect(app.coinVideo(8, 100, 2, 'ledger-conflict')).rejects.toMatchObject({ status: 409 });
+    await app.gift(7, 1, 'gift-conflict');
+    await expect(app.gift(7, 2, 'gift-conflict')).rejects.toMatchObject({ status: 409 });
+    await app.claimDaily(7, 'daily-conflict');
+    await expect(app.claimDaily(8, 'daily-conflict')).rejects.toMatchObject({ status: 409 });
+    await store.claimMilestone(7, 3, 'milestone-conflict');
+    await expect(store.claimMilestone(7, 7, 'milestone-conflict')).rejects.toBeInstanceOf(Error);
   });
 
   it('reconstructs viewer state from the store boundary and trims ordinary chat at 10,000 messages', async () => {
@@ -188,8 +224,12 @@ describe('live-reward HTTP adapters and internal auth', () => {
     const address = server.address();
     if (!address || typeof address === 'string') throw new Error('Expected TCP address');
     const baseUrl = `http://127.0.0.1:${address.port}`;
-    const userHeaders = { 'x-user-id': '7', 'x-user-nickname': 'anchor', 'content-type': 'application/json' };
-    const request = async (path: string, init: RequestInit = {}) => fetch(`${baseUrl}${path}`, { ...init, headers: { ...userHeaders, ...(init.headers ?? {}) } });
+    let httpRequestCounter = 0;
+    const request = async (path: string, init: RequestInit = {}) => {
+      const extraHeaders = (init.headers ?? {}) as Record<string, string>;
+      const requestId = extraHeaders['x-request-id'] ?? `http-user-${++httpRequestCounter}`;
+      return fetch(`${baseUrl}${path}`, { ...init, headers: { ...trustedUserHeaders(7, 'anchor', requestId), ...extraHeaders } });
+    };
     const created = await request('/api/v1/lives/rooms', { method: 'POST', body: JSON.stringify({ title: 'HTTP 生命周期', category: 'tech' }) });
     expect(created.status).toBe(200);
     const roomId = (await created.json()).data.id as number;
@@ -258,13 +298,15 @@ describe('live-reward HTTP adapters and internal auth', () => {
     expect(receivedClaims).toMatchObject({ sub: 'live-reward', aud: 'content-media', scope: ['internal:replay'], requestId: 'replay-http' });
   });
 
-  it('accepts a 201 replay response and preserves content-media conflict/auth statuses', async () => {
+  it('accepts a 201 replay response and preserves content-media permanent failure statuses', async () => {
     process.env.SERVICE_JWT_SECRET = serviceSecret;
     const input = { sessionId: 12, objectKey: 'recordings/12.webm', mimeType: 'video/webm', requestId: 'replay-status', creatorId: '7', title: '直播标题' } as const;
     const created = await listen((_request, response) => { response.statusCode = 201; response.setHeader('content-type', 'application/json'); response.end(JSON.stringify({ data: { contentVideoId: 'content-video-201' } })); });
     await expect(new ContentReplayClient(created, 200).register(input)).resolves.toEqual({ contentVideoId: 'content-video-201' });
     const conflict = await listen((_request, response) => { response.statusCode = 409; response.end('conflict'); });
     await expect(new ContentReplayClient(conflict, 200).register(input)).rejects.toMatchObject({ status: 409, code: 409 });
+    const invalid = await listen((_request, response) => { response.statusCode = 400; response.end('invalid'); });
+    await expect(new ContentReplayClient(invalid, 200).register(input)).rejects.toMatchObject({ status: 400, code: 400 });
     const unauthorized = await listen((_request, response) => { response.statusCode = 401; response.end('unauthorized'); });
     await expect(new ContentReplayClient(unauthorized, 200).register(input)).rejects.toMatchObject({ status: 401, code: 401 });
     const timedOut = await listen((_request, response) => { setTimeout(() => response.end('{}'), 100); });

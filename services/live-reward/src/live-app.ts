@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 
 import { failure, issueServiceToken, ok, verifyServiceToken, writeServiceLog } from '@videoplayer/shared-contracts';
 
-import { createStore, type MessageRecord, type ReplayRecord, type RoomRecord, type RoomStatus, type SessionRecord, type SourceMode, type Store } from './store.js';
+import { createStore, IdempotencyConflictError, type MessageRecord, type ReplayRecord, type RoomRecord, type RoomStatus, type SessionRecord, type SourceMode, type Store } from './store.js';
 
 type User = { id: number; nickname: string };
 type SrsExchange = { type: 'offer' | 'answer'; sdp: string };
@@ -73,7 +73,7 @@ export class ContentReplayClient implements ReplayClient {
       const response = await fetch(`${this.baseUrl}/internal/v1/replays`, { method: 'POST', headers, body: JSON.stringify({ requestId: input.requestId, objectKey: input.objectKey, mimeType: input.mimeType, title: input.title, creatorId: input.creatorId }), signal: AbortSignal.timeout(this.timeoutMs) });
       if (response.status !== 200 && response.status !== 201) {
         const message = `content-media returned ${response.status}`;
-        if (response.status === 401 || response.status === 409) throw new HttpError(response.status, message, response.status);
+        if (response.status === 400 || response.status === 401 || response.status === 409) throw new HttpError(response.status, message, response.status);
         throw new HttpError(503, message, 503);
       }
       const payload = await response.json() as { data?: { contentVideoId?: string } };
@@ -94,9 +94,11 @@ export class LiveApplication {
   private readonly replayClient: ReplayClient;
   private readonly now: () => Date;
   private readonly srsRequired: boolean;
+  private readonly runtimeConfigured: boolean;
   private readonly viewerIds = new Map<number, Set<string>>();
 
   constructor(options: LiveAppOptions = {}) {
+    this.runtimeConfigured = Boolean(options.store) || Boolean(process.env.LIVE_REWARD_DATABASE_URL?.trim());
     this.store = options.store ?? createStore();
     this.srs = options.srs ?? buildSrsClient();
     this.srsRequired = Boolean(options.srs) || this.isSrsConfigured();
@@ -105,7 +107,7 @@ export class LiveApplication {
   }
 
   async close(): Promise<void> { await this.store.close(); }
-  async ready(): Promise<boolean> { return this.store.ready(); }
+  async ready(): Promise<boolean> { return this.runtimeConfigured && this.store.ready(); }
 
   async createRoom(user: User, input: { title: string; category?: string; coverUrl?: string; sourceMode?: SourceMode }) {
     const title = input.title?.trim();
@@ -196,7 +198,13 @@ export class LiveApplication {
     const objectKey = input.objectKey?.trim(); if (!objectKey) throw new HttpError(400, 'objectKey is required', 400);
     const mimeType = normalizeReplayMime(objectKey, input.mimeType);
     const requestId = input.requestId?.trim() || randomUUID();
-    const replay = await this.store.createReplay({ sessionId: session.id, objectKey, contentVideoId: null, status: 'PENDING', requestId, mimeType });
+    let replay: ReplayRecord;
+    try {
+      replay = await this.store.createReplay({ sessionId: session.id, objectKey, contentVideoId: null, status: 'PENDING', requestId, mimeType });
+    } catch (error) {
+      if (error instanceof IdempotencyConflictError) throw new HttpError(409, error.message, 409);
+      throw error;
+    }
     return this.attemptReplay(replay, room);
   }
 
@@ -207,9 +215,9 @@ export class LiveApplication {
   }
 
   async wallet(userId: number) { const transactions = await this.store.listTransactions(userId); const claims = transactions.filter((item) => item.type === 'DAILY_CLAIM'); const spent = transactions.filter((item) => item.amount < 0); return { balance: await this.store.getBalance(userId), totalClaimed: claims.reduce((sum, item) => sum + item.amount, 0), totalSpent: spent.reduce((sum, item) => sum + Math.abs(item.amount), 0), claimedToday: (await this.store.getDailyClaims(userId)).some((date) => sameDay(date, this.now())), todayClaimAmount: 2 }; }
-  async claimDaily(userId: number, requestId: string) { return this.store.claimDaily(userId, startOfDay(this.now()), requestId); }
+  async claimDaily(userId: number, requestId: string) { try { return await this.store.claimDaily(userId, startOfDay(this.now()), requestId); } catch (error) { throw ledgerError(error); } }
   async streak(userId: number) { const claims = await this.store.getDailyClaims(userId).then((items) => items.sort((a, b) => b.getTime() - a.getTime())); const streak = calculateStreak(claims, this.now()); const claimed = new Set(await this.store.getClaimedMilestones(userId)); return { streak, claimedToday: claims.some((date) => sameDay(date, this.now())), milestones: [3, 7, 14, 30].map((day) => ({ day, reached: streak >= day, claimed: claimed.has(day) })) }; }
-  async claimMilestone(userId: number, milestone: number, requestId: string) { if (![3, 7, 14, 30].includes(milestone)) throw new HttpError(400, '无效的里程碑', 400); const info = await this.streak(userId); if (info.streak < milestone) return { claimed: false, amount: 0, balance: await this.store.getBalance(userId), message: '未达到该里程碑' }; return this.store.claimMilestone(userId, milestone, requestId); }
+  async claimMilestone(userId: number, milestone: number, requestId: string) { if (![3, 7, 14, 30].includes(milestone)) throw new HttpError(400, '无效的里程碑', 400); const info = await this.streak(userId); if (info.streak < milestone) return { claimed: false, amount: 0, balance: await this.store.getBalance(userId), message: '未达到该里程碑' }; try { return await this.store.claimMilestone(userId, milestone, requestId); } catch (error) { throw ledgerError(error); } }
   async coinVideo(userId: number, videoId: number, amount: number, requestId: string) { if (!Number.isInteger(amount) || amount < 1 || amount > 2) throw new HttpError(400, '投币数量必须是 1 到 2 的整数', 400); try { return await this.store.coinVideo(userId, videoId, amount, requestId); } catch (error) { throw ledgerError(error); } }
   async gift(userId: number, amount: number, requestId: string) { if (!Number.isInteger(amount) || amount < 1 || amount > 100) throw new HttpError(400, '礼物数量必须是 1 到 100 的整数', 400); try { return await this.store.gift(userId, amount, requestId); } catch (error) { throw ledgerError(error); } }
 
@@ -268,6 +276,7 @@ export function createLiveHttpServer(app = new LiveApplication()): Server {
     try {
       const url = new URL(request.url ?? '/', 'http://127.0.0.1');
       if (await handleHealth(request, response, url.pathname, requestId, startedAt, app)) return;
+      if (!await app.ready()) throw new HttpError(503, 'live-reward persistence is not configured or unavailable', 503);
       const body = ['GET', 'HEAD'].includes(request.method ?? 'GET') ? {} : await readBody(request);
       const data = await dispatch(app, request, url, body, requestId);
       writeJson(response, 200, ok(data, requestId), requestId);
@@ -304,7 +313,26 @@ async function dispatch(app: LiveApplication, request: IncomingMessage, url: URL
 }
 
 async function handleHealth(request: IncomingMessage, response: ServerResponse, path: string, requestId: string, startedAt: number, app: LiveApplication) { if (request.method !== 'GET' || !['/health/live', '/health/ready', '/version'].includes(path)) return false; const version = process.env.GIT_SHA?.trim() || process.env.SERVICE_VERSION?.trim() || 'dev'; if (path === '/health/ready') { const ready = await app.ready(); writeJson(response, ready ? 200 : 503, ready ? ok({ service: 'live-reward', status: 'ready', version, persistent: app.store.persistent, uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000) }, requestId) : failure('service not ready', requestId, 503), requestId); return true; } if (path === '/version') writeJson(response, 200, ok({ service: 'live-reward', version, node: process.version }, requestId), requestId); else writeJson(response, 200, ok({ service: 'live-reward', status: 'live', version, uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000) }, requestId), requestId); return true; }
-function userFromHeaders(request: IncomingMessage): User | null { const headerId = Number(request.headers['x-user-id']); const authorization = typeof request.headers.authorization === 'string' ? request.headers.authorization : ''; const tokenMatch = /^Bearer\s+mock-token-(\d+)-[^\s]+$/i.exec(authorization); const id = Number.isInteger(headerId) && headerId > 0 ? headerId : tokenMatch ? Number(tokenMatch[1]) : 0; if (!Number.isInteger(id) || id < 1) return null; const nickname = typeof request.headers['x-user-nickname'] === 'string' ? request.headers['x-user-nickname'] : `user-${id}`; return { id, nickname }; }
+function userFromHeaders(request: IncomingMessage): User | null {
+  const id = Number(request.headers['x-user-id']);
+  const gatewayAuthorization = request.headers['x-gateway-authorization'];
+  const secret = process.env.SERVICE_JWT_SECRET?.trim();
+  if (!Number.isInteger(id) || id < 1 || typeof gatewayAuthorization !== 'string' || !secret) return null;
+  try {
+    const claims = verifyServiceToken(parseBearer(gatewayAuthorization), {
+      audience: 'live-reward',
+      secret,
+      requiredScopes: ['live.user.forward'],
+      allowedCallers: ['gateway'],
+    });
+    const requestId = getRequestId(request);
+    if (claims.requestId !== requestId) return null;
+  } catch {
+    return null;
+  }
+  const nickname = typeof request.headers['x-user-nickname'] === 'string' ? request.headers['x-user-nickname'] : `user-${id}`;
+  return { id, nickname };
+}
 function requireUser(user: User | null) { if (!user) throw new HttpError(401, 'Authentication required', 401); return user; }
 function authorizeInternal(request: IncomingMessage, scope: string) { const secret = process.env.SERVICE_JWT_SECRET; if (!secret) throw new HttpError(503, 'Internal service authentication is not configured', 503); try { return verifyServiceToken(parseBearer(request.headers.authorization), { audience: 'live-reward', secret, requiredScopes: [scope] }); } catch (error) { throw new HttpError(401, error instanceof Error ? error.message : 'Invalid service token', 401); } }
 function parseBearer(header: string | string[] | undefined) { if (typeof header !== 'string' || !/^Bearer\s+\S+$/i.test(header)) throw new Error('Service Authorization header is required'); return header.replace(/^Bearer\s+/i, ''); }
@@ -318,4 +346,7 @@ function optionalString(value: unknown) { return typeof value === 'string' ? val
 function numberValue(value: unknown) { const number = typeof value === 'number' ? value : Number(value); if (!Number.isFinite(number)) throw new HttpError(400, 'Number field is required', 400); return number; }
 function integerValue(value: unknown) { const number = numberValue(value); if (!Number.isInteger(number) || number < 1) throw new HttpError(400, 'Integer field is required', 400); return number; }
 function parseOptionalInt(value: string | null) { if (value === null) return undefined; const number = Number(value); return Number.isInteger(number) ? number : undefined; }
-function ledgerError(error: unknown) { const message = error instanceof Error ? error.message : 'ledger operation failed'; return new HttpError(400, message, 400); }
+function ledgerError(error: unknown) {
+  const message = error instanceof Error ? error.message : 'ledger operation failed';
+  return error instanceof IdempotencyConflictError ? new HttpError(409, message, 409) : new HttpError(400, message, 400);
+}

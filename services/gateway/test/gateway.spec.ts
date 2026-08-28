@@ -1,11 +1,13 @@
 import { once } from 'node:events';
 import { createServer, type Server } from 'node:http';
 
+import { verifyServiceToken } from '@videoplayer/shared-contracts';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { createGatewayServer, resolveUpstream, resolveUpstreamName, type GatewayConfig } from '../src/gateway.js';
 
 const servers: Server[] = [];
+const serviceSecret = 'gateway-live-user-forward-secret-0123456789';
 
 afterEach(async () => {
   await Promise.all(servers.splice(0).map((server) => new Promise<void>((resolve) => server.close(() => resolve()))));
@@ -26,6 +28,7 @@ function config(overrides: Partial<GatewayConfig> = {}): GatewayConfig {
     monolithBaseUrl: 'http://127.0.0.1:1',
     fallbackEnabled: true,
     timeoutMs: 1000,
+    serviceJwtSecret: serviceSecret,
     ...overrides,
   };
 }
@@ -79,20 +82,39 @@ describe('gateway scaffold', () => {
   });
 
   it('switches live writes to live-reward and rolls them back to the monolith', async () => {
-    const live = await listen(createServer((request, response) => {
+    const identity = await listen(createServer((request, response) => {
+      if (request.headers.authorization !== 'Bearer valid-user-token') {
+        response.statusCode = 401;
+        response.end('{}');
+        return;
+      }
       response.setHeader('content-type', 'application/json');
-      response.end(JSON.stringify({ owner: 'live-reward', method: request.method, path: request.url }));
+      response.end(JSON.stringify({ data: { id: 7, nickname: 'verified-anchor' } }));
+    }));
+    const live = await listen(createServer((request, response) => {
+      const gatewayToken = String(request.headers['x-gateway-authorization']).replace(/^Bearer\s+/i, '');
+      const claims = verifyServiceToken(gatewayToken, {
+        audience: 'live-reward',
+        secret: serviceSecret,
+        requiredScopes: ['live.user.forward'],
+        allowedCallers: ['gateway'],
+      });
+      response.setHeader('content-type', 'application/json');
+      response.end(JSON.stringify({ owner: 'live-reward', method: request.method, path: request.url, userId: request.headers['x-user-id'], nickname: request.headers['x-user-nickname'], requestId: claims.requestId }));
     }));
     const monolith = await listen(createServer((request, response) => {
       response.setHeader('content-type', 'application/json');
       response.end(JSON.stringify({ owner: 'monolith', method: request.method, path: request.url }));
     }));
-    const serviceGateway = await listen(createGatewayServer(config({ routeMode: 'services', monolithBaseUrl: monolith, liveBaseUrl: live })));
+    const serviceGateway = await listen(createGatewayServer(config({ routeMode: 'services', monolithBaseUrl: monolith, identityBaseUrl: identity, liveBaseUrl: live })));
     for (const path of ['/api/v1/lives/rooms', '/api/v1/gift-coins/daily-claim', '/api/v1/videos/9/coin']) {
-      const response = await fetch(`${serviceGateway}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+      const response = await fetch(`${serviceGateway}${path}`, { method: 'POST', headers: { authorization: 'Bearer valid-user-token', 'content-type': 'application/json', 'x-user-id': '999', 'x-user-nickname': 'forged' }, body: '{}' });
       expect(response.status).toBe(200);
       expect(response.headers.get('x-gateway-upstream')).toBe('live-reward');
-      expect((await response.json()).owner).toBe('live-reward');
+      const payload = await response.json();
+      expect(payload.owner).toBe('live-reward');
+      expect(payload.userId).toBe('7');
+      expect(payload.nickname).toBe('verified-anchor');
     }
 
     const rollbackGateway = await listen(createGatewayServer(config({ routeMode: 'monolith', monolithBaseUrl: monolith, liveBaseUrl: live })));
@@ -112,12 +134,36 @@ describe('gateway scaffold', () => {
       monolithWrites += 1;
       response.end('monolith');
     }));
-    const gateway = await listen(createGatewayServer(config({ routeMode: 'services', monolithBaseUrl: monolith, liveBaseUrl: failingLive })));
+    const identity = await listen(createServer((_request, response) => {
+      response.setHeader('content-type', 'application/json');
+      response.end(JSON.stringify({ data: { id: 7, nickname: 'anchor' } }));
+    }));
+    const gateway = await listen(createGatewayServer(config({ routeMode: 'services', monolithBaseUrl: monolith, identityBaseUrl: identity, liveBaseUrl: failingLive })));
     for (const path of ['/api/v1/lives/rooms', '/api/v1/gift-coins/gift', '/api/v1/videos/9/coin']) {
-      const response = await fetch(`${gateway}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+      const response = await fetch(`${gateway}${path}`, { method: 'POST', headers: { authorization: 'Bearer valid-user-token', 'content-type': 'application/json' }, body: '{}' });
       expect(response.status).toBe(503);
       expect(response.headers.get('x-gateway-upstream')).toBe('live-reward');
     }
     expect(monolithWrites).toBe(0);
+  });
+
+  it('does not trust client identity headers when identity authentication fails', async () => {
+    let liveWrites = 0;
+    const identity = await listen(createServer((_request, response) => {
+      response.statusCode = 401;
+      response.end('{}');
+    }));
+    const live = await listen(createServer((_request, response) => {
+      liveWrites += 1;
+      response.end('{}');
+    }));
+    const gateway = await listen(createGatewayServer(config({ routeMode: 'services', identityBaseUrl: identity, liveBaseUrl: live })));
+    const response = await fetch(`${gateway}/api/v1/lives/rooms`, {
+      method: 'POST',
+      headers: { authorization: 'Bearer forged', 'x-user-id': '999', 'content-type': 'application/json' },
+      body: '{}',
+    });
+    expect(response.status).toBe(401);
+    expect(liveWrites).toBe(0);
   });
 });

@@ -11,18 +11,19 @@
     "pretest": "npm run prisma:generate && npm --workspace @videoplayer/shared-contracts run build",
     "test": "vitest run --config vitest.config.ts",
     "prisma:generate": "prisma generate --schema=prisma/schema.prisma",
-    "db:migrate": "prisma migrate deploy --schema=prisma/schema.prisma",
+    "db:migrate": "node prisma/run-db-command.cjs migrate",
+    "db:test-reset": "node prisma/run-db-command.cjs test-reset",
     "db:seed": "node prisma/seed.js",
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@prisma/client": "^6.9.0",
+    "@prisma/client": "6.9.0",
     "@videoplayer/shared-contracts": "0.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
     "eslint": "^9.23.0",
-    "prisma": "^6.9.0",
+    "prisma": "6.9.0",
     "typescript": "^5.8.2",
     "vitest": "^4.1.11"
   }

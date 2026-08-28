@@ -1,6 +1,6 @@
 # 第二阶段微服务执行 TODO
 
-> 状态：`MS-00 / MS-01 DONE / MS-02..04 READY`
+> 状态：`MS-00 / MS-01 / MS-02 / MS-03 DONE / MS-04 READY`
 >
 > 冻结基线：`monolith-start` / `main@70d197dc1a1f6febfdc7dcb12d8661384ad5d31e`。
 >
@@ -409,6 +409,17 @@ services/<service>/
 - [x] 未直接查 identity User。
 - [x] 未在持久化和回滚未完成前切换直播写流量（仅完成本地配置级切换/回滚验证，生产切换仍待窗口）。
 - [x] 未把全部币业务混入第一批持久化 PR。
+
+### 6.8 D 验收证据
+
+- [x] production 默认要求 `LIVE_REWARD_DATABASE_URL`；缺配置/数据库不可用时 readiness 与业务路由 503，MemoryStore 仅显式测试注入。
+- [x] Gateway 通过 identity `/auth/me` 验证 Bearer Token，删除伪造用户头并注入带 `live.user.forward` scope 的短期 service JWT；直接伪造 `x-user-id` 返回 401。
+- [x] 四类币账本 requestId 只有完整 payload 相同才 replay；不同 user/type/video/amount 返回 409，Memory/Prisma 和真实 MySQL 顺序/并发行为一致。
+- [x] replay requestId 全局唯一；session/objectKey/requestId/mimeType 冲突 409；content HTTP 400/401/409 均为永久失败。
+- [x] clean `npm ci`；完整 `test:ci` 207/207；live 18/18；Gateway 6/6。
+- [x] 真实双 MySQL + content/live + MinIO + SRS 回放/账本联调、标准 Compose 三 schema 隔离/重启、隔离 Kind migration/Pod replacement/PVC 全部 PASS。
+- [x] migration target guard、Prisma 6.9 pin、Docker CA/有限重试、跨 builder/architecture image load 已验证。
+- [ ] 生产切流、单体历史迁移和完整 UC05 微服务浏览器回归：`BLOCKED/NOT RUN`，作为后续独立 Gate。
 
 当前剩余门禁：Gateway 生产写流量切换与 rollback 需要 A/平台提供部署权限和切换窗口；完整 UC05 微服务浏览器回归需要前端/C 侧提供与 live-reward 一致的录播上传、回放 URL/metadata 展示 contract。单体 UC05 历史回归已有 PASS，但不能替代本分支微服务 Gateway 目标环境的回归证据；在依赖补齐前保持 `BLOCKED`。
 

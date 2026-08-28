@@ -181,20 +181,20 @@
   - 完成内容：以 Prisma runtime 持久化账号、资料、关系、通知、私信和动态社区；独立 `IDENTITY_DATABASE_URL`/账号/Secret；保留 `phone`、移除 identity 对 `coinBalance` 的事实所有权；持久化 session nonce；notification requestId 数据库唯一约束与跨实例冲突检测；安全 migration/seed/reset、Docker migration/runtime 镜像、Compose/K8s 配置和单体 fallback/rollback 文档。
   - 测试/验证：clean `npm ci`；完整 `npm run test:ci`；identity 5/5 contract；隔离 MySQL migration 首次/重复、seed、test-reset、非 test reset 拒绝；真实重启与双实例 notification 1/1；Compose 全镜像 build、migration、五服务 health/version、identity 重启后登录和数据库最小权限；Shell/Compose/Kustomize 静态检查。
   - 结果：PASS；本地 CI 171 项（requirements 115、backend 16、frontend 22、services 18）；identity 数据库 11 业务表 + 1 migration 表；同 requestId 双实例并发只生成 1 条记录，冲突载荷 409；Compose identity 重启后账号仍可登录；账号不可访问单体 `video_player` schema。第一次 Docker generate 因缺 OpenSSL + `ECONNRESET` 失败，补 OpenSSL/有限重试后恢复；第二次 Compose 被 migration 目标守卫拒绝，增加精确目标授权后完整复跑 PASS。Kind 实际 rollout `NOT RUN`，本 PR 仅对新增 K8s Secret/Job/部署脚本完成渲染与语法检查。
-- [ ] `MS-02..04` 提取其余三个业务微服务并独立构建、测试和部署。
-  - 已确认分工：组长本人承担 A，负责 MS-00/K8S-01；B 已完成 MS-01 identity-community；C 负责 MS-02 content-media，D 负责 MS-03 live-reward，E 负责 MS-04 governance-ai 并协调 REG-01。
+- [ ] `MS-04` 提取剩余 governance-ai 微服务并独立构建、测试和部署。
+  - 已确认分工：组长本人承担 A，负责 MS-00/K8S-01；B/C/D 已完成 MS-01/MS-02/MS-03 foundation；E 负责 MS-04 governance-ai 并协调 REG-01。
   - 执行顺序：ARCH-01 文档 → MS-00 公共骨架 → 四服务 foundation 并行 → 只读路由 → 写流量切换 → REG-01；首批不得删除单体表或提前切换写流量。
-  - 执行清单：`docs/practice-2026/12-second-stage-todo.md`；MS-00/MS-01/MS-02 foundation 已完成，D/E 继续各自 foundation 和集成验收；未验证项保持未勾选。
-- [ ] `MS-03` live-reward foundation 与 UC05 直播/礼物边界实现。
+  - 执行清单：`docs/practice-2026/12-second-stage-todo.md`；MS-00/MS-01/MS-02/MS-03 foundation 已完成，E 继续 MS-04；未验证项保持未勾选。
+- [x] `MS-03` live-reward foundation 与 UC05 直播/礼物边界实现。
   - 当前分支：`feature/MS-03-live-reward`；当前已 rebase 到 `origin/main@be7a419`。
-  - 已完成源码：独立 Prisma schema/migration/fixture、数据库/内存存储适配器、房间/Session 持久化生命周期、观众事件、消息留存上限、SRS timeout/probe/RTC adapter、回放登记状态机、币账本幂等入口和 live-reward HTTP contract；补充了 MIME/扩展名一致性、回放最终失败边界、SRS 恢复和内部 JWT contract。
-  - 尚未完成：Gateway 生产写流量切换/rollback 演练、单体数据迁移和完整 UC05 微服务浏览器回归；这些需要生产切换窗口或补齐前端对新服务的上传/回放展示 contract，保持 `NOT RUN`/`BLOCKED`，不提前勾选第二阶段总 Gate。
-  - 测试/验证：`npm ci --ignore-scripts`；`npm run test:ci`（requirements 115/115、backend 16/16、frontend 22/22、services 全部 PASS）；`npm --workspace @videoplayer/live-reward run prisma:generate`；`npm --workspace @videoplayer/live-reward run build`；`npm --workspace @videoplayer/live-reward run lint`；`npm --workspace @videoplayer/live-reward run test`（2 files / 16 tests PASS，覆盖 HTTP 生命周期、SRS/content adapter、JWT、回放重试、消息上限及永久错误边界）；Prisma schema validation 使用 dummy `LIVE_REWARD_DATABASE_URL`；隔离 MySQL 首次/重复 migration、seed、应用关闭/重建恢复 PASS；仓库 SRS 5.0.213 API probe/开播 PASS；`node scripts/live-reward-content-smoke.mjs` 使用两个独立 MySQL、content-media/live-reward、MinIO、SRS 完成 WebM/MP4 回放登记、数据库一致性、Header、重复请求和 409 冲突验证 PASS。
-  - 兼容性：live-reward 可从 Gateway 透传的单体 `mock-token` 提取外部 userId，仍不访问 identity 数据库；生产写流量切换未执行。
-  - 重启恢复边界：persistent store 查询 Session、活动观众事件和消息时以数据库为事实来源；内存仅缓存连接集合，未配置数据库时明确为本地测试模式。
-  - 集成修正：Gateway 在 services 模式下将 `/api/v1/videos/:id/coin` 路由到 live-reward；同时提供受服务 JWT scope 保护的内部投币入口，避免 content-media 直接写账本。
-  - 提交：`e49e945` foundation、`c533093` ledger Gateway boundary、`1c677a2` auth compatibility、`d1ad538` isolated cutover/K8s verification、待提交 contract/integration 收口。
-  - 结果：PARTIAL；D 的服务边界、真实回放联调、MinIO Header、独立 K8s 验证已完成；Gateway 生产切换和完整 UC05 微服务浏览器回归仍需外部切换权限或前端/C 侧 contract 收口。
+  - 已完成源码：独立 Prisma schema/migration/fixture、Prisma 默认生产存储、房间/Session/观众/消息/回放/币账本、SRS/content timeout、回放补偿、7 天/10,000 条留存、requestId 完整 payload 幂等和 live-reward HTTP contract。缺数据库配置或数据库不可用时 readiness/业务路由返回 503；MemoryStore 仅显式注入测试。
+  - 身份边界：Gateway 删除客户端自报 `x-user-id`/`x-user-nickname`，用 Bearer Token 调 identity `/auth/me` 验证后签发 `live.user.forward` service JWT；live-reward 只接受 gateway caller、正确 audience/scope 且 requestId 匹配的身份上下文。
+  - 幂等边界：账本 canonical payload 覆盖 user/type/resource/amount；完全相同 replay 返回原结果，不同 payload 返回 409。ReplayRegistration requestId 全局唯一，session/objectKey/requestId/mimeType 任一冲突返回 409；content HTTP 400/401/409 进入 `FAILED_FINAL`。
+  - 测试/验证：clean `npm ci`；`npm run test:ci` 最终复跑 `207/207`（requirements 115、backend 16、frontend 22、services 54）；live 18/18、Gateway 6/6；隔离 MySQL 3 migrations 首次/重复、seed、test reset、非 test 拒绝；真实 content/live 双 MySQL + MinIO + SRS WebM/MP4、跨库/Header、ledger 顺序/并发冲突；标准 Compose identity 登录→Gateway trusted user→live 写入/重启/权限；隔离 Kind migration、Pod replacement、PVC、health/version、房间/观众/钱包恢复。
+  - 失败记录：真实联调先后修复 legacy Docker 不支持 `--provenance`、固定 amd64 与 arm64 daemon 冲突；Compose 首次 live generate `ECONNRESET` 后增加 CA/有限重试；Kind 首次 MySQL multi-platform `kind load` 失败后改为 `docker save | ctr import`；全量 CI 首次 FFprobe 冷启动 5s 超时，定点 9/9 后完整 207/207 复跑 PASS。
+  - 结果：PASS；MS-03 foundation、可信 Gateway 身份、真实回放/账本、标准 Compose 和隔离 Kind 验证闭环。Gateway 生产切换、单体历史数据迁移和完整 UC05 微服务浏览器回归仍是后续独立 Gate，不在本 foundation 中虚报完成。
+- [ ] `MS-03-CUTOVER / REG-UC05` 生产切流、历史迁移和完整微服务浏览器回归。
+  - `BLOCKED/NOT RUN`：需要生产切换窗口，以及前端/C 侧补齐 live-reward 录播上传、回放 URL/metadata 展示 contract；当前默认 Gateway 仍可通过 `GATEWAY_ROUTE_MODE=monolith` 回滚。
 - [ ] `REG-01` 完成全部公开 API 和 UC01-UC06 自动回归。
 - [ ] `EXP-01` 完成 HPA 扩缩容实验。
 - [ ] `EXP-02` 完成依赖故障降级实验。
@@ -219,6 +219,7 @@
 | MS-00 微服务公共脚手架 | DONE | shared contracts/JWT、四服务 health/version、Gateway fallback、workspace、Docker/Compose、K8s/Jenkins/Kind | `npm run test:ci`；MS-00 14/14；Compose 5 healthy；Kind 重复部署 5/5 Ready、0 restart；Owner 自审记录 | PASS；PR #41 squash merged，`main@9181e2c` | PR #41 + 本提交 |
 | MS-01 identity-community foundation | DONE | Prisma runtime、11 个 owner model、独立 DB/账号/Secret、内部 API、requestId 幂等、Docker migration/runtime、Compose/K8s 配置 | clean `npm ci`；`npm run test:ci` 171；identity 5+1；MySQL 首次/重复 migration、seed/reset/拒绝；Compose build/up/restart/health/权限 | PASS；11 业务表 + 1 migration 表；跨实例通知幂等；Compose 五服务 healthy；Kind rollout NOT RUN（静态 PASS） | PR #45 + 本提交 |
 | MS-02 content-media foundation | VERIFY | package-local Prisma Client、content schema/migration/fixture、兼容只读 API、JWT 内部 contract、review/replay 幂等、真实 MySQL/MinIO 媒体补偿、独立 DB 账号、Compose/K8s migration | clean `npm ci`；`npm run test:ci`；content 17/17；`verify:container`；`verify:minio`；Compose 5 healthy/15 HTTP；隔离 Kind 5/5 Ready、0 restart/15 HTTP | PASS；首次单体 FFprobe 冷启动超时后定点 9/9 与全量复跑通过；Prisma 下载两次 `ECONNRESET` 由有限重试恢复；PR #43 FINAL REVIEW PENDING | 本轮提交 |
+| MS-03 live-reward foundation | DONE | Prisma 默认持久化、直播/观众/消息/回放/币账本、可信 Gateway 身份、完整 requestId 幂等、标准 Compose/K8s DB/migration | clean `npm ci`；`test:ci` 207；live 18/18；Gateway 6/6；MySQL first/repeat/reset/refuse；content/live+MinIO+SRS；Compose services/restart/schema；Kind Pod/PVC | PASS；伪造身份与 payload 冲突均拒绝；三 migrations；隔离资源清理；生产 cutover/历史迁移/UC05 浏览器仍独立 BLOCKED | PR #46 + 本提交 |
 | GOV-GIT-01 Commit/PR 规范 | DONE | GitHub PR 模板、仓库规范、个人 Codex skill | quick_validate；模板章节/敏感信息/diff 检查 | PASS | 最终治理提交 |
 | GOV-GIT-02 分支/Commit 命名 | DONE | category 分支名、Conventional Commit 标题、Changes/Tests 正文、PR Commit 清单 | quick_validate；必填字段；diff check | PASS；应用测试 N/A（纯规范） | 最终治理提交 |
 | GOV-GIT-03 仓库内 skill | DONE | `.codex/skills/videoplayer-commit-pr` 与个人版同步 | 双 quick_validate；字节比对；TODO/diff check | PASS；应用测试 N/A（skill/docs） | 最终治理提交 |
@@ -302,6 +303,7 @@
 | 2026-08-27 | MS-03 failure/replay contract hardening | 补充 WebM/MP4 文件名与 MIME 匹配、回放 `FAILED_RETRYABLE/FAILED_FINAL` 重试边界、SRS 恢复/超时、content replay JWT、内部投币 scope、完整房间/Session HTTP 生命周期和 10,000 条普通消息上限验证；修复 MemoryStore 消息修剪性能与持久化唯一键竞态回读 | `npm --workspace @videoplayer/live-reward run test`（2 files / 13 tests）；`npm --workspace @videoplayer/live-reward run build`；`npm --workspace @videoplayer/live-reward run lint`；`npm run test:ci`；`npx prisma validate --schema services/live-reward/prisma/schema.prisma`；`docker build -f services/live-reward/Dockerfile -t videoplayer-live-reward:test .`；临时容器 health/live/ready/version | PASS；真实 MySQL/MinIO/SRS/content-media/K8s、Gateway 生产切流和 UC05 浏览器回归仍 `NOT RUN` |
 | 2026-08-27 | MS-03 isolated runtime verification | 使用隔离 MySQL 运行 live-reward 初始/重复 migration、seed，并关闭后重建应用验证房间、Session、观众、消息和余额；启动仓库 SRS 5.0.213 验证 API probe 与开播；构建服务镜像并验证容器 health/version | `npm --workspace @videoplayer/live-reward run db:migrate`（首次/重复）；`npm --workspace @videoplayer/live-reward run db:seed`；Node PrismaStore restart script；SRS `/api/v1/versions`；live-reward `/health/live`、`/health/ready`、`/version` | PASS；临时 MySQL/SRS 容器已清理；content-media 回放、MinIO Header、Gateway 生产切流、K8s 和 UC05 浏览器完整回归仍 `NOT RUN` |
 | 2026-08-27 | MS-03 Gateway rollback 与独立 K8s 验证 | 补 services/monolith 两种模式下 live/赠币/视频投币写路由切换、显式回滚和失败写不重放测试；增加 live-reward 独立 Namespace、MySQL PVC、migration Job、Secret/ConfigMap 注入、探针/资源限制和 Kind smoke 脚本 | Gateway test 5/5、lint/build；`bash -n scripts/k8s-live-reward-smoke.sh`；K8s client dry-run；真实 Kind 部署、migration、写入、应用 Pod 删除重建、health/live/ready/version、PVC 持久化 | PASS；Pod 重建后房间/观众数/钱包余额保持，测试 Namespace 已清理；本地配置级切换/回滚不等于生产切流；content-media 真实回放、MinIO Header 交叉验证和完整 UC05 浏览器回归仍 `BLOCKED/NOT RUN` |
+| 2026-08-29 | MS-03 PR #46 Owner 修复与最终复测 | 关闭默认 MemoryStore、伪造 `x-user-id`、账本/replay payload 冲突、content 400 分类、标准 Compose/K8s DB/migration、Prisma/迁移安全和跨 Docker builder/architecture 阻塞；更新 PR/进度证据 | clean `npm ci`；`test:ci` 207/207；live 18/18；Gateway 6/6；MySQL migrate first/repeat/reset/refuse；真实 content/live+MinIO+SRS；Compose services 身份验证/重启/三 schema；Kind migration/Pod replacement/PVC；Secret/Artifact/diff | PASS；真实联调和 Compose/Kind 的失败修复过程保留；全部隔离容器、volumes、namespace 清理；生产切流/历史迁移/完整 UC05 浏览器回归仍 `BLOCKED/NOT RUN` |
 
 ## 4. 阻塞与需组长决定
 

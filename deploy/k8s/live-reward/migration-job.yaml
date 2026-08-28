@@ -25,6 +25,10 @@ spec:
                 secretKeyRef:
                   name: live-reward-secrets
                   key: database-url
+            - name: MIGRATION_DEPLOY_ALLOWED_TARGET
+              value: live-reward-mysql:3306/live_reward
+            - name: MIGRATION_DEPLOY_CONFIRM
+              value: DEPLOY_MIGRATIONS
           resources:
             requests:
               cpu: 50m
