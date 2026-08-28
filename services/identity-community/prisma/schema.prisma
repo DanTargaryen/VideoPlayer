@@ -1,0 +1,226 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum DirectMessagePrivacy {
+  ALLOW_ALL
+  FOLLOWING_ONLY
+  DISABLED
+}
+
+enum TextStatus {
+  NORMAL
+  HIDDEN
+  DELETED
+}
+
+enum ActivityLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum CreatorViewerTendency {
+  COLD_START
+  VIEWER
+  CREATOR
+  BALANCED
+}
+
+enum NotificationType {
+  COMMENT
+  REPLY
+  FOLLOW
+  SYSTEM
+  LIKE
+  FAVORITE
+  REPORT
+}
+
+model User {
+  id                      Int                      @id @default(autoincrement())
+  username                String                   @unique @db.VarChar(64)
+  email                   String                   @unique @db.VarChar(128)
+  password                String                   @db.VarChar(255)
+  role                    UserRole
+  nickname                String                   @db.VarChar(64)
+  avatarUrl               String?                  @db.VarChar(255)
+  bio                     String?                  @db.VarChar(255)
+  coinBalance             Int                      @default(10)
+  messagePrivacy          DirectMessagePrivacy     @default(ALLOW_ALL)
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+
+  sentDirectMessages      DirectMessage[]          @relation("DirectMessageSender")
+  receivedDirectMessages  DirectMessage[]          @relation("DirectMessageRecipient")
+  profileSummary          UserProfileSummary?
+  categoryPreferences     UserCategoryPreference[]
+  creatorPreferences      UserCreatorPreference[]  @relation("UserCreatorPreferences")
+  preferredByUsers        UserCreatorPreference[]  @relation("PreferredCreator")
+  dynamicPosts            DynamicPost[]
+  dynamicPostLikes        DynamicPostLike[]
+  dynamicPostComments     DynamicPostComment[]
+  followingRelations      FollowRelation[]         @relation("FollowingUsers")
+  followerRelations       FollowRelation[]         @relation("FollowerUsers")
+  receivedNotifications   Notification[]           @relation("NotificationRecipients")
+  actorNotifications      Notification[]           @relation("NotificationActors")
+  creatorFollowerDaily    CreatorFollowerDaily[]
+}
+
+model DirectMessage {
+  id          Int      @id @default(autoincrement())
+  senderId    Int
+  sender      User     @relation("DirectMessageSender", fields: [senderId], references: [id])
+  recipientId Int
+  recipient   User     @relation("DirectMessageRecipient", fields: [recipientId], references: [id])
+  content     String   @db.VarChar(1000)
+  isRead      Boolean  @default(false)
+  readAt      DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([senderId, createdAt])
+  @@index([recipientId, isRead, createdAt])
+  @@index([senderId, recipientId, createdAt])
+}
+
+model UserProfileSummary {
+  id                    Int                   @id @default(autoincrement())
+  userId                Int                   @unique
+  user                  User                  @relation(fields: [userId], references: [id])
+  activityScore         Int                   @default(0)
+  activityLevel         ActivityLevel         @default(LOW)
+  behaviorSignalCount   Int                   @default(0)
+  viewerScore           Int                   @default(0)
+  creatorScore          Int                   @default(0)
+  creatorViewerTendency CreatorViewerTendency @default(COLD_START)
+  isColdStart           Boolean               @default(true)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+}
+
+model UserCategoryPreference {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id])
+  categoryId Int
+  score      Float    @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, categoryId])
+  @@index([userId, score])
+}
+
+model UserCreatorPreference {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation("UserCreatorPreferences", fields: [userId], references: [id])
+  creatorId  Int
+  creator    User     @relation("PreferredCreator", fields: [creatorId], references: [id])
+  score      Float    @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, creatorId])
+  @@index([userId, score])
+}
+
+model DynamicPost {
+  id            Int                 @id @default(autoincrement())
+  authorId      Int
+  author        User                @relation(fields: [authorId], references: [id])
+  content       String              @db.VarChar(1000)
+  imageUrls     Json?
+  status        TextStatus          @default(NORMAL)
+  likeCount     Int                 @default(0)
+  commentCount  Int                 @default(0)
+  favoriteCount Int                 @default(0)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  likes         DynamicPostLike[]
+  comments      DynamicPostComment[]
+
+  @@index([authorId, createdAt])
+  @@index([status, createdAt])
+}
+
+model DynamicPostLike {
+  id        Int         @id @default(autoincrement())
+  postId    Int
+  post      DynamicPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now())
+
+  @@unique([postId, userId])
+  @@index([userId, createdAt])
+}
+
+model DynamicPostComment {
+  id        Int         @id @default(autoincrement())
+  postId    Int
+  post      DynamicPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String      @db.VarChar(1000)
+  status    TextStatus  @default(NORMAL)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([postId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model FollowRelation {
+  id          Int      @id @default(autoincrement())
+  followerId  Int
+  follower    User     @relation("FollowingUsers", fields: [followerId], references: [id])
+  followingId Int
+  following   User     @relation("FollowerUsers", fields: [followingId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followingId, createdAt])
+}
+
+model Notification {
+  id          Int              @id @default(autoincrement())
+  recipientId Int
+  recipient   User             @relation("NotificationRecipients", fields: [recipientId], references: [id])
+  actorId     Int?
+  actor       User?            @relation("NotificationActors", fields: [actorId], references: [id])
+  type        NotificationType
+  title       String           @db.VarChar(128)
+  content     String           @db.VarChar(255)
+  relatedType String?          @db.VarChar(32)
+  relatedId   Int?
+  isRead      Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([recipientId, isRead, createdAt])
+}
+
+model CreatorFollowerDaily {
+  id            Int      @id @default(autoincrement())
+  creatorId     Int
+  creator       User     @relation(fields: [creatorId], references: [id])
+  statDate      String   @db.VarChar(10)
+  followerCount Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([creatorId, statDate])
+  @@index([creatorId, statDate])
+}
