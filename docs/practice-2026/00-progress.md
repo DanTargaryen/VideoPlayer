@@ -164,6 +164,11 @@
   - DB-01 合并验证：本地同构 Build 9202 对动态创建的 `video_player_ci_test` 执行 `20260826000000_init`，安全守卫与 `prisma migrate deploy` PASS；106/106 需求规则、后端 7/7、前端 3/3、API 16/16、Playwright 3/3、SHA 镜像、Kind/Health 全部通过，12/12 markers 完整，临时 MySQL/Kind 已清理。
   - 正式 migration Jenkins 验证：rebase 后 push 由 Poll SCM 自动触发 Build #7，检出 `237f780`；隔离库 migration、API 16/16、Playwright 3/3、SHA 镜像、Kind/Health、12/12 markers 和 27 个 Artifact 全部 PASS，临时 MySQL/Kind 清理 PASS。
   - 结果：PASS；本机 Jenkins 成功、故意失败阻断、SCM push 自动触发和正式 migration 四类证据齐全。数据库阶段只对流水线隔离测试库执行 `prisma migrate deploy`。
+- [x] `CI-02-JUNIT` 生成并由 Jenkins 发布标准 JUnit XML。
+  - 已完成配置：requirements 使用 Node 原生 JUnit reporter；前端、六个微服务和 Playwright 使用原生 JUnit reporter；后端 Jest 使用仓库内 reporter；Jenkins `post` 使用 `junit` 发布并继续通过 Artifact 保存 XML。
+  - 本地验证：Build 9402 生成完整 11 份 XML，合计 186 tests、0 failures、0 errors；requirements 115、后端 16、前端 22、六微服务 14、API 16、Playwright 3，全部通过 `xmllint` 且没有 testcase 游离在 testsuite 外。Build 9305 在 Unit 后按预期退出 42，并保留 9 份 Unit XML、合计 167 tests。Jenkins 2.568.2 在线语法校验 PASS，JUnit 插件 `1424.vc64a_edde7777` 已启用。
+  - 真实 Jenkins：Build #9 完整 SUCCESS，Test Result 为 186 passed/0 failed/0 skipped、11 XML、12/12 markers、39 Artifacts，镜像、Kind、单体与五微服务健康检查 PASS；Build #10 在 Unit 后按预期退出 42，Test Result 为 167 passed、9 XML、5 markers，后续 7 阶段全部 SKIPPED，无 MySQL/Kind 资源。
+  - 结果：PASS；成功与失败 Build 均显示 Jenkins Test Result，XML 同时进入 Artifact。Build #9 的 Docker npm 安装经历多次 `ECONNRESET` 后由既有重试恢复，未掩盖网络失败过程。
 - [x] `ARCH-01` 冻结四服务接口和 31 张表的数据归属。
   - 完成内容：组长确认 2026-08-27 评审会已完成且全员同意默认方案；冻结四服务职责/非职责、31/31 Model 唯一 owner、公开/内部接口、跨服务 timeout/幂等/降级、迁移/回滚顺序、七项开放决策、A-E 分工与交叉 Review。
   - 测试/验证：Model 名单与 `backend/prisma/schema.prisma` 自动比对；31 个现有 Model 无遗漏、无重复 owner；七项决策、五条执行线、分支命名、Reviewer 和 Gate 文档一致性检查；应用测试 `NOT RUN`（纯文档/架构冻结，无运行时代码变更）。
@@ -195,6 +200,7 @@
 | DB-01 Prisma migration 基线 | DONE | 单一初始 migration、migration lock、migrate/seed/test-reset 入口、安全守卫、K8s/Compose/CI 切换到 `migrate deploy`，以及 clean-machine/生产部署口径同步 | 全新本机 MySQL 8.0 容器；`video_player_migration_test` 首次/重复迁移；seed；`db:test-reset`；失败阻断；schema diff；受保护 existing-database baseline 流程；Compose/K8s 启动复核；迁移入口远端精确白名单守卫 | PASS；默认支持全新验收数据库；6 用户/14 视频；失败库 `P3005` 阻断；等价库 baseline PASS；不等价库拒绝；非 test reset 拒绝；README 明确 31 个业务表 + 1 个迁移表；无共享远端 reset/baseline | 本提交 |
 | CI-01 流水线配置 | PARTIAL | quality、public-e2e、versioned images jobs；K8s 部署基线已补 | YAML 解析；本地 `test:ci`、API、Playwright、Kind 实跑；GitHub 注解 | LOCAL PASS；REMOTE BLOCKED BY BILLING；Jenkins PENDING | `f151429` + 本提交 |
 | CI-02 Jenkins Pipeline | DONE | 可移植 Jenkinsfile、隔离 DB 正式 migration、API/E2E、SHA 镜像、Kind、Health、Artifact、清理和本地等价入口 | Build #2 SUCCESS；#4 故意 FAILURE；#5 SCM 自动触发 SUCCESS；#7 migration SUCCESS | PASS；失败阻断、Artifact、cleanup、Poll SCM 与 `prisma migrate deploy` 均验证 | 本提交 |
+| CI-02-JUNIT 标准测试报告 | DONE | requirements/Jest/Vitest/API/Playwright 生成 11 份 JUnit XML；Jenkins `junit` 发布；reporter 单测 | Build #9 SUCCESS：186 passed/11 XML；#10 EXPECTED FAILURE：167 passed/9 XML、后续 7 阶段 skipped | PASS；Test Result、Artifact、完整流水线和失败阻断均验证 | 本轮提交 |
 | ARCH-01 服务/数据冻结 | DONE | 4 服务、31 表唯一 owner、接口、失败策略、七项默认决策、迁移/回滚、A-E 分工与 Review | Prisma Model 自动比对；唯一 owner；决策/分工/分支/Reviewer 文档一致性 | PASS；TEAM APPROVED；真实姓名/外部会议截图待补证据索引 | 本提交 |
 | MS-00 微服务公共脚手架 | DONE | shared contracts/JWT、四服务 health/version、Gateway fallback、workspace、Docker/Compose、K8s/Jenkins/Kind | `npm run test:ci`；MS-00 14/14；Compose 5 healthy；Kind 重复部署 5/5 Ready、0 restart；Owner 自审记录 | PASS；PR #41 squash merged，`main@9181e2c` | PR #41 + 本提交 |
 | GOV-GIT-01 Commit/PR 规范 | DONE | GitHub PR 模板、仓库规范、个人 Codex skill | quick_validate；模板章节/敏感信息/diff 检查 | PASS | 最终治理提交 |
@@ -267,6 +273,7 @@
 | 2026-08-27 | ARCH-01 评审冻结与第二阶段分工 | 依据组长确认记录全员评审通过；将边界草案更新为冻结版；固化七项默认决策、A-E 主责、分支、Reviewer、依赖和合并顺序 | 31 Model 唯一 owner；七项决策完整性；五条执行线和 Review 映射；Markdown/diff/Secret/Artifact 检查；应用测试 NOT RUN（纯文档） | PASS；ARCH-01 `DONE / FROZEN`；A→MS-00、B→MS-01、C→MS-02、D→MS-03、E→MS-04/REG-01；实名、个人备份人和会议原始截图待组长补录 |
 | 2026-08-27 | 第二阶段 TODO 与 A 角色确认 | 新增 A-E 分支领取、foundation、禁止事项、Review、统一 DoD、只读/写流量切换和管理证据清单；同步记录组长本人承担 A | TODO 章节/角色/分支/owner/Reviewer/依赖/未完成状态一致性；Markdown/diff/Secret/Artifact 检查；应用测试 NOT RUN（纯文档） | READY；组长/A 先完成 MS-00，B/C/D/E 在 MS-00 合并后创建各自 foundation；所有实现复选框保持未完成，实名和个人备份人仍待补录 |
 | 2026-08-27 | MS-00 公共微服务脚手架 | 新增 shared runtime/contracts/JWT Guard、四业务空服务、monolith-first Gateway、workspace gate、五镜像 Compose、K8s 资源、Jenkins 构建/部署/health 接入和执行文档 | `npm run test:services:ci`；完整 `npm run test:ci`；Compose build/up/HTTP；隔离 Kind create/deploy/redeploy/health；shell/compose/kustomize；cleanup；Owner 自审 | PASS；requirements 113/113、backend 16/16、frontend 22/22、MS-00 14/14；Compose 5 healthy；Kind 5 Deployment 1/1、0 restart；首次 Docker `ECONNRESET` 和 K8s env apply 冲突均修复并复跑；PR #41 squash merged，`main@9181e2c` |
+| 2026-08-28 | CI-02-JUNIT 标准报告闭环 | 为 requirements、Jest、Vitest、六微服务、API 和 Playwright 生成标准 JUnit XML；Jenkins `post` 发布；补 reporter 单测；执行成功/失败 Build | 本地 Build 9402/9305；Jenkins #9/#10；11/9 XML；Test Result API；`xmllint`；Stage/Artifact/cleanup | PASS；#9 186 passed、12/12、39 Artifacts、完整 Kind/health；#10 exit 42、167 passed、5 markers、后续 7 阶段 skipped；npm `ECONNRESET` 经重试恢复；无资源残留 |
 
 ## 4. 阻塞与需组长决定
 

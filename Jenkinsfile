@@ -128,6 +128,11 @@ pipeline {
                     sh './scripts/k8s-collect-evidence.sh || true'
                 }
             }
+            junit(
+                testResults: "ci-evidence/${CI_EVIDENCE_SUBDIR}/test-results/junit/*.xml",
+                allowEmptyResults: true,
+                keepLongStdio: true
+            )
             archiveArtifacts(
                 artifacts: "ci-evidence/${CI_EVIDENCE_SUBDIR}/**",
                 allowEmptyArchive: true,

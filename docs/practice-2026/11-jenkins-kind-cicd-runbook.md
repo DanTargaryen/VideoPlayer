@@ -438,6 +438,7 @@ Checkout
 → Build Git SHA Images
 → Deploy to Kind
 → Health Check
+→ Publish JUnit Results
 → Archive Evidence
 ```
 
@@ -463,6 +464,45 @@ DB-01 合并后的本地同构 Build `9202` 已使用默认 migration 路径完�
 | `#7` | Poll SCM 检测 rebase 后 push，正式 migration | `SUCCESS` | Git revision `237f780`；`20260826000000_init` 应用成功；106+7+3、API 16/16、E2E 3/3；12/12 markers；27 个 Artifact；临时资源清理 PASS |
 
 Build `#1` 和 `#3` 的 GitHub checkout `curl 18 / early EOF` 作为环境失败记录保留，不冒充代码测试失败。
+
+### 10.1 标准 JUnit XML
+
+流水线在 `ci-evidence/build-<BUILD_NUMBER>/test-results/junit/` 生成并归档以下 11 份标准 XML：
+
+```text
+requirements.xml
+backend.xml
+frontend.xml
+service-shared-contracts.xml
+service-identity-community.xml
+service-content-media.xml
+service-live-reward.xml
+service-governance-ai.xml
+service-gateway.xml
+api-integration.xml
+playwright-e2e.xml
+```
+
+Node requirements 使用 Node 原生 JUnit reporter；前端、微服务和 Playwright 使用各自原生 JUnit reporter；后端 Jest 使用仓库内 `scripts/jest-junit-reporter.cjs`，不新增第三方依赖。Jenkins `post` 阶段无论成功或失败都会执行：
+
+```groovy
+junit(
+    testResults: "ci-evidence/${CI_EVIDENCE_SUBDIR}/test-results/junit/*.xml",
+    allowEmptyResults: true,
+    keepLongStdio: true
+)
+```
+
+本地 Build `9402` 已生成并通过 XML 解析的完整 11 份报告，合计 186 tests、0 failures、0 errors，其中 requirements 115、后端 16、前端 22、六微服务 14、API 16、Playwright 3；所有 testcase 均位于标准 `testsuite` 内。Build `9305` 使用 `FORCE_TEST_FAILURE=true`，Unit 后按预期退出 42，同时保留 9 份 Unit XML、合计 167 tests。真实 Jenkins Test Result 和 Artifact 由下列 Build #9/#10 完成验证。
+
+真实 Jenkins JUnit 记录：
+
+| Build | 结果 | Test Result | XML / markers / Artifact | 部署与清理 |
+| --- | --- | --- | --- | --- |
+| `#9` | `SUCCESS` | 186 passed、0 failed、0 skipped；49 suites | 11 XML；12/12 markers；39 Artifacts | Git SHA 镜像、Kind、单体与五微服务 health PASS；MySQL/Kind 清理 PASS |
+| `#10` | `EXPECTED FAILURE` | 167 passed、0 failed、0 skipped；47 suites | 9 Unit XML；5 markers；21 Artifacts | Unit 后 exit 42；后续 Migration/API/Seed/E2E/Image/Kind/Health 全部 SKIPPED；无资源创建 |
+
+Build #9 的后端构建/运行时依赖安装和前端依赖安装出现多次 `ECONNRESET`，由 Dockerfile 既有重试机制恢复后完整成功；该网络过程保留在 Console Output，不从测试结果中隐藏。
 
 建议骨架：
 
@@ -545,6 +585,11 @@ pipeline {
     post {
         always {
             sh './scripts/k8s-collect-evidence.sh || true'
+            junit(
+                testResults: "ci-evidence/${CI_EVIDENCE_SUBDIR}/test-results/junit/*.xml",
+                allowEmptyResults: true,
+                keepLongStdio: true
+            )
             archiveArtifacts(
                 artifacts: 'ci-evidence/**',
                 allowEmptyArchive: true,
@@ -594,7 +639,7 @@ Jenkins 需要保留：
 
 - Console Output
 - Stage View
-- 测试结果
+- Jenkins Test Result 页面和标准 JUnit XML
 - Docker build 输出
 - `kubectl get all -n video-player`
 - Pod describe/log
@@ -624,6 +669,7 @@ backend/prisma/seed.js
 
 deploy/k8s/*
 Jenkinsfile
+scripts/jest-junit-reporter.cjs
 
 scripts/db-migrate.sh
 scripts/db-seed.sh
@@ -656,6 +702,7 @@ README.md
 - [x] 任一步失败时后续部署不执行
 - [x] 保存 1 次真实失败记录
 - [x] 保存 1 次完整成功记录
+- [x] Jenkins 成功/失败 Build 均发布标准 JUnit XML 并显示 Test Result
 - [x] README 由另一名组员从零复现
 
 ## 15. 日常空间维护

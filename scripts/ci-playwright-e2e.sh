@@ -24,6 +24,9 @@ export LOCAL_STORAGE_DIR
 export VITE_API_PROXY_TARGET
 export PLAYWRIGHT_BASE_URL
 
+playwright_junit_report="$CI_EVIDENCE_DIR/test-results/junit/playwright-e2e.xml"
+mkdir -p "$(dirname "$playwright_junit_report")"
+
 PORT="$BACKEND_PORT" node backend/dist/main.js > "$log_dir/backend-e2e.log" 2>&1 &
 echo $! > "$backend_pid_file"
 
@@ -34,5 +37,12 @@ echo $! > "$frontend_pid_file"
 wait_for_http "http://127.0.0.1:$BACKEND_PORT/api/v1/health" 90
 wait_for_http "http://127.0.0.1:$FRONTEND_PORT/api/v1/health" 90
 
-npm run test:e2e
+PLAYWRIGHT_JUNIT_OUTPUT_FILE="$playwright_junit_report" \
+  npm run test:e2e -- --reporter=line,junit
+
+if [[ ! -s "$playwright_junit_report" ]] || ! grep -q '<testsuite' "$playwright_junit_report"; then
+  echo "Missing or invalid Playwright JUnit report: $playwright_junit_report" >&2
+  exit 1
+fi
+
 bash "$ROOT_DIR/scripts/ci-mark-stage.sh" 09-playwright-e2e
