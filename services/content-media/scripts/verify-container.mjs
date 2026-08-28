@@ -41,7 +41,7 @@ async function waitFor(url) {
 }
 
 try {
-  runDocker(['build', '--progress=plain', '-f', 'services/content-media/Dockerfile', '-t', image, '.'], { cwd: '../..' });
+  runDocker(['build', '-f', 'services/content-media/Dockerfile', '-t', image, '.'], { cwd: '../..' });
   docker(['network', 'create', network]);
   docker([
     'run',

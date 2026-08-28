@@ -332,7 +332,7 @@ services/<service>/
 - [x] review-decision/replay/batch-summary contract tests 通过。
 - [x] 服务可独立 build/test/image/health/version。
 
-说明：本轮已在 `content-media` foundation 中覆盖扩展名/MIME 前置拒绝、真实 `ffprobe` 视频流探测、伪装 MP4 400、无效媒体不创建内容记录、写库失败精确清理对象；运行时镜像安装 `ffmpeg`/`ffprobe`，并提供 `npm --workspace @videoplayer/content-media run verify:container` 用临时 MySQL 复测 image/migration/fixture/health/version/ffprobe。Docker Desktop 重启后已成功拉取 `node:22-bookworm-slim`，实际构建 `video-player/content-media:verify`，通过 `live`、`ready`、`container-smoke` version、`ffprobe` 和真实 MP4 服务探测；另用 `npm --workspace @videoplayer/content-media run verify:minio` 启动临时 MinIO，验证伪装 MP4 400 且 0 object/row、合法 MP4 201、数据库失败后只删除本次真实 object。
+说明：本轮使用 package-local Prisma Client，避免与单体 backend Client 相互覆盖；`IdentityBatchSummaryContract` 已进入 shared-contracts，并与已合入 MS-01 的数字型 userId、`items`/`byId`/`missingIds` wire contract 对齐，content 在服务边界统一转换为字符串外部 ID。`verify:container` 用隔离 MySQL 复测 image/migration/fixture/health/version/ffprobe；`verify:minio` 在同一流程中使用真实 MySQL、Prisma 和固定 digest 的 MinIO，验证伪装 MP4 400 且 0 object/row、合法 MP4 同时持久化一条真实 row/object、真实数据库唯一键失败后只删除本次 object。Compose 自动启动 content MySQL/migration，隔离 Kind 使用独立 `content_media` schema、专属账号与 migration Job；两套环境五个业务/Gateway 工作负载均通过 15 个 health/version 请求。Gateway 业务流量仍保持单体模式。
 
 ### 5.6 C 第一批禁止事项
 

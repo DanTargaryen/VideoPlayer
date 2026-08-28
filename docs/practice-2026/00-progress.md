@@ -184,7 +184,7 @@
 - [ ] `MS-02..04` 提取其余三个业务微服务并独立构建、测试和部署。
   - 已确认分工：组长本人承担 A，负责 MS-00/K8S-01；B 已完成 MS-01 identity-community；C 负责 MS-02 content-media，D 负责 MS-03 live-reward，E 负责 MS-04 governance-ai 并协调 REG-01。
   - 执行顺序：ARCH-01 文档 → MS-00 公共骨架 → 四服务 foundation 并行 → 只读路由 → 写流量切换 → REG-01；首批不得删除单体表或提前切换写流量。
-  - 执行清单：`docs/practice-2026/12-second-stage-todo.md`；MS-00/MS-01 foundation 已完成；C 已修复 MS-02 的 Prisma runtime、API 兼容、owner、幂等、fixture 和独立 MySQL/MinIO 验证，默认 Compose/K8s 接线与最终复审仍待收口；D/E 继续各自 foundation。
+  - 执行清单：`docs/practice-2026/12-second-stage-todo.md`；MS-00/MS-01 foundation 已完成；C 的 MS-02 foundation 已完成本地、真实 MySQL/MinIO、Compose 和隔离 Kind 验证，等待 PR #43 更新、最终复审和合并；D/E 继续各自 foundation。
 - [ ] `REG-01` 完成全部公开 API 和 UC01-UC06 自动回归。
 - [ ] `EXP-01` 完成 HPA 扩缩容实验。
 - [ ] `EXP-02` 完成依赖故障降级实验。
@@ -208,7 +208,7 @@
 | ARCH-01 服务/数据冻结 | DONE | 4 服务、31 表唯一 owner、接口、失败策略、七项默认决策、迁移/回滚、A-E 分工与 Review | Prisma Model 自动比对；唯一 owner；决策/分工/分支/Reviewer 文档一致性 | PASS；TEAM APPROVED；真实姓名/外部会议截图待补证据索引 | 本提交 |
 | MS-00 微服务公共脚手架 | DONE | shared contracts/JWT、四服务 health/version、Gateway fallback、workspace、Docker/Compose、K8s/Jenkins/Kind | `npm run test:ci`；MS-00 14/14；Compose 5 healthy；Kind 重复部署 5/5 Ready、0 restart；Owner 自审记录 | PASS；PR #41 squash merged，`main@9181e2c` | PR #41 + 本提交 |
 | MS-01 identity-community foundation | DONE | Prisma runtime、11 个 owner model、独立 DB/账号/Secret、内部 API、requestId 幂等、Docker migration/runtime、Compose/K8s 配置 | clean `npm ci`；`npm run test:ci` 171；identity 5+1；MySQL 首次/重复 migration、seed/reset/拒绝；Compose build/up/restart/health/权限 | PASS；11 业务表 + 1 migration 表；跨实例通知幂等；Compose 五服务 healthy；Kind rollout NOT RUN（静态 PASS） | PR #45 + 本提交 |
-| MS-02 content-media foundation | IN PROGRESS | content Prisma runtime、schema/migration/fixture；兼容推荐/搜索/详情/相关推荐；JWT 内部 contract；identity mock/fallback；review/replay 幂等；真实 `ffprobe` 与对象补偿 | content lint/build/test 17/17；独立 MySQL 首次/重复 migration+fixture；服务重启；`verify:container`；`verify:minio` | PASS；分类孤立 0；API/幂等/持久化/容器/真实 MinIO 均通过；默认 Compose/K8s DB 接线和 Gateway 切流仍待收口 | 待提交 |
+| MS-02 content-media foundation | VERIFY | package-local Prisma Client、content schema/migration/fixture、兼容只读 API、JWT 内部 contract、review/replay 幂等、真实 MySQL/MinIO 媒体补偿、独立 DB 账号、Compose/K8s migration | clean `npm ci`；`npm run test:ci`；content 17/17；`verify:container`；`verify:minio`；Compose 5 healthy/15 HTTP；隔离 Kind 5/5 Ready、0 restart/15 HTTP | PASS；首次单体 FFprobe 冷启动超时后定点 9/9 与全量复跑通过；Prisma 下载两次 `ECONNRESET` 由有限重试恢复；PR #43 FINAL REVIEW PENDING | 本轮提交 |
 | GOV-GIT-01 Commit/PR 规范 | DONE | GitHub PR 模板、仓库规范、个人 Codex skill | quick_validate；模板章节/敏感信息/diff 检查 | PASS | 最终治理提交 |
 | GOV-GIT-02 分支/Commit 命名 | DONE | category 分支名、Conventional Commit 标题、Changes/Tests 正文、PR Commit 清单 | quick_validate；必填字段；diff check | PASS；应用测试 N/A（纯规范） | 最终治理提交 |
 | GOV-GIT-03 仓库内 skill | DONE | `.codex/skills/videoplayer-commit-pr` 与个人版同步 | 双 quick_validate；字节比对；TODO/diff check | PASS；应用测试 N/A（skill/docs） | 最终治理提交 |
@@ -283,6 +283,7 @@
 | 2026-08-28 | CI-02-JUNIT 标准报告闭环 | 为 requirements、Jest、Vitest、六微服务、API 和 Playwright 生成标准 JUnit XML；Jenkins `post` 发布；补 reporter 单测；执行成功/失败 Build | 本地 Build 9402/9305；Jenkins #9/#10；11/9 XML；Test Result API；`xmllint`；Stage/Artifact/cleanup | PASS；#9 186 passed、12/12、39 Artifacts、完整 Kind/health；#10 exit 42、167 passed、5 markers、后续 7 阶段 skipped；npm `ECONNRESET` 经重试恢复；无资源残留 |
 
 | 2026-08-28 | MS-01 identity-community foundation 收口 | rebase 最新 main 并重建合规历史；将运行时从内存 Map 接入 Prisma；独立 DB/账号/Secret；修正 coin/phone/session owner；补真实 MySQL 重启/双实例测试、Docker migration/runtime、Compose/K8s 和完整文档 | clean `npm ci`；`npm run test:ci` 171；identity contract 5/5 + integration 1/1；migration 首次/重复；seed/reset/拒绝；Compose 全镜像、迁移、五服务 health/version、identity restart、schema isolation；Shell/Compose/Kustomize | PASS；三轮失败过程保留并修复：npm lock `ECONNRESET`、Docker OpenSSL/engine、Compose migration guard；最终本地 CI、MySQL 与 Compose 全绿；Kind rollout NOT RUN，新增 YAML/脚本静态 PASS |
+| 2026-08-28 | MS-02 PR #43 Owner 修复与复测 | 在新普通 commit 中修复独立 Prisma Client、默认 Compose/K8s content DB/migration、容器 OpenSSL/重试、真实 MySQL+MinIO 补偿链、文档与 UC 追溯；不切 Gateway 业务流量 | clean install/full CI；真实 MySQL 首次/重复 migration+fixture；review/replay 冲突；服务重启；容器 ffprobe；真实 MinIO+DB；Compose；隔离 Kind；Secret/Artifact/diff | PASS；requirements 115/115、backend 16/16、frontend 22/22、content 17/17；MySQL+MinIO fake=400/valid=201/db-failure=500；Compose/Kind 5/5 healthy/Ready、0 restart；隔离资源全部清理；等待 PR #43 复审 |
 
 ## 4. 阻塞与需组长决定
 

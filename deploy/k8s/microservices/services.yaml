@@ -126,6 +126,11 @@ spec:
                 secretKeyRef:
                   name: videoplayer-microservice-secrets
                   key: service-jwt-secret
+            - name: CONTENT_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: videoplayer-microservice-secrets
+                  key: content-database-url
           readinessProbe:
             httpGet:
               path: /health/ready

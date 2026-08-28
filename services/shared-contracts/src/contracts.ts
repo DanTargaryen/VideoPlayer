@@ -28,6 +28,19 @@ export interface ServiceVersion {
   node: string;
 }
 
+export interface IdentityUserSummaryContract {
+  id: number;
+  nickname: string;
+  avatarUrl: string | null;
+}
+
+export interface IdentityBatchSummaryContract {
+  requestedIds: number[];
+  items: IdentityUserSummaryContract[];
+  byId: Record<string, IdentityUserSummaryContract>;
+  missingIds: number[];
+}
+
 export function ok<T>(data: T, requestId: string): ApiResponse<T> {
   return {
     code: 0,
