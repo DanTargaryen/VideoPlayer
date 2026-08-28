@@ -7,6 +7,36 @@ x-service-health: &service-health
   start_period: 3s
 
 services:
+  identity-mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${IDENTITY_MYSQL_ROOT_PASSWORD:?IDENTITY_MYSQL_ROOT_PASSWORD is required}
+      MYSQL_DATABASE: ${IDENTITY_DATABASE_NAME:-video_player_identity_test}
+      MYSQL_USER: ${IDENTITY_DATABASE_USER:-identity_app}
+      MYSQL_PASSWORD: ${IDENTITY_DATABASE_PASSWORD:?IDENTITY_DATABASE_PASSWORD is required}
+    healthcheck:
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent"]
+    volumes:
+      - identity-mysql-data:/var/lib/mysql
+
+  identity-migrate:
+    build:
+      context: ..
+      dockerfile: services/identity-community/Dockerfile
+      target: migration
+    image: video-player/identity-community-migration:${IMAGE_TAG:-local}
+    environment:
+      IDENTITY_DATABASE_URL: mysql://${IDENTITY_DATABASE_USER:-identity_app}:${IDENTITY_DATABASE_PASSWORD:?IDENTITY_DATABASE_PASSWORD is required}@identity-mysql:3306/${IDENTITY_DATABASE_NAME:-video_player_identity_test}
+      MIGRATION_DEPLOY_ALLOWED_TARGET: identity-mysql:3306/${IDENTITY_DATABASE_NAME:-video_player_identity_test}
+      MIGRATION_DEPLOY_CONFIRM: DEPLOY_MIGRATIONS
+    depends_on:
+      identity-mysql:
+        condition: service_healthy
+
   identity-community:
     build:
       context: ..
@@ -15,6 +45,12 @@ services:
     environment:
       PORT: 3000
       GIT_SHA: ${GIT_SHA:-dev}
+      IDENTITY_DATABASE_URL: mysql://${IDENTITY_DATABASE_USER:-identity_app}:${IDENTITY_DATABASE_PASSWORD:?IDENTITY_DATABASE_PASSWORD is required}@identity-mysql:3306/${IDENTITY_DATABASE_NAME:-video_player_identity_test}
+      IDENTITY_ADMIN_SECRET: ${IDENTITY_ADMIN_SECRET:?IDENTITY_ADMIN_SECRET is required}
+      SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET:?SERVICE_JWT_SECRET is required}
+    depends_on:
+      identity-migrate:
+        condition: service_completed_successfully
     ports:
       - "3101:3000"
     healthcheck:
@@ -95,3 +131,6 @@ services:
     healthcheck:
       <<: *service-health
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+
+volumes:
+  identity-mysql-data:

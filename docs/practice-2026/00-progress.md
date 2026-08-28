@@ -177,10 +177,14 @@
   - 完成内容：新增 shared-contracts、identity/content/live/governance 四个独立空服务和 monolith-first Gateway；统一 health/live、health/ready、version、API response、requestId、结构化日志、服务账号 HS256 JWT/Guard；接入 npm workspaces、Docker/Compose、K8s、Jenkins 和 Kind。
   - 测试/验证：完整 `npm run test:ci`；MS-00 lint/build；7 个 Vitest 文件 14/14；五个约 80MB 镜像；Compose 五容器 healthy 与 15 个 HTTP contract；四个业务路由 404；隔离 Kind 两次连续部署；五 Deployment 1/1 Ready、0 restart、15 个容器内 HTTP contract；环境清理。
   - 结果：PASS；PR #41 完成 Owner 自审记录并 squash 合并到 `main@9181e2c9655b3f0b751a0544e95b8ec77dfd5737`。首次并行 Docker build 遇到 `ECONNRESET`，复用单体 npm retry 并限制 workspace 安装后重跑 PASS；首次重复 K8s apply 因 `kubectl set env` 与 manifest `valueFrom` 冲突，改用 ConfigMap patch 后连续两次部署 PASS。
-- [ ] `MS-01..04` 提取四个业务微服务并独立构建、测试和部署。
-  - 已确认分工：组长本人承担 A，负责 MS-00/K8S-01；B 负责 MS-01 identity-community，C 负责 MS-02 content-media，D 负责 MS-03 live-reward，E 负责 MS-04 governance-ai 并协调 REG-01。
+- [x] `MS-01` 完成 identity-community 第一批 foundation。
+  - 完成内容：以 Prisma runtime 持久化账号、资料、关系、通知、私信和动态社区；独立 `IDENTITY_DATABASE_URL`/账号/Secret；保留 `phone`、移除 identity 对 `coinBalance` 的事实所有权；持久化 session nonce；notification requestId 数据库唯一约束与跨实例冲突检测；安全 migration/seed/reset、Docker migration/runtime 镜像、Compose/K8s 配置和单体 fallback/rollback 文档。
+  - 测试/验证：clean `npm ci`；完整 `npm run test:ci`；identity 5/5 contract；隔离 MySQL migration 首次/重复、seed、test-reset、非 test reset 拒绝；真实重启与双实例 notification 1/1；Compose 全镜像 build、migration、五服务 health/version、identity 重启后登录和数据库最小权限；Shell/Compose/Kustomize 静态检查。
+  - 结果：PASS；本地 CI 171 项（requirements 115、backend 16、frontend 22、services 18）；identity 数据库 11 业务表 + 1 migration 表；同 requestId 双实例并发只生成 1 条记录，冲突载荷 409；Compose identity 重启后账号仍可登录；账号不可访问单体 `video_player` schema。第一次 Docker generate 因缺 OpenSSL + `ECONNRESET` 失败，补 OpenSSL/有限重试后恢复；第二次 Compose 被 migration 目标守卫拒绝，增加精确目标授权后完整复跑 PASS。Kind 实际 rollout `NOT RUN`，本 PR 仅对新增 K8s Secret/Job/部署脚本完成渲染与语法检查。
+- [ ] `MS-02..04` 提取其余三个业务微服务并独立构建、测试和部署。
+  - 已确认分工：组长本人承担 A，负责 MS-00/K8S-01；B 已完成 MS-01 identity-community；C 负责 MS-02 content-media，D 负责 MS-03 live-reward，E 负责 MS-04 governance-ai 并协调 REG-01。
   - 执行顺序：ARCH-01 文档 → MS-00 公共骨架 → 四服务 foundation 并行 → 只读路由 → 写流量切换 → REG-01；首批不得删除单体表或提前切换写流量。
-  - 执行清单：`docs/practice-2026/12-second-stage-todo.md`；MS-00 已完成，B/C/D/E 现在从包含 PR #41 的最新 `main` 创建各自 foundation 分支，具体业务实现项仍保持未勾选。
+  - 执行清单：`docs/practice-2026/12-second-stage-todo.md`；MS-00/MS-01 foundation 已完成，C/D/E 继续各自 foundation；identity/content 只读路由、所有写流量切换和 REG-01 仍未开始。
 - [ ] `REG-01` 完成全部公开 API 和 UC01-UC06 自动回归。
 - [ ] `EXP-01` 完成 HPA 扩缩容实验。
 - [ ] `EXP-02` 完成依赖故障降级实验。
@@ -203,6 +207,7 @@
 | CI-02-JUNIT 标准测试报告 | DONE | requirements/Jest/Vitest/API/Playwright 生成 11 份 JUnit XML；Jenkins `junit` 发布；reporter 单测 | Build #9 SUCCESS：186 passed/11 XML；#10 EXPECTED FAILURE：167 passed/9 XML、后续 7 阶段 skipped | PASS；Test Result、Artifact、完整流水线和失败阻断均验证 | 本轮提交 |
 | ARCH-01 服务/数据冻结 | DONE | 4 服务、31 表唯一 owner、接口、失败策略、七项默认决策、迁移/回滚、A-E 分工与 Review | Prisma Model 自动比对；唯一 owner；决策/分工/分支/Reviewer 文档一致性 | PASS；TEAM APPROVED；真实姓名/外部会议截图待补证据索引 | 本提交 |
 | MS-00 微服务公共脚手架 | DONE | shared contracts/JWT、四服务 health/version、Gateway fallback、workspace、Docker/Compose、K8s/Jenkins/Kind | `npm run test:ci`；MS-00 14/14；Compose 5 healthy；Kind 重复部署 5/5 Ready、0 restart；Owner 自审记录 | PASS；PR #41 squash merged，`main@9181e2c` | PR #41 + 本提交 |
+| MS-01 identity-community foundation | DONE | Prisma runtime、11 个 owner model、独立 DB/账号/Secret、内部 API、requestId 幂等、Docker migration/runtime、Compose/K8s 配置 | clean `npm ci`；`npm run test:ci` 171；identity 5+1；MySQL 首次/重复 migration、seed/reset/拒绝；Compose build/up/restart/health/权限 | PASS；11 业务表 + 1 migration 表；跨实例通知幂等；Compose 五服务 healthy；Kind rollout NOT RUN（静态 PASS） | PR #45 + 本提交 |
 | GOV-GIT-01 Commit/PR 规范 | DONE | GitHub PR 模板、仓库规范、个人 Codex skill | quick_validate；模板章节/敏感信息/diff 检查 | PASS | 最终治理提交 |
 | GOV-GIT-02 分支/Commit 命名 | DONE | category 分支名、Conventional Commit 标题、Changes/Tests 正文、PR Commit 清单 | quick_validate；必填字段；diff check | PASS；应用测试 N/A（纯规范） | 最终治理提交 |
 | GOV-GIT-03 仓库内 skill | DONE | `.codex/skills/videoplayer-commit-pr` 与个人版同步 | 双 quick_validate；字节比对；TODO/diff check | PASS；应用测试 N/A（skill/docs） | 最终治理提交 |
@@ -274,6 +279,8 @@
 | 2026-08-27 | 第二阶段 TODO 与 A 角色确认 | 新增 A-E 分支领取、foundation、禁止事项、Review、统一 DoD、只读/写流量切换和管理证据清单；同步记录组长本人承担 A | TODO 章节/角色/分支/owner/Reviewer/依赖/未完成状态一致性；Markdown/diff/Secret/Artifact 检查；应用测试 NOT RUN（纯文档） | READY；组长/A 先完成 MS-00，B/C/D/E 在 MS-00 合并后创建各自 foundation；所有实现复选框保持未完成，实名和个人备份人仍待补录 |
 | 2026-08-27 | MS-00 公共微服务脚手架 | 新增 shared runtime/contracts/JWT Guard、四业务空服务、monolith-first Gateway、workspace gate、五镜像 Compose、K8s 资源、Jenkins 构建/部署/health 接入和执行文档 | `npm run test:services:ci`；完整 `npm run test:ci`；Compose build/up/HTTP；隔离 Kind create/deploy/redeploy/health；shell/compose/kustomize；cleanup；Owner 自审 | PASS；requirements 113/113、backend 16/16、frontend 22/22、MS-00 14/14；Compose 5 healthy；Kind 5 Deployment 1/1、0 restart；首次 Docker `ECONNRESET` 和 K8s env apply 冲突均修复并复跑；PR #41 squash merged，`main@9181e2c` |
 | 2026-08-28 | CI-02-JUNIT 标准报告闭环 | 为 requirements、Jest、Vitest、六微服务、API 和 Playwright 生成标准 JUnit XML；Jenkins `post` 发布；补 reporter 单测；执行成功/失败 Build | 本地 Build 9402/9305；Jenkins #9/#10；11/9 XML；Test Result API；`xmllint`；Stage/Artifact/cleanup | PASS；#9 186 passed、12/12、39 Artifacts、完整 Kind/health；#10 exit 42、167 passed、5 markers、后续 7 阶段 skipped；npm `ECONNRESET` 经重试恢复；无资源残留 |
+
+| 2026-08-28 | MS-01 identity-community foundation 收口 | rebase 最新 main 并重建合规历史；将运行时从内存 Map 接入 Prisma；独立 DB/账号/Secret；修正 coin/phone/session owner；补真实 MySQL 重启/双实例测试、Docker migration/runtime、Compose/K8s 和完整文档 | clean `npm ci`；`npm run test:ci` 171；identity contract 5/5 + integration 1/1；migration 首次/重复；seed/reset/拒绝；Compose 全镜像、迁移、五服务 health/version、identity restart、schema isolation；Shell/Compose/Kustomize | PASS；三轮失败过程保留并修复：npm lock `ECONNRESET`、Docker OpenSSL/engine、Compose migration guard；最终本地 CI、MySQL 与 Compose 全绿；Kind rollout NOT RUN，新增 YAML/脚本静态 PASS |
 
 ## 4. 阻塞与需组长决定
 
