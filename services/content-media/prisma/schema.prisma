@@ -1,6 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
-  output   = "./prisma-client"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -20,6 +20,8 @@ model Video {
   durationSeconds Int                  @default(0)
   publishedAt     DateTime?
   reviewDecisionId String?             @unique
+  reviewDecision   String?
+  reviewDecisionReason String?         @db.Text
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
   assets          VideoAsset[]
@@ -30,6 +32,7 @@ model Video {
   watches         UserVideoWatch[]
   aiSummaries     VideoAiSummary[]
   aiChatSessions  VideoAiChatSession[]
+  category        VideoCategory?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   @@index([creatorId])
   @@index([status, publishedAt])
@@ -43,6 +46,7 @@ model VideoCategory {
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  videos    Video[]
 }
 
 model VideoAsset {
@@ -51,6 +55,7 @@ model VideoAsset {
   kind      AssetKind
   bucket    String
   objectKey String    @unique
+  requestId String?   @unique
   mimeType  String
   url       String
   sizeBytes BigInt?
@@ -186,14 +191,6 @@ model VideoAiChatMessage {
   session   VideoAiChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@index([sessionId])
-}
-
-model ReplayRegistration {
-  id             String   @id @default(cuid())
-  requestId      String   @unique
-  objectKey      String   @unique
-  contentVideoId String
-  createdAt      DateTime @default(now())
 }
 
 enum VideoStatus {

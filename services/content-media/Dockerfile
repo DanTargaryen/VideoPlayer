@@ -5,13 +5,13 @@ COPY package.json package-lock.json ./
 COPY backend/package.json backend/package.json
 COPY frontend/package.json frontend/package.json
 COPY services services
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    for attempt in 1 2 3 4 5; do \
+RUN for attempt in 1 2 3 4 5; do \
       npm ci --ignore-scripts --workspace @videoplayer/shared-contracts --workspace @videoplayer/content-media --include-workspace-root && exit 0; \
       echo "npm ci failed on attempt ${attempt}; retrying..."; \
       sleep $((attempt * 10)); \
     done; \
     exit 1
+RUN npm --workspace @videoplayer/content-media run prisma:generate
 RUN npm --workspace @videoplayer/content-media run build
 
 FROM node:22-bookworm-slim AS runtime
@@ -30,6 +30,8 @@ RUN for attempt in 1 2 3 4 5; do \
 COPY --from=build /app/services/content-media/dist ./dist
 COPY --from=build /app/services/shared-contracts/package.json ./node_modules/@videoplayer/shared-contracts/package.json
 COPY --from=build /app/services/shared-contracts/dist ./node_modules/@videoplayer/shared-contracts/dist
+COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 USER node
 EXPOSE 3000
 CMD ["node", "dist/index.js"]

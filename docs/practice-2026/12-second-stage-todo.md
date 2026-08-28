@@ -322,7 +322,7 @@ services/<service>/
 - [x] review-decision/replay/batch-summary contract tests 通过。
 - [x] 服务可独立 build/test/image/health/version。
 
-说明：本轮已在 `content-media` foundation 中覆盖扩展名/MIME 前置拒绝、真实 `ffprobe` 视频流探测、伪装 MP4 400、无效媒体不创建内容记录、写库失败精确清理对象；运行时镜像安装 `ffmpeg`/`ffprobe`，并提供 `npm --workspace @videoplayer/content-media run verify:container` 用真实 MP4 复测 image/health/version/ffprobe。Docker Desktop 重启后已成功拉取 `node:22-bookworm-slim`，实际构建 `video-player/content-media:verify`，通过 `live`、`ready`、`container-smoke` version、`ffprobe 5.1.9` 和真实 MP4 服务探测；真实 MinIO object 仍未运行。
+说明：本轮已在 `content-media` foundation 中覆盖扩展名/MIME 前置拒绝、真实 `ffprobe` 视频流探测、伪装 MP4 400、无效媒体不创建内容记录、写库失败精确清理对象；运行时镜像安装 `ffmpeg`/`ffprobe`，并提供 `npm --workspace @videoplayer/content-media run verify:container` 用临时 MySQL 复测 image/migration/fixture/health/version/ffprobe。Docker Desktop 重启后已成功拉取 `node:22-bookworm-slim`，实际构建 `video-player/content-media:verify`，通过 `live`、`ready`、`container-smoke` version、`ffprobe` 和真实 MP4 服务探测；另用 `npm --workspace @videoplayer/content-media run verify:minio` 启动临时 MinIO，验证伪装 MP4 400 且 0 object/row、合法 MP4 201、数据库失败后只删除本次真实 object。
 
 ### 5.6 C 第一批禁止事项
 
