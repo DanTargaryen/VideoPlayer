@@ -15,7 +15,7 @@ export interface SrsClient {
 }
 
 export interface ReplayClient {
-  register(input: { sessionId: number; objectKey: string; mimeType: string | null; requestId: string }): Promise<{ contentVideoId: number }>;
+  register(input: { sessionId: number; objectKey: string; mimeType: string | null; requestId: string; creatorId: string; title: string }): Promise<{ contentVideoId: string }>;
 }
 
 export interface LiveAppOptions {
@@ -64,18 +64,22 @@ export class FetchSrsClient implements SrsClient {
 
 export class ContentReplayClient implements ReplayClient {
   constructor(private readonly baseUrl: string, private readonly timeoutMs = 5000) {}
-  async register(input: { sessionId: number; objectKey: string; mimeType: string | null; requestId: string }): Promise<{ contentVideoId: number }> {
+  async register(input: { sessionId: number; objectKey: string; mimeType: string | null; requestId: string; creatorId: string; title: string }): Promise<{ contentVideoId: string }> {
     const secret = process.env.SERVICE_JWT_SECRET;
     if (!secret?.trim()) throw new HttpError(503, 'Internal service authentication is not configured', 503);
     const headers: Record<string, string> = { 'content-type': 'application/json', 'x-request-id': input.requestId };
-    headers.authorization = `Bearer ${issueServiceToken({ caller: 'live-reward', audience: 'content-media', scopes: ['content.replays.write'], secret, requestId: input.requestId })}`;
+    headers.authorization = `Bearer ${issueServiceToken({ caller: 'live-reward', audience: 'content-media', scopes: ['internal:replay'], secret, requestId: input.requestId })}`;
     try {
-      const response = await fetch(`${this.baseUrl}/internal/v1/replays`, { method: 'POST', headers, body: JSON.stringify(input), signal: AbortSignal.timeout(this.timeoutMs) });
-      if (!response.ok) throw new HttpError(503, `content-media returned ${response.status}`, 503);
-      const payload = await response.json() as { data?: { contentVideoId?: number } };
+      const response = await fetch(`${this.baseUrl}/internal/v1/replays`, { method: 'POST', headers, body: JSON.stringify({ requestId: input.requestId, objectKey: input.objectKey, mimeType: input.mimeType, title: input.title, creatorId: input.creatorId }), signal: AbortSignal.timeout(this.timeoutMs) });
+      if (response.status !== 200 && response.status !== 201) {
+        const message = `content-media returned ${response.status}`;
+        if (response.status === 401 || response.status === 409) throw new HttpError(response.status, message, response.status);
+        throw new HttpError(503, message, 503);
+      }
+      const payload = await response.json() as { data?: { contentVideoId?: string } };
       const contentVideoId = payload.data?.contentVideoId;
-      if (!Number.isInteger(contentVideoId)) throw new HttpError(503, 'content-media returned an invalid replay ID', 503);
-      return { contentVideoId: contentVideoId! };
+      if (typeof contentVideoId !== 'string' || !contentVideoId.trim()) throw new HttpError(503, 'content-media returned an invalid replay ID', 503);
+      return { contentVideoId };
     } catch (error) {
       if (error instanceof HttpError) throw error;
       if (error instanceof Error && error.name === 'TimeoutError') throw new HttpError(504, 'content-media replay registration timed out after 5000ms', 504);
@@ -193,7 +197,7 @@ export class LiveApplication {
     const mimeType = normalizeReplayMime(objectKey, input.mimeType);
     const requestId = input.requestId?.trim() || randomUUID();
     const replay = await this.store.createReplay({ sessionId: session.id, objectKey, contentVideoId: null, status: 'PENDING', requestId, mimeType });
-    return this.attemptReplay(replay);
+    return this.attemptReplay(replay, room);
   }
 
   async retryReplay(id: number) {
@@ -209,17 +213,21 @@ export class LiveApplication {
   async coinVideo(userId: number, videoId: number, amount: number, requestId: string) { if (!Number.isInteger(amount) || amount < 1 || amount > 2) throw new HttpError(400, '投币数量必须是 1 到 2 的整数', 400); try { return await this.store.coinVideo(userId, videoId, amount, requestId); } catch (error) { throw ledgerError(error); } }
   async gift(userId: number, amount: number, requestId: string) { if (!Number.isInteger(amount) || amount < 1 || amount > 100) throw new HttpError(400, '礼物数量必须是 1 到 100 的整数', 400); try { return await this.store.gift(userId, amount, requestId); } catch (error) { throw ledgerError(error); } }
 
-  private async attemptReplay(replay: ReplayRecord) {
+  private async attemptReplay(replay: ReplayRecord, roomHint?: RoomRecord) {
     if (replay.status === 'COMPLETED') return serializeReplay(replay);
     const registering = await this.store.updateReplay(replay.id, { status: 'REGISTERING', attempts: replay.attempts + 1, lastError: null, nextRetryAt: null });
     try {
-      const result = await this.replayClient.register({ sessionId: registering.sessionId, objectKey: registering.objectKey, mimeType: registering.mimeType, requestId: registering.requestId });
+      const session = await this.store.getSession(registering.sessionId);
+      const room = roomHint ?? (session ? await this.store.getRoom(session.roomId) : null);
+      if (!room) throw new HttpError(500, 'Live room for replay registration was not found', 500);
+      const result = await this.replayClient.register({ sessionId: registering.sessionId, objectKey: registering.objectKey, mimeType: registering.mimeType, requestId: registering.requestId, creatorId: String(room.broadcasterId), title: room.title });
       const completed = await this.store.updateReplay(registering.id, { status: 'COMPLETED', contentVideoId: result.contentVideoId, lastError: null });
       await this.store.updateSession(registering.sessionId, { replayStatus: 'COMPLETED' });
       return serializeReplay(completed);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'content-media replay registration failed';
-      const failed = await this.store.updateReplay(registering.id, { status: registering.attempts >= 5 ? 'FAILED_FINAL' : 'FAILED_RETRYABLE', lastError: message, nextRetryAt: new Date(this.now().getTime() + Math.min(3600000, 1000 * 2 ** registering.attempts)) });
+      const finalFailure = error instanceof HttpError && (error.status === 401 || error.status === 409 || error.status === 400);
+      const failed = await this.store.updateReplay(registering.id, { status: finalFailure || registering.attempts >= 5 ? 'FAILED_FINAL' : 'FAILED_RETRYABLE', lastError: message, nextRetryAt: finalFailure ? null : new Date(this.now().getTime() + Math.min(3600000, 1000 * 2 ** registering.attempts)) });
       await this.store.updateSession(registering.sessionId, { replayStatus: failed.status });
       return serializeReplay(failed);
     }

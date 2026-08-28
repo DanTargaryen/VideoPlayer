@@ -389,7 +389,9 @@ services/<service>/
 - [x] content 不可用时直播仍可正常结束。
 - [x] attempts、lastError 和 nextRetryAt 可审计。
 - [x] requestId/objectKey 保证不会重复创建 content video。
-- [ ] WebM/MP4 文件名、数据库 MIME 和 MinIO Header 一致（文件名/MIME 已校验；MinIO Header 真实联调 `NOT RUN`）。
+- [x] WebM/MP4 文件名、数据库 MIME 和 MinIO Header 一致（`scripts/live-reward-content-smoke.mjs` 使用真实 MinIO 分别验证 WebM/MP4；不匹配 MIME 返回 400 且不改变已完成记录）。
+
+回放 contract 已与 C 的 `content-media` 对齐：内部 JWT scope 为 `internal:replay`；请求传递 `requestId`、`objectKey`、`mimeType`、真实 `creatorId` 和直播标题；`contentVideoId` 在 D 的 `ReplayRegistration` 中以字符串保存并由 `20260828000000_content_video_id_string` migration 转换。C 的 201（新建）/200（幂等重复）/409（冲突）/401（鉴权失败）及超时均有 HTTP contract 覆盖；其中 400/401/409 在 D 侧进入 `FAILED_FINAL`，503/504 保留可补偿重试状态。
 
 ### 6.6 币账本与消息留存
 
@@ -402,11 +404,13 @@ services/<service>/
 
 ### 6.7 D 第一批禁止事项
 
-- [ ] 未先改前端 UI 代替持久化工作。
-- [ ] 未直接写 content 的 Video/VideoAsset。
-- [ ] 未直接查 identity User。
-- [ ] 未在持久化和回滚未完成前切换直播写流量。
-- [ ] 未把全部币业务混入第一批持久化 PR。
+- [x] 未先改前端 UI 代替持久化工作。
+- [x] 未直接写 content 的 Video/VideoAsset。
+- [x] 未直接查 identity User。
+- [x] 未在持久化和回滚未完成前切换直播写流量（仅完成本地配置级切换/回滚验证，生产切换仍待窗口）。
+- [x] 未把全部币业务混入第一批持久化 PR。
+
+当前剩余门禁：Gateway 生产写流量切换与 rollback 需要 A/平台提供部署权限和切换窗口；完整 UC05 微服务浏览器回归需要前端/C 侧提供与 live-reward 一致的录播上传、回放 URL/metadata 展示 contract。单体 UC05 历史回归已有 PASS，但不能替代本分支微服务 Gateway 目标环境的回归证据；在依赖补齐前保持 `BLOCKED`。
 
 ## 7. E（治理、质量与文档）TODO
 

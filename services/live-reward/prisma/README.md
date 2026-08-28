@@ -2,6 +2,7 @@
 
 This schema is owned by `live-reward`. User and video identifiers are external IDs;
 there are intentionally no foreign keys to identity-community or content-media.
+`ReplayRegistration.contentVideoId` is a string because content-media owns UUID video IDs.
 
 Set `LIVE_REWARD_DATABASE_URL` to an isolated MySQL database, then run:
 

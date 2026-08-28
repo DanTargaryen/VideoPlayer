@@ -114,7 +114,7 @@ model ReplayRegistration {
   id             Int          @id @default(autoincrement())
   sessionId      Int          @unique
   objectKey      String       @unique @db.VarChar(512)
-  contentVideoId Int?
+  contentVideoId String?      @db.VarChar(191)
   status         ReplayStatus @default(PENDING)
   requestId      String       @db.VarChar(128)
   mimeType       String?      @db.VarChar(128)

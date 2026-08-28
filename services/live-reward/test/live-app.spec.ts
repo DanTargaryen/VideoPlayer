@@ -4,6 +4,7 @@ import { createServer, type Server } from 'node:http';
 import { issueServiceToken, verifyServiceToken } from '@videoplayer/shared-contracts';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { createContentService, createFixtureState } from '../../content-media/src/service.js';
 import { ContentReplayClient, FetchSrsClient, HttpError, LiveApplication, createLiveHttpServer, type ReplayClient, type SrsClient } from '../src/live-app.js';
 import { MemoryStore } from '../src/store.js';
 
@@ -33,7 +34,8 @@ class HealthySrs implements SrsClient {
 
 class ReplayStub implements ReplayClient {
   calls = 0;
-  async register() { this.calls += 1; return { contentVideoId: 42 }; }
+  lastInput: Parameters<ReplayClient['register']>[0] | null = null;
+  async register(input: Parameters<ReplayClient['register']>[0]) { this.calls += 1; this.lastInput = input; return { contentVideoId: 'content-video-42' }; }
 }
 
 describe('live-reward domain', () => {
@@ -66,8 +68,9 @@ describe('live-reward domain', () => {
     await expect(app.registerReplay(room.id, broadcaster, { objectKey: 'recordings/mismatch.mp4', mimeType: 'video/webm', requestId: 'replay-mismatch' })).rejects.toMatchObject({ status: 400 });
     const replayResult = await app.registerReplay(room.id, broadcaster, { objectKey: 'recordings/1.webm', mimeType: 'video/webm', requestId: 'replay-1' });
     expect(replayResult.status).toBe('COMPLETED');
-    expect(replayResult.contentVideoId).toBe(42);
+    expect(replayResult.contentVideoId).toBe('content-video-42');
     expect(replay.calls).toBe(1);
+    expect(replay.lastInput).toMatchObject({ sessionId: started.sessionId, objectKey: 'recordings/1.webm', mimeType: 'video/webm', requestId: 'replay-1', creatorId: '7', title: '演示直播' });
     const session = await app.getSession(started.sessionId);
     expect(session.status).toBe('ENDED');
     expect(session.replay?.status).toBe('COMPLETED');
@@ -99,7 +102,7 @@ describe('live-reward domain', () => {
   it('retains replay failure state, retries after content recovery and stops at the final retry limit', async () => {
     let available = false;
     let calls = 0;
-    const replay: ReplayClient = { register: async () => { calls += 1; if (!available) throw new HttpError(503, 'content-media is unavailable'); return { contentVideoId: 84 }; } };
+    const replay: ReplayClient = { register: async () => { calls += 1; if (!available) throw new HttpError(503, 'content-media is unavailable'); return { contentVideoId: 'content-video-84' }; } };
     const app = new LiveApplication({ store: new MemoryStore(), replayClient: replay });
     const room = await app.createRoom(broadcaster, { title: '回放重试' });
     await app.startRoom(room.id, broadcaster);
@@ -113,7 +116,7 @@ describe('live-reward domain', () => {
     available = true;
     const completed = await app.retryReplay(failed.id);
     expect(completed.status).toBe('COMPLETED');
-    expect(completed.contentVideoId).toBe(84);
+    expect(completed.contentVideoId).toBe('content-video-84');
     expect(calls).toBe(2);
     expect((await app.retryReplay(failed.id)).status).toBe('COMPLETED');
 
@@ -126,6 +129,22 @@ describe('live-reward domain', () => {
     expect(final.status).toBe('FAILED_FINAL');
     expect(final.attempts).toBe(5);
     await expect(app.retryReplay(final.id)).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('does not retry permanent content replay conflicts or authorization failures', async () => {
+    for (const status of [401, 409]) {
+      const replay: ReplayClient = { register: async () => { throw new HttpError(status, `content-media returned ${status}`, status); } };
+      const app = new LiveApplication({ store: new MemoryStore(), replayClient: replay });
+      const room = await app.createRoom(broadcaster, { title: `永久失败-${status}` });
+      await app.startRoom(room.id, broadcaster);
+      await app.stopRoom(room.id, broadcaster);
+      const result = await app.registerReplay(room.id, broadcaster, { objectKey: `recordings/permanent-${status}.webm`, requestId: `replay-permanent-${status}` });
+      expect(result.status).toBe('FAILED_FINAL');
+      expect(result.attempts).toBe(1);
+      expect(result.nextRetryAt).toBeNull();
+      expect(result.lastError).toContain(String(status));
+      await expect(app.retryReplay(result.id)).rejects.toMatchObject({ status: 409 });
+    }
   });
 
   it('makes wallet writes idempotent and enforces the per-video limit', async () => {
@@ -229,14 +248,47 @@ describe('live-reward HTTP adapters and internal auth', () => {
       for await (const chunk of request) text += String(chunk);
       receivedBody = JSON.parse(text) as Record<string, unknown>;
       const header = request.headers.authorization;
-      receivedClaims = verifyServiceToken(String(header).replace(/^Bearer\s+/i, ''), { audience: 'content-media', secret: serviceSecret, requiredScopes: ['content.replays.write'] });
+      receivedClaims = verifyServiceToken(String(header).replace(/^Bearer\s+/i, ''), { audience: 'content-media', secret: serviceSecret, requiredScopes: ['internal:replay'] });
       response.setHeader('content-type', 'application/json');
-      response.end(JSON.stringify({ data: { contentVideoId: 99 } }));
+      response.end(JSON.stringify({ data: { contentVideoId: 'content-video-99' } }));
     });
     const client = new ContentReplayClient(baseUrl, 200);
-    await expect(client.register({ sessionId: 12, objectKey: 'recordings/12.mp4', mimeType: 'video/mp4', requestId: 'replay-http' })).resolves.toEqual({ contentVideoId: 99 });
-    expect(receivedBody).toMatchObject({ sessionId: 12, objectKey: 'recordings/12.mp4', mimeType: 'video/mp4', requestId: 'replay-http' });
-    expect(receivedClaims).toMatchObject({ sub: 'live-reward', aud: 'content-media', scope: ['content.replays.write'], requestId: 'replay-http' });
+    await expect(client.register({ sessionId: 12, objectKey: 'recordings/12.mp4', mimeType: 'video/mp4', requestId: 'replay-http', creatorId: '7', title: '直播标题' })).resolves.toEqual({ contentVideoId: 'content-video-99' });
+    expect(receivedBody).toMatchObject({ objectKey: 'recordings/12.mp4', mimeType: 'video/mp4', requestId: 'replay-http', creatorId: '7', title: '直播标题' });
+    expect(receivedClaims).toMatchObject({ sub: 'live-reward', aud: 'content-media', scope: ['internal:replay'], requestId: 'replay-http' });
+  });
+
+  it('accepts a 201 replay response and preserves content-media conflict/auth statuses', async () => {
+    process.env.SERVICE_JWT_SECRET = serviceSecret;
+    const input = { sessionId: 12, objectKey: 'recordings/12.webm', mimeType: 'video/webm', requestId: 'replay-status', creatorId: '7', title: '直播标题' } as const;
+    const created = await listen((_request, response) => { response.statusCode = 201; response.setHeader('content-type', 'application/json'); response.end(JSON.stringify({ data: { contentVideoId: 'content-video-201' } })); });
+    await expect(new ContentReplayClient(created, 200).register(input)).resolves.toEqual({ contentVideoId: 'content-video-201' });
+    const conflict = await listen((_request, response) => { response.statusCode = 409; response.end('conflict'); });
+    await expect(new ContentReplayClient(conflict, 200).register(input)).rejects.toMatchObject({ status: 409, code: 409 });
+    const unauthorized = await listen((_request, response) => { response.statusCode = 401; response.end('unauthorized'); });
+    await expect(new ContentReplayClient(unauthorized, 200).register(input)).rejects.toMatchObject({ status: 401, code: 401 });
+    const timedOut = await listen((_request, response) => { setTimeout(() => response.end('{}'), 100); });
+    await expect(new ContentReplayClient(timedOut, 10).register(input)).rejects.toMatchObject({ status: 504, code: 504 });
+  });
+
+  it('round-trips the live-reward client against the content-media HTTP server', async () => {
+    process.env.SERVICE_JWT_SECRET = serviceSecret;
+    const state = createFixtureState();
+    const contentServer = createContentService({ state, internalJwtSecret: serviceSecret });
+    servers.push(contentServer);
+    contentServer.listen(0, '127.0.0.1');
+    await once(contentServer, 'listening');
+    const address = contentServer.address();
+    if (!address || typeof address === 'string') throw new Error('Expected TCP address');
+    const client = new ContentReplayClient(`http://127.0.0.1:${address.port}`, 500);
+    const input = { sessionId: 12, objectKey: 'recordings/integration.webm', mimeType: 'video/webm', requestId: 'replay-integration', creatorId: '7', title: '真实联调直播' } as const;
+    const created = await client.register(input);
+    expect(created.contentVideoId).toBe('1001');
+    const duplicate = await client.register(input);
+    expect(duplicate).toEqual(created);
+    await expect(client.register({ ...input, title: '冲突载荷' })).rejects.toMatchObject({ status: 409 });
+    expect(state.replays).toHaveLength(1);
+    expect(state.replays[0]).toMatchObject({ requestId: input.requestId, objectKey: input.objectKey, mimeType: input.mimeType, creatorId: input.creatorId, title: input.title, contentVideoId: created.contentVideoId });
   });
 
   it('protects internal coin writes with service JWT scope', async () => {

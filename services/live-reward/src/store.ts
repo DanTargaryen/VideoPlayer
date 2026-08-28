@@ -56,7 +56,7 @@ export interface ReplayRecord {
   id: number;
   sessionId: number;
   objectKey: string;
-  contentVideoId: number | null;
+  contentVideoId: string | null;
   status: ReplayStatus;
   requestId: string;
   mimeType: string | null;
