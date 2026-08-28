@@ -1,0 +1,54 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: content-migrate
+  namespace: video-player
+  labels:
+    app.kubernetes.io/name: content-migrate
+    app.kubernetes.io/part-of: video-player-microservices
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: content-migrate
+        app.kubernetes.io/part-of: video-player-microservices
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: wait-for-mysql
+          image: video-player/content-media-migrate:local
+          imagePullPolicy: IfNotPresent
+          command:
+            - node
+            - -e
+            - |
+              const net = require('node:net');
+              const deadline = Date.now() + 120000;
+              const connect = () => {
+                const socket = net.connect(3306, 'mysql');
+                socket.on('connect', () => { socket.end(); process.exit(0); });
+                socket.on('error', () => {
+                  socket.destroy();
+                  if (Date.now() > deadline) process.exit(1);
+                  setTimeout(connect, 2000);
+                });
+              };
+              connect();
+      containers:
+        - name: migrate
+          image: video-player/content-media-migrate:local
+          imagePullPolicy: IfNotPresent
+          command:
+            - npm
+            - --workspace
+            - "@videoplayer/content-media"
+            - run
+            - db:migrate
+          env:
+            - name: CONTENT_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: videoplayer-microservice-secrets
+                  key: content-database-url

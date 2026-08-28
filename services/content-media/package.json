@@ -5,19 +5,27 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "prebuild": "npm --workspace @videoplayer/shared-contracts run build",
+    "prebuild": "npm --workspace @videoplayer/shared-contracts run build && npm run prisma:generate",
     "build": "tsc -p tsconfig.json",
     "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\"",
-    "pretest": "npm --workspace @videoplayer/shared-contracts run build",
+    "prisma:generate": "prisma generate --schema prisma/schema.prisma",
+    "db:migrate": "prisma migrate deploy --schema prisma/schema.prisma",
+    "db:fixture": "prisma db execute --schema prisma/schema.prisma --file prisma/fixture.sql",
+    "pretest": "npm --workspace @videoplayer/shared-contracts run build && npm run prisma:generate",
     "test": "vitest run --config vitest.config.ts",
+    "verify:container": "node scripts/verify-container.mjs",
+    "verify:minio": "node scripts/verify-minio-chain.mjs",
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@prisma/client": "^6.9.0",
     "@videoplayer/shared-contracts": "0.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
     "eslint": "^9.23.0",
+    "minio": "^8.0.7",
+    "prisma": "^6.9.0",
     "typescript": "^5.8.2",
     "vitest": "^4.1.11"
   }

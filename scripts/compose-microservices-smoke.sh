@@ -6,6 +6,8 @@ COMPOSE_FILE="$ROOT_DIR/deploy/docker-compose.microservices.yml"
 PROJECT_NAME=${MICROSERVICE_COMPOSE_PROJECT_NAME:-video-player-ms00-smoke}
 IMAGE_TAG=${IMAGE_TAG:-$(git -C "$ROOT_DIR" rev-parse --short=12 HEAD)}
 GIT_SHA=${GIT_SHA:-$(git -C "$ROOT_DIR" rev-parse HEAD)}
+CONTENT_DB_PASSWORD=${CONTENT_DB_PASSWORD:-$(node -e 'process.stdout.write(require("node:crypto").randomBytes(18).toString("hex"))')}
+CONTENT_DB_ROOT_PASSWORD=${CONTENT_DB_ROOT_PASSWORD:-$(node -e 'process.stdout.write(require("node:crypto").randomBytes(18).toString("hex"))')}
 
 for command_name in docker curl git node; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
@@ -41,6 +43,7 @@ trap cleanup EXIT
 
 export IMAGE_TAG GIT_SHA IDENTITY_DATABASE_NAME IDENTITY_DATABASE_USER IDENTITY_DATABASE_PASSWORD
 export IDENTITY_MYSQL_ROOT_PASSWORD IDENTITY_ADMIN_SECRET SERVICE_JWT_SECRET
+export IMAGE_TAG GIT_SHA CONTENT_DB_PASSWORD CONTENT_DB_ROOT_PASSWORD
 compose config --quiet
 if [[ "${MICROSERVICE_COMPOSE_SKIP_BUILD:-false}" == "true" ]]; then
   compose up -d
@@ -92,6 +95,18 @@ compose exec -T identity-mysql \
   mysql -N -u"$IDENTITY_DATABASE_USER" -p"$IDENTITY_DATABASE_PASSWORD" "$IDENTITY_DATABASE_NAME" \
   -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '$IDENTITY_DATABASE_NAME'" \
   | grep -Fx '12' >/dev/null
+
+content_database_list=$(compose exec -T content-mysql \
+  mysql -N -ucontent_media -p"$CONTENT_DB_PASSWORD" -e 'SHOW DATABASES')
+grep -Fx 'content_media' <<<"$content_database_list" >/dev/null
+if grep -Fx 'video_player' <<<"$content_database_list" >/dev/null || grep -Fx "$IDENTITY_DATABASE_NAME" <<<"$content_database_list" >/dev/null; then
+  echo "content database account can access another service schema" >&2
+  exit 1
+fi
+compose exec -T content-mysql \
+  mysql -N -ucontent_media -p"$CONTENT_DB_PASSWORD" content_media \
+  -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'content_media'" \
+  | grep -Fx '14' >/dev/null
 
 for service in identity-community content-media live-reward governance-ai gateway; do
   container_id=$(compose ps -q "$service")

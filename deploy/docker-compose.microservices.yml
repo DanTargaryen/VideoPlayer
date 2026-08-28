@@ -37,6 +37,33 @@ services:
       identity-mysql:
         condition: service_healthy
 
+  content-mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: content_media
+      MYSQL_USER: content_media
+      MYSQL_PASSWORD: ${CONTENT_DB_PASSWORD:-content-media-local-only}
+      MYSQL_ROOT_PASSWORD: ${CONTENT_DB_ROOT_PASSWORD:-content-root-local-only}
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    volumes:
+      - content-mysql-data:/var/lib/mysql
+    healthcheck:
+      <<: *service-health
+      start_period: 15s
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+
+  content-migrate:
+    build:
+      context: ..
+      dockerfile: services/content-media/Dockerfile
+      target: migration
+    image: video-player/content-media-migrate:${IMAGE_TAG:-local}
+    environment:
+      CONTENT_DATABASE_URL: mysql://content_media:${CONTENT_DB_PASSWORD:-content-media-local-only}@content-mysql:3306/content_media
+    depends_on:
+      content-mysql:
+        condition: service_healthy
+
   identity-community:
     build:
       context: ..
@@ -65,8 +92,12 @@ services:
     environment:
       PORT: 3000
       GIT_SHA: ${GIT_SHA:-dev}
+      CONTENT_DATABASE_URL: mysql://content_media:${CONTENT_DB_PASSWORD:-content-media-local-only}@content-mysql:3306/content_media
     ports:
       - "3102:3000"
+    depends_on:
+      content-migrate:
+        condition: service_completed_successfully
     healthcheck:
       <<: *service-health
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
@@ -134,3 +165,4 @@ services:
 
 volumes:
   identity-mysql-data:
+  content-mysql-data:

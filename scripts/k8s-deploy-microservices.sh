@@ -12,6 +12,7 @@ IDENTITY_DATABASE_PASSWORD=${IDENTITY_DATABASE_PASSWORD:-}
 IDENTITY_DATABASE_URL=${IDENTITY_DATABASE_URL:-}
 IDENTITY_ADMIN_SECRET=${IDENTITY_ADMIN_SECRET:-}
 MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-}
+CONTENT_DB_PASSWORD=${CONTENT_DB_PASSWORD:-}
 
 for command_name in docker kind kubectl; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
@@ -44,6 +45,10 @@ if [[ -z "$IDENTITY_DATABASE_URL" || -z "$MYSQL_ROOT_PASSWORD" ]]; then
   echo "IDENTITY_DATABASE_URL and MYSQL_ROOT_PASSWORD are required." >&2
   exit 1
 fi
+if [[ ${#CONTENT_DB_PASSWORD} -lt 24 || ! "$CONTENT_DB_PASSWORD" =~ ^[A-Za-z0-9]+$ ]]; then
+  echo "CONTENT_DB_PASSWORD must contain at least 24 alphanumeric characters." >&2
+  exit 1
+fi
 
 services=(identity-community content-media live-reward governance-ai gateway)
 images=()
@@ -52,9 +57,11 @@ for service in "${services[@]}"; do
   docker image inspect "$image" >/dev/null
   images+=("$image")
 done
-migration_image="video-player/identity-community-migration:$IMAGE_TAG"
-docker image inspect "$migration_image" >/dev/null
-images+=("$migration_image")
+identity_migration_image="video-player/identity-community-migration:$IMAGE_TAG"
+content_migration_image="video-player/content-media-migrate:$IMAGE_TAG"
+docker image inspect "$identity_migration_image" >/dev/null
+docker image inspect "$content_migration_image" >/dev/null
+images+=("$identity_migration_image" "$content_migration_image")
 
 if ! kind get clusters | grep -Fxq "$CLUSTER_NAME"; then
   echo "Kind cluster $CLUSTER_NAME does not exist; deploy the monolith baseline first." >&2
@@ -65,16 +72,21 @@ kubectl config use-context "kind-$CLUSTER_NAME" >/dev/null
 kind load docker-image "${images[@]}" --name "$CLUSTER_NAME"
 
 kubectl apply -f "$ROOT_DIR/deploy/k8s/microservices/namespace.yaml"
+kubectl -n "$NAMESPACE" rollout status statefulset/mysql --timeout=240s
 kubectl -n "$NAMESPACE" exec statefulset/mysql -- \
   env MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -e \
   "CREATE DATABASE IF NOT EXISTS \`$IDENTITY_DATABASE_NAME\`; CREATE USER IF NOT EXISTS '$IDENTITY_DATABASE_USER'@'%' IDENTIFIED BY '$IDENTITY_DATABASE_PASSWORD'; ALTER USER '$IDENTITY_DATABASE_USER'@'%' IDENTIFIED BY '$IDENTITY_DATABASE_PASSWORD'; GRANT ALL PRIVILEGES ON \`$IDENTITY_DATABASE_NAME\`.* TO '$IDENTITY_DATABASE_USER'@'%'; FLUSH PRIVILEGES;"
+kubectl -n "$NAMESPACE" exec statefulset/mysql -- \
+  env MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -e \
+  "CREATE DATABASE IF NOT EXISTS content_media CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE USER IF NOT EXISTS 'content_media'@'%' IDENTIFIED BY '${CONTENT_DB_PASSWORD}'; ALTER USER 'content_media'@'%' IDENTIFIED BY '${CONTENT_DB_PASSWORD}'; GRANT ALL PRIVILEGES ON content_media.* TO 'content_media'@'%'; FLUSH PRIVILEGES;"
 kubectl -n "$NAMESPACE" create secret generic videoplayer-microservice-secrets \
   --from-literal=service-jwt-secret="$SERVICE_JWT_SECRET" \
   --from-literal=identity-database-url="$IDENTITY_DATABASE_URL" \
   --from-literal=identity-admin-secret="$IDENTITY_ADMIN_SECRET" \
+  --from-literal=content-database-url="mysql://content_media:${CONTENT_DB_PASSWORD}@mysql:3306/content_media" \
   --dry-run=client -o yaml | kubectl apply -f -
 kubectl -n "$NAMESPACE" delete job identity-migrate --ignore-not-found
-sed "s|video-player/identity-community-migration:local|$migration_image|g" \
+sed "s|video-player/identity-community-migration:local|$identity_migration_image|g" \
   "$ROOT_DIR/deploy/k8s/microservices/identity-migrate-job.yaml" | kubectl apply -f -
 if ! kubectl -n "$NAMESPACE" wait --for=condition=complete job/identity-migrate --timeout=240s; then
   kubectl -n "$NAMESPACE" logs job/identity-migrate --all-containers=true --tail=200 || true
@@ -87,6 +99,22 @@ if grep -Fx 'video_player' <<<"$identity_database_list" >/dev/null; then
   echo "identity database account can access the monolith schema" >&2
   exit 1
 fi
+
+kubectl -n "$NAMESPACE" delete job content-migrate --ignore-not-found
+sed "s|video-player/content-media-migrate:local|$content_migration_image|g" \
+  "$ROOT_DIR/deploy/k8s/microservices/content-migrate-job.yaml" | kubectl apply -f -
+if ! kubectl -n "$NAMESPACE" wait --for=condition=complete job/content-migrate --timeout=240s; then
+  kubectl -n "$NAMESPACE" logs job/content-migrate --all-containers=true --tail=200 || true
+  exit 1
+fi
+content_database_list=$(kubectl -n "$NAMESPACE" exec statefulset/mysql -- \
+  env MYSQL_PWD="$CONTENT_DB_PASSWORD" mysql -N -ucontent_media -e 'SHOW DATABASES')
+grep -Fx 'content_media' <<<"$content_database_list" >/dev/null
+if grep -Fx 'video_player' <<<"$content_database_list" >/dev/null || grep -Fx "$IDENTITY_DATABASE_NAME" <<<"$content_database_list" >/dev/null; then
+  echo "content database account can access another service schema" >&2
+  exit 1
+fi
+
 kubectl apply -k "$ROOT_DIR/deploy/k8s/microservices"
 kubectl -n "$NAMESPACE" patch configmap videoplayer-microservice-config \
   --type merge \

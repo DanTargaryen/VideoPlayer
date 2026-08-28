@@ -288,57 +288,59 @@ services/<service>/
 
 ### 5.2 数据 owner
 
-- [ ] `Video`
-- [ ] `VideoCategory`
-- [ ] `VideoAiSummary`（首批不切写流量）
-- [ ] `VideoAiChatSession`（首批不切写流量）
-- [ ] `VideoAiChatMessage`（首批不切写流量）
-- [ ] `UserVideoWatch`
-- [ ] `VideoAsset`
-- [ ] `Comment`
-- [ ] `VideoLike`
-- [ ] `Favorite`
-- [ ] `FavoriteFolder`
-- [ ] `VideoDanmaku`
-- [ ] `CreatorPlayDaily`
+- [x] `Video`
+- [x] `VideoCategory`
+- [x] `VideoAiSummary`（首批不切写流量）
+- [x] `VideoAiChatSession`（首批不切写流量）
+- [x] `VideoAiChatMessage`（首批不切写流量）
+- [x] `UserVideoWatch`
+- [x] `VideoAsset`
+- [x] `Comment`
+- [x] `VideoLike`
+- [x] `Favorite`
+- [x] `FavoriteFolder`
+- [x] `VideoDanmaku`
+- [x] `CreatorPlayDaily`
 
 ### 5.3 Foundation 与只读 API
 
-- [ ] 基于已合并 MS-00 的最新 `main` 创建分支。
-- [ ] 建立独立 content Prisma schema、migration 和 fixture。
-- [ ] creatorId/userId 为外部 ID，不建立跨 schema FK。
-- [ ] `GET /api/v1/feeds/recommend`。
-- [ ] `GET /api/v1/search/all`。
-- [ ] `GET /api/v1/videos/:id`。
-- [ ] `GET /api/v1/videos/:id/recommendations`。
-- [ ] 使用 identity batch-summary client，不直接查询 User。
-- [ ] 第一批可以 mock identity，但 contract 必须与 B 一致。
+- [x] 基于已合并 MS-00 的最新 `main` 创建分支。
+- [x] 建立独立 content Prisma schema、migration 和 fixture。
+- [x] creatorId/userId 为外部 ID，不建立跨 schema FK。
+- [x] `GET /api/v1/feeds/recommend`。
+- [x] `GET /api/v1/search/all`。
+- [x] `GET /api/v1/videos/:id`。
+- [x] `GET /api/v1/videos/:id/recommendations`。
+- [x] 使用 identity batch-summary client，不直接查询 User。
+- [x] 第一批可以 mock identity，但 contract 必须与 B 一致。
 
 ### 5.4 内部 API contract
 
-- [ ] `POST /internal/v1/videos/:id/review-decision`，decisionId 幂等。
-- [ ] `POST /internal/v1/videos/:id/text-status`。
-- [ ] `POST /internal/v1/replays`，requestId/objectKey 幂等。
-- [ ] `POST /internal/v1/videos/batch-summary`。
-- [ ] 依赖 identity 不可用时有 timeout 和可解释 fallback。
+- [x] `POST /internal/v1/videos/:id/review-decision`，decisionId 幂等。
+- [x] `POST /internal/v1/videos/:id/text-status`。
+- [x] `POST /internal/v1/replays`，requestId/objectKey 幂等。
+- [x] `POST /internal/v1/videos/batch-summary`。
+- [x] 依赖 identity 不可用时有 timeout 和可解释 fallback。
 
 ### 5.5 媒体边界与测试
 
-- [ ] 保留扩展名/MIME/FFprobe 视频流验证。
-- [ ] 伪装 MP4 返回 400。
-- [ ] 无效媒体不创建 VideoAsset/Video/MinIO object。
-- [ ] 写入数据库失败时精确删除本次对象。
-- [ ] 推荐、无结果搜索、视频详情和草稿隔离测试通过。
-- [ ] review-decision/replay/batch-summary contract tests 通过。
-- [ ] 服务可独立 build/test/image/health/version。
+- [x] 保留扩展名/MIME/FFprobe 视频流验证。
+- [x] 伪装 MP4 返回 400。
+- [x] 无效媒体不创建 VideoAsset/Video/MinIO object。
+- [x] 写入数据库失败时精确删除本次对象。
+- [x] 推荐、无结果搜索、视频详情和草稿隔离测试通过。
+- [x] review-decision/replay/batch-summary contract tests 通过。
+- [x] 服务可独立 build/test/image/health/version。
+
+说明：本轮使用 package-local Prisma Client，避免与单体 backend Client 相互覆盖；`IdentityBatchSummaryContract` 已进入 shared-contracts，并与已合入 MS-01 的数字型 userId、`items`/`byId`/`missingIds` wire contract 对齐，content 在服务边界统一转换为字符串外部 ID。`verify:container` 用隔离 MySQL 复测 image/migration/fixture/health/version/ffprobe；`verify:minio` 在同一流程中使用真实 MySQL、Prisma 和固定 digest 的 MinIO，验证伪装 MP4 400 且 0 object/row、合法 MP4 同时持久化一条真实 row/object、真实数据库唯一键失败后只删除本次 object。Compose 自动启动 content MySQL/migration，隔离 Kind 使用独立 `content_media` schema、专属账号与 migration Job；两套环境五个业务/Gateway 工作负载均通过 15 个 health/version 请求。Gateway 业务流量仍保持单体模式。
 
 ### 5.6 C 第一批禁止事项
 
-- [ ] 未切上传、投稿或互动写流量。
-- [ ] 未迁移 VideoAi 写路径。
-- [ ] 未直接查询 User/Notification/CoinTransaction。
-- [ ] 未删除单体 Video/Asset/Comment 等表。
-- [ ] 未自定义与 B 不兼容的用户摘要结构。
+- [x] 未切上传、投稿或互动写流量。
+- [x] 未迁移 VideoAi 写路径。
+- [x] 未直接查询 User/Notification/CoinTransaction。
+- [x] 未删除单体 Video/Asset/Comment 等表。
+- [x] 未自定义与 B 不兼容的用户摘要结构。
 
 ## 6. D（直播与礼物）TODO
 

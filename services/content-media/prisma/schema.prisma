@@ -1,0 +1,215 @@
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../generated/prisma-client"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("CONTENT_DATABASE_URL")
+}
+
+model Video {
+  id              String               @id @default(cuid())
+  creatorId       String
+  categoryId      String?
+  title           String
+  description     String               @db.Text
+  status          VideoStatus          @default(DRAFT)
+  coverUrl        String?
+  playUrl         String?
+  durationSeconds Int                  @default(0)
+  publishedAt     DateTime?
+  reviewDecisionId String?             @unique
+  reviewDecision   String?
+  reviewDecisionReason String?         @db.Text
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  assets          VideoAsset[]
+  comments        Comment[]
+  likes           VideoLike[]
+  favorites       Favorite[]
+  danmaku         VideoDanmaku[]
+  watches         UserVideoWatch[]
+  aiSummaries     VideoAiSummary[]
+  aiChatSessions  VideoAiChatSession[]
+  category        VideoCategory?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([creatorId])
+  @@index([status, publishedAt])
+  @@index([categoryId])
+}
+
+model VideoCategory {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  videos    Video[]
+}
+
+model VideoAsset {
+  id        String    @id @default(cuid())
+  videoId   String
+  kind      AssetKind
+  bucket    String
+  objectKey String    @unique
+  requestId String?   @unique
+  mimeType  String
+  url       String
+  sizeBytes BigInt?
+  createdAt DateTime  @default(now())
+  video     Video     @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@index([videoId])
+}
+
+model UserVideoWatch {
+  id              String   @id @default(cuid())
+  userId          String
+  videoId         String
+  progressSeconds Int      @default(0)
+  completed       Boolean  @default(false)
+  updatedAt       DateTime @updatedAt
+  video           Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, videoId])
+  @@index([videoId])
+}
+
+model Comment {
+  id        String     @id @default(cuid())
+  videoId   String
+  userId    String
+  body      String     @db.Text
+  status    TextStatus @default(VISIBLE)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  video     Video      @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@index([videoId, status])
+  @@index([userId])
+}
+
+model VideoLike {
+  id        String   @id @default(cuid())
+  videoId   String
+  userId    String
+  requestId String?
+  createdAt DateTime @default(now())
+  video     Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@unique([videoId, userId])
+  @@unique([requestId])
+  @@index([userId])
+}
+
+model FavoriteFolder {
+  id        String     @id @default(cuid())
+  userId    String
+  name      String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  favorites Favorite[]
+
+  @@unique([userId, name])
+}
+
+model Favorite {
+  id        String          @id @default(cuid())
+  userId    String
+  videoId   String
+  folderId  String?
+  requestId String?
+  createdAt DateTime        @default(now())
+  video     Video           @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  folder    FavoriteFolder? @relation(fields: [folderId], references: [id])
+
+  @@unique([videoId, userId])
+  @@unique([requestId])
+  @@index([userId])
+  @@index([folderId])
+}
+
+model VideoDanmaku {
+  id             String     @id @default(cuid())
+  videoId        String
+  userId         String
+  body           String
+  offsetSeconds  Int
+  status         TextStatus @default(VISIBLE)
+  createdAt      DateTime   @default(now())
+  video          Video      @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@index([videoId, status])
+  @@index([userId])
+}
+
+model CreatorPlayDaily {
+  id        String   @id @default(cuid())
+  creatorId String
+  date      DateTime @db.Date
+  plays     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([creatorId, date])
+}
+
+model VideoAiSummary {
+  id        String   @id @default(cuid())
+  videoId   String
+  summary   String   @db.Text
+  status    String   @default("READY")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  video     Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@index([videoId])
+}
+
+model VideoAiChatSession {
+  id        String               @id @default(cuid())
+  videoId   String
+  userId    String
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  video     Video                @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  messages  VideoAiChatMessage[]
+
+  @@index([videoId])
+  @@index([userId])
+}
+
+model VideoAiChatMessage {
+  id        String             @id @default(cuid())
+  sessionId String
+  role      String
+  content   String             @db.Text
+  createdAt DateTime           @default(now())
+  session   VideoAiChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+enum VideoStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  REJECTED
+  HIDDEN
+}
+
+enum AssetKind {
+  ORIGINAL
+  TRANSCODED
+  COVER
+  REPLAY
+}
+
+enum TextStatus {
+  VISIBLE
+  HIDDEN
+}

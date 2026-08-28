@@ -6,6 +6,7 @@ import {
   failure,
   ok,
   resolvePort,
+  type IdentityBatchSummaryContract,
   type ServiceRuntimeOptions,
 } from '@videoplayer/shared-contracts';
 import { Prisma, PrismaClient } from '@prisma/client';
@@ -511,7 +512,8 @@ async function handleInternalRoute(options: {
     const claims = authorizeInternalRequest(request.headers.authorization, serviceJwtSecret, ['internal:user-summary']);
     const body = (await readJsonBody(request)) as { userIds?: unknown; ids?: unknown };
     const userIds = parseList(body.userIds ?? body.ids);
-    writeJson(response, 200, ok(await store.batchSummary(userIds), claims.requestId), claims.requestId);
+    const summary: IdentityBatchSummaryContract = await store.batchSummary(userIds);
+    writeJson(response, 200, ok(summary, claims.requestId), claims.requestId);
     return;
   }
 

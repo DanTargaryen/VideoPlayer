@@ -88,7 +88,7 @@ npm run dev:backend
 npm run test:services:ci
 ```
 
-本地 Compose Smoke 会构建并启动 Gateway `3100`、identity `3101`、content `3102`、live `3103` 和 governance `3104`，验证 `/health/live`、`/health/ready` 和 `/version` 后自动清理：
+本地 Compose Smoke 会启动隔离的 identity/content MySQL 和各自的一次性 migration 容器，再启动 Gateway `3100`、identity `3101`、content `3102`、live `3103` 和 governance `3104`，验证两套数据库的迁移与最小权限，以及各服务的 `/health/live`、`/health/ready` 和 `/version`，随后自动清理：
 
 ```bash
 MICROSERVICE_COMPOSE_PROJECT_NAME=video-player-ms00-local \
@@ -98,13 +98,23 @@ MICROSERVICE_COMPOSE_PROJECT_NAME=video-player-ms00-local \
 Gateway 默认使用 `GATEWAY_ROUTE_MODE=monolith`，业务请求仍指向现有单体；只有后续受评审任务才能按路径切换微服务。Kind 中先部署单体基线，再执行：
 
 ```bash
+set -a
+source .env.practice
+set +a
+export IDENTITY_DATABASE_NAME=video_player_identity_test
+export IDENTITY_DATABASE_USER=identity_app
+export IDENTITY_DATABASE_PASSWORD="$(node -e 'process.stdout.write(require("node:crypto").randomBytes(24).toString("hex"))')"
+export IDENTITY_DATABASE_URL="mysql://${IDENTITY_DATABASE_USER}:${IDENTITY_DATABASE_PASSWORD}@mysql:3306/${IDENTITY_DATABASE_NAME}"
+export IDENTITY_ADMIN_SECRET="$(node -e 'process.stdout.write(require("node:crypto").randomBytes(24).toString("hex"))')"
 export SERVICE_JWT_SECRET="$(node -e 'process.stdout.write(require("node:crypto").randomBytes(24).toString("hex"))')"
+export CONTENT_DB_PASSWORD="$(node -e 'process.stdout.write(require("node:crypto").randomBytes(18).toString("hex"))')"
 bash scripts/k8s-deploy-microservices.sh "$(git rev-parse --short=12 HEAD)"
 bash scripts/k8s-health-check-microservices.sh
-unset SERVICE_JWT_SECRET
+unset IDENTITY_DATABASE_NAME IDENTITY_DATABASE_USER IDENTITY_DATABASE_PASSWORD IDENTITY_DATABASE_URL
+unset IDENTITY_ADMIN_SECRET SERVICE_JWT_SECRET CONTENT_DB_PASSWORD
 ```
 
-真实 `SERVICE_JWT_SECRET` 只能通过本地环境或 Kubernetes Secret 注入，不得写入仓库。
+真实数据库口令、`IDENTITY_ADMIN_SECRET`、`SERVICE_JWT_SECRET` 和 `MYSQL_ROOT_PASSWORD` 只能通过本地环境或 Kubernetes Secret 注入，不得写入仓库。部署脚本会在现有 MySQL 实例中创建隔离的 identity/content schema 和各自的最小权限账号，随后依次运行两个独立 migration Job。
 
 ## Clean-machine 课程实践复现
 
