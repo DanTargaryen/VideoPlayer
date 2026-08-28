@@ -8,6 +8,7 @@ import {
   resolvePort,
   type ServiceRuntimeOptions,
 } from '@videoplayer/shared-contracts';
+import { PrismaClient } from '@prisma/client';
 
 import { IdentityStore, IdentityStoreError, type NotificationType } from './identity-store.js';
 
@@ -101,8 +102,27 @@ export function createIdentityService(options: { store?: IdentityStore; serviceJ
   const store = options.store ?? new IdentityStore();
   const serviceJwtSecret = options.serviceJwtSecret ?? process.env.SERVICE_JWT_SECRET ?? '';
   const startedAt = Date.now();
+  const databaseUrl = process.env.DATABASE_URL?.trim();
+  const databaseClient = databaseUrl ? new PrismaClient() : null;
+  let databaseReady = !databaseClient;
 
-  return createServer(async (request, response) => {
+  if (databaseClient) {
+    void databaseClient.$connect()
+      .then(() => {
+        databaseReady = true;
+      })
+      .catch((error: unknown) => {
+        databaseReady = false;
+        console.error(JSON.stringify({
+          timestamp: new Date().toISOString(),
+          service: SERVICE_OPTIONS.serviceName,
+          event: 'database_connect_failed',
+          message: error instanceof Error ? error.message : String(error),
+        }));
+      });
+  }
+
+  const server = createServer(async (request, response) => {
     const traceId = requestId(request);
     const method = request.method ?? 'GET';
     const url = new URL(request.url ?? '/', 'http://127.0.0.1');
@@ -128,6 +148,15 @@ export function createIdentityService(options: { store?: IdentityStore; serviceJ
       }
 
       if (method === 'GET' && pathname === '/health/ready') {
+        if (!databaseReady) {
+          writeJson(
+            response,
+            503,
+            failure('database is not ready', traceId, 503),
+            traceId,
+          );
+          return;
+        }
         writeJson(
           response,
           200,
@@ -188,6 +217,14 @@ export function createIdentityService(options: { store?: IdentityStore; serviceJ
       handleError(response, traceId, error);
     }
   });
+
+  server.on('close', () => {
+    if (databaseClient) {
+      void databaseClient.$disconnect();
+    }
+  });
+
+  return server;
 }
 
 async function handlePublicRoute(options: {
@@ -215,7 +252,10 @@ async function handlePublicRoute(options: {
   }
 
   if (method === 'GET' && pathname === '/auth/me') {
-    const user = store.requireUser(request.headers.authorization);
+    const user = store.getCurrentAuthenticatedUser(request.headers.authorization);
+    if (!user) {
+      throw new IdentityStoreError(401, 'Login required');
+    }
     writeJson(response, 200, ok(user, traceId), traceId);
     return;
   }

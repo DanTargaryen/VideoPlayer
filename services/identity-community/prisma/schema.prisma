@@ -205,6 +205,7 @@ model Notification {
   content     String           @db.VarChar(255)
   relatedType String?          @db.VarChar(32)
   relatedId   Int?
+  requestId   String?          @unique @db.VarChar(128)
   isRead      Boolean          @default(false)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt

@@ -275,6 +275,8 @@
 | 2026-08-27 | MS-00 公共微服务脚手架 | 新增 shared runtime/contracts/JWT Guard、四业务空服务、monolith-first Gateway、workspace gate、五镜像 Compose、K8s 资源、Jenkins 构建/部署/health 接入和执行文档 | `npm run test:services:ci`；完整 `npm run test:ci`；Compose build/up/HTTP；隔离 Kind create/deploy/redeploy/health；shell/compose/kustomize；cleanup；Owner 自审 | PASS；requirements 113/113、backend 16/16、frontend 22/22、MS-00 14/14；Compose 5 healthy；Kind 5 Deployment 1/1、0 restart；首次 Docker `ECONNRESET` 和 K8s env apply 冲突均修复并复跑；PR #41 squash merged，`main@9181e2c` |
 | 2026-08-28 | CI-02-JUNIT 标准报告闭环 | 为 requirements、Jest、Vitest、六微服务、API 和 Playwright 生成标准 JUnit XML；Jenkins `post` 发布；补 reporter 单测；执行成功/失败 Build | 本地 Build 9402/9305；Jenkins #9/#10；11/9 XML；Test Result API；`xmllint`；Stage/Artifact/cleanup | PASS；#9 186 passed、12/12、39 Artifacts、完整 Kind/health；#10 exit 42、167 passed、5 markers、后续 7 阶段 skipped；npm `ECONNRESET` 经重试恢复；无资源残留 |
 
+| 2026-08-28 | MS-01 identity-community review follow-up | 补齐 admin secret / `auth/me` / unknown account contract，收窄 `batch-summary` 返回形状，增加 notification requestId 冲突校验，补 Prisma notification schema、guarded seed 和进度说明 | `services/identity-community` contract tests；seed fixture；schema/migration 对齐；PR 文案 UTF-8 重填；数据库实际执行待隔离库验证 | IN PROGRESS |
+
 ## 4. 阻塞与需组长决定
 
 - [ ] 提供或指定教师确认回复的截图/链接，补入证据索引。

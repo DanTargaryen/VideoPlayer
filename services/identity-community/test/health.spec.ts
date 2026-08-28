@@ -92,6 +92,12 @@ describe('identity-community service', () => {
     });
     expect(badLogin.response.status).toBe(401);
 
+    const unknownAccount = await requestJson(baseUrl, '/api/v1/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ account: 'ghost_user', password: 'Lzy123456!' }),
+    });
+    expect(unknownAccount.response.status).toBe(401);
+
     const login = await requestJson(baseUrl, '/api/v1/auth/login', {
       method: 'POST',
       body: JSON.stringify({ account: 'lzy', password: 'Lzy123456!' }),
@@ -104,6 +110,25 @@ describe('identity-community service', () => {
     });
     expect(me.response.status).toBe(200);
     expect((me.json?.data as { nickname: string }).nickname).toBe('LZY');
+    expect((me.json?.data as { email: string }).email).toBe('lzy@example.com');
+
+    const adminLoginMissingSecret = await requestJson(baseUrl, '/api/v1/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ account: 'demo_admin', password: 'Admin123456!' }),
+    });
+    expect(adminLoginMissingSecret.response.status).toBe(401);
+
+    const adminLoginWrongSecret = await requestJson(baseUrl, '/api/v1/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ account: 'demo_admin', password: 'Admin123456!', adminSecret: 'bad-secret' }),
+    });
+    expect(adminLoginWrongSecret.response.status).toBe(401);
+
+    const adminLogin = await requestJson(baseUrl, '/api/v1/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ account: 'demo_admin', password: 'Admin123456!', adminSecret: '123456' }),
+    });
+    expect(adminLogin.response.status).toBe(200);
 
     const profileUpdate = await requestJson(baseUrl, '/api/v1/users/profile', {
       method: 'PUT',
@@ -235,6 +260,8 @@ describe('identity-community service', () => {
     expect(summary.response.status).toBe(200);
     expect((summary.json?.data as { requestedIds: number[] }).requestedIds).toEqual([2, 999, 3]);
     expect((summary.json?.data as { missingIds: number[] }).missingIds).toEqual([999]);
+    const summaryItems = (summary.json?.data as { items: Array<{ id: number; nickname: string; avatarUrl: string | null }> }).items;
+    expect(summaryItems.every((item) => Object.keys(item).sort().join(',') === 'avatarUrl,id,nickname')).toBe(true);
 
     const existsToken = issueServiceToken({
       caller: 'gateway',
@@ -281,5 +308,24 @@ describe('identity-community service', () => {
       body: JSON.stringify(payload),
     });
     expect((first.json?.data as { id: number }).id).toBe((second.json?.data as { id: number }).id);
+
+    const conflictToken = issueServiceToken({
+      caller: 'governance-ai',
+      audience: 'identity-community',
+      scopes: ['internal:notification-write'],
+      secret,
+      requestId: 'notification-request',
+    });
+    const conflict = await requestJson(baseUrl, '/internal/v1/notifications', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${conflictToken}`,
+      },
+      body: JSON.stringify({
+        ...payload,
+        title: 'different title',
+      }),
+    });
+    expect(conflict.response.status).toBe(409);
   });
 });

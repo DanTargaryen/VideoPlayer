@@ -2,7 +2,7 @@
 
 `identity-community` owns the identity and community persistence boundary for MS-01.
 
-The directory contains the first-pass Prisma schema, an initial migration and a small fixture file that mirror the service's owned models:
+The directory contains the first-pass Prisma schema, an initial migration, a guarded seed entry point and a small fixture file that mirror the service's owned models:
 
 - `User`
 - `DirectMessage`
@@ -16,4 +16,6 @@ The directory contains the first-pass Prisma schema, an initial migration and a 
 - `Notification`
 - `CreatorFollowerDaily`
 
-The runtime in this branch still uses an in-memory store for the first public batch, but the schema and migration are ready for the dedicated identity database that will be wired in the next step.
+`Notification.requestId` is modeled as a unique column so internal notification writes can stay idempotent across retries and replay.
+
+The runtime in this branch still uses the current service contract while the dedicated identity database bootstrap is prepared here for the next wiring step.

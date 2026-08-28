@@ -177,6 +177,7 @@ interface NotificationRecord {
   content: string;
   relatedType: string | null;
   relatedId: number | null;
+  requestId: string | null;
   isRead: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -193,7 +194,11 @@ interface ProfileSummaryRecord {
   updatedAt: Date;
 }
 
-const DEFAULT_ADMIN_SECRET = '123456';
+function resolveAdminSecret() {
+  return process.env.IDENTITY_ADMIN_SECRET?.trim()
+    || process.env.ADMIN_SECRET?.trim()
+    || '123456';
+}
 
 export class IdentityStoreError extends Error {
   constructor(
@@ -279,8 +284,11 @@ export class IdentityStore {
     if (!user || user.password !== password) {
       throw new IdentityStoreError(401, 'Invalid username/email or password');
     }
-    if (user.role === 'ADMIN' && adminSecret && adminSecret !== DEFAULT_ADMIN_SECRET) {
-      throw new IdentityStoreError(401, 'Admin secret is invalid');
+    if (user.role === 'ADMIN') {
+      const resolvedAdminSecret = resolveAdminSecret();
+      if (!adminSecret || adminSecret !== resolvedAdminSecret) {
+        throw new IdentityStoreError(401, 'Admin secret is invalid');
+      }
     }
     return this.issueSession(user);
   }
@@ -297,6 +305,20 @@ export class IdentityStore {
     }
     const user = this.users.get(parsed.userId);
     return user ? this.toPublicUserSnapshot(user) : null;
+  }
+
+  getCurrentAuthenticatedUser(authHeader?: string | string[]) {
+    const normalizedHeader = Array.isArray(authHeader) ? authHeader[0] : authHeader;
+    const parsed = this.parseSessionToken(normalizedHeader);
+    if (!parsed) {
+      return null;
+    }
+    const activeSessionNonce = this.activeSessionNonceByUserId.get(parsed.userId);
+    if (activeSessionNonce && activeSessionNonce !== parsed.sessionNonce) {
+      return null;
+    }
+    const user = this.users.get(parsed.userId);
+    return user ? this.toAuthenticatedUser(user) : null;
   }
 
   requireUser(authHeader?: string | string[]) {
@@ -499,7 +521,18 @@ export class IdentityStore {
     if (payload.requestId) {
       const existingId = this.notificationsByRequestId.get(payload.requestId);
       if (existingId !== undefined) {
-        return this.toNotificationSnapshot(this.assertNotificationExists(existingId));
+        const existing = this.assertNotificationExists(existingId);
+        const samePayload = existing.recipientId === payload.recipientId
+          && existing.actorId === (payload.actorId ?? null)
+          && existing.type === payload.type
+          && existing.title === payload.title
+          && existing.content === payload.content
+          && existing.relatedType === (payload.relatedType ?? null)
+          && existing.relatedId === (payload.relatedId ?? null);
+        if (!samePayload) {
+          throw new IdentityStoreError(409, 'Notification requestId conflicts with an existing payload');
+        }
+        return this.toNotificationSnapshot(existing);
       }
     }
     const notification: NotificationRecord = {
@@ -511,6 +544,7 @@ export class IdentityStore {
       content: payload.content,
       relatedType: payload.relatedType ?? null,
       relatedId: payload.relatedId ?? null,
+      requestId: payload.requestId ?? null,
       isRead: false,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -830,7 +864,7 @@ export class IdentityStore {
 
   batchSummary(userIds: number[]) {
     const requestedIds = this.uniqueStable(userIds.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0));
-    const items: Array<{ id: number; username: string; nickname: string; avatarUrl: string | null; bio: string | null; role: UserRole; messagePrivacy: DirectMessagePrivacy; profileSummary: UserRecommendationProfileSnapshot['summary'] }> = [];
+    const items: Array<{ id: number; nickname: string; avatarUrl: string | null }> = [];
     const byId: Record<number, (typeof items)[number]> = {};
     const missingIds: number[] = [];
     for (const userId of requestedIds) {
@@ -841,13 +875,8 @@ export class IdentityStore {
       }
       const snapshot = {
         id: user.id,
-        username: user.username,
         nickname: user.nickname,
         avatarUrl: user.avatarUrl,
-        bio: user.bio,
-        role: user.role,
-        messagePrivacy: user.messagePrivacy,
-        profileSummary: this.buildRecommendationProfile(user.id).summary,
       };
       items.push(snapshot);
       byId[user.id] = snapshot;
@@ -1078,6 +1107,9 @@ export class IdentityStore {
     if (byUsername !== undefined) {
       return this.users.get(byUsername) ?? null;
     }
+    if (!trimmed.includes('@')) {
+      return null;
+    }
     const normalizedEmail = this.normalizeEmail(trimmed);
     const byEmail = this.usersByEmail.get(normalizedEmail);
     return byEmail !== undefined ? this.users.get(byEmail) ?? null : null;
@@ -1097,7 +1129,7 @@ export class IdentityStore {
   }
 
   private loginWithAdminSecret(adminSecret: string) {
-    if (adminSecret !== DEFAULT_ADMIN_SECRET) {
+    if (adminSecret !== resolveAdminSecret()) {
       throw new IdentityStoreError(401, 'Admin secret is invalid');
     }
     const admin = [...this.users.values()].find((user) => user.role === 'ADMIN');

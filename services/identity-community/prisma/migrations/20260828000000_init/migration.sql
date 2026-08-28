@@ -142,10 +142,12 @@ CREATE TABLE `Notification` (
   `content` VARCHAR(255) NOT NULL,
   `relatedType` VARCHAR(32) NULL,
   `relatedId` INT NULL,
+  `requestId` VARCHAR(128) NULL,
   `isRead` BOOLEAN NOT NULL DEFAULT FALSE,
   `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updatedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
+  UNIQUE KEY `Notification_requestId_key` (`requestId`),
   KEY `Notification_recipientId_isRead_createdAt_idx` (`recipientId`, `isRead`, `createdAt`),
   CONSTRAINT `Notification_recipientId_fkey` FOREIGN KEY (`recipientId`) REFERENCES `User` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `Notification_actorId_fkey` FOREIGN KEY (`actorId`) REFERENCES `User` (`id`) ON DELETE SET NULL ON UPDATE CASCADE

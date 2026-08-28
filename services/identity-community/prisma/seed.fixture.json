@@ -1,9 +1,9 @@
 {
   "users": [
-    { "id": 1, "username": "demo_admin", "email": "admin@local.invalid", "nickname": "平台管理员", "role": "ADMIN" },
-    { "id": 2, "username": "creator_alice", "email": "alice@local.invalid", "nickname": "Alice", "role": "USER" },
-    { "id": 3, "username": "viewer_bob", "email": "bob@local.invalid", "nickname": "Bob", "role": "USER" },
-    { "id": 4, "username": "creator_carol", "email": "carol@local.invalid", "nickname": "Carol", "role": "USER" }
+    { "id": 1, "username": "demo_admin", "email": "admin@local.invalid", "password": "Admin123456!", "nickname": "平台管理员", "role": "ADMIN" },
+    { "id": 2, "username": "creator_alice", "email": "alice@local.invalid", "password": "Alice123456!", "nickname": "Alice", "role": "USER" },
+    { "id": 3, "username": "viewer_bob", "email": "bob@local.invalid", "password": "Bob123456!", "nickname": "Bob", "role": "USER" },
+    { "id": 4, "username": "creator_carol", "email": "carol@local.invalid", "password": "Carol123456!", "nickname": "Carol", "role": "USER" }
   ],
   "followRelations": [
     { "followerId": 3, "followingId": 2 },
