@@ -5,7 +5,13 @@ const { PrismaClient } = require('@prisma/client');
 
 const { ensureSeedAllowed } = require('../../../backend/scripts/seed-guard');
 
-const prisma = new PrismaClient();
+const identityDatabaseUrl = process.env.IDENTITY_DATABASE_URL?.trim();
+if (!identityDatabaseUrl) {
+  throw new Error('IDENTITY_DATABASE_URL is required.');
+}
+process.env.DATABASE_URL = identityDatabaseUrl;
+
+const prisma = new PrismaClient({ datasources: { db: { url: identityDatabaseUrl } } });
 const fixturePath = path.join(__dirname, 'seed.fixture.json');
 
 function loadFixture() {
@@ -39,6 +45,7 @@ async function seedUsers(users) {
         password: user.password,
         role: user.role,
         nickname: user.nickname,
+        phone: user.phone ?? null,
         avatarUrl: user.avatarUrl ?? null,
         bio: user.bio ?? null,
         messagePrivacy: user.messagePrivacy ?? 'ALLOW_ALL',

@@ -1,6 +1,6 @@
 # 第二阶段微服务执行 TODO
 
-> 状态：`MS-00 DONE / MS-01..04 READY`
+> 状态：`MS-00 / MS-01 DONE / MS-02..04 READY`
 >
 > 冻结基线：`monolith-start` / `main@70d197dc1a1f6febfdc7dcb12d8661384ad5d31e`。
 >
@@ -217,55 +217,65 @@ services/<service>/
 
 ### 4.2 数据 owner
 
-- [ ] `User`
-- [ ] `DirectMessage`
-- [ ] `UserProfileSummary`
-- [ ] `UserCategoryPreference`
-- [ ] `UserCreatorPreference`
-- [ ] `DynamicPost`
-- [ ] `DynamicPostLike`
-- [ ] `DynamicPostComment`
-- [ ] `FollowRelation`
-- [ ] `Notification`
-- [ ] `CreatorFollowerDaily`
+- [x] `User`
+- [x] `DirectMessage`
+- [x] `UserProfileSummary`
+- [x] `UserCategoryPreference`
+- [x] `UserCreatorPreference`
+- [x] `DynamicPost`
+- [x] `DynamicPostLike`
+- [x] `DynamicPostComment`
+- [x] `FollowRelation`
+- [x] `Notification`
+- [x] `CreatorFollowerDaily`
 
 ### 4.3 Foundation
 
-- [ ] 基于已合并 MS-00 的最新 `main` 创建分支。
-- [ ] 建立独立 identity Prisma schema。
-- [ ] 跨域 ID 不建立到其他 schema 的外键。
-- [ ] migration 可在全新 identity 测试库首次和重复执行。
-- [ ] 提供最小 seed/fixture。
-- [ ] identity 数据库账号只能访问 identity schema。
-- [ ] 服务可独立启动、build、test 和构建镜像。
+- [x] 基于已合并 MS-00 的最新 `main` 创建分支。
+- [x] 建立独立 identity Prisma schema。
+- [x] 跨域 ID 不建立到其他 schema 的外键。
+- [x] migration 可在全新 identity 测试库首次和重复执行。
+- [x] 提供最小 seed/fixture。
+- [x] identity 数据库账号只能访问 identity schema。
+- [x] 服务可独立启动、build、test 和构建镜像。
 
 ### 4.4 内部 API
 
-- [ ] `POST /internal/v1/users/batch-summary`。
-- [ ] `GET /internal/v1/users/:id/exists`。
-- [ ] `POST /internal/v1/notifications`。
-- [ ] batch-summary 支持批量、缺失 ID 和稳定返回顺序/映射。
-- [ ] notifications 使用 requestId 幂等。
-- [ ] 内部 API 使用 A 提供的服务 JWT Guard。
+- [x] `POST /internal/v1/users/batch-summary`。
+- [x] `GET /internal/v1/users/:id/exists`。
+- [x] `POST /internal/v1/notifications`。
+- [x] batch-summary 支持批量、缺失 ID 和稳定返回顺序/映射。
+- [x] notifications 使用 requestId 幂等。
+- [x] 内部 API 使用 A 提供的服务 JWT Guard。
 
 ### 4.5 第一批公开能力与测试
 
-- [ ] 注册成功、重复用户名/邮箱拒绝。
-- [ ] 登录成功、错误密码拒绝。
-- [ ] 当前用户查询。
-- [ ] 资料读取与更新。
-- [ ] 重新登录使旧 Token 失效的单会话 nonce 行为保持。
-- [ ] batch-summary、exists、notification contract tests 通过。
-- [ ] UC01 API 主流程与异常流程通过。
-- [ ] UC04 的关注/通知最小链路通过。
+- [x] 注册成功、重复用户名/邮箱拒绝。
+- [x] 登录成功、错误密码拒绝。
+- [x] 当前用户查询。
+- [x] 资料读取与更新。
+- [x] 重新登录使旧 Token 失效的单会话 nonce 行为保持。
+- [x] batch-summary、exists、notification contract tests 通过。
+- [x] UC01 API 主流程与异常流程通过。
+- [x] UC04 的关注/通知最小链路通过。
 
 ### 4.6 B 第一批禁止事项
 
-- [ ] 未切换 Gateway 写流量。
-- [ ] 未删除单体 User/关系/通知表。
-- [ ] 未让 content/live/governance 使用 identity Prisma Client。
-- [ ] 未修改其他服务 schema。
-- [ ] 未把全部动态社区 UI 迁移混入 foundation。
+- [x] 未切换 Gateway 写流量。
+- [x] 未删除单体 User/关系/通知表。
+- [x] 未让 content/live/governance 使用 identity Prisma Client。
+- [x] 未修改其他服务 schema。
+- [x] 未把全部动态社区 UI 迁移混入 foundation。
+
+### 4.7 B 验收证据
+
+- [x] clean `npm ci` 与完整 `npm run test:ci` 通过：requirements 115、backend 16、frontend 22、services 18，共 171 项。
+- [x] identity memory contract 5/5、真实 MySQL restart/multi-instance integration 1/1。
+- [x] 初始 migration 首次/重复、guarded seed、test reset 通过；非 test reset 在连接前被拒绝。
+- [x] Docker runtime/migration 镜像构建；Compose migration、五服务 live/ready/version、identity 重启后登录、12 表与账号 schema 隔离通过。
+- [x] `phone` 保留，`sessionNonce` 持久化；`coinBalance` 不再属于 identity schema，迁移/回滚说明已同步。
+- [x] Gateway 保持 monolith/fallback；没有停止单体写入或删除单体表。
+- [ ] Kind 实际 rollout：`NOT RUN`；新增 Secret、migration Job、部署脚本已通过 Shell/Kustomize 静态检查，后续由平台集成批次在隔离 Kind 重跑。
 
 ## 5. C（内容与媒体）TODO
 

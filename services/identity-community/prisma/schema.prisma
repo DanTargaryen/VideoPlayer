@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "mysql"
-  url      = env("DATABASE_URL")
+  url      = env("IDENTITY_DATABASE_URL")
 }
 
 enum UserRole {
@@ -54,10 +54,11 @@ model User {
   password                String                   @db.VarChar(255)
   role                    UserRole
   nickname                String                   @db.VarChar(64)
+  phone                   String?                  @unique @db.VarChar(20)
   avatarUrl               String?                  @db.VarChar(255)
   bio                     String?                  @db.VarChar(255)
-  coinBalance             Int                      @default(10)
   messagePrivacy          DirectMessagePrivacy     @default(ALLOW_ALL)
+  sessionNonce            String?                  @db.VarChar(64)
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
 

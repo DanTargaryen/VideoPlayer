@@ -8,9 +8,10 @@ import {
   resolvePort,
   type ServiceRuntimeOptions,
 } from '@videoplayer/shared-contracts';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 
 import { IdentityStore, IdentityStoreError, type NotificationType } from './identity-store.js';
+import { PrismaIdentityStore } from './prisma-identity-store.js';
 
 export const SERVICE_OPTIONS: ServiceRuntimeOptions = {
   serviceName: 'identity-community',
@@ -18,6 +19,14 @@ export const SERVICE_OPTIONS: ServiceRuntimeOptions = {
 };
 
 const INTERNAL_ALLOWED_CALLERS = ['gateway', 'content-media', 'live-reward', 'governance-ai'] as const;
+type IdentityStorePort = IdentityStore | PrismaIdentityStore;
+
+interface IdentityServiceOptions {
+  store?: IdentityStorePort;
+  serviceJwtSecret?: string;
+  databaseUrl?: string;
+  adminSecret?: string;
+}
 
 function resolveVersion() {
   return process.env.GIT_SHA?.trim() || process.env.SERVICE_VERSION?.trim() || 'dev';
@@ -83,6 +92,24 @@ function handleError(response: ServerResponse, traceId: string, error: unknown) 
     writeJson(response, 401, failure(error.message, traceId, 401), traceId);
     return;
   }
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === 'P2002') {
+      writeJson(response, 409, failure('A unique identity record already exists', traceId, 409), traceId);
+      return;
+    }
+    if (error.code === 'P2025') {
+      writeJson(response, 404, failure('Identity record not found', traceId, 404), traceId);
+      return;
+    }
+  }
+  if (
+    error instanceof Prisma.PrismaClientInitializationError
+    || error instanceof Prisma.PrismaClientRustPanicError
+    || (error instanceof Error && /P1000|P1001|P1002|P1017|database.*unavailable/i.test(error.message))
+  ) {
+    writeJson(response, 503, failure('Identity database is unavailable', traceId, 503), traceId);
+    return;
+  }
   writeJson(response, 500, failure('Internal server error', traceId, 500), traceId);
 }
 
@@ -98,15 +125,26 @@ function authorizeInternalRequest(authorization: unknown, secret: string, requir
   });
 }
 
-export function createIdentityService(options: { store?: IdentityStore; serviceJwtSecret?: string } = {}): Server {
-  const store = options.store ?? new IdentityStore();
+export function createIdentityService(options: IdentityServiceOptions = {}): Server {
   const serviceJwtSecret = options.serviceJwtSecret ?? process.env.SERVICE_JWT_SECRET ?? '';
   const startedAt = Date.now();
-  const databaseUrl = process.env.DATABASE_URL?.trim();
-  const databaseClient = databaseUrl ? new PrismaClient() : null;
-  let databaseReady = !databaseClient;
+  const databaseUrl = options.databaseUrl?.trim() || process.env.IDENTITY_DATABASE_URL?.trim() || '';
+  const adminSecret = options.adminSecret?.trim()
+    || process.env.IDENTITY_ADMIN_SECRET?.trim()
+    || process.env.ADMIN_SECRET?.trim()
+    || '';
+  let store: IdentityStorePort | null = options.store ?? null;
+  let databaseClient: PrismaClient | null = null;
+  let databaseReady = Boolean(store);
+  let configurationError: string | null = null;
 
-  if (databaseClient) {
+  if (!store && !databaseUrl) {
+    configurationError = 'IDENTITY_DATABASE_URL is not configured';
+  } else if (!store && !adminSecret) {
+    configurationError = 'IDENTITY_ADMIN_SECRET is not configured';
+  } else if (!store) {
+    databaseClient = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
+    store = new PrismaIdentityStore(databaseClient, adminSecret);
     void databaseClient.$connect()
       .then(() => {
         databaseReady = true;
@@ -148,11 +186,19 @@ export function createIdentityService(options: { store?: IdentityStore; serviceJ
       }
 
       if (method === 'GET' && pathname === '/health/ready') {
-        if (!databaseReady) {
+        if (databaseClient) {
+          try {
+            await databaseClient.$queryRawUnsafe('SELECT 1');
+            databaseReady = true;
+          } catch {
+            databaseReady = false;
+          }
+        }
+        if (!store || !databaseReady) {
           writeJson(
             response,
             503,
-            failure('database is not ready', traceId, 503),
+            failure(configurationError ?? 'identity database is not ready', traceId, 503),
             traceId,
           );
           return;
@@ -189,6 +235,10 @@ export function createIdentityService(options: { store?: IdentityStore; serviceJ
           traceId,
         );
         return;
+      }
+
+      if (!store || !databaseReady) {
+        throw new IdentityStoreError(503, configurationError ?? 'Identity database is not ready');
       }
 
       if (pathname.startsWith('/internal/v1/')) {
@@ -233,26 +283,26 @@ async function handlePublicRoute(options: {
   request: IncomingMessage;
   response: ServerResponse;
   traceId: string;
-  store: IdentityStore;
+  store: IdentityStorePort;
 }) {
   const { method, pathname, request, response, traceId, store } = options;
   const requestUrl = new URL(request.url ?? '/', 'http://127.0.0.1');
-  const currentUser = store.getCurrentUser(request.headers.authorization);
+  const currentUser = await store.getCurrentUser(request.headers.authorization);
 
   if (method === 'POST' && pathname === '/auth/register') {
     const body = (await readJsonBody(request)) as { username?: string; password?: string; nickname?: string; email?: string };
-    writeJson(response, 200, ok(store.register(body as Parameters<IdentityStore['register']>[0]), traceId), traceId);
+    writeJson(response, 200, ok(await store.register(body as Parameters<IdentityStore['register']>[0]), traceId), traceId);
     return;
   }
 
   if (method === 'POST' && pathname === '/auth/login') {
     const body = (await readJsonBody(request)) as { account?: string; identifier?: string; password?: string; adminSecret?: string };
-    writeJson(response, 200, ok(store.login(body.account ?? body.identifier, body.password, body.adminSecret), traceId), traceId);
+    writeJson(response, 200, ok(await store.login(body.account ?? body.identifier, body.password, body.adminSecret), traceId), traceId);
     return;
   }
 
   if (method === 'GET' && pathname === '/auth/me') {
-    const user = store.getCurrentAuthenticatedUser(request.headers.authorization);
+    const user = await store.getCurrentAuthenticatedUser(request.headers.authorization);
     if (!user) {
       throw new IdentityStoreError(401, 'Login required');
     }
@@ -261,7 +311,7 @@ async function handlePublicRoute(options: {
   }
 
   if (method === 'PUT' && pathname === '/users/profile') {
-    const user = store.requireUser(request.headers.authorization);
+    const user = await store.requireUser(request.headers.authorization);
     const body = (await readJsonBody(request)) as {
       nickname?: string;
       avatarUrl?: string;
@@ -269,106 +319,106 @@ async function handlePublicRoute(options: {
       email?: string;
       messagePrivacy?: 'ALLOW_ALL' | 'FOLLOWING_ONLY' | 'DISABLED';
     };
-    writeJson(response, 200, ok(store.updateProfile(user.id, body), traceId), traceId);
+    writeJson(response, 200, ok(await store.updateProfile(user.id, body), traceId), traceId);
     return;
   }
 
   if (method === 'GET' && pathname === '/users/profile/recommendation') {
-    const user = store.requireUser(request.headers.authorization);
-    writeJson(response, 200, ok(store.getRecommendationProfile(user.id), traceId), traceId);
+    const user = await store.requireUser(request.headers.authorization);
+    writeJson(response, 200, ok(await store.getRecommendationProfile(user.id), traceId), traceId);
     return;
   }
 
   if (method === 'POST' && pathname === '/users/profile/recommendation/rebuild') {
-    const user = store.requireUser(request.headers.authorization);
-    writeJson(response, 200, ok(store.rebuildRecommendationProfile(user.id), traceId), traceId);
+    const user = await store.requireUser(request.headers.authorization);
+    writeJson(response, 200, ok(await store.rebuildRecommendationProfile(user.id), traceId), traceId);
     return;
   }
 
   const homepageMatch = /^\/users\/(\d+)\/homepage$/.exec(pathname);
   if (method === 'GET' && homepageMatch) {
     const id = Number(homepageMatch[1]);
-    writeJson(response, 200, ok(store.getHomepage(id, currentUser?.id), traceId), traceId);
+    writeJson(response, 200, ok(await store.getHomepage(id, currentUser?.id), traceId), traceId);
     return;
   }
 
   const followMatch = /^\/users\/(\d+)\/follow$/.exec(pathname);
   if (followMatch && method === 'POST') {
-    const user = store.requireUser(request.headers.authorization);
-    writeJson(response, 200, ok(store.follow(Number(followMatch[1]), user.id), traceId), traceId);
+    const user = await store.requireUser(request.headers.authorization);
+    writeJson(response, 200, ok(await store.follow(Number(followMatch[1]), user.id), traceId), traceId);
     return;
   }
   if (followMatch && method === 'DELETE') {
-    const user = store.requireUser(request.headers.authorization);
-    writeJson(response, 200, ok(store.unfollow(Number(followMatch[1]), user.id), traceId), traceId);
+    const user = await store.requireUser(request.headers.authorization);
+    writeJson(response, 200, ok(await store.unfollow(Number(followMatch[1]), user.id), traceId), traceId);
     return;
   }
 
   const followersMatch = /^\/users\/(\d+)\/followers$/.exec(pathname);
   if (method === 'GET' && followersMatch) {
-    writeJson(response, 200, ok(store.getFollowers(Number(followersMatch[1])), traceId), traceId);
+    writeJson(response, 200, ok(await store.getFollowers(Number(followersMatch[1])), traceId), traceId);
     return;
   }
 
   const followingMatch = /^\/users\/(\d+)\/following$/.exec(pathname);
   if (method === 'GET' && followingMatch) {
-    writeJson(response, 200, ok(store.getFollowing(Number(followingMatch[1])), traceId), traceId);
+    writeJson(response, 200, ok(await store.getFollowing(Number(followingMatch[1])), traceId), traceId);
     return;
   }
 
   if (method === 'GET' && pathname === '/notifications') {
-    const user = store.requireUser(request.headers.authorization);
-    writeJson(response, 200, ok(store.listNotifications(user.id), traceId), traceId);
+    const user = await store.requireUser(request.headers.authorization);
+    writeJson(response, 200, ok(await store.listNotifications(user.id), traceId), traceId);
     return;
   }
 
   if (method === 'GET' && pathname === '/notifications/unread-count') {
-    const user = store.requireUser(request.headers.authorization);
-    writeJson(response, 200, ok({ unreadCount: store.getUnreadNotificationCount(user.id) }, traceId), traceId);
+    const user = await store.requireUser(request.headers.authorization);
+    writeJson(response, 200, ok({ unreadCount: await store.getUnreadNotificationCount(user.id) }, traceId), traceId);
     return;
   }
 
   if (method === 'POST' && pathname === '/notifications/read-all') {
-    const user = store.requireUser(request.headers.authorization);
-    writeJson(response, 200, ok(store.markAllNotificationsRead(user.id), traceId), traceId);
+    const user = await store.requireUser(request.headers.authorization);
+    writeJson(response, 200, ok(await store.markAllNotificationsRead(user.id), traceId), traceId);
     return;
   }
 
   const notificationReadMatch = /^\/notifications\/(\d+)\/read$/.exec(pathname);
   if (method === 'POST' && notificationReadMatch) {
-    const user = store.requireUser(request.headers.authorization);
-    writeJson(response, 200, ok(store.markNotificationRead(user.id, Number(notificationReadMatch[1])), traceId), traceId);
+    const user = await store.requireUser(request.headers.authorization);
+    writeJson(response, 200, ok(await store.markNotificationRead(user.id, Number(notificationReadMatch[1])), traceId), traceId);
     return;
   }
 
   if (method === 'GET' && pathname === '/messages/conversations') {
-    const user = store.requireUser(request.headers.authorization);
-    writeJson(response, 200, ok(store.listDirectMessageConversations(user.id), traceId), traceId);
+    const user = await store.requireUser(request.headers.authorization);
+    writeJson(response, 200, ok(await store.listDirectMessageConversations(user.id), traceId), traceId);
     return;
   }
 
   const conversationMatch = /^\/messages\/conversations\/(\d+)$/.exec(pathname);
   if (conversationMatch && method === 'GET') {
-    const user = store.requireUser(request.headers.authorization);
-    writeJson(response, 200, ok(store.getDirectMessageConversation(user.id, Number(conversationMatch[1])), traceId), traceId);
+    const user = await store.requireUser(request.headers.authorization);
+    writeJson(response, 200, ok(await store.getDirectMessageConversation(user.id, Number(conversationMatch[1])), traceId), traceId);
     return;
   }
   if (conversationMatch && method === 'POST') {
-    const user = store.requireUser(request.headers.authorization);
+    const user = await store.requireUser(request.headers.authorization);
     const body = (await readJsonBody(request)) as { content?: string };
-    writeJson(response, 200, ok(store.sendDirectMessage(user.id, Number(conversationMatch[1]), body.content ?? ''), traceId), traceId);
+    writeJson(response, 200, ok(await store.sendDirectMessage(user.id, Number(conversationMatch[1]), body.content ?? ''), traceId), traceId);
     return;
   }
 
   if (method === 'GET' && pathname === '/messages/unread-count') {
-    const user = store.requireUser(request.headers.authorization);
-    writeJson(response, 200, ok({ unreadCount: store.getUnreadDirectMessageCount(user.id) }, traceId), traceId);
+    const user = await store.requireUser(request.headers.authorization);
+    writeJson(response, 200, ok({ unreadCount: await store.getUnreadDirectMessageCount(user.id) }, traceId), traceId);
     return;
   }
 
   if (method === 'POST' && pathname === '/messages/read-all') {
-    const user = store.requireUser(request.headers.authorization);
-    writeJson(response, 200, ok(store.markAllDirectMessagesRead(user.id), traceId), traceId);
+    const user = await store.requireUser(request.headers.authorization);
+    writeJson(response, 200, ok(await store.markAllDirectMessagesRead(user.id), traceId), traceId);
     return;
   }
 
@@ -378,7 +428,7 @@ async function handlePublicRoute(options: {
       response,
       200,
       ok(
-        store.getDynamicFeed({
+        await store.getDynamicFeed({
           currentUserId,
           type: requestUrl.searchParams.get('type') ?? undefined,
           page: parseNumber(requestUrl.searchParams.get('page') ?? undefined),
@@ -393,53 +443,53 @@ async function handlePublicRoute(options: {
   }
 
   if (method === 'GET' && pathname === '/feed/sidebar/overview') {
-    writeJson(response, 200, ok(store.getSidebarOverview(currentUser?.id), traceId), traceId);
+    writeJson(response, 200, ok(await store.getSidebarOverview(currentUser?.id), traceId), traceId);
     return;
   }
 
   if (method === 'GET' && pathname === '/feed/sidebar/recommended-users') {
-    writeJson(response, 200, ok({ list: store.getRecommendedUsers(currentUser?.id) }, traceId), traceId);
+    writeJson(response, 200, ok({ list: await store.getRecommendedUsers(currentUser?.id) }, traceId), traceId);
     return;
   }
 
   if (method === 'GET' && pathname === '/feed/sidebar/recent-updates') {
-    writeJson(response, 200, ok({ list: store.getRecentUpdates(currentUser?.id) }, traceId), traceId);
+    writeJson(response, 200, ok({ list: await store.getRecentUpdates(currentUser?.id) }, traceId), traceId);
     return;
   }
 
   if (pathname === '/feed/posts' && method === 'GET') {
-    writeJson(response, 200, ok({ list: store.listDynamicPosts(currentUser?.id) }, traceId), traceId);
+    writeJson(response, 200, ok({ list: await store.listDynamicPosts(currentUser?.id) }, traceId), traceId);
     return;
   }
 
   if (pathname === '/feed/posts' && method === 'POST') {
-    const user = store.requireUser(request.headers.authorization);
+    const user = await store.requireUser(request.headers.authorization);
     const body = (await readJsonBody(request)) as { content?: string; images?: string[] };
-    writeJson(response, 200, ok(store.createDynamicPost(user.id, body.content ?? '', body.images ?? []), traceId), traceId);
+    writeJson(response, 200, ok(await store.createDynamicPost(user.id, body.content ?? '', body.images ?? []), traceId), traceId);
     return;
   }
 
   const postLikeMatch = /^\/feed\/posts\/(\d+)\/like$/.exec(pathname);
   if (postLikeMatch && method === 'POST') {
-    const user = store.requireUser(request.headers.authorization);
-    writeJson(response, 200, ok(store.likeDynamicPost(Number(postLikeMatch[1]), user.id), traceId), traceId);
+    const user = await store.requireUser(request.headers.authorization);
+    writeJson(response, 200, ok(await store.likeDynamicPost(Number(postLikeMatch[1]), user.id), traceId), traceId);
     return;
   }
   if (postLikeMatch && method === 'DELETE') {
-    const user = store.requireUser(request.headers.authorization);
-    writeJson(response, 200, ok(store.unlikeDynamicPost(Number(postLikeMatch[1]), user.id), traceId), traceId);
+    const user = await store.requireUser(request.headers.authorization);
+    writeJson(response, 200, ok(await store.unlikeDynamicPost(Number(postLikeMatch[1]), user.id), traceId), traceId);
     return;
   }
 
   const postCommentsMatch = /^\/feed\/posts\/(\d+)\/comments$/.exec(pathname);
   if (postCommentsMatch && method === 'GET') {
-    writeJson(response, 200, ok(store.listDynamicPostComments(Number(postCommentsMatch[1])), traceId), traceId);
+    writeJson(response, 200, ok(await store.listDynamicPostComments(Number(postCommentsMatch[1])), traceId), traceId);
     return;
   }
   if (postCommentsMatch && method === 'POST') {
-    const user = store.requireUser(request.headers.authorization);
+    const user = await store.requireUser(request.headers.authorization);
     const body = (await readJsonBody(request)) as { content?: string };
-    writeJson(response, 200, ok(store.createDynamicPostComment(Number(postCommentsMatch[1]), user.id, body.content ?? ''), traceId), traceId);
+    writeJson(response, 200, ok(await store.createDynamicPostComment(Number(postCommentsMatch[1]), user.id, body.content ?? ''), traceId), traceId);
     return;
   }
 
@@ -452,7 +502,7 @@ async function handleInternalRoute(options: {
   request: IncomingMessage;
   response: ServerResponse;
   traceId: string;
-  store: IdentityStore;
+  store: IdentityStorePort;
   serviceJwtSecret: string;
 }) {
   const { method, pathname, request, response, traceId, store, serviceJwtSecret } = options;
@@ -461,7 +511,7 @@ async function handleInternalRoute(options: {
     const claims = authorizeInternalRequest(request.headers.authorization, serviceJwtSecret, ['internal:user-summary']);
     const body = (await readJsonBody(request)) as { userIds?: unknown; ids?: unknown };
     const userIds = parseList(body.userIds ?? body.ids);
-    writeJson(response, 200, ok(store.batchSummary(userIds), claims.requestId), claims.requestId);
+    writeJson(response, 200, ok(await store.batchSummary(userIds), claims.requestId), claims.requestId);
     return;
   }
 
@@ -469,7 +519,7 @@ async function handleInternalRoute(options: {
   if (method === 'GET' && existsMatch) {
     const claims = authorizeInternalRequest(request.headers.authorization, serviceJwtSecret, ['internal:user-exists']);
     const userId = Number(existsMatch[1]);
-    writeJson(response, 200, ok({ exists: store.userExists(userId) }, claims.requestId), claims.requestId);
+    writeJson(response, 200, ok({ exists: await store.userExists(userId) }, claims.requestId), claims.requestId);
     return;
   }
 
@@ -491,7 +541,7 @@ async function handleInternalRoute(options: {
       response,
       200,
       ok(
-        store.createNotification({
+        await store.createNotification({
           recipientId: Number(body.recipientId),
           actorId: body.actorId === undefined || body.actorId === null ? null : Number(body.actorId),
           type: body.type,
@@ -511,7 +561,7 @@ async function handleInternalRoute(options: {
   writeJson(response, 404, failure('route not implemented in identity-community', traceId, 404), traceId);
 }
 
-export function startIdentityService(options: { store?: IdentityStore; serviceJwtSecret?: string } = {}) {
+export function startIdentityService(options: IdentityServiceOptions = {}) {
   const port = resolvePort(SERVICE_OPTIONS.defaultPort);
   const server = createIdentityService(options);
   server.listen(port, '0.0.0.0', () => {

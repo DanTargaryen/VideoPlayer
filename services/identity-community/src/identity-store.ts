@@ -15,7 +15,6 @@ export interface UserRecord {
   nickname: string;
   avatarUrl: string | null;
   bio: string | null;
-  coinBalance: number;
   messagePrivacy: DirectMessagePrivacy;
   createdAt: Date;
   updatedAt: Date;
@@ -92,7 +91,6 @@ export interface UserHomepageSnapshot {
   following: number;
   videos: number;
   isFollowing: boolean;
-  coinBalance?: number;
   items: Array<Record<string, never>>;
 }
 
@@ -194,12 +192,6 @@ interface ProfileSummaryRecord {
   updatedAt: Date;
 }
 
-function resolveAdminSecret() {
-  return process.env.IDENTITY_ADMIN_SECRET?.trim()
-    || process.env.ADMIN_SECRET?.trim()
-    || '123456';
-}
-
 export class IdentityStoreError extends Error {
   constructor(
     public readonly statusCode: number,
@@ -231,8 +223,13 @@ export class IdentityStore {
   private readonly dynamicPostComments = new Map<number, DynamicPostCommentRecord[]>();
   private readonly activeSessionNonceByUserId = new Map<number, string>();
   private readonly profileSummaries = new Map<number, ProfileSummaryRecord>();
+  private readonly adminSecret: string;
 
-  constructor(seedFixture = true) {
+  constructor(
+    seedFixture = true,
+    adminSecret = process.env.IDENTITY_ADMIN_SECRET?.trim() || process.env.ADMIN_SECRET?.trim() || '',
+  ) {
+    this.adminSecret = adminSecret;
     if (seedFixture) {
       this.seed();
     }
@@ -285,8 +282,10 @@ export class IdentityStore {
       throw new IdentityStoreError(401, 'Invalid username/email or password');
     }
     if (user.role === 'ADMIN') {
-      const resolvedAdminSecret = resolveAdminSecret();
-      if (!adminSecret || adminSecret !== resolvedAdminSecret) {
+      if (!this.adminSecret) {
+        throw new IdentityStoreError(503, 'Admin secret is not configured');
+      }
+      if (!adminSecret || adminSecret !== this.adminSecret) {
         throw new IdentityStoreError(401, 'Admin secret is invalid');
       }
     }
@@ -379,7 +378,6 @@ export class IdentityStore {
       following: this.getFollowingCount(user.id),
       videos: 0,
       isFollowing: currentUserId ? this.isFollowing(user.id, currentUserId) : false,
-      coinBalance: currentUserId === user.id ? user.coinBalance : undefined,
       items: [],
     };
   }
@@ -987,7 +985,6 @@ export class IdentityStore {
       nickname: payload.nickname,
       avatarUrl: null,
       bio: null,
-      coinBalance: 10,
       messagePrivacy: payload.messagePrivacy ?? 'ALLOW_ALL',
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -1129,7 +1126,10 @@ export class IdentityStore {
   }
 
   private loginWithAdminSecret(adminSecret: string) {
-    if (adminSecret !== resolveAdminSecret()) {
+    if (!this.adminSecret) {
+      throw new IdentityStoreError(503, 'Admin secret is not configured');
+    }
+    if (adminSecret !== this.adminSecret) {
       throw new IdentityStoreError(401, 'Admin secret is invalid');
     }
     const admin = [...this.users.values()].find((user) => user.role === 'ADMIN');

@@ -5,15 +5,17 @@ CREATE TABLE `User` (
   `password` VARCHAR(255) NOT NULL,
   `role` ENUM('USER', 'ADMIN') NOT NULL,
   `nickname` VARCHAR(64) NOT NULL,
+  `phone` VARCHAR(20) NULL,
   `avatarUrl` VARCHAR(255) NULL,
   `bio` VARCHAR(255) NULL,
-  `coinBalance` INT NOT NULL DEFAULT 10,
   `messagePrivacy` ENUM('ALLOW_ALL', 'FOLLOWING_ONLY', 'DISABLED') NOT NULL DEFAULT 'ALLOW_ALL',
+  `sessionNonce` VARCHAR(64) NULL,
   `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updatedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   UNIQUE KEY `User_username_key` (`username`),
-  UNIQUE KEY `User_email_key` (`email`)
+  UNIQUE KEY `User_email_key` (`email`),
+  UNIQUE KEY `User_phone_key` (`phone`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `DirectMessage` (

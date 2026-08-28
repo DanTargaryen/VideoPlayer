@@ -4,9 +4,11 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { issueServiceToken } from '@videoplayer/shared-contracts';
 
+import { IdentityStore } from '../src/identity-store.js';
 import { createIdentityService } from '../src/service.js';
 
 const secret = 'identity-community-test-secret-with-at-least-32-chars';
+const adminSecret = 'identity-admin-test-secret';
 const servers: ReturnType<typeof createIdentityService>[] = [];
 
 afterEach(async () => {
@@ -14,7 +16,10 @@ afterEach(async () => {
 });
 
 async function startService() {
-  const server = createIdentityService({ serviceJwtSecret: secret });
+  const server = createIdentityService({
+    store: new IdentityStore(true, adminSecret),
+    serviceJwtSecret: secret,
+  });
   servers.push(server);
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
@@ -50,6 +55,53 @@ function authHeader(token: string) {
 }
 
 describe('identity-community service', () => {
+  it('reports not ready and blocks business routes when identity database configuration is missing', async () => {
+    const previousDatabaseUrl = process.env.IDENTITY_DATABASE_URL;
+    const previousAdminSecret = process.env.IDENTITY_ADMIN_SECRET;
+    const previousLegacyAdminSecret = process.env.ADMIN_SECRET;
+    delete process.env.IDENTITY_DATABASE_URL;
+    delete process.env.IDENTITY_ADMIN_SECRET;
+    delete process.env.ADMIN_SECRET;
+    try {
+      const server = createIdentityService({ serviceJwtSecret: secret });
+      servers.push(server);
+      server.listen(0, '127.0.0.1');
+      await once(server, 'listening');
+      const address = server.address();
+      if (!address || typeof address === 'string') throw new Error('Expected TCP address');
+      const baseUrl = `http://127.0.0.1:${address.port}`;
+      const ready = await requestJson(baseUrl, '/health/ready');
+      expect(ready.response.status).toBe(503);
+      const register = await requestJson(baseUrl, '/api/v1/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ username: 'blocked', password: 'Blocked123!' }),
+      });
+      expect(register.response.status).toBe(503);
+    } finally {
+      if (previousDatabaseUrl === undefined) delete process.env.IDENTITY_DATABASE_URL;
+      else process.env.IDENTITY_DATABASE_URL = previousDatabaseUrl;
+      if (previousAdminSecret === undefined) delete process.env.IDENTITY_ADMIN_SECRET;
+      else process.env.IDENTITY_ADMIN_SECRET = previousAdminSecret;
+      if (previousLegacyAdminSecret === undefined) delete process.env.ADMIN_SECRET;
+      else process.env.ADMIN_SECRET = previousLegacyAdminSecret;
+    }
+  });
+
+  it('reports not ready when the configured identity database is unavailable', async () => {
+    const server = createIdentityService({
+      databaseUrl: 'mysql://identity_test:identity_test@127.0.0.1:1/video_player_identity_test?connect_timeout=1',
+      adminSecret,
+      serviceJwtSecret: secret,
+    });
+    servers.push(server);
+    server.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('Expected TCP address');
+    const ready = await requestJson(`http://127.0.0.1:${address.port}`, '/health/ready');
+    expect(ready.response.status).toBe(503);
+  }, 5_000);
+
   it('serves health/version and a usable auth/profile flow', async () => {
     const { baseUrl } = await startService();
 
@@ -126,7 +178,7 @@ describe('identity-community service', () => {
 
     const adminLogin = await requestJson(baseUrl, '/api/v1/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ account: 'demo_admin', password: 'Admin123456!', adminSecret: '123456' }),
+      body: JSON.stringify({ account: 'demo_admin', password: 'Admin123456!', adminSecret }),
     });
     expect(adminLogin.response.status).toBe(200);
 
