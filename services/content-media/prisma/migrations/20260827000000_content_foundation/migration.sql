@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS `Video` (
   `durationSeconds` INTEGER NOT NULL DEFAULT 0,
   `publishedAt` DATETIME(3) NULL,
   `reviewDecisionId` VARCHAR(191) NULL,
+  `reviewDecision` VARCHAR(191) NULL,
+  `reviewDecisionReason` TEXT NULL,
   `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updatedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
@@ -30,18 +32,23 @@ CREATE TABLE IF NOT EXISTS `VideoCategory` (
   UNIQUE KEY `VideoCategory_code_key` (`code`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+ALTER TABLE `Video`
+  ADD CONSTRAINT `Video_categoryId_fkey` FOREIGN KEY (`categoryId`) REFERENCES `VideoCategory`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
 CREATE TABLE IF NOT EXISTS `VideoAsset` (
   `id` VARCHAR(191) NOT NULL,
   `videoId` VARCHAR(191) NOT NULL,
   `kind` ENUM('ORIGINAL', 'TRANSCODED', 'COVER', 'REPLAY') NOT NULL,
   `bucket` VARCHAR(191) NOT NULL,
   `objectKey` VARCHAR(191) NOT NULL,
+  `requestId` VARCHAR(191) NULL,
   `mimeType` VARCHAR(191) NOT NULL,
   `url` VARCHAR(191) NOT NULL,
   `sizeBytes` BIGINT NULL,
   `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   UNIQUE KEY `VideoAsset_objectKey_key` (`objectKey`),
+  UNIQUE KEY `VideoAsset_requestId_key` (`requestId`),
   KEY `VideoAsset_videoId_idx` (`videoId`),
   CONSTRAINT `VideoAsset_videoId_fkey` FOREIGN KEY (`videoId`) REFERENCES `Video`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -170,15 +177,4 @@ CREATE TABLE IF NOT EXISTS `VideoAiChatMessage` (
   PRIMARY KEY (`id`),
   KEY `VideoAiChatMessage_sessionId_idx` (`sessionId`),
   CONSTRAINT `VideoAiChatMessage_sessionId_fkey` FOREIGN KEY (`sessionId`) REFERENCES `VideoAiChatSession`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `ReplayRegistration` (
-  `id` VARCHAR(191) NOT NULL,
-  `requestId` VARCHAR(191) NOT NULL,
-  `objectKey` VARCHAR(191) NOT NULL,
-  `contentVideoId` VARCHAR(191) NOT NULL,
-  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `ReplayRegistration_requestId_key` (`requestId`),
-  UNIQUE KEY `ReplayRegistration_objectKey_key` (`objectKey`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

@@ -8,7 +8,7 @@ Implemented in this first foundation slice:
 - Read-only public contracts for recommendation, search, video detail and related recommendations.
 - Internal JWT-protected contracts for review decisions, text status updates, replay registration and video batch summaries.
 - Identity dependency is accessed only through the batch-summary client contract; this service stores `creatorId` and `userId` as external IDs and does not query identity tables.
-- Media boundary helpers keep extension and MIME validation before object/database creation, then use `ffprobe` to require a real video stream before persistence. The runtime image installs `ffmpeg`/`ffprobe`; tests inject the probe contract so unit tests remain hermetic.
+- Media boundary helpers keep extension and MIME validation before object/database creation, then use `ffprobe` to require a real video stream before persistence. On database failure after upload, the helper calls the injected object store deletion hook for the current object only. The runtime image installs `ffmpeg`/`ffprobe`; tests inject the probe contract so unit tests remain hermetic.
 
 Deliberately not switched in this PR:
 
@@ -23,12 +23,8 @@ Deliberately not switched in this PR:
 npm --workspace @videoplayer/content-media run lint
 npm --workspace @videoplayer/content-media run build
 npm --workspace @videoplayer/content-media run test
-docker build -f services/content-media/Dockerfile -t video-player/content-media:local .
-docker run --rm -d --name content-media-smoke -p 3102:3000 -e GIT_SHA=smoke video-player/content-media:local
-curl http://127.0.0.1:3102/health/live
-curl http://127.0.0.1:3102/health/ready
-curl http://127.0.0.1:3102/version
-docker exec content-media-smoke ffprobe -version
-docker rm -f content-media-smoke
 npm --workspace @videoplayer/content-media run verify:container
+npm --workspace @videoplayer/content-media run verify:minio
 ```
+
+`/health/ready` requires a reachable content database. `verify:container` starts an isolated MySQL 8 container, runs content migration and fixture, then starts the service image and checks `live`, `ready`, `version` and a real MP4 probe inside the image. `verify:minio` starts an isolated MinIO container and verifies disguised MP4 rejection, valid MP4 acceptance and current-object-only cleanup when the database write callback fails.
