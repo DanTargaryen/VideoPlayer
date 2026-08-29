@@ -32,7 +32,7 @@ describe('governance moderation compensation', () => {
     expect(await compensator.runOnce()).toEqual([
       { decisionId: 'decision-success', status: 'APPLIED' },
     ]);
-    expect(await store.listDecisionsDueForApply(new Date(), 10)).toEqual([]);
+    expect(await store.claimDecisionsDueForApply(new Date(), 10, 'after-success', new Date(Date.now() + 60_000))).toEqual([]);
   });
 
   it('keeps retryable failures auditable and applies them after recovery', async () => {
@@ -72,5 +72,24 @@ describe('governance moderation compensation', () => {
       { decisionId: 'decision-final', status: 'APPLY_FAILED_FINAL' },
     ]);
     expect(await compensator.runOnce()).toEqual([]);
+  });
+
+  it('atomically leases a decision so concurrent workers apply it once', async () => {
+    const store = new TestGovernanceStore();
+    await pendingDecision(store, 'concurrent');
+    let applyCount = 0;
+    const content = {
+      async apply() {
+        applyCount += 1;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      },
+    };
+    const first = new ModerationCompensator(store, content);
+    const second = new ModerationCompensator(store, content);
+
+    const results = await Promise.all([first.runOnce(), second.runOnce()]);
+
+    expect(results.flat()).toEqual([{ decisionId: 'decision-concurrent', status: 'APPLIED' }]);
+    expect(applyCount).toBe(1);
   });
 });

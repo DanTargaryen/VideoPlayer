@@ -160,6 +160,12 @@ type ModerationTargetSnapshot = {
   title?: string;
   content?: string;
   creatorId?: string;
+  description?: string;
+  coverUrl?: string | null;
+  playUrl?: string | null;
+  durationSeconds?: number;
+  createdAt?: string | Date;
+  publishedAt?: string | Date | null;
   user?: { id: string; nickname: string };
   video?: { id: string; title: string };
 };
@@ -405,7 +411,7 @@ class FixtureContentRepository implements ContentRepository {
   async moderationTarget(targetType: ModerationTargetType, targetId: string): Promise<ModerationTargetSnapshot | null> {
     if (targetType === 'VIDEO') {
       const video = this.state.videos.find((item) => item.id === targetId);
-      return video ? { targetType, targetId, videoId: video.id, title: video.title, status: video.status, creatorId: video.creatorId } : null;
+      return video ? { ...video, targetType, targetId, videoId: video.id } : null;
     }
     const collection = targetType === 'COMMENT' ? this.state.comments : this.state.danmaku;
     const item = collection.find((entry) => entry.id === targetId);
@@ -594,9 +600,20 @@ class PrismaContentRepository implements ContentRepository {
 
   async moderationTarget(targetType: ModerationTargetType, targetId: string): Promise<ModerationTargetSnapshot | null> {
     if (targetType === 'VIDEO') {
-      const rows = await (await this.client()).$queryRawUnsafe<Array<{ id: string; title: string; status: string; creatorId: string }>>('SELECT id, title, status, creatorId FROM `Video` WHERE id = ? LIMIT 1', targetId);
+      const rows = await (await this.client()).$queryRawUnsafe<Array<{
+        id: string;
+        title: string;
+        description: string;
+        status: string;
+        creatorId: string;
+        coverUrl: string | null;
+        playUrl: string | null;
+        durationSeconds: number;
+        createdAt: Date;
+        publishedAt: Date | null;
+      }>>('SELECT id, title, description, status, creatorId, coverUrl, playUrl, durationSeconds, createdAt, publishedAt FROM `Video` WHERE id = ? LIMIT 1', targetId);
       const row = rows[0];
-      return row ? { targetType, targetId, videoId: row.id, title: row.title, status: row.status, creatorId: row.creatorId } : null;
+      return row ? { targetType, targetId, videoId: row.id, ...row } : null;
     }
     const table = targetType === 'COMMENT' ? 'Comment' : 'VideoDanmaku';
     const rows = await (await this.client()).$queryRawUnsafe<Array<{ id: string; videoId: string; userId: string; body: string; status: string; videoTitle: string }>>(

@@ -330,7 +330,14 @@ function userFromHeaders(request: IncomingMessage): User | null {
   } catch {
     return null;
   }
-  const nickname = typeof request.headers['x-user-nickname'] === 'string' ? request.headers['x-user-nickname'] : `user-${id}`;
+  let nickname = `user-${id}`;
+  if (typeof request.headers['x-user-nickname'] === 'string') {
+    try {
+      nickname = decodeURIComponent(request.headers['x-user-nickname']);
+    } catch {
+      return null;
+    }
+  }
   return { id, nickname };
 }
 function requireUser(user: User | null) { if (!user) throw new HttpError(401, 'Authentication required', 401); return user; }

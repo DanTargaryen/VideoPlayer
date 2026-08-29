@@ -45,6 +45,7 @@ enum ModerationApplyStatus {
   PENDING
   DECIDED
   APPLY_PENDING
+  APPLYING
   APPLIED
   APPLY_FAILED_RETRYABLE
   APPLY_FAILED_FINAL
@@ -125,11 +126,14 @@ model ModerationDecision {
   decidedAt   DateTime?
   appliedAt   DateTime?
   nextRetryAt DateTime?
+  leaseToken String?                  @db.VarChar(128)
+  leaseExpiresAt DateTime?
   createdAt   DateTime               @default(now())
   updatedAt   DateTime               @updatedAt
 
   @@index([targetType, targetId, createdAt])
   @@index([applyStatus, nextRetryAt])
+  @@index([applyStatus, leaseExpiresAt])
   @@index([operatorId, createdAt])
   @@index([reportId])
 }

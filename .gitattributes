@@ -1,0 +1,2 @@
+# The repository lockfile is intentionally CRLF; treat CR as part of the line ending.
+package-lock.json whitespace=cr-at-eol

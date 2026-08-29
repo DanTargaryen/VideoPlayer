@@ -8,6 +8,7 @@ export type ModerationApplyStatus =
   | 'PENDING'
   | 'DECIDED'
   | 'APPLY_PENDING'
+  | 'APPLYING'
   | 'APPLIED'
   | 'APPLY_FAILED_RETRYABLE'
   | 'APPLY_FAILED_FINAL';
@@ -28,6 +29,8 @@ export interface ReviewRecord {
   attempts: number;
   lastError: string | null;
   nextRetryAt?: Date | null;
+  leaseToken?: string | null;
+  leaseExpiresAt?: Date | null;
   appliedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -100,7 +103,9 @@ export interface GovernanceStore {
     error: string,
     final: boolean,
     nextRetryAt: Date | null,
-  ): Promise<ReviewRecord>;
-  listDecisionsDueForApply(now: Date, limit: number): Promise<ReviewRecord[]>;
-  markDecisionApplied(decisionId: string): Promise<ReviewRecord>;
+    leaseToken: string,
+  ): Promise<ReviewRecord | null>;
+  claimDecisionsDueForApply(now: Date, limit: number, leaseToken: string, leaseExpiresAt: Date): Promise<ReviewRecord[]>;
+  findDecision(decisionId: string): Promise<ReviewRecord | null>;
+  markDecisionApplied(decisionId: string, leaseToken: string): Promise<ReviewRecord | null>;
 }

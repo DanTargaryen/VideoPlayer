@@ -470,12 +470,12 @@ export async function fetchTextReviewQueue(targetType?: 'COMMENT' | 'VIDEO_DANMA
 
 export async function moderateTextContent(
   targetType: 'COMMENT' | 'VIDEO_DANMAKU',
-  id: number,
+  targetId: string,
   action: 'KEEP' | 'HIDE' | 'DELETE',
   reason?: string,
 ) {
   const { data } = await http.post<ApiResponse<Record<string, unknown>>>(
-    `/admin/reviews/text-content/${targetType}/${id}`,
+    `/admin/reviews/text-content/${targetType}/${encodeURIComponent(targetId)}`,
     { action, reason },
   );
   return data.data;

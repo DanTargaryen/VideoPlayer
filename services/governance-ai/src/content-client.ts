@@ -8,6 +8,14 @@ export interface ModerationTargetSnapshot {
   videoId: string;
   content?: string;
   status: string;
+  title?: string;
+  description?: string;
+  coverUrl?: string | null;
+  playUrl?: string | null;
+  durationSeconds?: number;
+  creatorId?: string;
+  createdAt?: string;
+  publishedAt?: string | null;
   video?: { id: string; title: string };
   [key: string]: unknown;
 }
@@ -34,7 +42,7 @@ export interface HttpContentModerationClientOptions {
 }
 
 function videoDecision(decision: ReviewRecord): 'APPROVED' | 'REJECTED' | 'HIDDEN' {
-  if (decision.decision === 'APPROVE' || decision.decision === 'KEEP') return 'APPROVED';
+  if (decision.decision === 'APPROVE') return 'APPROVED';
   if (decision.decision === 'REJECT') return 'REJECTED';
   return 'HIDDEN';
 }
@@ -73,6 +81,8 @@ export class HttpContentModerationClient implements ContentModerationClient {
 
   async apply(decision: ReviewRecord): Promise<void> {
     if (!decision.decision) throw new ContentApplyError('moderation decision has no action', false);
+    // KEEP resolves a report without mutating the target's current visibility.
+    if (decision.decision === 'KEEP') return;
     const isVideo = decision.targetType === 'VIDEO';
     const videoId = isVideo ? decision.targetId : decision.videoId;
     if (!videoId) throw new ContentApplyError('text moderation decision is missing videoId', false);
@@ -92,7 +102,7 @@ export class HttpContentModerationClient implements ContentModerationClient {
       : {
           targetType: decision.targetType === 'VIDEO_DANMAKU' ? 'DANMAKU' : 'COMMENT',
           targetId: String(decision.targetId),
-          status: decision.decision === 'KEEP' || decision.decision === 'APPROVE' ? 'VISIBLE' : 'HIDDEN',
+          status: decision.decision === 'APPROVE' ? 'VISIBLE' : 'HIDDEN',
         };
 
     let response: Response;

@@ -18,7 +18,9 @@ afterEach(async () => {
 const contentClient: ContentModerationClient = {
   async apply() {},
   async getTarget(targetType, targetId) {
-    return { targetType, targetId, videoId: '1', status: 'VISIBLE', content: targetType === 'VIDEO' ? undefined : 'fixture text', video: { id: '1', title: 'Fixture video' } };
+    return targetType === 'VIDEO'
+      ? { targetType, targetId, videoId: targetId, status: 'PENDING_REVIEW', title: 'Fixture video', description: 'Fixture preview', coverUrl: 'https://cdn.test/cover.jpg', playUrl: 'https://cdn.test/video.mp4', durationSeconds: 42, creatorId: '7' }
+      : { targetType, targetId, videoId: '1', status: 'VISIBLE', content: 'fixture text', video: { id: '1', title: 'Fixture video' } };
   },
 };
 
@@ -34,7 +36,7 @@ async function start(store = new TestGovernanceStore()) {
 
 function gatewayHeaders(requestId: string, role: 'USER' | 'ADMIN' = 'USER') {
   const gatewayToken = issueServiceToken({ caller: 'gateway', audience: 'governance-ai', scopes: ['governance.user.forward'], secret: SECRET, requestId });
-  return { authorization: 'Bearer public-session', 'x-gateway-authorization': `Bearer ${gatewayToken}`, 'x-user-id': role === 'ADMIN' ? '9' : '7', 'x-user-nickname': role === 'ADMIN' ? 'Admin' : 'Reporter', 'x-user-role': role, 'x-request-id': requestId, 'content-type': 'application/json' };
+  return { authorization: 'Bearer public-session', 'x-gateway-authorization': `Bearer ${gatewayToken}`, 'x-user-id': role === 'ADMIN' ? '9' : '7', 'x-user-nickname': encodeURIComponent(role === 'ADMIN' ? '中文管理员' : '中文用户'), 'x-user-role': role, 'x-request-id': requestId, 'content-type': 'application/json' };
 }
 
 function token(requestId: string, scopes: string[], options: { audience?: 'governance-ai' | 'content-media'; now?: number } = {}) {
@@ -131,7 +133,9 @@ describe('governance public workflow', () => {
     const { baseUrl } = await start();
     await submit(baseUrl, 'public-review-seed', token('public-review-seed', ['governance.reviews.write']));
     const queue = await fetch(`${baseUrl}/api/v1/admin/reviews/videos`, { headers: gatewayHeaders('review-list-1', 'ADMIN') });
-    const reviewId = (await queue.json()).data[0].id as number;
+    const queueItem = (await queue.json()).data[0];
+    expect(queueItem).toMatchObject({ targetId: '501', video: { title: 'Fixture video', description: 'Fixture preview', coverUrl: 'https://cdn.test/cover.jpg', playUrl: 'https://cdn.test/video.mp4' } });
+    const reviewId = queueItem.id as number;
     const reviewed = await fetch(`${baseUrl}/api/v1/admin/reviews/videos/${reviewId}`, { method: 'POST', headers: gatewayHeaders('review-decide-1', 'ADMIN'), body: JSON.stringify({ action: 'APPROVE' }) });
     expect((await reviewed.json()).data).toMatchObject({ status: 'APPROVED', applyStatus: 'APPLIED' });
     expect((await fetch(`${baseUrl}/api/v1/admin/dashboard`, { headers: gatewayHeaders('dashboard-1', 'ADMIN') })).status).toBe(200);

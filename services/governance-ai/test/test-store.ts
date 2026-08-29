@@ -144,40 +144,48 @@ export class TestGovernanceStore implements GovernanceStore {
     return { report: handled, decision };
   }
 
-  async recordApplyFailure(decisionId: string, error: string, final: boolean, nextRetryAt: Date | null = null) {
+  async recordApplyFailure(decisionId: string, error: string, final: boolean, nextRetryAt: Date | null, leaseToken: string) {
     const decision = [...this.decisions.values()].find((item) => item.decisionId === decisionId);
     if (!decision) throw new GovernanceError('Moderation decision not found', 'NOT_FOUND');
-    if (decision.applyStatus === 'APPLIED' || decision.applyStatus === 'APPLY_FAILED_FINAL') {
-      throw new GovernanceError('Moderation decision is no longer retryable', 'CONFLICT');
-    }
+    if (decision.applyStatus !== 'APPLYING' || decision.leaseToken !== leaseToken) return null;
     const updated: ReviewRecord = {
       ...decision,
       applyStatus: final ? 'APPLY_FAILED_FINAL' : 'APPLY_FAILED_RETRYABLE',
       attempts: decision.attempts + 1,
       lastError: error,
       nextRetryAt: final ? null : nextRetryAt,
+      leaseToken: null,
+      leaseExpiresAt: null,
       updatedAt: new Date(),
     };
     this.decisions.set(updated.id, updated);
     return updated;
   }
 
-  async listDecisionsDueForApply(now: Date, limit: number) {
-    return [...this.decisions.values()]
+  async claimDecisionsDueForApply(now: Date, limit: number, leaseToken: string, leaseExpiresAt: Date) {
+    const due = [...this.decisions.values()]
       .filter((item) =>
         item.applyStatus === 'APPLY_PENDING'
-        || (item.applyStatus === 'APPLY_FAILED_RETRYABLE' && (!item.nextRetryAt || item.nextRetryAt <= now)),
+        || (item.applyStatus === 'APPLY_FAILED_RETRYABLE' && !!item.nextRetryAt && item.nextRetryAt <= now)
+        || (item.applyStatus === 'APPLYING' && !!item.leaseExpiresAt && item.leaseExpiresAt <= now),
       )
       .sort((left, right) => left.id - right.id)
       .slice(0, limit);
+    return due.map((decision) => {
+      const claimed: ReviewRecord = { ...decision, applyStatus: 'APPLYING', leaseToken, leaseExpiresAt, updatedAt: new Date() };
+      this.decisions.set(claimed.id, claimed);
+      return claimed;
+    });
   }
 
-  async markDecisionApplied(decisionId: string) {
+  async findDecision(decisionId: string) {
+    return [...this.decisions.values()].find((item) => item.decisionId === decisionId) ?? null;
+  }
+
+  async markDecisionApplied(decisionId: string, leaseToken: string) {
     const decision = [...this.decisions.values()].find((item) => item.decisionId === decisionId);
     if (!decision) throw new GovernanceError('Moderation decision not found', 'NOT_FOUND');
-    if (decision.applyStatus !== 'APPLY_PENDING' && decision.applyStatus !== 'APPLY_FAILED_RETRYABLE') {
-      throw new GovernanceError('Moderation decision is no longer retryable', 'CONFLICT');
-    }
+    if (decision.applyStatus !== 'APPLYING' || decision.leaseToken !== leaseToken) return null;
     const updated: ReviewRecord = {
       ...decision,
       applyStatus: 'APPLIED',
@@ -185,6 +193,8 @@ export class TestGovernanceStore implements GovernanceStore {
       lastError: null,
       nextRetryAt: null,
       appliedAt: new Date(),
+      leaseToken: null,
+      leaseExpiresAt: null,
       updatedAt: new Date(),
     };
     this.decisions.set(updated.id, updated);

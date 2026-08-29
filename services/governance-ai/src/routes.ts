@@ -46,13 +46,21 @@ function authorizeInternal(context: ServiceRequestContext, secret: string, scope
 
 interface Principal { id: number; nickname: string; role: string }
 
+function decodeTrustedNickname(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    throw new Error('Trusted user context is invalid');
+  }
+}
+
 function principal(context: ServiceRequestContext, secret: string, admin = false): Principal {
   const claims = authorizeServiceRequest(context.request.headers['x-gateway-authorization'], {
     audience: 'governance-ai', secret, requiredScopes: ['governance.user.forward'], allowedCallers: ['gateway'],
   });
   if (claims.requestId !== context.requestId) throw new Error('Gateway JWT requestId does not match x-request-id');
   const id = Number(context.request.headers['x-user-id']);
-  const nickname = String(context.request.headers['x-user-nickname'] ?? '').trim();
+  const nickname = decodeTrustedNickname(String(context.request.headers['x-user-nickname'] ?? '')).trim();
   const role = String(context.request.headers['x-user-role'] ?? 'USER').trim().toUpperCase();
   if (!Number.isInteger(id) || id < 1 || !nickname) throw new Error('Trusted user context is invalid');
   if (admin && role !== 'ADMIN') throw new GovernanceError('Admin required', 'FORBIDDEN');

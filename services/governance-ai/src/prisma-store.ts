@@ -200,41 +200,60 @@ export class PrismaGovernanceStore implements GovernanceStore {
     });
   }
 
-  async recordApplyFailure(decisionId: string, error: string, final: boolean, nextRetryAt: Date | null) {
-    const decision = await this.prisma.moderationDecision.findUnique({ where: { decisionId } });
-    if (!decision) throw new GovernanceError('Moderation decision not found', 'NOT_FOUND');
-    if (decision.applyStatus === 'APPLIED' || decision.applyStatus === 'APPLY_FAILED_FINAL') {
-      throw new GovernanceError('Moderation decision is no longer retryable', 'CONFLICT');
-    }
-    return this.prisma.moderationDecision.update({
-      where: { decisionId },
+  async recordApplyFailure(decisionId: string, error: string, final: boolean, nextRetryAt: Date | null, leaseToken: string) {
+    const updated = await this.prisma.moderationDecision.updateMany({
+      where: { decisionId, applyStatus: 'APPLYING', leaseToken },
       data: {
         applyStatus: final ? 'APPLY_FAILED_FINAL' : 'APPLY_FAILED_RETRYABLE',
         attempts: { increment: 1 },
         lastError: error,
         nextRetryAt: final ? null : nextRetryAt,
+        leaseToken: null,
+        leaseExpiresAt: null,
       },
+    });
+    if (updated.count !== 1) return null;
+    return this.prisma.moderationDecision.findUniqueOrThrow({ where: { decisionId } });
+  }
+
+  claimDecisionsDueForApply(now: Date, limit: number, leaseToken: string, leaseExpiresAt: Date): Promise<ReviewRecord[]> {
+    const due = {
+      OR: [
+        { applyStatus: 'APPLY_PENDING' as const },
+        { applyStatus: 'APPLY_FAILED_RETRYABLE' as const, nextRetryAt: { lte: now } },
+        { applyStatus: 'APPLYING' as const, leaseExpiresAt: { lte: now } },
+      ],
+    };
+    return this.prisma.$transaction(async (tx) => {
+      const candidates = await tx.moderationDecision.findMany({
+        where: due,
+        orderBy: [{ nextRetryAt: 'asc' }, { createdAt: 'asc' }],
+        take: limit,
+        select: { id: true },
+      });
+      const claimedIds: number[] = [];
+      for (const candidate of candidates) {
+        const claimed = await tx.moderationDecision.updateMany({
+          where: { id: candidate.id, ...due },
+          data: { applyStatus: 'APPLYING', leaseToken, leaseExpiresAt },
+        });
+        if (claimed.count === 1) claimedIds.push(candidate.id);
+      }
+      if (claimedIds.length === 0) return [];
+      return tx.moderationDecision.findMany({ where: { id: { in: claimedIds }, leaseToken, applyStatus: 'APPLYING' }, orderBy: { id: 'asc' } });
     });
   }
 
-  listDecisionsDueForApply(now: Date, limit: number): Promise<ReviewRecord[]> {
-    return this.prisma.moderationDecision.findMany({
-      where: {
-        OR: [
-          { applyStatus: 'APPLY_PENDING' },
-          { applyStatus: 'APPLY_FAILED_RETRYABLE', nextRetryAt: { lte: now } },
-        ],
-      },
-      orderBy: [{ nextRetryAt: 'asc' }, { createdAt: 'asc' }],
-      take: limit,
-    });
+  findDecision(decisionId: string): Promise<ReviewRecord | null> {
+    return this.prisma.moderationDecision.findUnique({ where: { decisionId } });
   }
 
-  async markDecisionApplied(decisionId: string): Promise<ReviewRecord> {
+  async markDecisionApplied(decisionId: string, leaseToken: string): Promise<ReviewRecord | null> {
     const updated = await this.prisma.moderationDecision.updateMany({
       where: {
         decisionId,
-        applyStatus: { in: ['APPLY_PENDING', 'APPLY_FAILED_RETRYABLE'] },
+        applyStatus: 'APPLYING',
+        leaseToken,
       },
       data: {
         applyStatus: 'APPLIED',
@@ -242,9 +261,11 @@ export class PrismaGovernanceStore implements GovernanceStore {
         lastError: null,
         nextRetryAt: null,
         appliedAt: new Date(),
+        leaseToken: null,
+        leaseExpiresAt: null,
       },
     });
-    if (updated.count !== 1) throw new GovernanceError('Moderation decision is no longer retryable', 'CONFLICT');
+    if (updated.count !== 1) return null;
     return this.prisma.moderationDecision.findUniqueOrThrow({ where: { decisionId } });
   }
 }

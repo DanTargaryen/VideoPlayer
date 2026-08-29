@@ -46,6 +46,13 @@ compose() {
 }
 
 cleanup() {
+  if [[ -n "${frontend_pid:-}" ]]; then
+    kill "$frontend_pid" >/dev/null 2>&1 || true
+    wait "$frontend_pid" >/dev/null 2>&1 || true
+  fi
+  if [[ -n "${frontend_log:-}" ]]; then
+    rm -f "$frontend_log"
+  fi
   compose down -v >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
@@ -83,7 +90,7 @@ compose exec -T content-mysql \
 
 curl -fsS -X POST 'http://127.0.0.1:3101/api/v1/auth/register' \
   -H 'content-type: application/json' \
-  --data '{"username":"compose_identity_user","password":"ComposeIdentity123!","email":"compose-identity@example.com"}' \
+  --data '{"username":"compose_identity_user","password":"ComposeIdentity123!","email":"compose-identity@example.com","nickname":"中文用户"}' \
   >/dev/null
 identity_login=$(curl -fsS -X POST 'http://127.0.0.1:3101/api/v1/auth/login' \
   -H 'content-type: application/json' \
@@ -101,6 +108,25 @@ admin_login=$(curl -sS -X POST 'http://127.0.0.1:3101/api/v1/auth/login' \
   -H 'content-type: application/json' \
   --data "{\"account\":\"compose_governance_admin\",\"password\":\"ComposeAdmin123!\",\"adminSecret\":\"$IDENTITY_ADMIN_SECRET\"}")
 admin_token=$(node -e "const payload=JSON.parse(process.argv[1]); if(!payload.data?.token){console.error(JSON.stringify(payload));process.exit(1)} process.stdout.write(payload.data.token)" "$admin_login")
+
+# Seed governance-owned queue records, then exercise the real Vue dashboard
+# through Vite -> Gateway(services) -> governance/content service boundaries.
+compose exec -T governance-mysql \
+  mysql -u"$GOVERNANCE_DATABASE_USER" -p"$GOVERNANCE_DATABASE_PASSWORD" "$GOVERNANCE_DATABASE_NAME" \
+  -e "INSERT INTO ModerationDecision (decisionId, requestId, targetType, targetId, videoId, applyStatus, attempts, createdAt, updatedAt) VALUES ('compose-ui-video', 'compose-ui-video-request', 'VIDEO', '1', '1', 'PENDING', 0, NOW(3), NOW(3)), ('compose-ui-comment', 'compose-ui-comment-request', 'COMMENT', 'comment-001', '1', 'PENDING', 0, NOW(3), NOW(3))"
+frontend_log=$(mktemp -t videoplayer-services-frontend.XXXXXX.log)
+VITE_API_PROXY_TARGET='http://127.0.0.1:3100' VITE_DEV_HOST='127.0.0.1' VITE_DEV_PORT='5175' npm run dev:frontend >"$frontend_log" 2>&1 &
+frontend_pid=$!
+for _attempt in $(seq 1 60); do
+  if curl -fsS 'http://127.0.0.1:5175/' >/dev/null 2>&1; then break; fi
+  sleep 1
+done
+if ! curl -fsS 'http://127.0.0.1:5175/' >/dev/null 2>&1; then
+  cat "$frontend_log" >&2
+  exit 1
+fi
+PLAYWRIGHT_BASE_URL='http://127.0.0.1:5175' SERVICES_MODE_ADMIN_TOKEN="$admin_token" \
+  npm exec playwright test tests/e2e/admin-services-mode.spec.ts
 
 report_response=$(curl -sS -X POST 'http://127.0.0.1:3100/api/v1/reports' \
   -H 'content-type: application/json' \
@@ -124,6 +150,25 @@ handled_response=$(curl -fsS -X POST "http://127.0.0.1:3100/api/v1/admin/reports
   -H "authorization: Bearer $admin_token" \
   --data '{"action":"DELETE","reason":"UC06 confirmed violation"}')
 node -e "const payload=JSON.parse(process.argv[1]); if(payload.data?.report?.status!=='PROCESSED'||payload.data?.decision?.applyStatus!=='APPLIED')process.exit(1)" "$handled_response"
+
+# KEEP closes the report but must not alter a hidden/draft target's visibility.
+compose exec -T content-mysql \
+  mysql -ucontent_media -p"$CONTENT_DB_PASSWORD" content_media \
+  -e "UPDATE Video SET status = 'HIDDEN' WHERE id = '2'"
+keep_report_response=$(curl -fsS -X POST 'http://127.0.0.1:3100/api/v1/reports' \
+  -H 'content-type: application/json' \
+  -H "authorization: Bearer $identity_token" \
+  --data '{"targetType":"VIDEO","targetId":"2","reason":"KEEP no-op smoke"}')
+keep_report_id=$(node -e "const payload=JSON.parse(process.argv[1]); if(!payload.data?.id)process.exit(1); process.stdout.write(String(payload.data.id))" "$keep_report_response")
+curl -fsS -X POST "http://127.0.0.1:3100/api/v1/admin/reports/$keep_report_id" \
+  -H 'content-type: application/json' \
+  -H "authorization: Bearer $admin_token" \
+  --data '{"action":"KEEP"}' \
+  | node -e "let text='';process.stdin.on('data',chunk=>text+=chunk);process.stdin.on('end',()=>{const payload=JSON.parse(text);if(payload.data?.report?.status!=='REJECTED'||payload.data?.decision?.applyStatus!=='APPLIED')process.exit(1)})"
+compose exec -T content-mysql \
+  mysql -N -ucontent_media -p"$CONTENT_DB_PASSWORD" content_media \
+  -e "SELECT status FROM Video WHERE id = '2'" \
+  | grep -Fx 'HIDDEN' >/dev/null
 
 duplicate_status=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:3100/api/v1/admin/reports/$report_id" \
   -H 'content-type: application/json' \

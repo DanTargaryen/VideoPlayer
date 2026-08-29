@@ -105,11 +105,11 @@ export class GovernanceApplication {
     return this.store.dashboard();
   }
 
-  recordApplyFailure(decisionId: string, error: string, final = false, nextRetryAt: Date | null = null) {
+  recordApplyFailure(decisionId: string, error: string, leaseToken: string, final = false, nextRetryAt: Date | null = null) {
     requireRequestId(decisionId);
     const message = error.trim().slice(0, 1024);
     if (!message) throw new GovernanceError('error is required', 'VALIDATION');
     if (final && nextRetryAt) throw new GovernanceError('final failures cannot have nextRetryAt', 'VALIDATION');
-    return this.store.recordApplyFailure(decisionId, message, final, nextRetryAt);
+    return this.store.recordApplyFailure(decisionId, message, final, nextRetryAt, leaseToken);
   }
 }

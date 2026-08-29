@@ -117,7 +117,9 @@ function toFetchHeaders(input: IncomingHttpHeaders, traceId: string, trustedUser
   headers.set('x-forwarded-by', 'videoplayer-gateway');
   if (trustedUser) {
     headers.set('x-user-id', String(trustedUser.id));
-    headers.set('x-user-nickname', trustedUser.nickname);
+    // Undici's Headers implementation only accepts ByteString values. Encode
+    // Unicode display names for transport and decode them in trusted services.
+    headers.set('x-user-nickname', encodeURIComponent(trustedUser.nickname));
     headers.set('x-user-role', trustedUser.role);
     headers.set('x-gateway-authorization', trustedUser.gatewayAuthorization);
   }

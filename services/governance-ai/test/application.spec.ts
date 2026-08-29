@@ -77,11 +77,13 @@ describe('governance domain', () => {
       decisionId: 'decision-retry',
       action: 'DELETE',
     });
-    const retryable = await application.recordApplyFailure('decision-retry', 'content unavailable', false, new Date());
+    await store.claimDecisionsDueForApply(new Date(), 1, 'lease-retry-1', new Date(Date.now() + 60_000));
+    const retryable = await application.recordApplyFailure('decision-retry', 'content unavailable', 'lease-retry-1', false, new Date());
     expect(retryable).toMatchObject({ applyStatus: 'APPLY_FAILED_RETRYABLE', attempts: 1 });
-    const final = await application.recordApplyFailure('decision-retry', 'retry exhausted', true);
+    await store.claimDecisionsDueForApply(new Date(Date.now() + 1), 1, 'lease-retry-2', new Date(Date.now() + 60_000));
+    const final = await application.recordApplyFailure('decision-retry', 'retry exhausted', 'lease-retry-2', true);
     expect(final).toMatchObject({ applyStatus: 'APPLY_FAILED_FINAL', attempts: 2 });
-    await expect(application.recordApplyFailure('decision-retry', 'too late')).rejects.toThrow('no longer retryable');
+    await expect(application.recordApplyFailure('decision-retry', 'too late', 'stale-lease')).resolves.toBeNull();
   });
 
   it('uses requestId as the review submission idempotency key', async () => {

@@ -70,4 +70,37 @@ describe('governance isolated MySQL persistence', () => {
     });
     expect(next.id).not.toBe(reports[0]!.id);
   });
+
+  it('allows only one database worker to claim the same due decision', async () => {
+    const report = await app.createReport({
+      reporterId: 8,
+      requestId: 'mysql-lease-report',
+      targetType: 'VIDEO',
+      targetId: 'lease-video-1',
+      reason: 'lease concurrency check',
+    });
+    await app.handleReport({
+      reportId: report.id,
+      handlerId: 2,
+      requestId: 'mysql-lease-handle',
+      decisionId: 'mysql-lease-decision',
+      action: 'DELETE',
+    });
+    const secondStore = new PrismaGovernanceStore();
+    const now = new Date();
+    try {
+      const [firstClaims, secondClaims] = await Promise.all([
+        store.claimDecisionsDueForApply(now, 20, 'mysql-worker-a', new Date(now.getTime() + 60_000)),
+        secondStore.claimDecisionsDueForApply(now, 20, 'mysql-worker-b', new Date(now.getTime() + 60_000)),
+      ]);
+      const owners = [
+        ...firstClaims.filter((decision) => decision.decisionId === 'mysql-lease-decision').map(() => 'mysql-worker-a'),
+        ...secondClaims.filter((decision) => decision.decisionId === 'mysql-lease-decision').map(() => 'mysql-worker-b'),
+      ];
+      expect(owners).toHaveLength(1);
+      expect(await store.markDecisionApplied('mysql-lease-decision', owners[0]!)).toMatchObject({ applyStatus: 'APPLIED', attempts: 1 });
+    } finally {
+      await secondStore.close();
+    }
+  });
 });

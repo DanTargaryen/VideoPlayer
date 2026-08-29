@@ -195,6 +195,18 @@ describe('content-media internal API contracts', () => {
     expect(response.status).toBe(200);
     expect((await json(response)).data).toMatchObject({ targetType: 'COMMENT', targetId: 'comment-001', videoId: '1', content: 'clear walkthrough' });
     expect((await fetch(`${baseUrl}/internal/v1/moderation-targets/COMMENT/comment-001`, { headers: { 'x-user-id': '1' } })).status).toBe(401);
+
+    const videoResponse = await fetch(`${baseUrl}/internal/v1/moderation-targets/VIDEO/1`, {
+      headers: { authorization: `Bearer ${token('internal:moderation-target-read')}` },
+    });
+    expect((await json(videoResponse)).data).toMatchObject({
+      targetType: 'VIDEO',
+      targetId: '1',
+      title: 'Spring Architecture Notes',
+      description: 'A published content fixture for recommendation, search and detail contracts.',
+      coverUrl: 'https://cdn.example.test/covers/video-001.jpg',
+      playUrl: 'https://cdn.example.test/videos/video-001.mp4',
+    });
   });
 
   it('registers replays idempotently by requestId or objectKey', async () => {

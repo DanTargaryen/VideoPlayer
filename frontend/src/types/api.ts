@@ -267,6 +267,7 @@ export interface DirectMessageConversationDetail extends DirectMessagePermission
 
 export interface TextReviewItem {
   id: number;
+  targetId: string;
   targetType: 'COMMENT' | 'VIDEO_DANMAKU';
   status: 'NORMAL' | 'HIDDEN' | 'DELETED';
   content: string;

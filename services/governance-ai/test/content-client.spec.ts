@@ -43,6 +43,11 @@ async function endpoint(status: number, delayMs = 0) {
 }
 
 describe('content moderation HTTP failure contract', () => {
+  it('treats KEEP as a true no-op for content state', async () => {
+    const client = new HttpContentModerationClient({ baseUrl: 'http://127.0.0.1:1', jwtSecret: secret, timeoutMs: 5 });
+    await expect(client.apply({ ...decision, decision: 'KEEP' })).resolves.toBeUndefined();
+  });
+
   it.each([502, 503])('classifies HTTP %i as retryable', async (status) => {
     const client = new HttpContentModerationClient({ baseUrl: await endpoint(status), jwtSecret: secret });
     await expect(client.apply(decision)).rejects.toMatchObject<Partial<ContentApplyError>>({ retryable: true, status });
