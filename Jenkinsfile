@@ -20,6 +20,7 @@ pipeline {
     }
 
     environment {
+        CI = 'true'
         CI_RUN_SUBDIR = "jenkins-${BUILD_NUMBER}"
         CI_EVIDENCE_SUBDIR = "build-${BUILD_NUMBER}"
         CI_RUN_DIR = "${WORKSPACE}/.codex-run/${CI_RUN_SUBDIR}"

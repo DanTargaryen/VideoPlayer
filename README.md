@@ -221,6 +221,18 @@ Script Path：Jenkinsfile
 Poll SCM：H/2 * * * *
 ```
 
+当前电脑是 WSL2 Ubuntu 时，可以用项目脚本安装到项目专用目录并启动 Jenkins，不需要 sudo：
+
+```bash
+./scripts/jenkins-wsl.sh setup
+./scripts/jenkins-wsl.sh start
+```
+
+启动前在 Windows Docker Desktop 中打开 `Settings → Resources → WSL Integration`，勾选
+Ubuntu 并点击 Apply；Jenkins 使用 `http://127.0.0.1:8081`，首次打开后安装 Suggested plugins，
+再确认 Pipeline、Git、Credentials Binding、JUnit、Workspace Cleanup 已安装。然后按上面的
+Pipeline from SCM 配置创建任务。脚本生成的 `.ci-local/` 只用于本机工具和 Jenkins 数据，已被 Git 忽略。
+
 不启动 Jenkins时可先执行同构脚本：
 
 ```bash

@@ -134,6 +134,7 @@ export class MemoryStore implements Store {
   private readonly sessions = new Map<number, SessionRecord>();
   private readonly messages: MessageRecord[] = [];
   private readonly chatCounts = new Map<number, number>();
+  private lastMessagePurgeAt = 0;
   private readonly viewerEvents: ViewerEventRecord[] = [];
   private readonly replays = new Map<number, ReplayRecord>();
   private readonly balances = new Map<number, number>();
@@ -179,8 +180,11 @@ export class MemoryStore implements Store {
     return session;
   }
   async addMessage(input: Omit<MessageRecord, 'id' | 'createdAt'>): Promise<MessageRecord> {
-    await this.purgeMessages(new Date(Date.now() - 7 * 86400000));
-    const message = { ...input, id: this.nextMessageId++, createdAt: new Date() };
+    const now = Date.now();
+    if (now - this.lastMessagePurgeAt >= 60_000) {
+      await this.purgeMessages(new Date(now - 7 * 86400000));
+    }
+    const message = { ...input, id: this.nextMessageId++, createdAt: new Date(now) };
     this.messages.push(message);
     if (message.kind === 'CHAT') this.chatCounts.set(message.sessionId, (this.chatCounts.get(message.sessionId) ?? 0) + 1);
     this.trimMessages(input.sessionId);
@@ -191,6 +195,7 @@ export class MemoryStore implements Store {
     return this.messages.filter((message) => message.sessionId === sessionId).slice(-limit);
   }
   async purgeMessages(before: Date): Promise<number> {
+    this.lastMessagePurgeAt = Date.now();
     const initial = this.messages.length;
     for (let index = this.messages.length - 1; index >= 0; index -= 1) {
       const message = this.messages[index]!;
