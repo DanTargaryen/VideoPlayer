@@ -73,7 +73,12 @@ export class PrismaGovernanceStore implements GovernanceStore {
 
   listReviews(targetTypes: GovernanceTargetType[]): Promise<ReviewRecord[]> {
     return this.prisma.moderationDecision.findMany({
-      where: { targetType: { in: targetTypes } },
+      where: {
+        targetType: { in: targetTypes },
+        reportId: null,
+        decision: null,
+        applyStatus: 'PENDING',
+      },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: 100,
     });

@@ -473,7 +473,7 @@ services/<service>/
 - [x] `REG_RUN_UC06=true` 时执行微服务 Gateway 的真实 UC06 举报、处置、内容状态和通知回归。
 - [x] 默认未授权业务回归时保持 `NOT RUN`，不把服务可达性冒充业务回归 PASS。
 
-E 验收证据（2026-08-29，基于 `origin/main@933ccac`）：完成 governance 公开举报、管理员审核、文本审核、仪表盘和本地规则预审 API；Gateway 使用 identity `/auth/me` 建立可信用户上下文并拒绝伪造管理员头；处置结果通过带 JWT、timeout、幂等和补偿状态的内部调用应用到 content，并向 identity 写入幂等 `REPORT` 通知。独立治理 schema/migration/seed、举报 pendingKey 并发幂等、审核决定与目标应用状态机、审计字段和跨服务 contract 均已落地。governance lint/build 与定向测试、shared-contracts 9/9、Gateway 7/7、content 18/18、identity 5/5、隔离 MySQL integration 1/1、全部微服务镜像构建及 Compose UC06 smoke 均 PASS；REG-01 已提供可选的真实 UC06 双目标执行入口。
+E 验收证据（2026-08-29，基于 `origin/main@933ccac`）：完成 governance 公开举报、管理员审核、文本审核、仪表盘和本地规则预审 API；Gateway 使用 identity `/auth/me` 建立可信用户上下文并拒绝伪造管理员头；处置结果通过带 JWT、timeout、幂等和补偿状态的内部调用应用到 content，并向 identity 写入幂等 `REPORT` 通知。独立治理 schema/migration/seed、举报 pendingKey 并发幂等、审核决定与目标应用状态机、审计字段和跨服务 contract 均已落地。PR 复审后又补齐视频驳回原因与首次发布时间回写、前端到 governance 的同一 `requestId` 重试语义，以及仅返回未处理直接提审任务的审核队列。最新聚焦验证为 governance 28/28、content-media 22/22、frontend 24/24，三处 lint/build 与 content Prisma schema validate 均 PASS；更新后的 migration、Compose 和 Playwright services-mode 回归本轮未运行，PR 保持 Draft 等待非作者复审和远端 Check。
 
 ### 7.6 E 第一批禁止事项
 

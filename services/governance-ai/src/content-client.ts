@@ -98,7 +98,7 @@ export class HttpContentModerationClient implements ContentModerationClient {
       ? `/internal/v1/videos/${videoId}/review-decision`
       : `/internal/v1/videos/${videoId}/text-status`;
     const body = isVideo
-      ? { decisionId: decision.decisionId, decision: videoDecision(decision), reason: null }
+      ? { decisionId: decision.decisionId, decision: videoDecision(decision), reason: decision.reason ?? null }
       : {
           targetType: decision.targetType === 'VIDEO_DANMAKU' ? 'DANMAKU' : 'COMMENT',
           targetId: String(decision.targetId),

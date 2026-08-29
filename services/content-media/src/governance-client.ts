@@ -15,6 +15,7 @@ export class GovernanceReviewError extends Error {
   constructor(
     message: string,
     readonly unavailable: boolean,
+    readonly mayHaveCommitted: boolean,
   ) {
     super(message);
     this.name = 'GovernanceReviewError';
@@ -60,15 +61,17 @@ export class HttpGovernanceReviewClient implements GovernanceReviewClient {
       throw new GovernanceReviewError(
         `governance review submission failed: ${error instanceof Error ? error.message : String(error)}`,
         true,
+        true,
       );
     }
     if (!response.ok) {
-      throw new GovernanceReviewError(`governance review submission returned ${response.status}`, response.status >= 500 || response.status === 429);
+      const unavailable = response.status >= 500 || response.status === 429;
+      throw new GovernanceReviewError(`governance review submission returned ${response.status}`, unavailable, unavailable);
     }
     const payload = await response.json() as { data?: Partial<SubmittedReview> };
     const review = payload.data;
     if (!Number.isInteger(review?.id) || review?.targetType !== 'VIDEO' || review.targetId !== videoId || review.requestId !== requestId) {
-      throw new GovernanceReviewError('governance review submission returned an invalid response', false);
+      throw new GovernanceReviewError('governance review submission returned an invalid response', false, true);
     }
     return review as SubmittedReview;
   }

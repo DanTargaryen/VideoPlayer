@@ -43,6 +43,27 @@ async function endpoint(status: number, delayMs = 0) {
 }
 
 describe('content moderation HTTP failure contract', () => {
+  it('forwards the administrator rejection reason to content-media', async () => {
+    let captured: Record<string, unknown> | undefined;
+    const server = createServer(async (request, response) => {
+      let raw = '';
+      for await (const chunk of request) raw += chunk.toString();
+      captured = JSON.parse(raw) as Record<string, unknown>;
+      response.writeHead(200, { 'content-type': 'application/json' });
+      response.end('{}');
+    });
+    servers.push(server);
+    server.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('Expected TCP address');
+    const client = new HttpContentModerationClient({ baseUrl: `http://127.0.0.1:${address.port}`, jwtSecret: secret });
+
+    await client.apply({ ...decision, decision: 'REJECT', reason: '画面包含违规内容' });
+
+    expect(captured).toEqual({ decisionId: decision.decisionId, decision: 'REJECTED', reason: '画面包含违规内容' });
+  });
+
   it('treats KEEP as a true no-op for content state', async () => {
     const client = new HttpContentModerationClient({ baseUrl: 'http://127.0.0.1:1', jwtSecret: secret, timeoutMs: 5 });
     await expect(client.apply({ ...decision, decision: 'KEEP' })).resolves.toBeUndefined();

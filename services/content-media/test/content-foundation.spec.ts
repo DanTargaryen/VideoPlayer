@@ -11,6 +11,7 @@ import {
   type VideoStreamProbe,
   type ContentServiceOptions,
 } from '../src/service.js';
+import { GovernanceReviewError } from '../src/governance-client.js';
 
 const servers: ReturnType<typeof createContentService>[] = [];
 const secret = 'content-media-test-secret-minimum-32-chars';
@@ -130,10 +131,12 @@ describe('content-media foundation public APIs', () => {
 
   it('submits an owned draft to governance and exposes the pending target snapshot', async () => {
     const state = createFixtureState();
+    let submissions = 0;
     const baseUrl = await start({
       state,
       governanceClient: {
         async submitVideoReview(videoId, requestId) {
+          submissions += 1;
           expect(videoId).toBe('3');
           return { id: 41, targetType: 'VIDEO', targetId: videoId, requestId };
         },
@@ -145,14 +148,28 @@ describe('content-media foundation public APIs', () => {
     });
     expect(response.status).toBe(200);
     expect((await json(response)).data).toEqual({ videoId: 3, reviewId: 41, status: 'PENDING_REVIEW' });
+    const replay = await fetch(`${baseUrl}/api/v1/videos/3/submit-review`, {
+      method: 'POST',
+      headers: trustedCreatorHeaders('submit-review-1'),
+    });
+    expect(replay.status).toBe(200);
+    expect((await json(replay)).data).toEqual({ videoId: 3, reviewId: 41, status: 'PENDING_REVIEW' });
+    expect(submissions).toBe(2);
     expect(state.videos.find((video) => video.id === '3')?.status).toBe('PENDING_REVIEW');
+    expect(state.videos.find((video) => video.id === '3')?.reviewSubmissionRequestId).toBe('submit-review-1');
   });
 
-  it('rejects forged ownership and rolls the content state back when governance is unavailable', async () => {
+  it('keeps an uncertain submission pending and completes it when the same requestId is retried', async () => {
     const state = createFixtureState();
+    let unavailable = true;
     const baseUrl = await start({
       state,
-      governanceClient: { async submitVideoReview() { throw new Error('governance unavailable'); } },
+      governanceClient: {
+        async submitVideoReview(videoId, requestId) {
+          if (unavailable) throw new GovernanceReviewError('governance unavailable', true, true);
+          return { id: 42, targetType: 'VIDEO', targetId: videoId, requestId };
+        },
+      },
     });
 
     expect((await fetch(`${baseUrl}/api/v1/videos/3/submit-review`, {
@@ -161,9 +178,38 @@ describe('content-media foundation public APIs', () => {
     })).status).toBe(403);
     expect((await fetch(`${baseUrl}/api/v1/videos/3/submit-review`, {
       method: 'POST',
-      headers: trustedCreatorHeaders('submit-review-rollback'),
+      headers: trustedCreatorHeaders('submit-review-retry'),
     })).status).toBe(503);
-    expect(state.videos.find((video) => video.id === '3')?.status).toBe('DRAFT');
+    expect(state.videos.find((video) => video.id === '3')).toMatchObject({ status: 'PENDING_REVIEW', reviewSubmissionRequestId: 'submit-review-retry' });
+
+    unavailable = false;
+    const replay = await fetch(`${baseUrl}/api/v1/videos/3/submit-review`, {
+      method: 'POST',
+      headers: trustedCreatorHeaders('submit-review-retry'),
+    });
+    expect(replay.status).toBe(200);
+    expect((await json(replay)).data).toEqual({ videoId: 3, reviewId: 42, status: 'PENDING_REVIEW' });
+  });
+
+  it('rolls back only a definitive governance rejection', async () => {
+    const state = createFixtureState();
+    const baseUrl = await start({
+      state,
+      governanceClient: {
+        async submitVideoReview() {
+          throw new GovernanceReviewError('governance rejected submission', false, false);
+        },
+      },
+    });
+    expect((await fetch(`${baseUrl}/api/v1/videos/3/submit-review`, {
+      method: 'POST',
+      headers: trustedCreatorHeaders('submit-review-rejected'),
+    })).status).toBe(502);
+    expect(state.videos.find((video) => video.id === '3')).toMatchObject({
+      status: 'DRAFT',
+      reviewSubmissionRequestId: null,
+      submittedAt: null,
+    });
   });
 });
 
@@ -184,6 +230,28 @@ describe('content-media internal API contracts', () => {
 
     expect(first.data).toEqual(second.data);
     expect(first.data).toEqual(expect.objectContaining({ decisionId: 'decision-001', appliedStatus: 'HIDDEN' }));
+  });
+
+  it('persists rejection reasons and stamps the first approval publication time', async () => {
+    const state = createFixtureState();
+    const baseUrl = await start({ state });
+    const headers = { authorization: `Bearer ${token('internal:review-decision')}`, 'content-type': 'application/json' };
+
+    expect((await fetch(`${baseUrl}/internal/v1/videos/3/review-decision`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ decisionId: 'decision-reject-reason', decision: 'REJECTED', reason: '画面包含违规内容' }),
+    })).status).toBe(200);
+    expect(state.videos.find((video) => video.id === '3')).toMatchObject({ status: 'REJECTED', rejectReason: '画面包含违规内容', publishedAt: null });
+
+    expect((await fetch(`${baseUrl}/internal/v1/videos/3/review-decision`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ decisionId: 'decision-approve-publish', decision: 'APPROVED', reason: null }),
+    })).status).toBe(200);
+    expect(state.videos.find((video) => video.id === '3')?.status).toBe('PUBLISHED');
+    expect(state.videos.find((video) => video.id === '3')?.rejectReason).toBeNull();
+    expect(state.videos.find((video) => video.id === '3')?.publishedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
   it('treats review-decision reason changes as idempotency conflicts', async () => {

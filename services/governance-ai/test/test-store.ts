@@ -51,7 +51,9 @@ export class TestGovernanceStore implements GovernanceStore {
   }
 
   async listReviews(targetTypes: CreateReviewInput['targetType'][]) {
-    return [...this.decisions.values()].filter((item) => targetTypes.includes(item.targetType)).sort((a, b) => b.id - a.id);
+    return [...this.decisions.values()]
+      .filter((item) => targetTypes.includes(item.targetType) && !item.reportId && !item.decision && item.applyStatus === 'PENDING')
+      .sort((a, b) => b.id - a.id);
   }
 
   async decideReview(input: { reviewId: number; operatorId: number; requestId: string; action: ReviewRecord['decision']; reason?: string }) {

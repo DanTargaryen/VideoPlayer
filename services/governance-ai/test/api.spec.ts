@@ -138,8 +138,44 @@ describe('governance public workflow', () => {
     const reviewId = queueItem.id as number;
     const reviewed = await fetch(`${baseUrl}/api/v1/admin/reviews/videos/${reviewId}`, { method: 'POST', headers: gatewayHeaders('review-decide-1', 'ADMIN'), body: JSON.stringify({ action: 'APPROVE' }) });
     expect((await reviewed.json()).data).toMatchObject({ status: 'APPROVED', applyStatus: 'APPLIED' });
+    expect((await (await fetch(`${baseUrl}/api/v1/admin/reviews/videos`, { headers: gatewayHeaders('review-list-after-1', 'ADMIN') })).json()).data).toEqual([]);
     expect((await fetch(`${baseUrl}/api/v1/admin/dashboard`, { headers: gatewayHeaders('dashboard-1', 'ADMIN') })).status).toBe(200);
     const preview = await fetch(`${baseUrl}/api/v1/agent/review-preview`, { method: 'POST', headers: gatewayHeaders('agent-1', 'ADMIN'), body: JSON.stringify({ targetType: 'COMMENT', content: '这是诈骗内容' }) });
     expect((await preview.json()).data).toMatchObject({ riskLevel: 'HIGH', suggestedAction: 'REJECT', mode: 'RULES_ONLY' });
+  });
+
+  it('keeps report decisions and handled history out of submission review queues', async () => {
+    const { baseUrl } = await start();
+    await submit(baseUrl, 'queue-video-submission', token('queue-video-submission', ['governance.reviews.write']));
+    const textRequestId = 'queue-text-submission';
+    await fetch(`${baseUrl}/internal/v1/reviews`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${token(textRequestId, ['governance.reviews.write'])}`,
+        'content-type': 'application/json',
+        'x-request-id': textRequestId,
+      },
+      body: JSON.stringify({ targetType: 'COMMENT', targetId: 'comment-001', videoId: '1' }),
+    });
+
+    const report = await fetch(`${baseUrl}/api/v1/reports`, {
+      method: 'POST',
+      headers: gatewayHeaders('queue-report-create'),
+      body: JSON.stringify({ targetType: 'VIDEO', targetId: '1', reason: '举报队列隔离' }),
+    });
+    const reportId = (await report.json()).data.id as number;
+    expect((await fetch(`${baseUrl}/api/v1/admin/reports/${reportId}`, {
+      method: 'POST',
+      headers: gatewayHeaders('queue-report-handle', 'ADMIN'),
+      body: JSON.stringify({ action: 'DELETE', reason: '确认举报' }),
+    })).status).toBe(200);
+
+    const videos = (await (await fetch(`${baseUrl}/api/v1/admin/reviews/videos`, { headers: gatewayHeaders('queue-video-list', 'ADMIN') })).json()).data;
+    const text = (await (await fetch(`${baseUrl}/api/v1/admin/reviews/text-content`, { headers: gatewayHeaders('queue-text-list', 'ADMIN') })).json()).data;
+    expect(videos).toHaveLength(1);
+    expect(videos[0]).toMatchObject({ requestId: 'queue-video-submission', decision: null, status: 'PENDING' });
+    expect(videos.some((item: { requestId: string }) => item.requestId === 'queue-report-handle')).toBe(false);
+    expect(text).toHaveLength(1);
+    expect(text[0]).toMatchObject({ requestId: textRequestId, decision: null, status: 'PENDING' });
   });
 });

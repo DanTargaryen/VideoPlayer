@@ -71,7 +71,7 @@ describe('E cross-service contracts against current service implementations', ()
       secret,
       requestId,
     });
-    const response = await fetch(`${contentBaseUrl}/api/v1/videos/3/submit-review`, {
+    const submitReview = () => fetch(`${contentBaseUrl}/api/v1/videos/3/submit-review`, {
       method: 'POST',
       headers: {
         'x-gateway-authorization': `Bearer ${gatewayToken}`,
@@ -80,8 +80,14 @@ describe('E cross-service contracts against current service implementations', ()
         'x-user-role': 'USER',
       },
     });
-    expect(response.status).toBe(200);
-    expect((await body(response)).data).toMatchObject({ videoId: 3, status: 'PENDING_REVIEW' });
+    const first = await submitReview();
+    const repeated = await submitReview();
+    expect(first.status).toBe(200);
+    expect(repeated.status).toBe(200);
+    const firstPayload = await body(first);
+    const repeatedPayload = await body(repeated);
+    expect(firstPayload.data).toMatchObject({ videoId: 3, status: 'PENDING_REVIEW' });
+    expect(repeatedPayload.data).toEqual(firstPayload.data);
     expect(contentState.videos.find((video) => video.id === '3')?.status).toBe('PENDING_REVIEW');
     await expect(governanceStore.listReviews(['VIDEO'])).resolves.toMatchObject([
       { requestId, targetType: 'VIDEO', targetId: '3', videoId: '3', applyStatus: 'PENDING' },
