@@ -2,11 +2,22 @@
 set -euo pipefail
 
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+
+# Normalize Windows-style paths (D:\a\b) to Git Bash POSIX form (/d/a/b) so
+# downstream case matching and file operations behave consistently on Windows.
+normalize_ci_path() {
+  local path=$1
+  if command -v cygpath >/dev/null 2>&1; then
+    path=$(cygpath -u "$path" 2>/dev/null || printf '%s' "$path")
+  fi
+  printf '%s' "${path//\\//}"
+}
+
 CI_RUN_SUBDIR=${CI_RUN_SUBDIR:-manual}
 CI_EVIDENCE_SUBDIR=${CI_EVIDENCE_SUBDIR:-manual}
-CI_RUN_DIR=${CI_RUN_DIR:-"$ROOT_DIR/.codex-run/$CI_RUN_SUBDIR"}
-CI_EVIDENCE_DIR=${CI_EVIDENCE_DIR:-"$ROOT_DIR/ci-evidence/$CI_EVIDENCE_SUBDIR"}
-CI_RUNTIME_ENV_FILE=${CI_RUNTIME_ENV_FILE:-"$CI_RUN_DIR/runtime.env"}
+CI_RUN_DIR=$(normalize_ci_path "${CI_RUN_DIR:-$ROOT_DIR/.codex-run/$CI_RUN_SUBDIR}")
+CI_EVIDENCE_DIR=$(normalize_ci_path "${CI_EVIDENCE_DIR:-$ROOT_DIR/ci-evidence/$CI_EVIDENCE_SUBDIR}")
+CI_RUNTIME_ENV_FILE=$(normalize_ci_path "${CI_RUNTIME_ENV_FILE:-$CI_RUN_DIR/runtime.env}")
 
 require_command() {
   local command_name=$1
@@ -21,7 +32,8 @@ ensure_ci_dirs() {
 }
 
 safe_reset_dir() {
-  local target_dir=$1
+  local target_dir
+  target_dir=$(normalize_ci_path "$1")
   case "$target_dir" in
     "$ROOT_DIR"/.codex-run/*|"$ROOT_DIR"/ci-evidence/*) ;;
     *)
