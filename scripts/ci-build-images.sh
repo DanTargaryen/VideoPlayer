@@ -9,6 +9,12 @@ docker build -f frontend/Dockerfile -t "video-player/frontend:$IMAGE_TAG" .
 for service in identity-community content-media live-reward governance-ai gateway; do
   docker build -f "services/$service/Dockerfile" -t "video-player/$service:$IMAGE_TAG" .
 done
+docker build --target migration -f services/identity-community/Dockerfile \
+  -t "video-player/identity-community-migration:$IMAGE_TAG" .
+docker build --target migration -f services/content-media/Dockerfile \
+  -t "video-player/content-media-migrate:$IMAGE_TAG" .
+docker build --target migration -f services/live-reward/Dockerfile \
+  -t "video-player/live-reward-migration:$IMAGE_TAG" .
 
 {
   docker image inspect "video-player/backend:$IMAGE_TAG" \
@@ -19,6 +25,12 @@ done
     docker image inspect "video-player/$service:$IMAGE_TAG" \
       --format "$service={{.Id}} tag=video-player/$service:$IMAGE_TAG"
   done
+  docker image inspect "video-player/identity-community-migration:$IMAGE_TAG" \
+    --format "identity-community-migration={{.Id}} tag=video-player/identity-community-migration:$IMAGE_TAG"
+  docker image inspect "video-player/content-media-migrate:$IMAGE_TAG" \
+    --format 'content-media-migrate={{.Id}} tag=video-player/content-media-migrate:'"$IMAGE_TAG"
+  docker image inspect "video-player/live-reward-migration:$IMAGE_TAG" \
+    --format 'live-reward-migration={{.Id}} tag=video-player/live-reward-migration:'"$IMAGE_TAG"
 } > "$CI_EVIDENCE_DIR/versioned-images.txt"
 
 bash "$ROOT_DIR/scripts/ci-mark-stage.sh" 10-image-build

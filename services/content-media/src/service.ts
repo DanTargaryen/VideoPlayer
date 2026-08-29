@@ -10,6 +10,7 @@ import {
   failure,
   ok,
   type ApiResponse,
+  type IdentityUserSummaryContract,
   type ServiceRuntimeOptions,
   type ServiceStatus,
   type ServiceVersion,
@@ -25,12 +26,10 @@ type AssetKind = 'ORIGINAL' | 'TRANSCODED' | 'COVER' | 'REPLAY';
 type TextTargetType = 'COMMENT' | 'DANMAKU';
 type TextStatus = 'VISIBLE' | 'HIDDEN';
 
-interface CreatorSummary {
+type CreatorSummary = Omit<IdentityUserSummaryContract, 'id'> & {
   id: string;
-  nickname: string;
-  avatarUrl: string | null;
   unavailable?: boolean;
-}
+};
 
 interface VideoRecord {
   id: string;
@@ -269,7 +268,7 @@ export class MockIdentityBatchClient implements IdentityBatchClient {
 }
 
 class FixtureContentRepository implements ContentRepository {
-  constructor(private readonly state: ContentState) {}
+  constructor(private readonly state: ContentState) { }
 
   async ready(): Promise<boolean> {
     return true;
@@ -420,7 +419,7 @@ class PrismaContentRepository implements ContentRepository {
 
   private async client(): Promise<PrismaLike> {
     if (!this.prisma) {
-      const module = (await import('@prisma/client')) as unknown as { PrismaClient: new () => PrismaLike };
+      const module = (await import('../generated/prisma-client/index.js')) as unknown as { PrismaClient: new () => PrismaLike };
       this.prisma = new module.PrismaClient();
     }
     return this.prisma;

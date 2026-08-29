@@ -1,5 +1,3 @@
-import { startHealthService } from '@videoplayer/shared-contracts';
+import { startIdentityService } from './service.js';
 
-import { SERVICE_OPTIONS } from './service.js';
-
-startHealthService(SERVICE_OPTIONS);
+startIdentityService();

@@ -1,6 +1,9 @@
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
 ENV NPM_CONFIG_FETCH_RETRIES=8 NPM_CONFIG_FETCH_RETRY_MINTIMEOUT=20000 NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT=120000 NPM_CONFIG_FETCH_TIMEOUT=300000
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates openssl \
+  && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
 COPY backend/package.json backend/package.json
 COPY frontend/package.json frontend/package.json
@@ -11,8 +14,16 @@ RUN for attempt in 1 2 3 4 5; do \
       sleep $((attempt * 10)); \
     done; \
     exit 1
-RUN npm --workspace @videoplayer/content-media run prisma:generate
+RUN for attempt in 1 2 3 4 5; do \
+      npm --workspace @videoplayer/content-media run prisma:generate && exit 0; \
+      echo "Prisma generate failed on attempt ${attempt}; retrying..."; \
+      sleep $((attempt * 10)); \
+    done; \
+    exit 1
 RUN npm --workspace @videoplayer/content-media run build
+
+FROM build AS migration
+CMD ["npm", "--workspace", "@videoplayer/content-media", "run", "db:migrate"]
 
 FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
@@ -28,6 +39,7 @@ RUN for attempt in 1 2 3 4 5; do \
     done; \
     exit 1
 COPY --from=build /app/services/content-media/dist ./dist
+COPY --from=build /app/services/content-media/generated ./generated
 COPY --from=build /app/services/shared-contracts/package.json ./node_modules/@videoplayer/shared-contracts/package.json
 COPY --from=build /app/services/shared-contracts/dist ./node_modules/@videoplayer/shared-contracts/dist
 COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma

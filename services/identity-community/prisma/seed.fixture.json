@@ -1,0 +1,23 @@
+{
+  "users": [
+    { "id": 1, "username": "demo_admin", "email": "admin@local.invalid", "password": "Admin123456!", "nickname": "平台管理员", "role": "ADMIN" },
+    { "id": 2, "username": "creator_alice", "email": "alice@local.invalid", "password": "Alice123456!", "nickname": "Alice", "role": "USER" },
+    { "id": 3, "username": "viewer_bob", "email": "bob@local.invalid", "password": "Bob123456!", "nickname": "Bob", "role": "USER" },
+    { "id": 4, "username": "creator_carol", "email": "carol@local.invalid", "password": "Carol123456!", "nickname": "Carol", "role": "USER" }
+  ],
+  "followRelations": [
+    { "followerId": 3, "followingId": 2 },
+    { "followerId": 2, "followingId": 4 }
+  ],
+  "notifications": [
+    { "recipientId": 2, "actorId": 3, "type": "FOLLOW", "title": "收到新的关注", "content": "Bob 关注了你", "relatedType": "USER", "relatedId": 3 }
+  ],
+  "directMessages": [
+    { "senderId": 3, "recipientId": 2, "content": "你好，能看一下你的投稿进度吗？" },
+    { "senderId": 2, "recipientId": 3, "content": "可以，下午我再更新一次。" }
+  ],
+  "dynamicPosts": [
+    { "authorId": 2, "content": "欢迎来到身份与社区服务，今天先把最小闭环跑通。", "images": ["https://example.com/dynamic-1.jpg"] },
+    { "authorId": 4, "content": "新的创作者草稿已经同步到社区页。", "images": [] }
+  ]
+}

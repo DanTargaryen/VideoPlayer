@@ -59,6 +59,7 @@ backend/src/**/*.js.map
 # Prisma / local database artifacts
 backend/prisma/**/*.db
 backend/prisma/**/*.db-*
+services/*/generated/
 *.sqlite
 *.sqlite3
 *.db-journal

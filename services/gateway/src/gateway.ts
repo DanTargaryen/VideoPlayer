@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { createServer, type IncomingHttpHeaders, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { Readable } from 'node:stream';
 
-import { failure, ok } from '@videoplayer/shared-contracts';
+import { failure, issueServiceToken, ok } from '@videoplayer/shared-contracts';
 
 export type GatewayRouteMode = 'monolith' | 'services';
 
@@ -15,6 +15,7 @@ export interface GatewayConfig {
   governanceBaseUrl?: string;
   fallbackEnabled: boolean;
   timeoutMs: number;
+  serviceJwtSecret?: string;
 }
 
 const HOP_BY_HOP_HEADERS = new Set([
@@ -56,6 +57,7 @@ export function loadGatewayConfig(environment: NodeJS.ProcessEnv = process.env):
     governanceBaseUrl: normalizeBaseUrl(environment.GOVERNANCE_SERVICE_URL),
     fallbackEnabled: environment.GATEWAY_MONOLITH_FALLBACK !== 'false',
     timeoutMs: parseTimeout(environment.GATEWAY_UPSTREAM_TIMEOUT_MS),
+    serviceJwtSecret: environment.SERVICE_JWT_SECRET?.trim(),
   };
 }
 
@@ -63,6 +65,7 @@ export function resolveUpstream(pathname: string, config: GatewayConfig): string
   if (config.routeMode === 'monolith') return config.monolithBaseUrl;
   const apiPath = pathname.replace(/^\/api\/v1\//, '');
   if (/^(auth|users|messages|notifications|feed)(\/|$)/.test(apiPath)) return config.identityBaseUrl ?? config.monolithBaseUrl;
+  if (/^videos\/\d+\/coin$/.test(apiPath)) return config.liveBaseUrl ?? config.monolithBaseUrl;
   if (/^(feeds|search|videos|creator|media-proxy)(\/|$)/.test(apiPath)) return config.contentBaseUrl ?? config.monolithBaseUrl;
   if (/^(lives|gift-coins)(\/|$)/.test(apiPath)) return config.liveBaseUrl ?? config.monolithBaseUrl;
   if (/^(admin|reports|agent)(\/|$)/.test(apiPath)) return config.governanceBaseUrl ?? config.monolithBaseUrl;
@@ -73,6 +76,7 @@ export function resolveUpstreamName(pathname: string, config: GatewayConfig): 'm
   if (config.routeMode === 'monolith') return 'monolith';
   const apiPath = pathname.replace(/^\/api\/v1\//, '');
   if (/^(auth|users|messages|notifications|feed)(\/|$)/.test(apiPath) && config.identityBaseUrl) return 'identity-community';
+  if (/^videos\/\d+\/coin$/.test(apiPath) && config.liveBaseUrl) return 'live-reward';
   if (/^(feeds|search|videos|creator|media-proxy)(\/|$)/.test(apiPath) && config.contentBaseUrl) return 'content-media';
   if (/^(lives|gift-coins)(\/|$)/.test(apiPath) && config.liveBaseUrl) return 'live-reward';
   if (/^(admin|reports|agent)(\/|$)/.test(apiPath) && config.governanceBaseUrl) return 'governance-ai';
@@ -84,15 +88,77 @@ function requestId(request: IncomingMessage): string {
   return typeof value === 'string' && value.trim() ? value.trim().slice(0, 128) : randomUUID();
 }
 
-function toFetchHeaders(input: IncomingHttpHeaders, traceId: string): Headers {
+interface TrustedUserContext {
+  id: number;
+  nickname: string;
+  gatewayAuthorization: string;
+}
+
+class GatewayHttpError extends Error {
+  constructor(readonly status: number, message: string) {
+    super(message);
+    this.name = 'GatewayHttpError';
+  }
+}
+
+function toFetchHeaders(input: IncomingHttpHeaders, traceId: string, trustedUser?: TrustedUserContext): Headers {
   const headers = new Headers();
   for (const [name, value] of Object.entries(input)) {
-    if (value === undefined || HOP_BY_HOP_HEADERS.has(name.toLowerCase())) continue;
+    const normalizedName = name.toLowerCase();
+    if (
+      value === undefined
+      || HOP_BY_HOP_HEADERS.has(normalizedName)
+      || ['x-user-id', 'x-user-nickname', 'x-gateway-authorization'].includes(normalizedName)
+    ) continue;
     headers.set(name, Array.isArray(value) ? value.join(', ') : value);
   }
   headers.set('x-request-id', traceId);
   headers.set('x-forwarded-by', 'videoplayer-gateway');
+  if (trustedUser) {
+    headers.set('x-user-id', String(trustedUser.id));
+    headers.set('x-user-nickname', trustedUser.nickname);
+    headers.set('x-gateway-authorization', trustedUser.gatewayAuthorization);
+  }
   return headers;
+}
+
+async function resolveTrustedLiveUser(
+  request: IncomingMessage,
+  config: GatewayConfig,
+  traceId: string,
+): Promise<TrustedUserContext | undefined> {
+  const authorization = request.headers.authorization;
+  if (typeof authorization !== 'string' || !authorization.trim()) return undefined;
+  if (!config.identityBaseUrl) throw new GatewayHttpError(503, 'identity service is not configured');
+  if (!config.serviceJwtSecret || config.serviceJwtSecret.length < 32) {
+    throw new GatewayHttpError(503, 'gateway service authentication is not configured');
+  }
+  let response: Response;
+  try {
+    response = await fetch(`${config.identityBaseUrl}/api/v1/auth/me`, {
+      headers: { authorization, 'x-request-id': traceId },
+      signal: AbortSignal.timeout(config.timeoutMs),
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'TimeoutError') throw new GatewayHttpError(504, 'identity authentication timed out');
+    throw new GatewayHttpError(503, 'identity authentication is unavailable');
+  }
+  if (response.status === 401 || response.status === 403) throw new GatewayHttpError(401, 'authentication failed');
+  if (!response.ok) throw new GatewayHttpError(503, `identity authentication returned ${response.status}`);
+  const payload = await response.json() as { data?: { id?: unknown; nickname?: unknown } };
+  const id = Number(payload.data?.id);
+  if (!Number.isInteger(id) || id < 1) throw new GatewayHttpError(503, 'identity authentication returned an invalid user');
+  const nickname = typeof payload.data?.nickname === 'string' && payload.data.nickname.trim()
+    ? payload.data.nickname.trim().slice(0, 64)
+    : `user-${id}`;
+  const token = issueServiceToken({
+    caller: 'gateway',
+    audience: 'live-reward',
+    scopes: ['live.user.forward'],
+    secret: config.serviceJwtSecret,
+    requestId: traceId,
+  });
+  return { id, nickname, gatewayAuthorization: `Bearer ${token}` };
 }
 
 function writeJson(response: ServerResponse, statusCode: number, payload: unknown, traceId: string): void {
@@ -111,12 +177,13 @@ async function proxyRequest(
   baseUrl: string,
   traceId: string,
   timeoutMs: number,
+  trustedUser?: TrustedUserContext,
 ): Promise<Response> {
   const target = new URL(request.url ?? '/', `${baseUrl}/`);
   const method = request.method ?? 'GET';
   const init: RequestInit & { duplex?: 'half' } = {
     method,
-    headers: toFetchHeaders(request.headers, traceId),
+    headers: toFetchHeaders(request.headers, traceId, trustedUser),
     redirect: 'manual',
     signal: AbortSignal.timeout(timeoutMs),
   };
@@ -166,7 +233,10 @@ export function createGatewayServer(config: GatewayConfig = loadGatewayConfig())
     const primary = resolveUpstream(pathname, config);
     let upstreamName = resolveUpstreamName(pathname, config);
     try {
-      let upstream = await proxyRequest(request, primary, traceId, config.timeoutMs);
+      const trustedUser = upstreamName === 'live-reward'
+        ? await resolveTrustedLiveUser(request, config, traceId)
+        : undefined;
+      let upstream = await proxyRequest(request, primary, traceId, config.timeoutMs, trustedUser);
       const canFallback = ['GET', 'HEAD'].includes(method)
         && config.fallbackEnabled
         && primary !== config.monolithBaseUrl
@@ -178,6 +248,10 @@ export function createGatewayServer(config: GatewayConfig = loadGatewayConfig())
       }
       await forwardResponse(upstream, response, traceId, upstreamName);
     } catch (error) {
+      if (error instanceof GatewayHttpError) {
+        writeJson(response, error.status, failure(error.message, traceId, error.status), traceId);
+        return;
+      }
       const canFallback = ['GET', 'HEAD'].includes(method) && config.fallbackEnabled && primary !== config.monolithBaseUrl;
       if (canFallback) {
         try {

@@ -37,6 +37,16 @@ spec:
                 secretKeyRef:
                   name: videoplayer-microservice-secrets
                   key: service-jwt-secret
+            - name: IDENTITY_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: videoplayer-microservice-secrets
+                  key: identity-database-url
+            - name: IDENTITY_ADMIN_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: videoplayer-microservice-secrets
+                  key: identity-admin-secret
           readinessProbe:
             httpGet:
               path: /health/ready
@@ -116,6 +126,11 @@ spec:
                 secretKeyRef:
                   name: videoplayer-microservice-secrets
                   key: service-jwt-secret
+            - name: CONTENT_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: videoplayer-microservice-secrets
+                  key: content-database-url
           readinessProbe:
             httpGet:
               path: /health/ready
@@ -195,6 +210,16 @@ spec:
                 secretKeyRef:
                   name: videoplayer-microservice-secrets
                   key: service-jwt-secret
+            - name: LIVE_REWARD_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: videoplayer-microservice-secrets
+                  key: live-reward-database-url
+            - name: CONTENT_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: videoplayer-microservice-config
+                  key: CONTENT_SERVICE_URL
           readinessProbe:
             httpGet:
               path: /health/ready

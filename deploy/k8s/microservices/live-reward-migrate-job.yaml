@@ -1,0 +1,32 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: live-reward-migrate
+  namespace: video-player
+  labels:
+    app.kubernetes.io/name: live-reward-migrate
+    app.kubernetes.io/part-of: video-player-microservices
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: live-reward-migrate
+        app.kubernetes.io/part-of: video-player-microservices
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: live-reward-migrate
+          image: video-player/live-reward-migration:local
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: LIVE_REWARD_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: videoplayer-microservice-secrets
+                  key: live-reward-database-url
+            - name: MIGRATION_DEPLOY_ALLOWED_TARGET
+              value: mysql:3306/video_player_live_reward_ci_test
+            - name: MIGRATION_DEPLOY_CONFIRM
+              value: DEPLOY_MIGRATIONS
