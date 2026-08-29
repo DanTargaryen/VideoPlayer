@@ -151,6 +151,19 @@ interface SearchResult {
   category: { code: string; label: string } | null;
 }
 
+type ModerationTargetType = 'VIDEO' | 'COMMENT' | 'VIDEO_DANMAKU';
+type ModerationTargetSnapshot = {
+  targetType: ModerationTargetType;
+  targetId: string;
+  videoId: string;
+  status: string;
+  title?: string;
+  content?: string;
+  creatorId?: string;
+  user?: { id: string; nickname: string };
+  video?: { id: string; title: string };
+};
+
 export interface ContentRepository {
   ready(): Promise<boolean>;
   listRecommended(options: { page: number; pageSize: number; categoryCode?: string }): Promise<VideoRecord[]>;
@@ -168,6 +181,7 @@ export interface ContentRepository {
     { ok: true; record: ReplayRecord; replayed: boolean } | { ok: false; status: 409; message: string }
   >;
   batchSummary(ids: string[]): Promise<Array<{ id: string; found: true; title: string; coverUrl: string | null; status: VideoStatus } | { id: string; found: false }>>;
+  moderationTarget(targetType: ModerationTargetType, targetId: string): Promise<ModerationTargetSnapshot | null>;
 }
 
 export function createFixtureState(): ContentState {
@@ -387,6 +401,18 @@ class FixtureContentRepository implements ContentRepository {
       return video ? { id, found: true as const, title: video.title, coverUrl: video.coverUrl, status: video.status } : { id, found: false as const };
     });
   }
+
+  async moderationTarget(targetType: ModerationTargetType, targetId: string): Promise<ModerationTargetSnapshot | null> {
+    if (targetType === 'VIDEO') {
+      const video = this.state.videos.find((item) => item.id === targetId);
+      return video ? { targetType, targetId, videoId: video.id, title: video.title, status: video.status, creatorId: video.creatorId } : null;
+    }
+    const collection = targetType === 'COMMENT' ? this.state.comments : this.state.danmaku;
+    const item = collection.find((entry) => entry.id === targetId);
+    if (!item) return null;
+    const video = this.state.videos.find((entry) => entry.id === item.videoId);
+    return { targetType, targetId, videoId: item.videoId, content: item.body, status: item.status, user: { id: item.userId, nickname: `用户#${item.userId}` }, video: video ? { id: video.id, title: video.title } : { id: item.videoId, title: '' } };
+  }
 }
 
 type RawVideo = {
@@ -564,6 +590,21 @@ class PrismaContentRepository implements ContentRepository {
         return video ? { id, found: true as const, title: video.title, coverUrl: video.coverUrl, status: video.status } : { id, found: false as const };
       }),
     );
+  }
+
+  async moderationTarget(targetType: ModerationTargetType, targetId: string): Promise<ModerationTargetSnapshot | null> {
+    if (targetType === 'VIDEO') {
+      const rows = await (await this.client()).$queryRawUnsafe<Array<{ id: string; title: string; status: string; creatorId: string }>>('SELECT id, title, status, creatorId FROM `Video` WHERE id = ? LIMIT 1', targetId);
+      const row = rows[0];
+      return row ? { targetType, targetId, videoId: row.id, title: row.title, status: row.status, creatorId: row.creatorId } : null;
+    }
+    const table = targetType === 'COMMENT' ? 'Comment' : 'VideoDanmaku';
+    const rows = await (await this.client()).$queryRawUnsafe<Array<{ id: string; videoId: string; userId: string; body: string; status: string; videoTitle: string }>>(
+      `SELECT t.id, t.videoId, t.userId, t.body, t.status, v.title AS videoTitle FROM \`${table}\` t INNER JOIN \`Video\` v ON v.id = t.videoId WHERE t.id = ? LIMIT 1`,
+      targetId,
+    );
+    const row = rows[0];
+    return row ? { targetType, targetId, videoId: row.videoId, content: row.body, status: row.status, user: { id: row.userId, nickname: `用户#${row.userId}` }, video: { id: row.videoId, title: row.videoTitle } } : null;
   }
 
   private async findReviewDecision(decisionId: string): Promise<ReviewDecisionRecord | null> {
@@ -1041,6 +1082,18 @@ export function createContentService(options: ContentServiceOptions = {}): Serve
         }
         const result = await repository.updateTextStatus({ videoId: textStatusMatch[1], targetType: body.targetType, targetId: body.targetId, status: body.status });
         writeJson(response, result.ok ? 200 : result.status, result.ok ? ok({ targetType: result.targetType, targetId: result.targetId, status: result.status }, requestId) : failure(result.message, requestId, result.status), requestId);
+        return;
+      }
+
+      const moderationTargetMatch = path.match(/^\/internal\/v1\/moderation-targets\/(VIDEO|COMMENT|VIDEO_DANMAKU)\/([^/]+)$/);
+      if (method === 'GET' && moderationTargetMatch) {
+        if (!requireInternal(request, response, requestId, internalJwtSecret, 'internal:moderation-target-read')) return;
+        const snapshot = await repository.moderationTarget(moderationTargetMatch[1] as ModerationTargetType, decodeURIComponent(moderationTargetMatch[2]));
+        if (!snapshot) {
+          writeJson(response, 404, failure('moderation target not found', requestId, 404), requestId);
+          return;
+        }
+        writeJson(response, 200, ok(snapshot, requestId), requestId);
         return;
       }
 

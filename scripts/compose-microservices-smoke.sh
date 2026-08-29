@@ -12,6 +12,10 @@ LIVE_REWARD_DATABASE_NAME=${LIVE_REWARD_DATABASE_NAME:-video_player_live_reward_
 LIVE_REWARD_DATABASE_USER=${LIVE_REWARD_DATABASE_USER:-live_reward}
 LIVE_REWARD_DATABASE_PASSWORD=${LIVE_REWARD_DATABASE_PASSWORD:-$(node -e 'process.stdout.write(require("node:crypto").randomBytes(24).toString("hex"))')}
 LIVE_REWARD_MYSQL_ROOT_PASSWORD=${LIVE_REWARD_MYSQL_ROOT_PASSWORD:-$(node -e 'process.stdout.write(require("node:crypto").randomBytes(24).toString("hex"))')}
+GOVERNANCE_DATABASE_NAME=${GOVERNANCE_DATABASE_NAME:-video_player_governance_test}
+GOVERNANCE_DATABASE_USER=${GOVERNANCE_DATABASE_USER:-governance_app}
+GOVERNANCE_DATABASE_PASSWORD=${GOVERNANCE_DATABASE_PASSWORD:-$(node -e 'process.stdout.write(require("node:crypto").randomBytes(24).toString("hex"))')}
+GOVERNANCE_MYSQL_ROOT_PASSWORD=${GOVERNANCE_MYSQL_ROOT_PASSWORD:-$(node -e 'process.stdout.write(require("node:crypto").randomBytes(24).toString("hex"))')}
 GATEWAY_ROUTE_MODE=${GATEWAY_ROUTE_MODE:-services}
 
 for command_name in docker curl git node; do
@@ -50,6 +54,7 @@ export IMAGE_TAG GIT_SHA IDENTITY_DATABASE_NAME IDENTITY_DATABASE_USER IDENTITY_
 export IDENTITY_MYSQL_ROOT_PASSWORD IDENTITY_ADMIN_SECRET SERVICE_JWT_SECRET
 export IMAGE_TAG GIT_SHA CONTENT_DB_PASSWORD CONTENT_DB_ROOT_PASSWORD
 export LIVE_REWARD_DATABASE_NAME LIVE_REWARD_DATABASE_USER LIVE_REWARD_DATABASE_PASSWORD LIVE_REWARD_MYSQL_ROOT_PASSWORD
+export GOVERNANCE_DATABASE_NAME GOVERNANCE_DATABASE_USER GOVERNANCE_DATABASE_PASSWORD GOVERNANCE_MYSQL_ROOT_PASSWORD
 export GATEWAY_ROUTE_MODE
 compose config --quiet
 if [[ "${MICROSERVICE_COMPOSE_SKIP_BUILD:-false}" == "true" ]]; then
@@ -71,6 +76,11 @@ for port in "${ports[@]}"; do
   curl -fsS "http://127.0.0.1:$port/version"
 done
 
+# Load content owned by the isolated Compose database for the governance UC06 path.
+compose exec -T content-mysql \
+  mysql -ucontent_media -p"$CONTENT_DB_PASSWORD" content_media \
+  < "$ROOT_DIR/services/content-media/prisma/fixture.sql"
+
 curl -fsS -X POST 'http://127.0.0.1:3101/api/v1/auth/register' \
   -H 'content-type: application/json' \
   --data '{"username":"compose_identity_user","password":"ComposeIdentity123!","email":"compose-identity@example.com"}' \
@@ -79,6 +89,64 @@ identity_login=$(curl -fsS -X POST 'http://127.0.0.1:3101/api/v1/auth/login' \
   -H 'content-type: application/json' \
   --data '{"account":"compose_identity_user","password":"ComposeIdentity123!"}')
 identity_token=$(node -e "const payload=JSON.parse(process.argv[1]); if(!payload.data?.token)process.exit(1); process.stdout.write(payload.data.token)" "$identity_login")
+
+curl -fsS -X POST 'http://127.0.0.1:3101/api/v1/auth/register' \
+  -H 'content-type: application/json' \
+  --data '{"username":"compose_governance_admin","password":"ComposeAdmin123!","email":"compose-admin@example.com"}' \
+  >/dev/null
+compose exec -T identity-mysql \
+  mysql -u"$IDENTITY_DATABASE_USER" -p"$IDENTITY_DATABASE_PASSWORD" "$IDENTITY_DATABASE_NAME" \
+  -e "UPDATE User SET role = 'ADMIN' WHERE username = 'compose_governance_admin'"
+admin_login=$(curl -sS -X POST 'http://127.0.0.1:3101/api/v1/auth/login' \
+  -H 'content-type: application/json' \
+  --data "{\"account\":\"compose_governance_admin\",\"password\":\"ComposeAdmin123!\",\"adminSecret\":\"$IDENTITY_ADMIN_SECRET\"}")
+admin_token=$(node -e "const payload=JSON.parse(process.argv[1]); if(!payload.data?.token){console.error(JSON.stringify(payload));process.exit(1)} process.stdout.write(payload.data.token)" "$admin_login")
+
+report_response=$(curl -sS -X POST 'http://127.0.0.1:3100/api/v1/reports' \
+  -H 'content-type: application/json' \
+  -H "authorization: Bearer $identity_token" \
+  -H 'x-user-id: 999' \
+  -H 'x-user-role: ADMIN' \
+  --data '{"targetType":"VIDEO","targetId":"1","reason":"UC06 compose governance smoke"}')
+report_id=$(node -e "const payload=JSON.parse(process.argv[1]); if(!payload.data?.id||payload.data?.status!=='PENDING'){console.error(JSON.stringify(payload));process.exit(1)} process.stdout.write(String(payload.data.id))" "$report_response")
+
+forged_status=$(curl -sS -o /dev/null -w '%{http_code}' 'http://127.0.0.1:3100/api/v1/admin/reports' \
+  -H "authorization: Bearer $identity_token" \
+  -H 'x-user-role: ADMIN')
+test "$forged_status" = '403'
+
+curl -fsS 'http://127.0.0.1:3100/api/v1/admin/reports' \
+  -H "authorization: Bearer $admin_token" \
+  | node -e "let text='';process.stdin.on('data',chunk=>text+=chunk);process.stdin.on('end',()=>{const payload=JSON.parse(text);if(!payload.data?.some(item=>String(item.id)===process.argv[1]&&item.status==='PENDING'&&item.video?.title==='Spring Architecture Notes'))process.exit(1)})" "$report_id"
+
+handled_response=$(curl -fsS -X POST "http://127.0.0.1:3100/api/v1/admin/reports/$report_id" \
+  -H 'content-type: application/json' \
+  -H "authorization: Bearer $admin_token" \
+  --data '{"action":"DELETE","reason":"UC06 confirmed violation"}')
+node -e "const payload=JSON.parse(process.argv[1]); if(payload.data?.report?.status!=='PROCESSED'||payload.data?.decision?.applyStatus!=='APPLIED')process.exit(1)" "$handled_response"
+
+duplicate_status=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:3100/api/v1/admin/reports/$report_id" \
+  -H 'content-type: application/json' \
+  -H "authorization: Bearer $admin_token" \
+  --data '{"action":"DELETE"}')
+test "$duplicate_status" = '409'
+
+compose exec -T content-mysql \
+  mysql -N -ucontent_media -p"$CONTENT_DB_PASSWORD" content_media \
+  -e "SELECT status FROM Video WHERE id = '1'" \
+  | grep -Fx 'HIDDEN' >/dev/null
+curl -fsS 'http://127.0.0.1:3100/api/v1/notifications' \
+  -H "authorization: Bearer $identity_token" \
+  | node -e "let text='';process.stdin.on('data',chunk=>text+=chunk);process.stdin.on('end',()=>{const payload=JSON.parse(text);if(!payload.data?.some(item=>item.type==='REPORT'&&item.relatedType==='REPORT'&&String(item.relatedId)===process.argv[1]))process.exit(1)})" "$report_id"
+
+compose restart governance-ai >/dev/null
+for _attempt in $(seq 1 60); do
+  if curl -fsS 'http://127.0.0.1:3104/health/ready' >/dev/null 2>&1; then break; fi
+  sleep 1
+done
+curl -fsS 'http://127.0.0.1:3100/api/v1/admin/reports' \
+  -H "authorization: Bearer $admin_token" \
+  | node -e "let text='';process.stdin.on('data',chunk=>text+=chunk);process.stdin.on('end',()=>{const payload=JSON.parse(text);if(!payload.data?.some(item=>String(item.id)===process.argv[1]&&item.status==='PROCESSED'))process.exit(1)})" "$report_id"
 
 live_room_response=$(curl -fsS -X POST 'http://127.0.0.1:3100/api/v1/lives/rooms' \
   -H 'content-type: application/json' \
@@ -143,6 +211,18 @@ compose exec -T live-mysql \
   -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '$LIVE_REWARD_DATABASE_NAME'" \
   | grep -Fx '11' >/dev/null
 
+governance_database_list=$(compose exec -T governance-mysql \
+  mysql -N -u"$GOVERNANCE_DATABASE_USER" -p"$GOVERNANCE_DATABASE_PASSWORD" -e 'SHOW DATABASES')
+grep -Fx "$GOVERNANCE_DATABASE_NAME" <<<"$governance_database_list" >/dev/null
+if grep -Fx 'video_player' <<<"$governance_database_list" >/dev/null || grep -Fx "$IDENTITY_DATABASE_NAME" <<<"$governance_database_list" >/dev/null || grep -Fx 'content_media' <<<"$governance_database_list" >/dev/null || grep -Fx "$LIVE_REWARD_DATABASE_NAME" <<<"$governance_database_list" >/dev/null; then
+  echo "governance database account can access another service schema" >&2
+  exit 1
+fi
+compose exec -T governance-mysql \
+  mysql -N -u"$GOVERNANCE_DATABASE_USER" -p"$GOVERNANCE_DATABASE_PASSWORD" "$GOVERNANCE_DATABASE_NAME" \
+  -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '$GOVERNANCE_DATABASE_NAME'" \
+  | grep -Fx '5' >/dev/null
+
 for service in identity-community content-media live-reward governance-ai gateway; do
   container_id=$(compose ps -q "$service")
   for _attempt in $(seq 1 30); do
@@ -155,4 +235,4 @@ for service in identity-community content-media live-reward governance-ai gatewa
 done
 
 compose ps
-echo "Microservice Compose scaffold smoke passed."
+echo "Microservice Compose and UC06 governance smoke passed."

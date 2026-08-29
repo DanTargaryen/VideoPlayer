@@ -91,6 +91,7 @@ function requestId(request: IncomingMessage): string {
 interface TrustedUserContext {
   id: number;
   nickname: string;
+  role: string;
   gatewayAuthorization: string;
 }
 
@@ -108,7 +109,7 @@ function toFetchHeaders(input: IncomingHttpHeaders, traceId: string, trustedUser
     if (
       value === undefined
       || HOP_BY_HOP_HEADERS.has(normalizedName)
-      || ['x-user-id', 'x-user-nickname', 'x-gateway-authorization'].includes(normalizedName)
+      || ['x-user-id', 'x-user-nickname', 'x-user-role', 'x-gateway-authorization'].includes(normalizedName)
     ) continue;
     headers.set(name, Array.isArray(value) ? value.join(', ') : value);
   }
@@ -117,15 +118,17 @@ function toFetchHeaders(input: IncomingHttpHeaders, traceId: string, trustedUser
   if (trustedUser) {
     headers.set('x-user-id', String(trustedUser.id));
     headers.set('x-user-nickname', trustedUser.nickname);
+    headers.set('x-user-role', trustedUser.role);
     headers.set('x-gateway-authorization', trustedUser.gatewayAuthorization);
   }
   return headers;
 }
 
-async function resolveTrustedLiveUser(
+async function resolveTrustedUser(
   request: IncomingMessage,
   config: GatewayConfig,
   traceId: string,
+  audience: 'live-reward' | 'governance-ai',
 ): Promise<TrustedUserContext | undefined> {
   const authorization = request.headers.authorization;
   if (typeof authorization !== 'string' || !authorization.trim()) return undefined;
@@ -145,20 +148,24 @@ async function resolveTrustedLiveUser(
   }
   if (response.status === 401 || response.status === 403) throw new GatewayHttpError(401, 'authentication failed');
   if (!response.ok) throw new GatewayHttpError(503, `identity authentication returned ${response.status}`);
-  const payload = await response.json() as { data?: { id?: unknown; nickname?: unknown } };
+  const payload = await response.json() as { data?: { id?: unknown; nickname?: unknown; role?: unknown } };
   const id = Number(payload.data?.id);
   if (!Number.isInteger(id) || id < 1) throw new GatewayHttpError(503, 'identity authentication returned an invalid user');
   const nickname = typeof payload.data?.nickname === 'string' && payload.data.nickname.trim()
     ? payload.data.nickname.trim().slice(0, 64)
     : `user-${id}`;
+  const role = typeof payload.data?.role === 'string' && payload.data.role.trim()
+    ? payload.data.role.trim().toUpperCase().slice(0, 32)
+    : 'USER';
+  const scope = audience === 'live-reward' ? 'live.user.forward' : 'governance.user.forward';
   const token = issueServiceToken({
     caller: 'gateway',
-    audience: 'live-reward',
-    scopes: ['live.user.forward'],
+    audience,
+    scopes: [scope],
     secret: config.serviceJwtSecret,
     requestId: traceId,
   });
-  return { id, nickname, gatewayAuthorization: `Bearer ${token}` };
+  return { id, nickname, role, gatewayAuthorization: `Bearer ${token}` };
 }
 
 function writeJson(response: ServerResponse, statusCode: number, payload: unknown, traceId: string): void {
@@ -233,8 +240,8 @@ export function createGatewayServer(config: GatewayConfig = loadGatewayConfig())
     const primary = resolveUpstream(pathname, config);
     let upstreamName = resolveUpstreamName(pathname, config);
     try {
-      const trustedUser = upstreamName === 'live-reward'
-        ? await resolveTrustedLiveUser(request, config, traceId)
+      const trustedUser = upstreamName === 'live-reward' || upstreamName === 'governance-ai'
+        ? await resolveTrustedUser(request, config, traceId, upstreamName)
         : undefined;
       let upstream = await proxyRequest(request, primary, traceId, config.timeoutMs, trustedUser);
       const canFallback = ['GET', 'HEAD'].includes(method)

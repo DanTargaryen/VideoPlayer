@@ -1,3 +1,12 @@
-# Governance schema placeholder
+# Governance schema
 
-MS-00 reserves this directory but does not copy monolith models. The MS-04 owner adds the independently reviewed governance Prisma schema, migrations and fixtures after the scaffold merges.
+This directory owns only governance facts: `VideoReview`, `CommentAiTask`, `ReportRecord` and `ModerationDecision`. Content and identity identifiers are scalar external IDs; there are no cross-schema foreign keys.
+
+Use an isolated governance database and account:
+
+```bash
+GOVERNANCE_DATABASE_URL=mysql://governance_app:password@127.0.0.1:3306/video_player_governance_test \
+npm --workspace @videoplayer/governance-ai run db:migrate
+```
+
+Migration deployment is repeatable. The opt-in integration suite rejects URLs whose database name is not an explicit governance test target.

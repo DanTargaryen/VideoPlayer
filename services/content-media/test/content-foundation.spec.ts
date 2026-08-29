@@ -64,6 +64,7 @@ describe('content-media foundation public APIs', () => {
         async updateTextStatus() { throw new Error('unused'); },
         async registerReplay() { throw new Error('unused'); },
         async batchSummary() { return []; },
+        async moderationTarget() { return null; },
       },
     });
 
@@ -184,6 +185,16 @@ describe('content-media internal API contracts', () => {
       }),
     );
     expect(danmaku.data).toEqual({ targetType: 'DANMAKU', targetId: 'danmaku-001', status: 'HIDDEN' });
+  });
+
+  it('returns moderation target snapshots only through the authenticated content boundary', async () => {
+    const baseUrl = await start({ state: createFixtureState() });
+    const response = await fetch(`${baseUrl}/internal/v1/moderation-targets/COMMENT/comment-001`, {
+      headers: { authorization: `Bearer ${token('internal:moderation-target-read')}` },
+    });
+    expect(response.status).toBe(200);
+    expect((await json(response)).data).toMatchObject({ targetType: 'COMMENT', targetId: 'comment-001', videoId: '1', content: 'clear walkthrough' });
+    expect((await fetch(`${baseUrl}/internal/v1/moderation-targets/COMMENT/comment-001`, { headers: { 'x-user-id': '1' } })).status).toBe(401);
   });
 
   it('registers replays idempotently by requestId or objectKey', async () => {

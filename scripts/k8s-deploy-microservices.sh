@@ -17,6 +17,10 @@ LIVE_REWARD_DATABASE_NAME=${LIVE_REWARD_DATABASE_NAME:-}
 LIVE_REWARD_DATABASE_USER=${LIVE_REWARD_DATABASE_USER:-}
 LIVE_REWARD_DATABASE_PASSWORD=${LIVE_REWARD_DATABASE_PASSWORD:-}
 LIVE_REWARD_DATABASE_URL=${LIVE_REWARD_DATABASE_URL:-}
+GOVERNANCE_DATABASE_NAME=${GOVERNANCE_DATABASE_NAME:-}
+GOVERNANCE_DATABASE_USER=${GOVERNANCE_DATABASE_USER:-}
+GOVERNANCE_DATABASE_PASSWORD=${GOVERNANCE_DATABASE_PASSWORD:-}
+GOVERNANCE_DATABASE_URL=${GOVERNANCE_DATABASE_URL:-}
 
 for command_name in docker kind kubectl; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
@@ -65,6 +69,18 @@ if [[ -z "$LIVE_REWARD_DATABASE_URL" ]]; then
   echo "LIVE_REWARD_DATABASE_URL is required." >&2
   exit 1
 fi
+if [[ ! "$GOVERNANCE_DATABASE_NAME" =~ ^[A-Za-z0-9_]+test[A-Za-z0-9_]*$ ]]; then
+  echo "GOVERNANCE_DATABASE_NAME must be a test database with a safe identifier." >&2
+  exit 1
+fi
+if [[ ! "$GOVERNANCE_DATABASE_USER" =~ ^[A-Za-z0-9_]+$ || ${#GOVERNANCE_DATABASE_PASSWORD} -lt 24 ]]; then
+  echo "Set a safe GOVERNANCE_DATABASE_USER and a password with at least 24 characters." >&2
+  exit 1
+fi
+if [[ -z "$GOVERNANCE_DATABASE_URL" ]]; then
+  echo "GOVERNANCE_DATABASE_URL is required." >&2
+  exit 1
+fi
 
 services=(identity-community content-media live-reward governance-ai gateway)
 images=()
@@ -76,10 +92,12 @@ done
 identity_migration_image="video-player/identity-community-migration:$IMAGE_TAG"
 content_migration_image="video-player/content-media-migrate:$IMAGE_TAG"
 live_migration_image="video-player/live-reward-migration:$IMAGE_TAG"
+governance_migration_image="video-player/governance-ai-migration:$IMAGE_TAG"
 docker image inspect "$identity_migration_image" >/dev/null
 docker image inspect "$content_migration_image" >/dev/null
 docker image inspect "$live_migration_image" >/dev/null
-images+=("$identity_migration_image" "$content_migration_image" "$live_migration_image")
+docker image inspect "$governance_migration_image" >/dev/null
+images+=("$identity_migration_image" "$content_migration_image" "$live_migration_image" "$governance_migration_image")
 
 if ! kind get clusters | grep -Fxq "$CLUSTER_NAME"; then
   echo "Kind cluster $CLUSTER_NAME does not exist; deploy the monolith baseline first." >&2
@@ -100,12 +118,16 @@ kubectl -n "$NAMESPACE" exec statefulset/mysql -- \
 kubectl -n "$NAMESPACE" exec statefulset/mysql -- \
   env MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -e \
   "CREATE DATABASE IF NOT EXISTS \`$LIVE_REWARD_DATABASE_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE USER IF NOT EXISTS '$LIVE_REWARD_DATABASE_USER'@'%' IDENTIFIED BY '${LIVE_REWARD_DATABASE_PASSWORD}'; ALTER USER '$LIVE_REWARD_DATABASE_USER'@'%' IDENTIFIED BY '${LIVE_REWARD_DATABASE_PASSWORD}'; GRANT ALL PRIVILEGES ON \`$LIVE_REWARD_DATABASE_NAME\`.* TO '$LIVE_REWARD_DATABASE_USER'@'%'; FLUSH PRIVILEGES;"
+kubectl -n "$NAMESPACE" exec statefulset/mysql -- \
+  env MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -e \
+  "CREATE DATABASE IF NOT EXISTS \`$GOVERNANCE_DATABASE_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE USER IF NOT EXISTS '$GOVERNANCE_DATABASE_USER'@'%' IDENTIFIED BY '${GOVERNANCE_DATABASE_PASSWORD}'; ALTER USER '$GOVERNANCE_DATABASE_USER'@'%' IDENTIFIED BY '${GOVERNANCE_DATABASE_PASSWORD}'; GRANT ALL PRIVILEGES ON \`$GOVERNANCE_DATABASE_NAME\`.* TO '$GOVERNANCE_DATABASE_USER'@'%'; FLUSH PRIVILEGES;"
 kubectl -n "$NAMESPACE" create secret generic videoplayer-microservice-secrets \
   --from-literal=service-jwt-secret="$SERVICE_JWT_SECRET" \
   --from-literal=identity-database-url="$IDENTITY_DATABASE_URL" \
   --from-literal=identity-admin-secret="$IDENTITY_ADMIN_SECRET" \
   --from-literal=content-database-url="mysql://content_media:${CONTENT_DB_PASSWORD}@mysql:3306/content_media" \
   --from-literal=live-reward-database-url="$LIVE_REWARD_DATABASE_URL" \
+  --from-literal=governance-database-url="$GOVERNANCE_DATABASE_URL" \
   --dry-run=client -o yaml | kubectl apply -f -
 kubectl -n "$NAMESPACE" delete job identity-migrate --ignore-not-found
 sed "s|video-player/identity-community-migration:local|$identity_migration_image|g" \
@@ -149,6 +171,21 @@ live_database_list=$(kubectl -n "$NAMESPACE" exec statefulset/mysql -- \
 grep -Fx "$LIVE_REWARD_DATABASE_NAME" <<<"$live_database_list" >/dev/null
 if grep -Fx 'video_player' <<<"$live_database_list" >/dev/null || grep -Fx "$IDENTITY_DATABASE_NAME" <<<"$live_database_list" >/dev/null || grep -Fx 'content_media' <<<"$live_database_list" >/dev/null; then
   echo "live-reward database account can access another service schema" >&2
+  exit 1
+fi
+
+kubectl -n "$NAMESPACE" delete job governance-migrate --ignore-not-found
+sed "s|video-player/governance-ai-migration:local|$governance_migration_image|g" \
+  "$ROOT_DIR/deploy/k8s/microservices/governance-migrate-job.yaml" | kubectl apply -f -
+if ! kubectl -n "$NAMESPACE" wait --for=condition=complete job/governance-migrate --timeout=240s; then
+  kubectl -n "$NAMESPACE" logs job/governance-migrate --all-containers=true --tail=200 || true
+  exit 1
+fi
+governance_database_list=$(kubectl -n "$NAMESPACE" exec statefulset/mysql -- \
+  env MYSQL_PWD="$GOVERNANCE_DATABASE_PASSWORD" mysql -N -u"$GOVERNANCE_DATABASE_USER" -e 'SHOW DATABASES')
+grep -Fx "$GOVERNANCE_DATABASE_NAME" <<<"$governance_database_list" >/dev/null
+if grep -Fx 'video_player' <<<"$governance_database_list" >/dev/null || grep -Fx "$IDENTITY_DATABASE_NAME" <<<"$governance_database_list" >/dev/null || grep -Fx 'content_media' <<<"$governance_database_list" >/dev/null || grep -Fx "$LIVE_REWARD_DATABASE_NAME" <<<"$governance_database_list" >/dev/null; then
+  echo "governance database account can access another service schema" >&2
   exit 1
 fi
 

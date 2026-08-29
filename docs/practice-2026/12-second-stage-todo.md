@@ -1,6 +1,6 @@
 # 第二阶段微服务执行 TODO
 
-> 状态：`MS-00 / MS-01 / MS-02 / MS-03 DONE / MS-04 READY`
+> 状态：`MS-00 / MS-01 / MS-02 / MS-03 / MS-04 DONE / REG-01 UC06 DONE`
 >
 > 冻结基线：`monolith-start` / `main@70d197dc1a1f6febfdc7dcb12d8661384ad5d31e`。
 >
@@ -15,7 +15,7 @@
 - [x] ARCH-01 评审完成，全员同意默认方案。
 - [x] `docs/ARCH-01-service-boundary-freeze` PR #40 已完成 Owner 自审记录并合并到 `main`。
 - [x] A 完成 `build/MS-00-microservice-scaffold`，PR #41 已由 Owner 自审并 squash 合并到 `main@9181e2c9655b3f0b751a0544e95b8ec77dfd5737`。
-- [ ] B/C/D/E 从包含 MS-00 的最新 `main` 创建各自 foundation 分支。
+- [x] B/C/D/E 从包含 MS-00 的最新 `main` 创建各自 foundation 分支。
 - [ ] 四个 foundation 服务均可独立安装、lint、build、test、构建镜像和返回 health/version。
 - [ ] identity/content 只读路由完成并保留单体 fallback。
 - [ ] identity/content/live/governance 写流量按顺序切换并保留回滚路径。
@@ -435,48 +435,52 @@ services/<service>/
 
 ### 7.2 数据 owner
 
-- [ ] `VideoReview`
-- [ ] `CommentAiTask`
-- [ ] `ReportRecord`
-- [ ] 新增 `ModerationDecision`
-- [ ] requestId、decisionId、applyStatus、attempts、lastError 和审计字段进入 schema。
+- [x] `VideoReview`
+- [x] `CommentAiTask`
+- [x] `ReportRecord`
+- [x] 新增 `ModerationDecision`
+- [x] requestId、decisionId、applyStatus、attempts、lastError 和审计字段进入 schema。
 
 ### 7.3 举报与审核状态
 
-- [ ] 相同 reporter/target 并发请求只产生一条 PENDING。
-- [ ] 处理后释放 pendingKey，允许再次举报。
-- [ ] 重复处置明确拒绝。
-- [ ] 审核决定状态包含 PENDING/DECIDED/APPLY_PENDING/APPLIED/APPLY_FAILED_RETRYABLE/APPLY_FAILED_FINAL。
-- [ ] content 不可用时决定不丢失，保持 APPLY_PENDING。
-- [ ] 后台补偿重试可审计。
-- [ ] governance 不直接修改 Video/Comment/VideoDanmaku。
-- [ ] governance 不直接查询 User/Notification 主表。
+- [x] 相同 reporter/target 并发请求只产生一条 PENDING。
+- [x] 处理后释放 pendingKey，允许再次举报。
+- [x] 重复处置明确拒绝。
+- [x] 审核决定状态包含 PENDING/DECIDED/APPLY_PENDING/APPLIED/APPLY_FAILED_RETRYABLE/APPLY_FAILED_FINAL。
+- [x] content 不可用时决定不丢失，首次执行前保持 APPLY_PENDING；失败后进入可审计的 retryable/final 状态。
+- [x] 后台补偿重试可审计。
+  - content 5xx/timeout 使用有限指数退避，400/401/409 进入最终失败；attempts、lastError、nextRetryAt、appliedAt 均持久化。
+- [x] governance 不直接修改 Video/Comment/VideoDanmaku。
+- [x] governance 不直接查询 User/Notification 主表。
 
 ### 7.4 跨服务 contract tests
 
-- [ ] identity batch-summary。
-- [ ] identity notifications 幂等。
-- [ ] content review-decision 幂等。
-- [ ] content text-status。
-- [ ] content replay registration 幂等。
-- [ ] 服务 JWT 成功、过期、audience 和 scope 错误。
-- [ ] timeout、502/503、fallback 和补偿状态。
-- [ ] contract 版本和不兼容变更检测。
+- [x] identity batch-summary。
+- [x] identity notifications 幂等。
+- [x] content review-decision 幂等。
+- [x] content text-status。
+- [x] content replay registration 幂等。
+- [x] 服务 JWT 成功、过期、audience 和 scope 错误。
+- [x] timeout、502/503、fallback 和补偿状态。
+- [x] contract 版本和不兼容变更检测。
 
-### 7.5 REG-01 骨架
+### 7.5 REG-01 双目标与 UC06 回归
 
-- [ ] 同一套测试可配置 `MONOLITH_BASE_URL`。
-- [ ] 同一套测试可配置 `MICROSERVICE_GATEWAY_BASE_URL`。
-- [ ] 报告包含目标环境、Git SHA 和服务版本。
-- [ ] 结果只使用 PASS/FAIL/BLOCKED/NOT RUN。
-- [ ] 第一批只建立入口，不虚报微服务 UC01–UC06 已完成。
+- [x] 同一套测试可配置 `MONOLITH_BASE_URL`。
+- [x] 同一套测试可配置 `MICROSERVICE_GATEWAY_BASE_URL`。
+- [x] 报告包含目标环境、Git SHA 和服务版本。
+- [x] 结果只使用 PASS/FAIL/BLOCKED/NOT RUN。
+- [x] `REG_RUN_UC06=true` 时执行微服务 Gateway 的真实 UC06 举报、处置、内容状态和通知回归。
+- [x] 默认未授权业务回归时保持 `NOT RUN`，不把服务可达性冒充业务回归 PASS。
+
+E 验收证据（2026-08-29，基于 `origin/main@933ccac`）：完成 governance 公开举报、管理员审核、文本审核、仪表盘和本地规则预审 API；Gateway 使用 identity `/auth/me` 建立可信用户上下文并拒绝伪造管理员头；处置结果通过带 JWT、timeout、幂等和补偿状态的内部调用应用到 content，并向 identity 写入幂等 `REPORT` 通知。独立治理 schema/migration/seed、举报 pendingKey 并发幂等、审核决定与目标应用状态机、审计字段和跨服务 contract 均已落地。governance lint/build 与定向测试、shared-contracts 9/9、Gateway 7/7、content 18/18、identity 5/5、隔离 MySQL integration 1/1、全部微服务镜像构建及 Compose UC06 smoke 均 PASS；REG-01 已提供可选的真实 UC06 双目标执行入口。
 
 ### 7.6 E 第一批禁止事项
 
-- [ ] 未复制 Video/Comment/Danmaku 成为 governance 主表。
-- [ ] 未直接修改 identity/content/live schema。
-- [ ] 未把未授权的真实外部 AI 调用写成 PASS。
-- [ ] 未在 content contract 未完成时直接写对方数据库。
+- [x] 未复制 Video/Comment/Danmaku 成为 governance 主表。
+- [x] 未直接修改 identity/content/live schema。
+- [x] 未把未授权的真实外部 AI 调用写成 PASS。
+- [x] 未在 content contract 未完成时直接写对方数据库。
 
 ## 8. 交叉 Review TODO
 

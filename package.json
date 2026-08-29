@@ -39,8 +39,10 @@
     "test:frontend": "npm --workspace frontend run test",
     "test:services": "npm --workspace @videoplayer/shared-contracts run build && npm --workspace @videoplayer/shared-contracts run test && npm --workspace @videoplayer/identity-community run test && npm --workspace @videoplayer/content-media run test && npm --workspace @videoplayer/live-reward run test && npm --workspace @videoplayer/governance-ai run test && npm --workspace @videoplayer/gateway run test",
     "test:services:ci": "npm run lint:services && npm run build:services && npm run test:services",
+    "test:regression": "node --test test/regression/regression.test.mjs",
+    "reg:01": "node test/regression/run.mjs",
     "test:e2e": "playwright test",
-    "test:ci": "npm --workspace backend run prisma:generate && npm run lint:backend && npm run lint:frontend && npm run lint:services && npm run build:backend && npm run build:frontend && npm run build:services && npm run test:requirements && npm test && npm run test:services"
+    "test:ci": "npm --workspace backend run prisma:generate && npm run lint:backend && npm run lint:frontend && npm run lint:services && npm run build:backend && npm run build:frontend && npm run build:services && npm run test:requirements && npm test && npm run test:services && npm run test:regression"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

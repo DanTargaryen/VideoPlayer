@@ -93,6 +93,33 @@ services:
       live-mysql:
         condition: service_healthy
 
+  governance-mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: ${GOVERNANCE_DATABASE_NAME:-video_player_governance_test}
+      MYSQL_USER: ${GOVERNANCE_DATABASE_USER:-governance_app}
+      MYSQL_PASSWORD: ${GOVERNANCE_DATABASE_PASSWORD:?GOVERNANCE_DATABASE_PASSWORD is required}
+      MYSQL_ROOT_PASSWORD: ${GOVERNANCE_MYSQL_ROOT_PASSWORD:?GOVERNANCE_MYSQL_ROOT_PASSWORD is required}
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    volumes:
+      - governance-mysql-data:/var/lib/mysql
+    healthcheck:
+      <<: *service-health
+      start_period: 15s
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent"]
+
+  governance-migrate:
+    build:
+      context: ..
+      dockerfile: services/governance-ai/Dockerfile
+      target: migration
+    image: video-player/governance-ai-migration:${IMAGE_TAG:-local}
+    environment:
+      GOVERNANCE_DATABASE_URL: mysql://${GOVERNANCE_DATABASE_USER:-governance_app}:${GOVERNANCE_DATABASE_PASSWORD:?GOVERNANCE_DATABASE_PASSWORD is required}@governance-mysql:3306/${GOVERNANCE_DATABASE_NAME:-video_player_governance_test}
+    depends_on:
+      governance-mysql:
+        condition: service_healthy
+
   identity-community:
     build:
       context: ..
@@ -122,6 +149,7 @@ services:
       PORT: 3000
       GIT_SHA: ${GIT_SHA:-dev}
       CONTENT_DATABASE_URL: mysql://content_media:${CONTENT_DB_PASSWORD:-content-media-local-only}@content-mysql:3306/content_media
+      SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET:?SERVICE_JWT_SECRET is required}
     ports:
       - "3102:3000"
     depends_on:
@@ -159,6 +187,17 @@ services:
     environment:
       PORT: 3000
       GIT_SHA: ${GIT_SHA:-dev}
+      GOVERNANCE_DATABASE_URL: mysql://${GOVERNANCE_DATABASE_USER:-governance_app}:${GOVERNANCE_DATABASE_PASSWORD:?GOVERNANCE_DATABASE_PASSWORD is required}@governance-mysql:3306/${GOVERNANCE_DATABASE_NAME:-video_player_governance_test}
+      CONTENT_MEDIA_BASE_URL: http://content-media:3000
+      IDENTITY_COMMUNITY_BASE_URL: http://identity-community:3000
+      SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET:?SERVICE_JWT_SECRET is required}
+    depends_on:
+      governance-migrate:
+        condition: service_completed_successfully
+      identity-community:
+        condition: service_healthy
+      content-media:
+        condition: service_healthy
     ports:
       - "3104:3000"
     healthcheck:
@@ -203,3 +242,4 @@ volumes:
   identity-mysql-data:
   content-mysql-data:
   live-mysql-data:
+  governance-mysql-data:
