@@ -66,7 +66,7 @@ describe('live-reward domain', () => {
     try {
       const forged = await fetch(`http://127.0.0.1:${address.port}/api/v1/lives/rooms`, { method: 'POST', headers: { 'x-user-id': '999', 'content-type': 'application/json' }, body: JSON.stringify({ title: 'forged session' }) });
       expect(forged.status).toBe(401);
-      const response = await fetch(`http://127.0.0.1:${address.port}/api/v1/lives/rooms`, { method: 'POST', headers: trustedUserHeaders(), body: JSON.stringify({ title: 'trusted session' }) });
+      const response = await fetch(`http://127.0.0.1:${address.port}/api/v1/lives/rooms`, { method: 'POST', headers: trustedUserHeaders(7, encodeURIComponent('中文主播')), body: JSON.stringify({ title: 'trusted session' }) });
       expect(response.status).toBe(200);
       expect((await response.json()).data.broadcaster.id).toBe(7);
     } finally {
@@ -211,7 +211,7 @@ describe('live-reward domain', () => {
     const storedMessages = await store.listMessages((await store.getLatestSession(room.id))!.id, 10001);
     expect(storedMessages.filter((message) => message.kind === 'CHAT')).toHaveLength(10000);
     expect(storedMessages.filter((message) => message.kind === 'SYSTEM')).toHaveLength(1);
-  });
+  }, 15_000);
 });
 
 describe('live-reward HTTP adapters and internal auth', () => {

@@ -1,6 +1,9 @@
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
 ENV NPM_CONFIG_FETCH_RETRIES=8 NPM_CONFIG_FETCH_RETRY_MINTIMEOUT=20000 NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT=120000 NPM_CONFIG_FETCH_TIMEOUT=300000
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates openssl \
+  && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
 COPY backend/package.json backend/package.json
 COPY frontend/package.json frontend/package.json
@@ -13,10 +16,17 @@ RUN for attempt in 1 2 3 4 5; do \
     exit 1
 RUN npm --workspace @videoplayer/governance-ai run build
 
+FROM build AS migration
+CMD ["npm", "--workspace", "@videoplayer/governance-ai", "run", "db:migrate"]
+
 FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production PORT=3000
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates openssl \
+  && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/services/governance-ai/dist ./dist
+COPY --from=build /app/services/governance-ai/generated ./generated
 COPY --from=build /app/services/shared-contracts/package.json ./node_modules/@videoplayer/shared-contracts/package.json
 COPY --from=build /app/services/shared-contracts/dist ./node_modules/@videoplayer/shared-contracts/dist
 USER node

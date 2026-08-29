@@ -20,6 +20,8 @@ model Video {
   playUrl         String?
   durationSeconds Int                  @default(0)
   publishedAt     DateTime?
+  submittedAt     DateTime?
+  reviewSubmissionRequestId String?    @unique @db.VarChar(128)
   reviewDecisionId String?             @unique
   reviewDecision   String?
   reviewDecisionReason String?         @db.Text

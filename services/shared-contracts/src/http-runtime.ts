@@ -7,6 +7,16 @@ export interface ServiceRuntimeOptions {
   serviceName: ServiceName;
   defaultPort: number;
   ready?: () => boolean | Promise<boolean>;
+  route?: (context: ServiceRequestContext) => boolean | Promise<boolean>;
+}
+
+export interface ServiceRequestContext {
+  request: IncomingMessage;
+  response: ServerResponse;
+  requestId: string;
+  method: string;
+  path: string;
+  writeJson: (statusCode: number, payload: unknown) => void;
 }
 
 function getRequestId(request: IncomingMessage): string {
@@ -58,6 +68,20 @@ export function createHealthServer(options: ServiceRuntimeOptions): Server {
     if (method === 'GET' && path === '/version') {
       const data: ServiceVersion = { service: options.serviceName, version, node: process.version };
       writeJson(response, 200, ok(data, requestId), requestId);
+      return;
+    }
+
+    if (
+      options.route &&
+      (await options.route({
+        request,
+        response,
+        requestId,
+        method,
+        path,
+        writeJson: (statusCode, payload) => writeJson(response, statusCode, payload, requestId),
+      }))
+    ) {
       return;
     }
 

@@ -86,9 +86,9 @@
             <span class="status">状态：{{ item.status }} · 用户：{{ item.user.nickname }}</span>
           </div>
           <div class="actions">
-            <el-button @click="handleTextModeration(item.targetType, item.id, 'KEEP')">保留</el-button>
-            <el-button type="warning" @click="handleTextModeration(item.targetType, item.id, 'HIDE')">隐藏</el-button>
-            <el-button type="danger" plain @click="handleTextModeration(item.targetType, item.id, 'DELETE')">删除</el-button>
+            <el-button @click="handleTextModeration(item.targetType, item.targetId, 'KEEP')">保留</el-button>
+            <el-button type="warning" @click="handleTextModeration(item.targetType, item.targetId, 'HIDE')">隐藏</el-button>
+            <el-button type="danger" plain @click="handleTextModeration(item.targetType, item.targetId, 'DELETE')">删除</el-button>
           </div>
         </article>
         <el-empty v-if="textReviews.length === 0" description="当前没有待处理文本内容" />
@@ -159,13 +159,20 @@ const previewDialogVisible = ref(false);
 const previewItem = ref<ReviewQueueItem | null>(null);
 const previewPlayerRef = ref<HTMLVideoElement | null>(null);
 
-const statCards = computed(() => [
-  { label: '总视频数', value: dashboard.value.totalVideos ?? 0 },
-  { label: '待审视频', value: dashboard.value.pendingReviews ?? 0 },
-  { label: '待处理举报', value: dashboard.value.pendingReports ?? 0 },
-  { label: '异常评论', value: dashboard.value.hiddenComments ?? 0 },
-  { label: '异常弹幕', value: dashboard.value.hiddenDanmakus ?? 0 },
-]);
+const statCards = computed(() => {
+  const available = [
+    { key: 'totalVideos', label: '总视频数' },
+    { key: 'pendingReviews', label: '待审视频' },
+    { key: 'pendingReports', label: '待处理举报' },
+    { key: 'retryingDecisions', label: '待重试处置' },
+    { key: 'hiddenComments', label: '异常评论' },
+    { key: 'hiddenDanmakus', label: '异常弹幕' },
+  ];
+  return available.flatMap(({ key, label }) => {
+    const value = dashboard.value[key];
+    return typeof value === 'number' ? [{ label, value }] : [];
+  });
+});
 
 function formatTime(value?: string | null) {
   if (!value) return '暂无';
@@ -262,11 +269,11 @@ async function handleReview(id: number, action: 'APPROVE' | 'REJECT') {
 
 async function handleTextModeration(
   targetType: 'COMMENT' | 'VIDEO_DANMAKU',
-  id: number,
+  targetId: string,
   action: 'KEEP' | 'HIDE' | 'DELETE',
 ) {
   try {
-    await moderateTextContent(targetType, id, action);
+    await moderateTextContent(targetType, targetId, action);
   } catch {
     ElMessage.error('文本审核处理失败');
     return;

@@ -434,8 +434,24 @@ export async function claimMilestoneReward(milestone: number) {
 }
 
 export async function submitReview(videoId: number) {
-  const { data } = await http.post<ApiResponse<Record<string, unknown>>>(`/videos/${videoId}/submit-review`);
-  return data.data;
+  const storageKey = `vp_review_submission_request:${videoId}`;
+  const requestId = localStorage.getItem(storageKey)
+    ?? globalThis.crypto?.randomUUID?.()
+    ?? `review-${videoId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  localStorage.setItem(storageKey, requestId);
+  try {
+    const { data } = await http.post<ApiResponse<Record<string, unknown>>>(
+      `/videos/${videoId}/submit-review`,
+      undefined,
+      { headers: { 'x-request-id': requestId } },
+    );
+    localStorage.removeItem(storageKey);
+    return data.data;
+  } catch (error) {
+    const status = (error as { response?: { status?: number } }).response?.status;
+    if (status !== undefined && status < 500) localStorage.removeItem(storageKey);
+    throw error;
+  }
 }
 
 export async function withdrawVideoReview(videoId: number) {
@@ -470,12 +486,12 @@ export async function fetchTextReviewQueue(targetType?: 'COMMENT' | 'VIDEO_DANMA
 
 export async function moderateTextContent(
   targetType: 'COMMENT' | 'VIDEO_DANMAKU',
-  id: number,
+  targetId: string,
   action: 'KEEP' | 'HIDE' | 'DELETE',
   reason?: string,
 ) {
   const { data } = await http.post<ApiResponse<Record<string, unknown>>>(
-    `/admin/reviews/text-content/${targetType}/${id}`,
+    `/admin/reviews/text-content/${targetType}/${encodeURIComponent(targetId)}`,
     { action, reason },
   );
   return data.data;

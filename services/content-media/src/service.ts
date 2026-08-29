@@ -16,6 +16,12 @@ import {
   type ServiceVersion,
 } from '@videoplayer/shared-contracts';
 
+import {
+  GovernanceReviewError,
+  HttpGovernanceReviewClient,
+  type GovernanceReviewClient,
+} from './governance-client.js';
+
 export const SERVICE_OPTIONS: ServiceRuntimeOptions = {
   serviceName: 'content-media',
   defaultPort: 3102,
@@ -42,6 +48,9 @@ interface VideoRecord {
   playUrl: string | null;
   durationSeconds: number;
   publishedAt: string | null;
+  submittedAt: string | null;
+  reviewSubmissionRequestId: string | null;
+  rejectReason: string | null;
   tags: string[];
   playCount: number;
   likeCount: number;
@@ -114,8 +123,10 @@ export interface IdentityBatchClient {
 
 export interface ContentServiceOptions {
   identityClient?: IdentityBatchClient;
+  governanceClient?: GovernanceReviewClient | null;
   internalJwtSecret?: string;
   identityTimeoutMs?: number;
+  governanceTimeoutMs?: number;
   state?: ContentState;
   repository?: ContentRepository;
 }
@@ -151,6 +162,25 @@ interface SearchResult {
   category: { code: string; label: string } | null;
 }
 
+type ModerationTargetType = 'VIDEO' | 'COMMENT' | 'VIDEO_DANMAKU';
+type ModerationTargetSnapshot = {
+  targetType: ModerationTargetType;
+  targetId: string;
+  videoId: string;
+  status: string;
+  title?: string;
+  content?: string;
+  creatorId?: string;
+  description?: string;
+  coverUrl?: string | null;
+  playUrl?: string | null;
+  durationSeconds?: number;
+  createdAt?: string | Date;
+  publishedAt?: string | Date | null;
+  user?: { id: string; nickname: string };
+  video?: { id: string; title: string };
+};
+
 export interface ContentRepository {
   ready(): Promise<boolean>;
   listRecommended(options: { page: number; pageSize: number; categoryCode?: string }): Promise<VideoRecord[]>;
@@ -158,6 +188,23 @@ export interface ContentRepository {
   findPublishedVideo(id: string): Promise<VideoRecord | null>;
   listRelated(videoId: string, limit: number): Promise<VideoRecord[] | null>;
   listAssets(videoId: string): Promise<VideoAssetRecord[]>;
+  submitReview(input: { videoId: string; userId: string; isAdmin: boolean; requestId: string }): Promise<
+    | {
+        ok: true;
+        replayed: boolean;
+        previousStatus: 'DRAFT' | 'REJECTED' | null;
+        previousRequestId: string | null;
+        previousSubmittedAt: string | Date | null;
+      }
+    | { ok: false; status: 403 | 404 | 409; message: string }
+  >;
+  rollbackReviewSubmission(input: {
+    videoId: string;
+    requestId: string;
+    previousStatus: 'DRAFT' | 'REJECTED';
+    previousRequestId: string | null;
+    previousSubmittedAt: string | Date | null;
+  }): Promise<void>;
   applyReviewDecision(input: { videoId: string; decisionId: string; decision: ReviewDecisionRecord['decision']; reason: string | null }): Promise<
     { ok: true; record: ReviewDecisionRecord; replayed: boolean } | { ok: false; status: 400 | 409; message: string }
   >;
@@ -168,6 +215,7 @@ export interface ContentRepository {
     { ok: true; record: ReplayRecord; replayed: boolean } | { ok: false; status: 409; message: string }
   >;
   batchSummary(ids: string[]): Promise<Array<{ id: string; found: true; title: string; coverUrl: string | null; status: VideoStatus } | { id: string; found: false }>>;
+  moderationTarget(targetType: ModerationTargetType, targetId: string): Promise<ModerationTargetSnapshot | null>;
 }
 
 export function createFixtureState(): ContentState {
@@ -184,6 +232,9 @@ export function createFixtureState(): ContentState {
         playUrl: 'https://cdn.example.test/videos/video-001.mp4',
         durationSeconds: 92,
         publishedAt: '2026-08-27T02:00:00.000Z',
+        submittedAt: '2026-08-27T01:30:00.000Z',
+        reviewSubmissionRequestId: 'fixture-published-review',
+        rejectReason: null,
         tags: ['architecture', 'spring'],
         playCount: 410,
         likeCount: 39,
@@ -205,6 +256,9 @@ export function createFixtureState(): ContentState {
         playUrl: 'https://cdn.example.test/videos/video-002.mp4',
         durationSeconds: 121,
         publishedAt: '2026-08-27T03:00:00.000Z',
+        submittedAt: '2026-08-27T02:30:00.000Z',
+        reviewSubmissionRequestId: 'fixture-related-review',
+        rejectReason: null,
         tags: ['media', 'ffprobe'],
         playCount: 220,
         likeCount: 18,
@@ -226,6 +280,9 @@ export function createFixtureState(): ContentState {
         playUrl: null,
         durationSeconds: 0,
         publishedAt: null,
+        submittedAt: null,
+        reviewSubmissionRequestId: null,
+        rejectReason: null,
         tags: ['draft'],
         playCount: 0,
         likeCount: 0,
@@ -308,6 +365,45 @@ class FixtureContentRepository implements ContentRepository {
     return this.state.assets.filter((asset) => asset.videoId === videoId);
   }
 
+  async submitReview(input: { videoId: string; userId: string; isAdmin: boolean; requestId: string }) {
+    const video = this.state.videos.find((item) => item.id === input.videoId);
+    if (!video) return { ok: false as const, status: 404 as const, message: 'video not found' };
+    if (!input.isAdmin && video.creatorId !== input.userId) {
+      return { ok: false as const, status: 403 as const, message: 'only the creator can submit this video for review' };
+    }
+    if (video.reviewSubmissionRequestId === input.requestId) {
+      return {
+        ok: true as const,
+        replayed: true,
+        previousStatus: null,
+        previousRequestId: null,
+        previousSubmittedAt: null,
+      };
+    }
+    if (this.state.videos.some((item) => item.id !== video.id && item.reviewSubmissionRequestId === input.requestId)) {
+      return { ok: false as const, status: 409 as const, message: 'requestId was already used for a different video' };
+    }
+    if (video.status !== 'DRAFT' && video.status !== 'REJECTED') {
+      return { ok: false as const, status: 409 as const, message: 'only draft or rejected videos can be submitted for review' };
+    }
+    const previousStatus = video.status;
+    const previousRequestId = video.reviewSubmissionRequestId;
+    const previousSubmittedAt = video.submittedAt;
+    video.status = 'PENDING_REVIEW';
+    video.reviewSubmissionRequestId = input.requestId;
+    video.submittedAt = new Date().toISOString();
+    return { ok: true as const, replayed: false, previousStatus, previousRequestId, previousSubmittedAt };
+  }
+
+  async rollbackReviewSubmission(input: { videoId: string; requestId: string; previousStatus: 'DRAFT' | 'REJECTED'; previousRequestId: string | null; previousSubmittedAt: string | Date | null }): Promise<void> {
+    const video = this.state.videos.find((item) => item.id === input.videoId);
+    if (video?.status === 'PENDING_REVIEW' && video.reviewSubmissionRequestId === input.requestId) {
+      video.status = input.previousStatus;
+      video.reviewSubmissionRequestId = input.previousRequestId;
+      video.submittedAt = input.previousSubmittedAt ? new Date(input.previousSubmittedAt).toISOString() : null;
+    }
+  }
+
   async applyReviewDecision(input: { videoId: string; decisionId: string; decision: ReviewDecisionRecord['decision']; reason: string | null }): Promise<
     { ok: true; record: ReviewDecisionRecord; replayed: boolean } | { ok: false; status: 400 | 409; message: string }
   > {
@@ -318,6 +414,8 @@ class FixtureContentRepository implements ContentRepository {
     const video = this.state.videos.find((item) => item.id === input.videoId);
     if (!video) return { ok: false, status: 400, message: 'video, decisionId and decision are required' };
     video.status = input.decision === 'APPROVED' ? 'PUBLISHED' : input.decision === 'HIDDEN' ? 'HIDDEN' : 'REJECTED';
+    if (input.decision === 'APPROVED') video.publishedAt ??= new Date().toISOString();
+    video.rejectReason = input.decision === 'REJECTED' ? input.reason : null;
     const record: ReviewDecisionRecord = {
       decisionId: input.decisionId,
       videoId: video.id,
@@ -354,6 +452,9 @@ class FixtureContentRepository implements ContentRepository {
       playUrl: `https://cdn.example.test/${input.objectKey}`,
       durationSeconds: 0,
       publishedAt: null,
+      submittedAt: null,
+      reviewSubmissionRequestId: null,
+      rejectReason: null,
       tags: ['replay'],
       playCount: 0,
       likeCount: 0,
@@ -387,6 +488,18 @@ class FixtureContentRepository implements ContentRepository {
       return video ? { id, found: true as const, title: video.title, coverUrl: video.coverUrl, status: video.status } : { id, found: false as const };
     });
   }
+
+  async moderationTarget(targetType: ModerationTargetType, targetId: string): Promise<ModerationTargetSnapshot | null> {
+    if (targetType === 'VIDEO') {
+      const video = this.state.videos.find((item) => item.id === targetId);
+      return video ? { ...video, targetType, targetId, videoId: video.id } : null;
+    }
+    const collection = targetType === 'COMMENT' ? this.state.comments : this.state.danmaku;
+    const item = collection.find((entry) => entry.id === targetId);
+    if (!item) return null;
+    const video = this.state.videos.find((entry) => entry.id === item.videoId);
+    return { targetType, targetId, videoId: item.videoId, content: item.body, status: item.status, user: { id: item.userId, nickname: `用户#${item.userId}` }, video: video ? { id: video.id, title: video.title } : { id: item.videoId, title: '' } };
+  }
 }
 
 type RawVideo = {
@@ -400,6 +513,9 @@ type RawVideo = {
   playUrl: string | null;
   durationSeconds: number;
   publishedAt: Date | string | null;
+  submittedAt: Date | string | null;
+  reviewSubmissionRequestId: string | null;
+  rejectReason: string | null;
   createdAt: Date | string;
   categoryCode: string | null;
   categoryName: string | null;
@@ -410,8 +526,8 @@ type RawVideo = {
 };
 
 interface PrismaLike {
-  $queryRawUnsafe<T = unknown>(query: string, ...values: Array<string | number | null>): Promise<T>;
-  $executeRawUnsafe(query: string, ...values: Array<string | number | null>): Promise<number>;
+  $queryRawUnsafe<T = unknown>(query: string, ...values: Array<string | number | Date | null>): Promise<T>;
+  $executeRawUnsafe(query: string, ...values: Array<string | number | Date | null>): Promise<number>;
 }
 
 class PrismaContentRepository implements ContentRepository {
@@ -485,6 +601,102 @@ class PrismaContentRepository implements ContentRepository {
     );
   }
 
+  async submitReview(input: { videoId: string; userId: string; isAdmin: boolean; requestId: string }) {
+    const rows = await (await this.client()).$queryRawUnsafe<Array<{
+      creatorId: string;
+      status: VideoStatus;
+      reviewSubmissionRequestId: string | null;
+      submittedAt: Date | string | null;
+    }>>(
+      'SELECT creatorId, status, reviewSubmissionRequestId, submittedAt FROM `Video` WHERE id = ? LIMIT 1',
+      input.videoId,
+    );
+    const video = rows[0];
+    if (!video) return { ok: false as const, status: 404 as const, message: 'video not found' };
+    if (!input.isAdmin && video.creatorId !== input.userId) {
+      return { ok: false as const, status: 403 as const, message: 'only the creator can submit this video for review' };
+    }
+    if (video.reviewSubmissionRequestId === input.requestId) {
+      return {
+        ok: true as const,
+        replayed: true,
+        previousStatus: null,
+        previousRequestId: null,
+        previousSubmittedAt: null,
+      };
+    }
+    if (video.status !== 'DRAFT' && video.status !== 'REJECTED') {
+      return { ok: false as const, status: 409 as const, message: 'only draft or rejected videos can be submitted for review' };
+    }
+    let updated = 0;
+    try {
+      updated = input.isAdmin
+        ? await (await this.client()).$executeRawUnsafe(
+            "UPDATE `Video` SET status = 'PENDING_REVIEW', reviewSubmissionRequestId = ?, submittedAt = NOW(3) WHERE id = ? AND status = ?",
+            input.requestId,
+            input.videoId,
+            video.status,
+          )
+        : await (await this.client()).$executeRawUnsafe(
+            "UPDATE `Video` SET status = 'PENDING_REVIEW', reviewSubmissionRequestId = ?, submittedAt = NOW(3) WHERE id = ? AND creatorId = ? AND status = ?",
+            input.requestId,
+            input.videoId,
+            input.userId,
+            video.status,
+          );
+    } catch {
+      const conflicts = await (await this.client()).$queryRawUnsafe<Array<{ id: string }>>(
+        'SELECT id FROM `Video` WHERE reviewSubmissionRequestId = ? LIMIT 1',
+        input.requestId,
+      );
+      if (conflicts[0]?.id === input.videoId) {
+        return {
+          ok: true as const,
+          replayed: true,
+          previousStatus: null,
+          previousRequestId: null,
+          previousSubmittedAt: null,
+        };
+      }
+      if (conflicts[0]) return { ok: false as const, status: 409 as const, message: 'requestId was already used for a different video' };
+      throw new Error('failed to persist review submission');
+    }
+    if (updated !== 1) {
+      const current = await (await this.client()).$queryRawUnsafe<Array<{ reviewSubmissionRequestId: string | null }>>(
+        'SELECT reviewSubmissionRequestId FROM `Video` WHERE id = ? LIMIT 1',
+        input.videoId,
+      );
+      if (current[0]?.reviewSubmissionRequestId === input.requestId) {
+        return {
+          ok: true as const,
+          replayed: true,
+          previousStatus: null,
+          previousRequestId: null,
+          previousSubmittedAt: null,
+        };
+      }
+      return { ok: false as const, status: 409 as const, message: 'video state changed while submitting for review' };
+    }
+    return {
+      ok: true as const,
+      replayed: false,
+      previousStatus: video.status,
+      previousRequestId: video.reviewSubmissionRequestId,
+      previousSubmittedAt: video.submittedAt,
+    };
+  }
+
+  async rollbackReviewSubmission(input: { videoId: string; requestId: string; previousStatus: 'DRAFT' | 'REJECTED'; previousRequestId: string | null; previousSubmittedAt: string | Date | null }): Promise<void> {
+    await (await this.client()).$executeRawUnsafe(
+      "UPDATE `Video` SET status = ?, reviewSubmissionRequestId = ?, submittedAt = ? WHERE id = ? AND status = 'PENDING_REVIEW' AND reviewSubmissionRequestId = ?",
+      input.previousStatus,
+      input.previousRequestId,
+      input.previousSubmittedAt instanceof Date ? input.previousSubmittedAt : input.previousSubmittedAt ? new Date(input.previousSubmittedAt) : null,
+      input.videoId,
+      input.requestId,
+    );
+  }
+
   async applyReviewDecision(input: { videoId: string; decisionId: string; decision: ReviewDecisionRecord['decision']; reason: string | null }) {
     const existing = await this.findReviewDecision(input.decisionId);
     if (existing) {
@@ -493,14 +705,10 @@ class PrismaContentRepository implements ContentRepository {
     const nextStatus: VideoStatus = input.decision === 'APPROVED' ? 'PUBLISHED' : input.decision === 'HIDDEN' ? 'HIDDEN' : 'REJECTED';
     let updated = 0;
     try {
-      updated = await (await this.client()).$executeRawUnsafe(
-        'UPDATE `Video` SET status = ?, reviewDecisionId = ?, reviewDecision = ?, reviewDecisionReason = ? WHERE id = ?',
-        nextStatus,
-        input.decisionId,
-        input.decision,
-        input.reason,
-        input.videoId,
-      );
+      const query = input.decision === 'APPROVED'
+        ? 'UPDATE `Video` SET status = ?, reviewDecisionId = ?, reviewDecision = ?, reviewDecisionReason = ?, publishedAt = COALESCE(publishedAt, NOW(3)) WHERE id = ?'
+        : 'UPDATE `Video` SET status = ?, reviewDecisionId = ?, reviewDecision = ?, reviewDecisionReason = ? WHERE id = ?';
+      updated = await (await this.client()).$executeRawUnsafe(query, nextStatus, input.decisionId, input.decision, input.reason, input.videoId);
     } catch {
       const replay = await this.findReviewDecision(input.decisionId);
       if (replay) {
@@ -564,6 +772,34 @@ class PrismaContentRepository implements ContentRepository {
         return video ? { id, found: true as const, title: video.title, coverUrl: video.coverUrl, status: video.status } : { id, found: false as const };
       }),
     );
+  }
+
+  async moderationTarget(targetType: ModerationTargetType, targetId: string): Promise<ModerationTargetSnapshot | null> {
+    if (targetType === 'VIDEO') {
+      const rows = await (await this.client()).$queryRawUnsafe<Array<{
+        id: string;
+        title: string;
+        description: string;
+        status: string;
+        creatorId: string;
+        coverUrl: string | null;
+        playUrl: string | null;
+        durationSeconds: number;
+        createdAt: Date;
+        publishedAt: Date | null;
+        submittedAt: Date | null;
+        rejectReason: string | null;
+      }>>('SELECT id, title, description, status, creatorId, coverUrl, playUrl, durationSeconds, createdAt, publishedAt, submittedAt, reviewDecisionReason AS rejectReason FROM `Video` WHERE id = ? LIMIT 1', targetId);
+      const row = rows[0];
+      return row ? { targetType, targetId, videoId: row.id, ...row } : null;
+    }
+    const table = targetType === 'COMMENT' ? 'Comment' : 'VideoDanmaku';
+    const rows = await (await this.client()).$queryRawUnsafe<Array<{ id: string; videoId: string; userId: string; body: string; status: string; videoTitle: string }>>(
+      `SELECT t.id, t.videoId, t.userId, t.body, t.status, v.title AS videoTitle FROM \`${table}\` t INNER JOIN \`Video\` v ON v.id = t.videoId WHERE t.id = ? LIMIT 1`,
+      targetId,
+    );
+    const row = rows[0];
+    return row ? { targetType, targetId, videoId: row.videoId, content: row.body, status: row.status, user: { id: row.userId, nickname: `用户#${row.userId}` }, video: { id: row.videoId, title: row.videoTitle } } : null;
   }
 
   private async findReviewDecision(decisionId: string): Promise<ReviewDecisionRecord | null> {
@@ -764,7 +1000,8 @@ function statusToDecision(status: VideoStatus): ReviewDecisionRecord['decision']
 function videoSelect(): string {
   return `
     SELECT v.id, v.title, v.description, v.creatorId, v.categoryId, v.status, v.coverUrl, v.playUrl,
-           v.durationSeconds, v.publishedAt, v.createdAt, c.code AS categoryCode, c.name AS categoryName,
+           v.durationSeconds, v.publishedAt, v.submittedAt, v.reviewSubmissionRequestId,
+           v.reviewDecisionReason AS rejectReason, v.createdAt, c.code AS categoryCode, c.name AS categoryName,
            COALESCE(w.plays, 0) AS playCount, COALESCE(l.likes, 0) AS likeCount,
            COALESCE(f.favorites, 0) AS favoriteCount, COALESCE(cm.comments, 0) AS commentCount
     FROM Video v
@@ -797,6 +1034,9 @@ function rawVideo(row: RawVideo): VideoRecord {
     playUrl: row.playUrl,
     durationSeconds: row.durationSeconds,
     publishedAt: toIso(row.publishedAt),
+    submittedAt: toIso(row.submittedAt),
+    reviewSubmissionRequestId: row.reviewSubmissionRequestId,
+    rejectReason: row.rejectReason,
     tags: [],
     playCount: Number(row.playCount ?? 0),
     likeCount: Number(row.likeCount ?? 0),
@@ -870,6 +1110,8 @@ function publicVideo(video: VideoRecord, creators: Map<string, CreatorSummary>) 
     playUrl: video.playUrl,
     durationSeconds: video.durationSeconds,
     publishedAt: video.publishedAt,
+    submittedAt: video.submittedAt,
+    rejectReason: video.rejectReason,
     createdAt: video.createdAt,
     playCount: video.playCount,
     likeCount: video.likeCount,
@@ -891,8 +1133,8 @@ function publicVideoDetail(video: VideoRecord, creators: Map<string, CreatorSumm
   return {
     ...card,
     uploadToken: '',
-    rejectReason: null,
-    submittedAt: null,
+    rejectReason: video.rejectReason,
+    submittedAt: video.submittedAt,
     updatedAt: video.createdAt,
     creator: {
       id: creator.id,
@@ -927,6 +1169,21 @@ function requireInternal(request: IncomingMessage, response: ServerResponse, req
   }
 }
 
+function trustedContentPrincipal(request: IncomingMessage, requestId: string, secret: string): { id: string; isAdmin: boolean } {
+  const claims = authorizeServiceRequest(request.headers['x-gateway-authorization'], {
+    audience: 'content-media',
+    secret,
+    requiredScopes: ['content.user.forward'],
+    allowedCallers: ['gateway'],
+  });
+  if (claims.requestId !== requestId) throw new Error('Gateway JWT requestId does not match x-request-id');
+  const rawId = String(request.headers['x-user-id'] ?? '').trim();
+  const role = String(request.headers['x-user-role'] ?? 'USER').trim().toUpperCase();
+  const id = Number(rawId);
+  if (!Number.isSafeInteger(id) || id < 1) throw new Error('Trusted user context is invalid');
+  return { id: String(id), isAdmin: role === 'ADMIN' };
+}
+
 function serviceStatus(startedAt: number, status: 'live' | 'ready'): ServiceStatus {
   return {
     service: 'content-media',
@@ -941,6 +1198,12 @@ export function createContentService(options: ContentServiceOptions = {}): Serve
   const identityClient = options.identityClient ?? new MockIdentityBatchClient();
   const internalJwtSecret = options.internalJwtSecret ?? process.env.SERVICE_JWT_SECRET ?? '';
   const identityTimeoutMs = options.identityTimeoutMs ?? DEFAULT_IDENTITY_TIMEOUT_MS;
+  const governanceBaseUrl = process.env.GOVERNANCE_SERVICE_URL?.trim();
+  const governanceClient = options.governanceClient === undefined
+    ? governanceBaseUrl
+      ? new HttpGovernanceReviewClient({ baseUrl: governanceBaseUrl, jwtSecret: internalJwtSecret, timeoutMs: options.governanceTimeoutMs })
+      : null
+    : options.governanceClient;
   const startedAt = Date.now();
 
   return createServer(async (request, response) => {
@@ -986,6 +1249,50 @@ export function createContentService(options: ContentServiceOptions = {}): Serve
         });
         const creators = await creatorSummaries(identityClient, search.video, requestId, identityTimeoutMs);
         writeJson(response, 200, ok({ ...search, video: search.video.map((video) => publicVideo(video, creators)) }, requestId), requestId);
+        return;
+      }
+
+      const submitReviewMatch = path.match(/^\/api\/v1\/videos\/([^/]+)\/submit-review$/);
+      if (method === 'POST' && submitReviewMatch) {
+        let principal: { id: string; isAdmin: boolean };
+        try {
+          principal = trustedContentPrincipal(request, requestId, internalJwtSecret);
+        } catch (error) {
+          writeJson(response, 401, failure(error instanceof Error ? error.message : 'unauthorized', requestId, 401), requestId);
+          return;
+        }
+        if (!governanceClient) {
+          writeJson(response, 503, failure('governance review submission is not configured', requestId, 503), requestId);
+          return;
+        }
+        const videoId = decodeURIComponent(submitReviewMatch[1]);
+        const transition = await repository.submitReview({ videoId, userId: principal.id, isAdmin: principal.isAdmin, requestId });
+        if (!transition.ok) {
+          writeJson(response, transition.status, failure(transition.message, requestId, transition.status), requestId);
+          return;
+        }
+        try {
+          const review = await governanceClient.submitVideoReview(videoId, requestId);
+          const numericVideoId = Number(videoId);
+          writeJson(response, 200, ok({
+            videoId: Number.isSafeInteger(numericVideoId) ? numericVideoId : videoId,
+            reviewId: review.id,
+            status: 'PENDING_REVIEW',
+          }, requestId), requestId);
+        } catch (error) {
+          const safeToRollback = error instanceof GovernanceReviewError && !error.mayHaveCommitted;
+          if (safeToRollback && !transition.replayed && transition.previousStatus) {
+            await repository.rollbackReviewSubmission({
+              videoId,
+              requestId,
+              previousStatus: transition.previousStatus,
+              previousRequestId: transition.previousRequestId,
+              previousSubmittedAt: transition.previousSubmittedAt,
+            });
+          }
+          const status = error instanceof GovernanceReviewError && !error.unavailable ? 502 : 503;
+          writeJson(response, status, failure(error instanceof Error ? error.message : 'governance review submission failed', requestId, status), requestId);
+        }
         return;
       }
 
@@ -1041,6 +1348,18 @@ export function createContentService(options: ContentServiceOptions = {}): Serve
         }
         const result = await repository.updateTextStatus({ videoId: textStatusMatch[1], targetType: body.targetType, targetId: body.targetId, status: body.status });
         writeJson(response, result.ok ? 200 : result.status, result.ok ? ok({ targetType: result.targetType, targetId: result.targetId, status: result.status }, requestId) : failure(result.message, requestId, result.status), requestId);
+        return;
+      }
+
+      const moderationTargetMatch = path.match(/^\/internal\/v1\/moderation-targets\/(VIDEO|COMMENT|VIDEO_DANMAKU)\/([^/]+)$/);
+      if (method === 'GET' && moderationTargetMatch) {
+        if (!requireInternal(request, response, requestId, internalJwtSecret, 'internal:moderation-target-read')) return;
+        const snapshot = await repository.moderationTarget(moderationTargetMatch[1] as ModerationTargetType, decodeURIComponent(moderationTargetMatch[2]));
+        if (!snapshot) {
+          writeJson(response, 404, failure('moderation target not found', requestId, 404), requestId);
+          return;
+        }
+        writeJson(response, 200, ok(snapshot, requestId), requestId);
         return;
       }
 

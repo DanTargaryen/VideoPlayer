@@ -131,6 +131,11 @@ spec:
                 secretKeyRef:
                   name: videoplayer-microservice-secrets
                   key: content-database-url
+            - name: GOVERNANCE_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: videoplayer-microservice-config
+                  key: GOVERNANCE_SERVICE_URL
           readinessProbe:
             httpGet:
               path: /health/ready
@@ -299,6 +304,21 @@ spec:
                 secretKeyRef:
                   name: videoplayer-microservice-secrets
                   key: service-jwt-secret
+            - name: GOVERNANCE_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: videoplayer-microservice-secrets
+                  key: governance-database-url
+            - name: CONTENT_MEDIA_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: videoplayer-microservice-config
+                  key: CONTENT_SERVICE_URL
+            - name: IDENTITY_COMMUNITY_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: videoplayer-microservice-config
+                  key: IDENTITY_SERVICE_URL
           readinessProbe:
             httpGet:
               path: /health/ready
