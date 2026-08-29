@@ -150,11 +150,11 @@
   - 测试/验证：Kind v0.32.0 / Kubernetes v1.36.1；Node Ready；迁移 Job Completed；MySQL/Backend/Frontend Ready；隔离 `video_player_test` API 16/16；集群内 health；端口转发后 Playwright 3/3。
   - 结果：PASS；K8s 数据库 Seed 6 用户/14 视频；Pod 0 次重启。正式 Prisma 基线 migration 和 Jenkins 自动触发仍是后续任务。
 - [ ] `CI-01` 建立单体 GitHub Actions 流水线并保留成功/失败记录。
-  - 已完成配置：新增质量门禁、MySQL 隔离 public E2E、测试证据上传、前后端 SHA 镜像构建三个 job。
+  - 已完成配置：质量门禁、MySQL 隔离 public E2E、测试证据上传，以及 Git SHA 镜像构建后自动部署到隔离 Kind、健康检查、证据上传和清理。
   - 本地验证：工作流 YAML 可解析；`test:ci` 和本地 Playwright 已通过。
   - 安全配置：public E2E 使用仅存在于 GitHub Runner 生命周期内的空密码 MySQL；JWT/Admin Secret 在启动步骤动态生成。未来部署 job 仍必须使用 GitHub/K8s Secrets。
   - 远端结果：Billing 锁解除后，run `33244704729` attempt 3 暴露测试超时与全新库未 Seed；最小修复提交 `09c92ce` 后，run `33246999182` 的 quality、public-e2e 和 versioned images 三个 job 全部 `SUCCESS`，Playwright 3/3，E2E Artifact 上传成功。
-  - 未打勾原因：远端 CI 已实际通过；课程要求的 Kubernetes 自动部署 job 仍未实现，因此远端 CD 仍未完成。
+  - 未打勾原因：远端 CI 已实际通过；Kind CD job 已配置但尚未完成 GitHub-hosted 实跑验证。
 - [x] `CI-02` 建立 Jenkins + Kind 自动流水线并保留成功/失败证据。
   - 已完成配置：新增可移植 Declarative `Jenkinsfile`，按 Checkout、Install、Lint、Build、Unit、隔离数据库、API、Seed、E2E、SHA 镜像、Kind 部署、Health 顺序执行；新增本地等价入口、阶段标记、Artifact 收集和安全清理脚本。
   - 本地等价验证：第一次因 Seed 先于 API 导致推荐分页断言失败，调整为 API 后 Seed；第二次因 Vite 参数透传错误未监听指定端口，改用 `VITE_DEV_HOST/VITE_DEV_PORT`；第三次完整成功，107 项规则/单元测试、API 16/16、Playwright 3/3、SHA 镜像、Kind 和 Health 全部 PASS。
@@ -212,7 +212,7 @@
 | K8S-01 Kind 部署 | DONE | MySQL StatefulSet/PVC、同步 Job、前后端 Deployment/Service、探针与脚本 | Node/Pod/Job/PVC；隔离 API 16/16；集群 health；E2E 3/3 | PASS；3 工作负载 Ready；Pod 0 restart | 本提交 |
 | REPRO-01 Clean-machine README 复现 | DONE | 按 README 从空依赖、全新 Compose project/volume/image tag 和全新 Kind cluster 完整重跑；补充 TLS/ffmpeg-static 安全复现说明；修正 AdminController 单测 mock 与异常预期 | `npm ci`；`npm run test:ci`；Compose config/build/up；MySQL 建表；Seed；首页；Backend Health；Kind 部署；Kubernetes Health | PASS；运行环境保留；结论见 `docs/REPRO-01-clean-machine-checklist.md` | 本提交 |
 | DB-01 Prisma migration 基线 | DONE | 单一初始 migration、migration lock、migrate/seed/test-reset 入口、安全守卫、K8s/Compose/CI 切换到 `migrate deploy`，以及 clean-machine/生产部署口径同步 | 全新本机 MySQL 8.0 容器；`video_player_migration_test` 首次/重复迁移；seed；`db:test-reset`；失败阻断；schema diff；受保护 existing-database baseline 流程；Compose/K8s 启动复核；迁移入口远端精确白名单守卫 | PASS；默认支持全新验收数据库；6 用户/14 视频；失败库 `P3005` 阻断；等价库 baseline PASS；不等价库拒绝；非 test reset 拒绝；README 明确 31 个业务表 + 1 个迁移表；无共享远端 reset/baseline | 本提交 |
-| CI-01 流水线配置 | PARTIAL | quality、public-e2e、versioned images jobs；远端部署 job 尚未实现 | YAML 解析；本地 `test:ci`、隔离 MySQL/Seed、Playwright；GitHub-hosted run | REMOTE CI PASS（run `33246999182`）；CD NOT IMPLEMENTED | `09c92ce` + 本提交 |
+| CI-01 流水线配置 | PARTIAL | quality、public-e2e、Git SHA 镜像和隔离 Kind 自动部署/健康/证据/清理 | YAML 解析；本地 `test:ci`、隔离 MySQL/Seed、Playwright；GitHub-hosted run | REMOTE CI PASS（run `33246999182`）；CD REMOTE VERIFY PENDING | `09c92ce` + 本提交 |
 | CI-02 Jenkins Pipeline | DONE | 可移植 Jenkinsfile、隔离 DB 正式 migration、API/E2E、SHA 镜像、Kind、Health、Artifact、清理和本地等价入口 | Build #2 SUCCESS；#4 故意 FAILURE；#5 SCM 自动触发 SUCCESS；#7 migration SUCCESS | PASS；失败阻断、Artifact、cleanup、Poll SCM 与 `prisma migrate deploy` 均验证 | 本提交 |
 | CI-02-JUNIT 标准测试报告 | DONE | requirements/Jest/Vitest/API/Playwright 生成 11 份 JUnit XML；Jenkins `junit` 发布；reporter 单测 | Build #9 SUCCESS：186 passed/11 XML；#10 EXPECTED FAILURE：167 passed/9 XML、后续 7 阶段 skipped | PASS；Test Result、Artifact、完整流水线和失败阻断均验证 | 本轮提交 |
 | ARCH-01 服务/数据冻结 | DONE | 4 服务、31 表唯一 owner、接口、失败策略、七项默认决策、迁移/回滚、A-E 分工与 Review | Prisma Model 自动比对；唯一 owner；决策/分工/分支/Reviewer 文档一致性 | PASS；TEAM APPROVED；真实姓名/外部会议截图待补证据索引 | 本提交 |
