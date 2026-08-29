@@ -154,7 +154,7 @@
   - 本地验证：工作流 YAML 可解析；`test:ci` 和本地 Playwright 已通过。
   - 安全配置：public E2E 使用仅存在于 GitHub Runner 生命周期内的空密码 MySQL；JWT/Admin Secret 在启动步骤动态生成。未来部署 job 仍必须使用 GitHub/K8s Secrets。
   - 远端结果：Billing 锁解除后，run `33244704729` attempt 3 暴露测试超时与全新库未 Seed；最小修复提交 `09c92ce` 后，run `33246999182` 的 quality、public-e2e 和 versioned images 三个 job 全部 `SUCCESS`，Playwright 3/3，E2E Artifact 上传成功。
-  - 未打勾原因：远端 CI 已实际通过；Kind CD job 已配置但尚未完成 GitHub-hosted 实跑验证。
+  - 未打勾原因：远端 CI 已实际通过；Kind CD 首次 dispatch 因 job 级 `runner.temp` 表达式不受支持而在创建 Run 前被拒绝，已改用 `github.workspace`，等待 GitHub-hosted 实跑验证。
 - [x] `CI-02` 建立 Jenkins + Kind 自动流水线并保留成功/失败证据。
   - 已完成配置：新增可移植 Declarative `Jenkinsfile`，按 Checkout、Install、Lint、Build、Unit、隔离数据库、API、Seed、E2E、SHA 镜像、Kind 部署、Health 顺序执行；新增本地等价入口、阶段标记、Artifact 收集和安全清理脚本。
   - 本地等价验证：第一次因 Seed 先于 API 导致推荐分页断言失败，调整为 API 后 Seed；第二次因 Vite 参数透传错误未监听指定端口，改用 `VITE_DEV_HOST/VITE_DEV_PORT`；第三次完整成功，107 项规则/单元测试、API 16/16、Playwright 3/3、SHA 镜像、Kind 和 Health 全部 PASS。
