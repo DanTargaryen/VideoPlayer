@@ -211,7 +211,7 @@ describe('live-reward domain', () => {
     const storedMessages = await store.listMessages((await store.getLatestSession(room.id))!.id, 10001);
     expect(storedMessages.filter((message) => message.kind === 'CHAT')).toHaveLength(10000);
     expect(storedMessages.filter((message) => message.kind === 'SYSTEM')).toHaveLength(1);
-  });
+  }, 15_000);
 });
 
 describe('live-reward HTTP adapters and internal auth', () => {

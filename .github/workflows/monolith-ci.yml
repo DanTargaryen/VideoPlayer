@@ -64,6 +64,10 @@ jobs:
           npm --workspace backend run prisma:generate
           for attempt in $(seq 1 30); do
             if npm --workspace backend run db:migrate; then
+              seed_confirmation="$(openssl rand -hex 18)"
+              SEED_GUARD_PASSWORD="$seed_confirmation" \
+                SEED_GUARD_CONFIRM="$seed_confirmation" \
+                npm --workspace backend run db:seed
               exit 0
             fi
             sleep 2

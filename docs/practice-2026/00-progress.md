@@ -153,8 +153,8 @@
   - 已完成配置：新增质量门禁、MySQL 隔离 public E2E、测试证据上传、前后端 SHA 镜像构建三个 job。
   - 本地验证：工作流 YAML 可解析；`test:ci` 和本地 Playwright 已通过。
   - 安全配置：public E2E 使用仅存在于 GitHub Runner 生命周期内的空密码 MySQL；JWT/Admin Secret 在启动步骤动态生成。未来部署 job 仍必须使用 GitHub/K8s Secrets。
-  - 远端结果：PR #24 触发 run `32799446109`；quality 和 public-e2e 均为 failure、0 steps、无 runner，images skipped。GitHub UI 权威注解为：`The job was not started because your account is locked due to a billing issue.`
-  - 未打勾原因：workflow 尚未实际执行 quality/E2E/images jobs；课程要求的 Kubernetes 自动部署 job 仍未实现。
+  - 远端结果：Billing 锁解除后，run `33244704729` attempt 3 已实际启动 GitHub-hosted Runner；checkout、依赖、MySQL、migration、前后端启动及 2/3 Playwright 均成功。quality 因 10,001 条消息用例超过默认 5 秒而失败，public-e2e 因全新库未 Seed、首页无推荐流而失败，images skipped；已提交最小修复并等待远端复跑。
+  - 未打勾原因：修复尚未在 GitHub Actions 复跑通过；课程要求的 Kubernetes 自动部署 job 仍未实现。
 - [x] `CI-02` 建立 Jenkins + Kind 自动流水线并保留成功/失败证据。
   - 已完成配置：新增可移植 Declarative `Jenkinsfile`，按 Checkout、Install、Lint、Build、Unit、隔离数据库、API、Seed、E2E、SHA 镜像、Kind 部署、Health 顺序执行；新增本地等价入口、阶段标记、Artifact 收集和安全清理脚本。
   - 本地等价验证：第一次因 Seed 先于 API 导致推荐分页断言失败，调整为 API 后 Seed；第二次因 Vite 参数透传错误未监听指定端口，改用 `VITE_DEV_HOST/VITE_DEV_PORT`；第三次完整成功，107 项规则/单元测试、API 16/16、Playwright 3/3、SHA 镜像、Kind 和 Health 全部 PASS。
@@ -312,4 +312,4 @@
 - [x] 最终 UC smoke 使用全新隔离 MySQL/MinIO volumes 完成，不需要也未获得共享远端写入权限。
 - [x] 当前 Mac 已配置 Colima、Docker CLI、Kind 和 kubectl，并完成 Compose/Kubernetes 本地验收。
 - [x] PR #24 已合并到 `main`；远端功能分支已清理。
-- [ ] 仓库 owner 处理 GitHub Billing & plans 的付款失败或 Actions spending limit，之后重新运行 workflow。
+- [x] 仓库 owner 已处理 GitHub Billing & plans 阻塞；run `33244704729` attempt 3 已成功分配 GitHub-hosted Runner 并执行实际步骤。
