@@ -153,8 +153,8 @@
   - 已完成配置：新增质量门禁、MySQL 隔离 public E2E、测试证据上传、前后端 SHA 镜像构建三个 job。
   - 本地验证：工作流 YAML 可解析；`test:ci` 和本地 Playwright 已通过。
   - 安全配置：public E2E 使用仅存在于 GitHub Runner 生命周期内的空密码 MySQL；JWT/Admin Secret 在启动步骤动态生成。未来部署 job 仍必须使用 GitHub/K8s Secrets。
-  - 远端结果：Billing 锁解除后，run `33244704729` attempt 3 已实际启动 GitHub-hosted Runner；checkout、依赖、MySQL、migration、前后端启动及 2/3 Playwright 均成功。quality 因 10,001 条消息用例超过默认 5 秒而失败，public-e2e 因全新库未 Seed、首页无推荐流而失败，images skipped；已提交最小修复并等待远端复跑。
-  - 未打勾原因：修复尚未在 GitHub Actions 复跑通过；课程要求的 Kubernetes 自动部署 job 仍未实现。
+  - 远端结果：Billing 锁解除后，run `33244704729` attempt 3 暴露测试超时与全新库未 Seed；最小修复提交 `09c92ce` 后，run `33246999182` 的 quality、public-e2e 和 versioned images 三个 job 全部 `SUCCESS`，Playwright 3/3，E2E Artifact 上传成功。
+  - 未打勾原因：远端 CI 已实际通过；课程要求的 Kubernetes 自动部署 job 仍未实现，因此远端 CD 仍未完成。
 - [x] `CI-02` 建立 Jenkins + Kind 自动流水线并保留成功/失败证据。
   - 已完成配置：新增可移植 Declarative `Jenkinsfile`，按 Checkout、Install、Lint、Build、Unit、隔离数据库、API、Seed、E2E、SHA 镜像、Kind 部署、Health 顺序执行；新增本地等价入口、阶段标记、Artifact 收集和安全清理脚本。
   - 本地等价验证：第一次因 Seed 先于 API 导致推荐分页断言失败，调整为 API 后 Seed；第二次因 Vite 参数透传错误未监听指定端口，改用 `VITE_DEV_HOST/VITE_DEV_PORT`；第三次完整成功，107 项规则/单元测试、API 16/16、Playwright 3/3、SHA 镜像、Kind 和 Health 全部 PASS。
@@ -212,7 +212,7 @@
 | K8S-01 Kind 部署 | DONE | MySQL StatefulSet/PVC、同步 Job、前后端 Deployment/Service、探针与脚本 | Node/Pod/Job/PVC；隔离 API 16/16；集群 health；E2E 3/3 | PASS；3 工作负载 Ready；Pod 0 restart | 本提交 |
 | REPRO-01 Clean-machine README 复现 | DONE | 按 README 从空依赖、全新 Compose project/volume/image tag 和全新 Kind cluster 完整重跑；补充 TLS/ffmpeg-static 安全复现说明；修正 AdminController 单测 mock 与异常预期 | `npm ci`；`npm run test:ci`；Compose config/build/up；MySQL 建表；Seed；首页；Backend Health；Kind 部署；Kubernetes Health | PASS；运行环境保留；结论见 `docs/REPRO-01-clean-machine-checklist.md` | 本提交 |
 | DB-01 Prisma migration 基线 | DONE | 单一初始 migration、migration lock、migrate/seed/test-reset 入口、安全守卫、K8s/Compose/CI 切换到 `migrate deploy`，以及 clean-machine/生产部署口径同步 | 全新本机 MySQL 8.0 容器；`video_player_migration_test` 首次/重复迁移；seed；`db:test-reset`；失败阻断；schema diff；受保护 existing-database baseline 流程；Compose/K8s 启动复核；迁移入口远端精确白名单守卫 | PASS；默认支持全新验收数据库；6 用户/14 视频；失败库 `P3005` 阻断；等价库 baseline PASS；不等价库拒绝；非 test reset 拒绝；README 明确 31 个业务表 + 1 个迁移表；无共享远端 reset/baseline | 本提交 |
-| CI-01 流水线配置 | PARTIAL | quality、public-e2e、versioned images jobs；K8s 部署基线已补 | YAML 解析；本地 `test:ci`、API、Playwright、Kind 实跑；GitHub 注解 | LOCAL PASS；REMOTE BLOCKED BY BILLING；Jenkins PENDING | `f151429` + 本提交 |
+| CI-01 流水线配置 | PARTIAL | quality、public-e2e、versioned images jobs；远端部署 job 尚未实现 | YAML 解析；本地 `test:ci`、隔离 MySQL/Seed、Playwright；GitHub-hosted run | REMOTE CI PASS（run `33246999182`）；CD NOT IMPLEMENTED | `09c92ce` + 本提交 |
 | CI-02 Jenkins Pipeline | DONE | 可移植 Jenkinsfile、隔离 DB 正式 migration、API/E2E、SHA 镜像、Kind、Health、Artifact、清理和本地等价入口 | Build #2 SUCCESS；#4 故意 FAILURE；#5 SCM 自动触发 SUCCESS；#7 migration SUCCESS | PASS；失败阻断、Artifact、cleanup、Poll SCM 与 `prisma migrate deploy` 均验证 | 本提交 |
 | CI-02-JUNIT 标准测试报告 | DONE | requirements/Jest/Vitest/API/Playwright 生成 11 份 JUnit XML；Jenkins `junit` 发布；reporter 单测 | Build #9 SUCCESS：186 passed/11 XML；#10 EXPECTED FAILURE：167 passed/9 XML、后续 7 阶段 skipped | PASS；Test Result、Artifact、完整流水线和失败阻断均验证 | 本轮提交 |
 | ARCH-01 服务/数据冻结 | DONE | 4 服务、31 表唯一 owner、接口、失败策略、七项默认决策、迁移/回滚、A-E 分工与 Review | Prisma Model 自动比对；唯一 owner；决策/分工/分支/Reviewer 文档一致性 | PASS；TEAM APPROVED；真实姓名/外部会议截图待补证据索引 | 本提交 |
@@ -304,6 +304,7 @@
 | 2026-08-27 | MS-03 isolated runtime verification | 使用隔离 MySQL 运行 live-reward 初始/重复 migration、seed，并关闭后重建应用验证房间、Session、观众、消息和余额；启动仓库 SRS 5.0.213 验证 API probe 与开播；构建服务镜像并验证容器 health/version | `npm --workspace @videoplayer/live-reward run db:migrate`（首次/重复）；`npm --workspace @videoplayer/live-reward run db:seed`；Node PrismaStore restart script；SRS `/api/v1/versions`；live-reward `/health/live`、`/health/ready`、`/version` | PASS；临时 MySQL/SRS 容器已清理；content-media 回放、MinIO Header、Gateway 生产切流、K8s 和 UC05 浏览器完整回归仍 `NOT RUN` |
 | 2026-08-27 | MS-03 Gateway rollback 与独立 K8s 验证 | 补 services/monolith 两种模式下 live/赠币/视频投币写路由切换、显式回滚和失败写不重放测试；增加 live-reward 独立 Namespace、MySQL PVC、migration Job、Secret/ConfigMap 注入、探针/资源限制和 Kind smoke 脚本 | Gateway test 5/5、lint/build；`bash -n scripts/k8s-live-reward-smoke.sh`；K8s client dry-run；真实 Kind 部署、migration、写入、应用 Pod 删除重建、health/live/ready/version、PVC 持久化 | PASS；Pod 重建后房间/观众数/钱包余额保持，测试 Namespace 已清理；本地配置级切换/回滚不等于生产切流；content-media 真实回放、MinIO Header 交叉验证和完整 UC05 浏览器回归仍 `BLOCKED/NOT RUN` |
 | 2026-08-29 | MS-03 PR #46 Owner 修复与最终复测 | 关闭默认 MemoryStore、伪造 `x-user-id`、账本/replay payload 冲突、content 400 分类、标准 Compose/K8s DB/migration、Prisma/迁移安全和跨 Docker builder/architecture 阻塞；更新 PR/进度证据 | clean `npm ci`；`test:ci` 207/207；live 18/18；Gateway 6/6；MySQL migrate first/repeat/reset/refuse；真实 content/live+MinIO+SRS；Compose services 身份验证/重启/三 schema；Kind migration/Pod replacement/PVC；Secret/Artifact/diff | PASS；真实联调和 Compose/Kind 的失败修复过程保留；全部隔离容器、volumes、namespace 清理；生产切流/历史迁移/完整 UC05 浏览器回归仍 `BLOCKED/NOT RUN` |
+| 2026-08-29 | CI-01 GitHub-hosted 远端复跑 | 为 10,001 条消息测试设置单例 15 秒预算；全新 E2E 数据库迁移后使用一次性确认值执行受保护 Seed | 本地 `test:ci` 207/207；隔离 MySQL migration/Seed + Playwright 3/3；GitHub Actions run `33246999182` | PASS；quality、public-e2e、versioned images 全部 SUCCESS；远端 CD 仍未实现 |
 
 ## 4. 阻塞与需组长决定
 
