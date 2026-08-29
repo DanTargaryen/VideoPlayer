@@ -16,4 +16,5 @@ for attempt in 1 2 3 4 5; do
 done
 
 npm --workspace backend run prisma:generate
+npx playwright install chromium
 bash "$ROOT_DIR/scripts/ci-mark-stage.sh" 02-install
