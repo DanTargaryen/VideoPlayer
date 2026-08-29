@@ -125,7 +125,7 @@ if ! curl -fsS 'http://127.0.0.1:5175/' >/dev/null 2>&1; then
   cat "$frontend_log" >&2
   exit 1
 fi
-PLAYWRIGHT_BASE_URL='http://127.0.0.1:5175' SERVICES_MODE_ADMIN_TOKEN="$admin_token" \
+PLAYWRIGHT_BASE_URL='http://127.0.0.1:5175' SERVICES_MODE_ADMIN_TOKEN="$admin_token" SERVICES_MODE_CREATOR_TOKEN="$identity_token" \
   npm exec playwright test tests/e2e/admin-services-mode.spec.ts
 
 report_response=$(curl -sS -X POST 'http://127.0.0.1:3100/api/v1/reports' \

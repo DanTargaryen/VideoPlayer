@@ -10,8 +10,11 @@ import {
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { createContentService, createFixtureState } from '../../content-media/src/service.js';
+import { HttpGovernanceReviewClient } from '../../content-media/src/governance-client.js';
 import { IdentityStore } from '../../identity-community/src/identity-store.js';
 import { createIdentityService } from '../../identity-community/src/service.js';
+import { createGovernanceService } from '../src/service.js';
+import { TestGovernanceStore } from './test-store.js';
 
 const secret = 'cross-service-contract-secret-at-least-32-characters';
 const servers: Server[] = [];
@@ -47,6 +50,44 @@ async function body(response: Response) {
 }
 
 describe('E cross-service contracts against current service implementations', () => {
+  it('submits a creator-owned draft from content-media into the real governance queue', async () => {
+    const governanceStore = new TestGovernanceStore();
+    const governanceBaseUrl = await listen(createGovernanceService({
+      store: governanceStore,
+      jwtSecret: secret,
+      compensationIntervalMs: false,
+    }));
+    const contentState = createFixtureState();
+    const contentBaseUrl = await listen(createContentService({
+      state: contentState,
+      internalJwtSecret: secret,
+      governanceClient: new HttpGovernanceReviewClient({ baseUrl: governanceBaseUrl, jwtSecret: secret }),
+    }));
+    const requestId = 'creator-submit-review-1';
+    const gatewayToken = issueServiceToken({
+      caller: 'gateway',
+      audience: 'content-media',
+      scopes: ['content.user.forward'],
+      secret,
+      requestId,
+    });
+    const response = await fetch(`${contentBaseUrl}/api/v1/videos/3/submit-review`, {
+      method: 'POST',
+      headers: {
+        'x-gateway-authorization': `Bearer ${gatewayToken}`,
+        'x-request-id': requestId,
+        'x-user-id': '1',
+        'x-user-role': 'USER',
+      },
+    });
+    expect(response.status).toBe(200);
+    expect((await body(response)).data).toMatchObject({ videoId: 3, status: 'PENDING_REVIEW' });
+    expect(contentState.videos.find((video) => video.id === '3')?.status).toBe('PENDING_REVIEW');
+    await expect(governanceStore.listReviews(['VIDEO'])).resolves.toMatchObject([
+      { requestId, targetType: 'VIDEO', targetId: '3', videoId: '3', applyStatus: 'PENDING' },
+    ]);
+  });
+
   it('validates identity batch-summary and notification idempotency', async () => {
     const baseUrl = await listen(createIdentityService({
       store: new IdentityStore(true, 'contract-admin-secret'),

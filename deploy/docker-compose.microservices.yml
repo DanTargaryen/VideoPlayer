@@ -149,6 +149,7 @@ services:
       PORT: 3000
       GIT_SHA: ${GIT_SHA:-dev}
       CONTENT_DATABASE_URL: mysql://content_media:${CONTENT_DB_PASSWORD:-content-media-local-only}@content-mysql:3306/content_media
+      GOVERNANCE_SERVICE_URL: http://governance-ai:3000
       SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET:?SERVICE_JWT_SECRET is required}
     ports:
       - "3102:3000"

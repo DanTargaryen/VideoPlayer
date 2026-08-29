@@ -130,7 +130,7 @@ async function resolveTrustedUser(
   request: IncomingMessage,
   config: GatewayConfig,
   traceId: string,
-  audience: 'live-reward' | 'governance-ai',
+  audience: 'content-media' | 'live-reward' | 'governance-ai',
 ): Promise<TrustedUserContext | undefined> {
   const authorization = request.headers.authorization;
   if (typeof authorization !== 'string' || !authorization.trim()) return undefined;
@@ -159,7 +159,11 @@ async function resolveTrustedUser(
   const role = typeof payload.data?.role === 'string' && payload.data.role.trim()
     ? payload.data.role.trim().toUpperCase().slice(0, 32)
     : 'USER';
-  const scope = audience === 'live-reward' ? 'live.user.forward' : 'governance.user.forward';
+  const scope = audience === 'live-reward'
+    ? 'live.user.forward'
+    : audience === 'content-media'
+      ? 'content.user.forward'
+      : 'governance.user.forward';
   const token = issueServiceToken({
     caller: 'gateway',
     audience,
@@ -242,8 +246,16 @@ export function createGatewayServer(config: GatewayConfig = loadGatewayConfig())
     const primary = resolveUpstream(pathname, config);
     let upstreamName = resolveUpstreamName(pathname, config);
     try {
-      const trustedUser = upstreamName === 'live-reward' || upstreamName === 'governance-ai'
-        ? await resolveTrustedUser(request, config, traceId, upstreamName)
+      const needsContentUser = upstreamName === 'content-media'
+        && method === 'POST'
+        && /^\/api\/v1\/videos\/[^/]+\/submit-review$/.test(pathname);
+      const trustedAudience = upstreamName === 'live-reward' || upstreamName === 'governance-ai'
+        ? upstreamName
+        : needsContentUser
+          ? 'content-media'
+          : undefined;
+      const trustedUser = trustedAudience
+        ? await resolveTrustedUser(request, config, traceId, trustedAudience)
         : undefined;
       let upstream = await proxyRequest(request, primary, traceId, config.timeoutMs, trustedUser);
       const canFallback = ['GET', 'HEAD'].includes(method)

@@ -185,9 +185,9 @@
   - 已确认分工：组长本人承担 A，负责 MS-00/K8S-01；B/C/D 已完成 MS-01/MS-02/MS-03 foundation；E 负责 MS-04 governance-ai 并协调 REG-01。
   - 执行顺序：ARCH-01 文档 → MS-00 公共骨架 → 四服务 foundation 并行 → 只读路由 → 写流量切换 → REG-01；首批不得删除单体表或提前切换写流量。
   - 完成实现：独立治理 schema/migration/seed、字符串 content 外部 ID、举报 pendingKey 并发幂等、公开举报与管理员审核 API、可信 Gateway 用户上下文、content 目标状态应用、identity `REPORT` 通知、处置状态机和可审计后台补偿；REG-01 增加可选的真实 UC06 双目标回归。
-  - PR #47 审查修复：中文昵称改为 ASCII 安全头并在可信服务解码；举报 `KEEP` 改为内容 no-op；文本审核使用真实 `targetId`；视频快照补齐预览字段；Dashboard 只展示实际返回指标；补偿任务增加数据库原子领取、租约与并发覆盖；Compose smoke 接入真实前端 services-mode 回归。
-  - 测试/验证：governance lint/build 与定向测试、shared-contracts 9/9、Gateway 7/7、content 18/18、identity 5/5；隔离 MySQL integration 1/1；全部微服务镜像构建；标准 Compose migration、五服务 health、可信身份、举报处置、内容状态、通知、幂等和重启持久化 smoke PASS。
-  - 当前结论：实现已完成；本轮修复的受影响模块 lint/build 与 62 项聚焦测试 PASS，`git diff --check origin/main` 为零。新增的隔离 MySQL 租约并发测试和更新后的 Compose/真实前端 services-mode smoke 本轮未运行。治理写流量仍可通过 `GATEWAY_ROUTE_MODE=monolith` 回滚；未删除单体表，也未调用外部付费 AI。
+  - PR #47 审查修复：中文昵称改为 ASCII 安全头并在可信服务解码；举报 `KEEP` 改为内容 no-op；文本审核使用真实 `targetId`；视频快照补齐预览字段；Dashboard 只展示实际返回指标；补偿任务增加数据库原子领取、租约与并发覆盖；创作者提审由 Gateway 验证身份后经 content-media 状态转换和 service JWT 写入 governance 队列；Compose smoke 使用真实前端 services-mode 提审入口。
+  - 测试/验证：governance lint/build 与定向测试、shared-contracts 9/9、Gateway 8/8、content 20/20、content→governance 跨服务契约 4/4、identity 5/5；隔离 MySQL integration 1/1；全部微服务镜像构建；标准 Compose migration、五服务 health、可信身份、举报处置、内容状态、通知、幂等和重启持久化 smoke PASS。
+  - 当前结论：实现已完成；本轮最终修复的 Gateway/content/governance lint、build 与 32 项聚焦测试 PASS；以 `origin/main` 属性源检查完整 PR diff 为零。更新后的 Compose/Playwright services-mode smoke 本轮未运行。治理写流量仍可通过 `GATEWAY_ROUTE_MODE=monolith` 回滚；未删除单体表，也未调用外部付费 AI。
 - [x] `MS-03` live-reward foundation 与 UC05 直播/礼物边界实现。
   - 当前分支：`feature/MS-03-live-reward`；当前已 rebase 到 `origin/main@be7a419`。
   - 已完成源码：独立 Prisma schema/migration/fixture、Prisma 默认生产存储、房间/Session/观众/消息/回放/币账本、SRS/content timeout、回放补偿、7 天/10,000 条留存、requestId 完整 payload 幂等和 live-reward HTTP contract。缺数据库配置或数据库不可用时 readiness/业务路由返回 503；MemoryStore 仅显式注入测试。
@@ -223,7 +223,7 @@
 | MS-01 identity-community foundation | DONE | Prisma runtime、11 个 owner model、独立 DB/账号/Secret、内部 API、requestId 幂等、Docker migration/runtime、Compose/K8s 配置 | clean `npm ci`；`npm run test:ci` 171；identity 5+1；MySQL 首次/重复 migration、seed/reset/拒绝；Compose build/up/restart/health/权限 | PASS；11 业务表 + 1 migration 表；跨实例通知幂等；Compose 五服务 healthy；Kind rollout NOT RUN（静态 PASS） | PR #45 + 本提交 |
 | MS-02 content-media foundation | VERIFY | package-local Prisma Client、content schema/migration/fixture、兼容只读 API、JWT 内部 contract、review/replay 幂等、真实 MySQL/MinIO 媒体补偿、独立 DB 账号、Compose/K8s migration | clean `npm ci`；`npm run test:ci`；content 17/17；`verify:container`；`verify:minio`；Compose 5 healthy/15 HTTP；隔离 Kind 5/5 Ready、0 restart/15 HTTP | PASS；首次单体 FFprobe 冷启动超时后定点 9/9 与全量复跑通过；Prisma 下载两次 `ECONNRESET` 由有限重试恢复；PR #43 FINAL REVIEW PENDING | 本轮提交 |
 | MS-03 live-reward foundation | DONE | Prisma 默认持久化、直播/观众/消息/回放/币账本、可信 Gateway 身份、完整 requestId 幂等、标准 Compose/K8s DB/migration | clean `npm ci`；`test:ci` 207；live 18/18；Gateway 6/6；MySQL first/repeat/reset/refuse；content/live+MinIO+SRS；Compose services/restart/schema；Kind Pod/PVC | PASS；伪造身份与 payload 冲突均拒绝；三 migrations；隔离资源清理；生产 cutover/历史迁移/UC05 浏览器仍独立 BLOCKED | PR #46 + 本提交 |
-| MS-04 governance-ai + REG-01 UC06 | DONE | 独立治理库、可信 Gateway 身份、公开举报/审核 API、content 状态应用、identity 通知、租约补偿和真实前端 services-mode 回归入口 | 本轮修复：受影响模块 lint/build；聚焦测试 62/62；`git diff --check origin/main`；隔离 MySQL/Compose/Playwright NOT RUN | LOCAL PASS；PR #47 六类阻塞已修复，重型运行回归待复审环境执行 | 本轮修复提交 |
+| MS-04 governance-ai + REG-01 UC06 | DONE | 独立治理库、可信 Gateway 身份、创作者真实提审、公开举报/审核 API、content 状态应用、identity 通知、租约补偿和真实前端 services-mode 回归入口 | 本轮最终修复：Gateway/content/governance lint/build；聚焦测试 32/32；完整 PR diff-check；Compose/Playwright NOT RUN | LOCAL PASS；PR #47 已补齐生产者入口并清零审查范围行尾诊断，重型运行回归待复审环境执行 | 本轮修复提交 |
 | GOV-GIT-01 Commit/PR 规范 | DONE | GitHub PR 模板、仓库规范、个人 Codex skill | quick_validate；模板章节/敏感信息/diff 检查 | PASS | 最终治理提交 |
 | GOV-GIT-02 分支/Commit 命名 | DONE | category 分支名、Conventional Commit 标题、Changes/Tests 正文、PR Commit 清单 | quick_validate；必填字段；diff check | PASS；应用测试 N/A（纯规范） | 最终治理提交 |
 | GOV-GIT-03 仓库内 skill | DONE | `.codex/skills/videoplayer-commit-pr` 与个人版同步 | 双 quick_validate；字节比对；TODO/diff check | PASS；应用测试 N/A（skill/docs） | 最终治理提交 |

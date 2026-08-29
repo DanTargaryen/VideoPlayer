@@ -35,6 +35,22 @@ function token(scope: string) {
   });
 }
 
+function trustedCreatorHeaders(requestId: string, id = 1, role = 'USER') {
+  const gatewayToken = issueServiceToken({
+    caller: 'gateway',
+    audience: 'content-media',
+    scopes: ['content.user.forward'],
+    secret,
+    requestId,
+  });
+  return {
+    'x-gateway-authorization': `Bearer ${gatewayToken}`,
+    'x-request-id': requestId,
+    'x-user-id': String(id),
+    'x-user-role': role,
+  };
+}
+
 async function json(response: Response) {
   return (await response.json()) as { code: number; message: string; data: Record<string, unknown>; requestId: string };
 }
@@ -60,6 +76,8 @@ describe('content-media foundation public APIs', () => {
         async findPublishedVideo() { return null; },
         async listRelated() { return null; },
         async listAssets() { return []; },
+        async submitReview() { throw new Error('unused'); },
+        async rollbackReviewSubmission() { throw new Error('unused'); },
         async applyReviewDecision() { throw new Error('unused'); },
         async updateTextStatus() { throw new Error('unused'); },
         async registerReplay() { throw new Error('unused'); },
@@ -108,6 +126,44 @@ describe('content-media foundation public APIs', () => {
     const response = await json(await fetch(`${baseUrl}/api/v1/feeds/recommend`));
     const first = (response.data as unknown as Array<{ creator: { nickname: string } }>)[0]!;
     expect(first.creator).toEqual(expect.objectContaining({ nickname: '用户信息暂不可用' }));
+  });
+
+  it('submits an owned draft to governance and exposes the pending target snapshot', async () => {
+    const state = createFixtureState();
+    const baseUrl = await start({
+      state,
+      governanceClient: {
+        async submitVideoReview(videoId, requestId) {
+          expect(videoId).toBe('3');
+          return { id: 41, targetType: 'VIDEO', targetId: videoId, requestId };
+        },
+      },
+    });
+    const response = await fetch(`${baseUrl}/api/v1/videos/3/submit-review`, {
+      method: 'POST',
+      headers: trustedCreatorHeaders('submit-review-1'),
+    });
+    expect(response.status).toBe(200);
+    expect((await json(response)).data).toEqual({ videoId: 3, reviewId: 41, status: 'PENDING_REVIEW' });
+    expect(state.videos.find((video) => video.id === '3')?.status).toBe('PENDING_REVIEW');
+  });
+
+  it('rejects forged ownership and rolls the content state back when governance is unavailable', async () => {
+    const state = createFixtureState();
+    const baseUrl = await start({
+      state,
+      governanceClient: { async submitVideoReview() { throw new Error('governance unavailable'); } },
+    });
+
+    expect((await fetch(`${baseUrl}/api/v1/videos/3/submit-review`, {
+      method: 'POST',
+      headers: trustedCreatorHeaders('submit-review-forbidden', 2),
+    })).status).toBe(403);
+    expect((await fetch(`${baseUrl}/api/v1/videos/3/submit-review`, {
+      method: 'POST',
+      headers: trustedCreatorHeaders('submit-review-rollback'),
+    })).status).toBe(503);
+    expect(state.videos.find((video) => video.id === '3')?.status).toBe('DRAFT');
   });
 });
 

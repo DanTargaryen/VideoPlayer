@@ -131,6 +131,11 @@ spec:
                 secretKeyRef:
                   name: videoplayer-microservice-secrets
                   key: content-database-url
+            - name: GOVERNANCE_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: videoplayer-microservice-config
+                  key: GOVERNANCE_SERVICE_URL
           readinessProbe:
             httpGet:
               path: /health/ready

@@ -16,6 +16,12 @@ import {
   type ServiceVersion,
 } from '@videoplayer/shared-contracts';
 
+import {
+  GovernanceReviewError,
+  HttpGovernanceReviewClient,
+  type GovernanceReviewClient,
+} from './governance-client.js';
+
 export const SERVICE_OPTIONS: ServiceRuntimeOptions = {
   serviceName: 'content-media',
   defaultPort: 3102,
@@ -114,8 +120,10 @@ export interface IdentityBatchClient {
 
 export interface ContentServiceOptions {
   identityClient?: IdentityBatchClient;
+  governanceClient?: GovernanceReviewClient | null;
   internalJwtSecret?: string;
   identityTimeoutMs?: number;
+  governanceTimeoutMs?: number;
   state?: ContentState;
   repository?: ContentRepository;
 }
@@ -177,6 +185,11 @@ export interface ContentRepository {
   findPublishedVideo(id: string): Promise<VideoRecord | null>;
   listRelated(videoId: string, limit: number): Promise<VideoRecord[] | null>;
   listAssets(videoId: string): Promise<VideoAssetRecord[]>;
+  submitReview(input: { videoId: string; userId: string; isAdmin: boolean }): Promise<
+    | { ok: true; previousStatus: 'DRAFT' | 'REJECTED' }
+    | { ok: false; status: 403 | 404 | 409; message: string }
+  >;
+  rollbackReviewSubmission(videoId: string, previousStatus: 'DRAFT' | 'REJECTED'): Promise<void>;
   applyReviewDecision(input: { videoId: string; decisionId: string; decision: ReviewDecisionRecord['decision']; reason: string | null }): Promise<
     { ok: true; record: ReviewDecisionRecord; replayed: boolean } | { ok: false; status: 400 | 409; message: string }
   >;
@@ -326,6 +339,25 @@ class FixtureContentRepository implements ContentRepository {
 
   async listAssets(videoId: string): Promise<VideoAssetRecord[]> {
     return this.state.assets.filter((asset) => asset.videoId === videoId);
+  }
+
+  async submitReview(input: { videoId: string; userId: string; isAdmin: boolean }) {
+    const video = this.state.videos.find((item) => item.id === input.videoId);
+    if (!video) return { ok: false as const, status: 404 as const, message: 'video not found' };
+    if (!input.isAdmin && video.creatorId !== input.userId) {
+      return { ok: false as const, status: 403 as const, message: 'only the creator can submit this video for review' };
+    }
+    if (video.status !== 'DRAFT' && video.status !== 'REJECTED') {
+      return { ok: false as const, status: 409 as const, message: 'only draft or rejected videos can be submitted for review' };
+    }
+    const previousStatus = video.status;
+    video.status = 'PENDING_REVIEW';
+    return { ok: true as const, previousStatus };
+  }
+
+  async rollbackReviewSubmission(videoId: string, previousStatus: 'DRAFT' | 'REJECTED'): Promise<void> {
+    const video = this.state.videos.find((item) => item.id === videoId);
+    if (video?.status === 'PENDING_REVIEW') video.status = previousStatus;
   }
 
   async applyReviewDecision(input: { videoId: string; decisionId: string; decision: ReviewDecisionRecord['decision']; reason: string | null }): Promise<
@@ -513,6 +545,45 @@ class PrismaContentRepository implements ContentRepository {
   async listAssets(videoId: string): Promise<VideoAssetRecord[]> {
     return (await this.client()).$queryRawUnsafe<VideoAssetRecord[]>(
       'SELECT id, videoId, kind, bucket, objectKey, requestId, mimeType, url FROM `VideoAsset` WHERE videoId = ? ORDER BY createdAt ASC',
+      videoId,
+    );
+  }
+
+  async submitReview(input: { videoId: string; userId: string; isAdmin: boolean }) {
+    const rows = await (await this.client()).$queryRawUnsafe<Array<{ creatorId: string; status: VideoStatus }>>(
+      'SELECT creatorId, status FROM `Video` WHERE id = ? LIMIT 1',
+      input.videoId,
+    );
+    const video = rows[0];
+    if (!video) return { ok: false as const, status: 404 as const, message: 'video not found' };
+    if (!input.isAdmin && video.creatorId !== input.userId) {
+      return { ok: false as const, status: 403 as const, message: 'only the creator can submit this video for review' };
+    }
+    if (video.status !== 'DRAFT' && video.status !== 'REJECTED') {
+      return { ok: false as const, status: 409 as const, message: 'only draft or rejected videos can be submitted for review' };
+    }
+    const updated = input.isAdmin
+      ? await (await this.client()).$executeRawUnsafe(
+          "UPDATE `Video` SET status = 'PENDING_REVIEW' WHERE id = ? AND status = ?",
+          input.videoId,
+          video.status,
+        )
+      : await (await this.client()).$executeRawUnsafe(
+          "UPDATE `Video` SET status = 'PENDING_REVIEW' WHERE id = ? AND creatorId = ? AND status = ?",
+          input.videoId,
+          input.userId,
+          video.status,
+        );
+    if (updated !== 1) {
+      return { ok: false as const, status: 409 as const, message: 'video state changed while submitting for review' };
+    }
+    return { ok: true as const, previousStatus: video.status };
+  }
+
+  async rollbackReviewSubmission(videoId: string, previousStatus: 'DRAFT' | 'REJECTED'): Promise<void> {
+    await (await this.client()).$executeRawUnsafe(
+      "UPDATE `Video` SET status = ? WHERE id = ? AND status = 'PENDING_REVIEW'",
+      previousStatus,
       videoId,
     );
   }
@@ -985,6 +1056,21 @@ function requireInternal(request: IncomingMessage, response: ServerResponse, req
   }
 }
 
+function trustedContentPrincipal(request: IncomingMessage, requestId: string, secret: string): { id: string; isAdmin: boolean } {
+  const claims = authorizeServiceRequest(request.headers['x-gateway-authorization'], {
+    audience: 'content-media',
+    secret,
+    requiredScopes: ['content.user.forward'],
+    allowedCallers: ['gateway'],
+  });
+  if (claims.requestId !== requestId) throw new Error('Gateway JWT requestId does not match x-request-id');
+  const rawId = String(request.headers['x-user-id'] ?? '').trim();
+  const role = String(request.headers['x-user-role'] ?? 'USER').trim().toUpperCase();
+  const id = Number(rawId);
+  if (!Number.isSafeInteger(id) || id < 1) throw new Error('Trusted user context is invalid');
+  return { id: String(id), isAdmin: role === 'ADMIN' };
+}
+
 function serviceStatus(startedAt: number, status: 'live' | 'ready'): ServiceStatus {
   return {
     service: 'content-media',
@@ -999,6 +1085,12 @@ export function createContentService(options: ContentServiceOptions = {}): Serve
   const identityClient = options.identityClient ?? new MockIdentityBatchClient();
   const internalJwtSecret = options.internalJwtSecret ?? process.env.SERVICE_JWT_SECRET ?? '';
   const identityTimeoutMs = options.identityTimeoutMs ?? DEFAULT_IDENTITY_TIMEOUT_MS;
+  const governanceBaseUrl = process.env.GOVERNANCE_SERVICE_URL?.trim();
+  const governanceClient = options.governanceClient === undefined
+    ? governanceBaseUrl
+      ? new HttpGovernanceReviewClient({ baseUrl: governanceBaseUrl, jwtSecret: internalJwtSecret, timeoutMs: options.governanceTimeoutMs })
+      : null
+    : options.governanceClient;
   const startedAt = Date.now();
 
   return createServer(async (request, response) => {
@@ -1044,6 +1136,41 @@ export function createContentService(options: ContentServiceOptions = {}): Serve
         });
         const creators = await creatorSummaries(identityClient, search.video, requestId, identityTimeoutMs);
         writeJson(response, 200, ok({ ...search, video: search.video.map((video) => publicVideo(video, creators)) }, requestId), requestId);
+        return;
+      }
+
+      const submitReviewMatch = path.match(/^\/api\/v1\/videos\/([^/]+)\/submit-review$/);
+      if (method === 'POST' && submitReviewMatch) {
+        let principal: { id: string; isAdmin: boolean };
+        try {
+          principal = trustedContentPrincipal(request, requestId, internalJwtSecret);
+        } catch (error) {
+          writeJson(response, 401, failure(error instanceof Error ? error.message : 'unauthorized', requestId, 401), requestId);
+          return;
+        }
+        if (!governanceClient) {
+          writeJson(response, 503, failure('governance review submission is not configured', requestId, 503), requestId);
+          return;
+        }
+        const videoId = decodeURIComponent(submitReviewMatch[1]);
+        const transition = await repository.submitReview({ videoId, userId: principal.id, isAdmin: principal.isAdmin });
+        if (!transition.ok) {
+          writeJson(response, transition.status, failure(transition.message, requestId, transition.status), requestId);
+          return;
+        }
+        try {
+          const review = await governanceClient.submitVideoReview(videoId, requestId);
+          const numericVideoId = Number(videoId);
+          writeJson(response, 200, ok({
+            videoId: Number.isSafeInteger(numericVideoId) ? numericVideoId : videoId,
+            reviewId: review.id,
+            status: 'PENDING_REVIEW',
+          }, requestId), requestId);
+        } catch (error) {
+          await repository.rollbackReviewSubmission(videoId, transition.previousStatus);
+          const status = error instanceof GovernanceReviewError && !error.unavailable ? 502 : 503;
+          writeJson(response, status, failure(error instanceof Error ? error.message : 'governance review submission failed', requestId, status), requestId);
+        }
         return;
       }
 

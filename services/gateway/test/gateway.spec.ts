@@ -164,6 +164,41 @@ describe('gateway scaffold', () => {
     expect(await response.json()).toEqual({ userId: '7', nickname: '中文管理员', role: 'ADMIN', requestId: 'governance-forward-1' });
   });
 
+  it('forwards a verified creator only for the content submit-review write', async () => {
+    const identity = await listen(createServer((_request, response) => {
+      response.setHeader('content-type', 'application/json');
+      response.end(JSON.stringify({ data: { id: 1, nickname: '中文创作者', role: 'USER' } }));
+    }));
+    const content = await listen(createServer((request, response) => {
+      const gatewayToken = String(request.headers['x-gateway-authorization']).replace(/^Bearer\s+/i, '');
+      const claims = verifyServiceToken(gatewayToken, {
+        audience: 'content-media',
+        secret: serviceSecret,
+        requiredScopes: ['content.user.forward'],
+        allowedCallers: ['gateway'],
+      });
+      response.setHeader('content-type', 'application/json');
+      response.end(JSON.stringify({
+        userId: request.headers['x-user-id'],
+        nickname: decodeURIComponent(String(request.headers['x-user-nickname'])),
+        role: request.headers['x-user-role'],
+        requestId: claims.requestId,
+      }));
+    }));
+    const gateway = await listen(createGatewayServer(config({ routeMode: 'services', identityBaseUrl: identity, contentBaseUrl: content })));
+    const response = await fetch(`${gateway}/api/v1/videos/3/submit-review`, {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer creator-token',
+        'x-request-id': 'content-submit-1',
+        'x-user-id': '999',
+        'x-user-role': 'ADMIN',
+      },
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ userId: '1', nickname: '中文创作者', role: 'USER', requestId: 'content-submit-1' });
+  });
+
   it('does not trust client identity headers when identity authentication fails', async () => {
     let liveWrites = 0;
     const identity = await listen(createServer((_request, response) => {
