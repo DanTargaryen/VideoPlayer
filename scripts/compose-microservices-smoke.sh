@@ -17,6 +17,8 @@ GOVERNANCE_DATABASE_USER=${GOVERNANCE_DATABASE_USER:-governance_app}
 GOVERNANCE_DATABASE_PASSWORD=${GOVERNANCE_DATABASE_PASSWORD:-$(node -e 'process.stdout.write(require("node:crypto").randomBytes(24).toString("hex"))')}
 GOVERNANCE_MYSQL_ROOT_PASSWORD=${GOVERNANCE_MYSQL_ROOT_PASSWORD:-$(node -e 'process.stdout.write(require("node:crypto").randomBytes(24).toString("hex"))')}
 GATEWAY_ROUTE_MODE=${GATEWAY_ROUTE_MODE:-services}
+GATEWAY_READ_CUTOVER=${GATEWAY_READ_CUTOVER:-all}
+GATEWAY_WRITE_CUTOVER=${GATEWAY_WRITE_CUTOVER:-all}
 
 for command_name in docker curl git node; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
@@ -46,6 +48,13 @@ compose() {
 }
 
 cleanup() {
+  if [[ -n "${monolith_mock_pid:-}" ]]; then
+    kill "$monolith_mock_pid" >/dev/null 2>&1 || true
+    wait "$monolith_mock_pid" >/dev/null 2>&1 || true
+  fi
+  if [[ -n "${monolith_mock_log:-}" ]]; then
+    rm -f "$monolith_mock_log"
+  fi
   if [[ -n "${frontend_pid:-}" ]]; then
     kill "$frontend_pid" >/dev/null 2>&1 || true
     wait "$frontend_pid" >/dev/null 2>&1 || true
@@ -62,7 +71,7 @@ export IDENTITY_MYSQL_ROOT_PASSWORD IDENTITY_ADMIN_SECRET SERVICE_JWT_SECRET
 export IMAGE_TAG GIT_SHA CONTENT_DB_PASSWORD CONTENT_DB_ROOT_PASSWORD
 export LIVE_REWARD_DATABASE_NAME LIVE_REWARD_DATABASE_USER LIVE_REWARD_DATABASE_PASSWORD LIVE_REWARD_MYSQL_ROOT_PASSWORD
 export GOVERNANCE_DATABASE_NAME GOVERNANCE_DATABASE_USER GOVERNANCE_DATABASE_PASSWORD GOVERNANCE_MYSQL_ROOT_PASSWORD
-export GATEWAY_ROUTE_MODE
+export GATEWAY_ROUTE_MODE GATEWAY_READ_CUTOVER GATEWAY_WRITE_CUTOVER
 compose config --quiet
 if [[ "${MICROSERVICE_COMPOSE_SKIP_BUILD:-false}" == "true" ]]; then
   compose up -d
@@ -282,5 +291,43 @@ for service in identity-community content-media live-reward governance-ai gatewa
   test "$(docker inspect -f '{{.State.Health.Status}}' "$container_id")" = "healthy"
 done
 
+# Exercise the documented first cutover stage against real identity/content
+# services while an explicit monolith upstream handles unsupported paths and
+# every write. Then prove that the Gateway can be recreated in monolith mode.
+compose exec -T content-mysql \
+  mysql -ucontent_media -p"$CONTENT_DB_PASSWORD" content_media \
+  -e "UPDATE Video SET status = 'PUBLISHED' WHERE id = '1'"
+monolith_mock_log=$(mktemp -t videoplayer-cutover-monolith.XXXXXX.log)
+node "$ROOT_DIR/scripts/read-cutover-monolith.mjs" >"$monolith_mock_log" 2>&1 &
+monolith_mock_pid=$!
+for _attempt in $(seq 1 30); do
+  if curl -fsS 'http://127.0.0.1:3000/health' >/dev/null 2>&1; then break; fi
+  sleep 1
+done
+if ! curl -fsS 'http://127.0.0.1:3000/health' >/dev/null 2>&1; then
+  cat "$monolith_mock_log" >&2
+  exit 1
+fi
+
+GATEWAY_ROUTE_MODE=services \
+GATEWAY_READ_CUTOVER=identity-community,content-media \
+GATEWAY_WRITE_CUTOVER=none \
+  compose up -d --force-recreate --no-deps gateway
+for _attempt in $(seq 1 30); do
+  if curl -fsS 'http://127.0.0.1:3100/health/ready' >/dev/null 2>&1; then break; fi
+  sleep 1
+done
+node "$ROOT_DIR/scripts/read-cutover-probe.mjs" read http://127.0.0.1:3100
+
+GATEWAY_ROUTE_MODE=monolith \
+GATEWAY_READ_CUTOVER=identity-community,content-media \
+GATEWAY_WRITE_CUTOVER=none \
+  compose up -d --force-recreate --no-deps gateway
+for _attempt in $(seq 1 30); do
+  if curl -fsS 'http://127.0.0.1:3100/health/ready' >/dev/null 2>&1; then break; fi
+  sleep 1
+done
+node "$ROOT_DIR/scripts/read-cutover-probe.mjs" rollback http://127.0.0.1:3100
+
 compose ps
-echo "Microservice Compose and UC06 governance smoke passed."
+echo "Microservice Compose, UC06 governance, read cutover, and rollback smoke passed."

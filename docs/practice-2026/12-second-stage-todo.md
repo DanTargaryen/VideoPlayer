@@ -1,6 +1,6 @@
 # 第二阶段微服务执行 TODO
 
-> 状态：`MS-00 / MS-01 / MS-02 / MS-03 / MS-04 / MS-DOD DONE / REG-01 UC06 DONE`
+> 状态：`MS-00 / MS-01 / MS-02 / MS-03 / MS-04 / MS-DOD / MS-CUTOVER-READ DONE / REG-01 UC06 DONE`
 >
 > 冻结基线：`monolith-start` / `main@70d197dc1a1f6febfdc7dcb12d8661384ad5d31e`。
 >
@@ -17,7 +17,7 @@
 - [x] A 完成 `build/MS-00-microservice-scaffold`，PR #41 已由 Owner 自审并 squash 合并到 `main@9181e2c9655b3f0b751a0544e95b8ec77dfd5737`。
 - [x] B/C/D/E 从包含 MS-00 的最新 `main` 创建各自 foundation 分支。
 - [x] 四个 foundation 服务均可独立安装、lint、build、test、构建镜像和返回 health/version。
-- [ ] identity/content 只读路由完成并保留单体 fallback。
+- [x] identity/content 只读路由完成并保留单体 fallback。
 - [ ] identity/content/live/governance 写流量按顺序切换并保留回滚路径。
 - [ ] REG-01 在微服务 Gateway 上完成全部公开 API 和 UC01–UC06 回归。
 
@@ -551,11 +551,13 @@ E 验收证据（2026-08-29，基于 `origin/main@933ccac`）：完成 governanc
 
 ### 10.2 只读路由阶段
 
-- [ ] identity 用户摘要内部 API 先就绪。
-- [ ] content 推荐/搜索/详情通过 identity contract。
-- [ ] Gateway 只读路由切换并保留单体 fallback。
-- [ ] UC01–UC04 只读路径回归通过。
-- [ ] 日志能按 requestId 串联 Gateway 与服务调用。
+- [x] identity 用户摘要内部 API 先就绪。
+- [x] content 推荐/搜索/详情通过 identity contract。
+- [x] Gateway 只读路由切换并保留单体 fallback。
+- [x] UC01–UC04 只读路径回归通过。
+- [x] 日志能按 requestId 串联 Gateway 与服务调用。
+
+统一复验（2026-08-31）：Gateway 11/11；标准 Compose 在 full services UC06 1/1 后切到 `readCutover=identity-community,content-media`、`writeCutover=[]`，真实 identity/content reads PASS，未实现读路径与全部写请求保持 monolith，requestId/upstream header PASS；随后 `routeMode=monolith` rollback PASS，环境清理 PASS。
 
 ### 10.3 写流量阶段
 

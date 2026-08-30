@@ -5,6 +5,7 @@ import { Readable } from 'node:stream';
 import { failure, issueServiceToken, ok } from '@videoplayer/shared-contracts';
 
 export type GatewayRouteMode = 'monolith' | 'services';
+export type GatewayServiceName = 'identity-community' | 'content-media' | 'live-reward' | 'governance-ai';
 
 export interface GatewayConfig {
   routeMode: GatewayRouteMode;
@@ -16,7 +17,12 @@ export interface GatewayConfig {
   fallbackEnabled: boolean;
   timeoutMs: number;
   serviceJwtSecret?: string;
+  readCutover: GatewayServiceName[];
+  writeCutover: GatewayServiceName[];
 }
+
+const GATEWAY_SERVICES: GatewayServiceName[] = ['identity-community', 'content-media', 'live-reward', 'governance-ai'];
+const DEFAULT_READ_CUTOVER: GatewayServiceName[] = ['identity-community', 'content-media'];
 
 const HOP_BY_HOP_HEADERS = new Set([
   'connection',
@@ -46,6 +52,15 @@ function parseTimeout(value: string | undefined): number {
   return timeoutMs;
 }
 
+function parseCutoverServices(value: string | undefined, fallback: GatewayServiceName[]): GatewayServiceName[] {
+  const configured = value === undefined ? fallback.join(',') : value.trim();
+  if (!configured || configured === 'none') return [];
+  const requested = configured === 'all' ? GATEWAY_SERVICES : configured.split(',').map((item) => item.trim()).filter(Boolean);
+  const invalid = requested.filter((item) => !GATEWAY_SERVICES.includes(item as GatewayServiceName));
+  if (invalid.length) throw new Error(`Unsupported Gateway cutover service: ${invalid.join(', ')}`);
+  return [...new Set(requested as GatewayServiceName[])];
+}
+
 export function loadGatewayConfig(environment: NodeJS.ProcessEnv = process.env): GatewayConfig {
   const routeMode = environment.GATEWAY_ROUTE_MODE === 'services' ? 'services' : 'monolith';
   return {
@@ -58,29 +73,80 @@ export function loadGatewayConfig(environment: NodeJS.ProcessEnv = process.env):
     fallbackEnabled: environment.GATEWAY_MONOLITH_FALLBACK !== 'false',
     timeoutMs: parseTimeout(environment.GATEWAY_UPSTREAM_TIMEOUT_MS),
     serviceJwtSecret: environment.SERVICE_JWT_SECRET?.trim(),
+    readCutover: parseCutoverServices(environment.GATEWAY_READ_CUTOVER, DEFAULT_READ_CUTOVER),
+    writeCutover: parseCutoverServices(environment.GATEWAY_WRITE_CUTOVER, []),
   };
 }
 
-export function resolveUpstream(pathname: string, config: GatewayConfig): string {
-  if (config.routeMode === 'monolith') return config.monolithBaseUrl;
+function capabilityOwner(pathname: string, method: string): GatewayServiceName | 'monolith' {
+  if (!pathname.startsWith('/api/v1/')) return 'monolith';
   const apiPath = pathname.replace(/^\/api\/v1\//, '');
-  if (/^(auth|users|messages|notifications|feed)(\/|$)/.test(apiPath)) return config.identityBaseUrl ?? config.monolithBaseUrl;
-  if (/^videos\/\d+\/coin$/.test(apiPath)) return config.liveBaseUrl ?? config.monolithBaseUrl;
-  if (/^(feeds|search|videos|creator|media-proxy)(\/|$)/.test(apiPath)) return config.contentBaseUrl ?? config.monolithBaseUrl;
-  if (/^(lives|gift-coins)(\/|$)/.test(apiPath)) return config.liveBaseUrl ?? config.monolithBaseUrl;
-  if (/^(admin|reports|agent)(\/|$)/.test(apiPath)) return config.governanceBaseUrl ?? config.monolithBaseUrl;
-  return config.monolithBaseUrl;
+  const read = method === 'GET' || method === 'HEAD';
+  if (read) {
+    if (
+      /^auth\/me$/.test(apiPath)
+      || /^users\/profile\/recommendation$/.test(apiPath)
+      || /^users\/[^/]+\/(?:homepage|followers|following)$/.test(apiPath)
+      || /^notifications(?:\/unread-count)?$/.test(apiPath)
+      || /^messages\/(?:conversations(?:\/[^/]+)?|unread-count)$/.test(apiPath)
+      || /^feed\/(?:dynamic|sidebar\/(?:overview|recommended-users|recent-updates)|posts(?:\/[^/]+\/comments)?)$/.test(apiPath)
+    ) return 'identity-community';
+    if (
+      /^(?:feeds\/recommend|search\/all)$/.test(apiPath)
+      || /^videos\/(?!my(?:\/|$))[^/]+(?:\/recommendations)?$/.test(apiPath)
+    ) return 'content-media';
+    if (
+      /^lives\/rooms(?:\/\d+(?:\/(?:messages|events))?)?$/.test(apiPath)
+      || /^lives\/sessions\/\d+$/.test(apiPath)
+      || /^gift-coins\/(?:wallet|streak)$/.test(apiPath)
+    ) return 'live-reward';
+    if (/^admin\/(?:dashboard|reports|reviews\/(?:videos|text-content))$/.test(apiPath)) return 'governance-ai';
+    return 'monolith';
+  }
+  if (
+    /^(?:auth\/(?:register|login)|users\/profile(?:\/recommendation\/rebuild)?)$/.test(apiPath)
+    || /^users\/[^/]+\/follow$/.test(apiPath)
+    || /^notifications\/(?:read-all|[^/]+\/read)$/.test(apiPath)
+    || /^messages\/(?:conversations\/[^/]+|read-all)$/.test(apiPath)
+    || /^feed\/posts(?:\/[^/]+\/(?:like|comments))?$/.test(apiPath)
+  ) return 'identity-community';
+  if (/^videos\/[^/]+\/submit-review$/.test(apiPath)) return 'content-media';
+  if (
+    /^lives\/rooms(?:\/\d+\/(?:start|stop|viewers|messages|publish|play|replay))?$/.test(apiPath)
+    || /^lives\/rooms\/\d+\/viewers\/[^/]+$/.test(apiPath)
+    || /^gift-coins\/(?:daily-claim|streak-claim|gift|video(?:\/\d+)?)$/.test(apiPath)
+    || /^videos\/\d+\/coin$/.test(apiPath)
+  ) return 'live-reward';
+  if (
+    /^reports$/.test(apiPath)
+    || /^admin\/(?:reports\/\d+|reviews\/videos\/\d+|reviews\/text-content\/(?:COMMENT|VIDEO_DANMAKU)\/[^/]+)$/.test(apiPath)
+    || /^agent\/review-preview$/.test(apiPath)
+  ) return 'governance-ai';
+  return 'monolith';
 }
 
-export function resolveUpstreamName(pathname: string, config: GatewayConfig): 'monolith' | 'identity-community' | 'content-media' | 'live-reward' | 'governance-ai' {
+function serviceBaseUrl(service: GatewayServiceName, config: GatewayConfig): string | undefined {
+  if (service === 'identity-community') return config.identityBaseUrl;
+  if (service === 'content-media') return config.contentBaseUrl;
+  if (service === 'live-reward') return config.liveBaseUrl;
+  return config.governanceBaseUrl;
+}
+
+function cutoverEnabled(service: GatewayServiceName, method: string, config: GatewayConfig): boolean {
+  const enabled = method === 'GET' || method === 'HEAD' ? config.readCutover : config.writeCutover;
+  return enabled.includes(service);
+}
+
+export function resolveUpstreamName(pathname: string, config: GatewayConfig, method = 'GET'): 'monolith' | GatewayServiceName {
   if (config.routeMode === 'monolith') return 'monolith';
-  const apiPath = pathname.replace(/^\/api\/v1\//, '');
-  if (/^(auth|users|messages|notifications|feed)(\/|$)/.test(apiPath) && config.identityBaseUrl) return 'identity-community';
-  if (/^videos\/\d+\/coin$/.test(apiPath) && config.liveBaseUrl) return 'live-reward';
-  if (/^(feeds|search|videos|creator|media-proxy)(\/|$)/.test(apiPath) && config.contentBaseUrl) return 'content-media';
-  if (/^(lives|gift-coins)(\/|$)/.test(apiPath) && config.liveBaseUrl) return 'live-reward';
-  if (/^(admin|reports|agent)(\/|$)/.test(apiPath) && config.governanceBaseUrl) return 'governance-ai';
-  return 'monolith';
+  const owner = capabilityOwner(pathname, method.toUpperCase());
+  if (owner === 'monolith' || !cutoverEnabled(owner, method.toUpperCase(), config) || !serviceBaseUrl(owner, config)) return 'monolith';
+  return owner;
+}
+
+export function resolveUpstream(pathname: string, config: GatewayConfig, method = 'GET'): string {
+  const owner = resolveUpstreamName(pathname, config, method);
+  return owner === 'monolith' ? config.monolithBaseUrl : serviceBaseUrl(owner, config) ?? config.monolithBaseUrl;
 }
 
 function requestId(request: IncomingMessage): string {
@@ -237,14 +303,14 @@ export function createGatewayServer(config: GatewayConfig = loadGatewayConfig())
 
     if (method === 'GET' && ['/health/live', '/health/ready', '/version'].includes(pathname)) {
       const data = pathname === '/version'
-        ? { service: 'gateway', version, node: process.version, routeMode: config.routeMode }
-        : { service: 'gateway', status: pathname.endsWith('ready') ? 'ready' : 'live', version, routeMode: config.routeMode, uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000) };
+        ? { service: 'gateway', version, node: process.version, routeMode: config.routeMode, readCutover: config.readCutover, writeCutover: config.writeCutover }
+        : { service: 'gateway', status: pathname.endsWith('ready') ? 'ready' : 'live', version, routeMode: config.routeMode, readCutover: config.readCutover, writeCutover: config.writeCutover, uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000) };
       writeJson(response, 200, ok(data, traceId), traceId);
       return;
     }
 
-    const primary = resolveUpstream(pathname, config);
-    let upstreamName = resolveUpstreamName(pathname, config);
+    const primary = resolveUpstream(pathname, config, method);
+    let upstreamName = resolveUpstreamName(pathname, config, method);
     try {
       const needsContentUser = upstreamName === 'content-media'
         && method === 'POST'
