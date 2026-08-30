@@ -319,6 +319,16 @@ for _attempt in $(seq 1 30); do
 done
 node "$ROOT_DIR/scripts/read-cutover-probe.mjs" read http://127.0.0.1:3100
 
+GATEWAY_ROUTE_MODE=services \
+GATEWAY_READ_CUTOVER=identity-community,content-media \
+GATEWAY_WRITE_CUTOVER=identity-community \
+  compose up -d --force-recreate --no-deps gateway
+for _attempt in $(seq 1 30); do
+  if curl -fsS 'http://127.0.0.1:3100/health/ready' >/dev/null 2>&1; then break; fi
+  sleep 1
+done
+node "$ROOT_DIR/scripts/read-cutover-probe.mjs" identity-write http://127.0.0.1:3100
+
 GATEWAY_ROUTE_MODE=monolith \
 GATEWAY_READ_CUTOVER=identity-community,content-media \
 GATEWAY_WRITE_CUTOVER=none \
@@ -330,4 +340,4 @@ done
 node "$ROOT_DIR/scripts/read-cutover-probe.mjs" rollback http://127.0.0.1:3100
 
 compose ps
-echo "Microservice Compose, UC06 governance, read cutover, and rollback smoke passed."
+echo "Microservice Compose, UC06 governance, read/identity-write cutover, and rollback smoke passed."
