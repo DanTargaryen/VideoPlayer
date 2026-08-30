@@ -51,7 +51,9 @@ function assertUnique(rows, fields, label) {
 }
 
 function textStatus(value) {
-  return value === 'NORMAL' ? 'VISIBLE' : 'HIDDEN';
+  if (value === 'NORMAL') return 'VISIBLE';
+  if (value === 'DELETED') return 'DELETED';
+  return 'HIDDEN';
 }
 
 function assetKind(value) {

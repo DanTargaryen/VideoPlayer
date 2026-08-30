@@ -8,6 +8,7 @@ import { spawn } from 'node:child_process';
 import {
   authorizeServiceRequest,
   failure,
+  issueServiceToken,
   ok,
   type ApiResponse,
   type IdentityUserSummaryContract,
@@ -21,6 +22,11 @@ import {
   HttpGovernanceReviewClient,
   type GovernanceReviewClient,
 } from './governance-client.js';
+import {
+  HttpIdentityNotificationClient,
+  type ContentNotification,
+  type IdentityNotificationClient,
+} from './notification-client.js';
 
 export const SERVICE_OPTIONS: ServiceRuntimeOptions = {
   serviceName: 'content-media',
@@ -30,7 +36,14 @@ export const SERVICE_OPTIONS: ServiceRuntimeOptions = {
 type VideoStatus = 'DRAFT' | 'PENDING_REVIEW' | 'PUBLISHED' | 'REJECTED' | 'HIDDEN';
 type AssetKind = 'ORIGINAL' | 'TRANSCODED' | 'COVER' | 'REPLAY';
 type TextTargetType = 'COMMENT' | 'DANMAKU';
-type TextStatus = 'VISIBLE' | 'HIDDEN';
+type TextStatus = 'VISIBLE' | 'HIDDEN' | 'DELETED';
+
+type ContentPrincipal = {
+  id: string;
+  nickname: string;
+  role: string;
+  isAdmin: boolean;
+};
 
 type CreatorSummary = Omit<IdentityUserSummaryContract, 'id'> & {
   id: string;
@@ -78,8 +91,14 @@ interface CommentRecord {
   id: string;
   videoId: string;
   userId: string;
+  parentId: string | null;
+  rootId: string | null;
   body: string;
+  imageUrl: string | null;
   status: TextStatus;
+  replyCount: number;
+  createdAt: string | Date;
+  updatedAt: string | Date;
 }
 
 interface DanmakuRecord {
@@ -87,8 +106,26 @@ interface DanmakuRecord {
   videoId: string;
   userId: string;
   body: string;
+  timeOffsetMs: number;
+  color: string;
   status: TextStatus;
+  createdAt: string | Date;
 }
+
+type FavoriteFolderRecord = {
+  id: string;
+  userId: string;
+  name: string;
+  isDefault: boolean;
+  videoCount: number;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+};
+
+type NotificationOutboxRecord = ContentNotification & {
+  id: string;
+  attempts: number;
+};
 
 interface ReviewDecisionRecord {
   decisionId: string;
@@ -113,6 +150,12 @@ export interface ContentState {
   assets: VideoAssetRecord[];
   comments: CommentRecord[];
   danmaku: DanmakuRecord[];
+  likes: Array<{ id: string; videoId: string; userId: string }>;
+  favoriteFolders: Array<{ id: string; userId: string; name: string; isDefault: boolean; createdAt: string; updatedAt: string }>;
+  favorites: Array<{ id: string; videoId: string; userId: string; folderId: string }>;
+  watches: Array<{ id: string; videoId: string; userId: string; playCount: number; totalWatchDurationSeconds: number; lastWatchDurationSeconds: number; videoDurationSeconds: number; maxWatchRatio: number; lastWatchRatio: number; completedCount: number; lastWatchedAt: string | null }>;
+  writeReceipts: Array<{ requestId: string; operation: string; actorId: string | null; resourceId: string; payload: unknown; result: unknown }>;
+  notificationOutbox: Array<NotificationOutboxRecord & { status: 'PENDING' | 'DELIVERED' | 'FAILED'; lastError: string | null; nextRetryAt: string }>;
   reviewDecisions: ReviewDecisionRecord[];
   replays: ReplayRecord[];
   deletedObjects: string[];
@@ -125,6 +168,7 @@ export interface IdentityBatchClient {
 export interface ContentServiceOptions {
   identityClient?: IdentityBatchClient;
   governanceClient?: GovernanceReviewClient | null;
+  notificationClient?: IdentityNotificationClient | null;
   internalJwtSecret?: string;
   identityTimeoutMs?: number;
   governanceTimeoutMs?: number;
@@ -148,6 +192,13 @@ export interface ObjectDeletionStore {
 }
 
 const DEFAULT_IDENTITY_TIMEOUT_MS = 1000;
+
+class ContentHttpError extends Error {
+  constructor(readonly status: 400 | 401 | 403 | 404 | 409 | 503, message: string) {
+    super(message);
+    this.name = 'ContentHttpError';
+  }
+}
 
 interface SearchResult {
   keyword: string;
@@ -217,6 +268,23 @@ export interface ContentRepository {
   >;
   batchSummary(ids: string[]): Promise<Array<{ id: string; found: true; title: string; coverUrl: string | null; status: VideoStatus } | { id: string; found: false }>>;
   moderationTarget(targetType: ModerationTargetType, targetId: string): Promise<ModerationTargetSnapshot | null>;
+  viewerState(videoId: string, userId: string): Promise<{ isLiked: boolean; isFavorited: boolean }>;
+  listComments(videoId: string): Promise<CommentRecord[]>;
+  createComment(input: { videoId: string; principal: ContentPrincipal; body: string; imageUrl: string | null; parentId: string | null; requestId: string }): Promise<CommentRecord>;
+  withdrawComment(input: { videoId: string; commentId: string; principal: ContentPrincipal; requestId: string }): Promise<{ withdrawn: true; commentId: string; withdrawnCount: number }>;
+  setLike(input: { videoId: string; principal: ContentPrincipal; liked: boolean; requestId: string }): Promise<{ liked: boolean }>;
+  setFavorite(input: { videoId: string; principal: ContentPrincipal; folderId: string | null; favorited: boolean; requestId: string }): Promise<{ favorited: boolean; folderId?: string; folderName?: string }>;
+  recordPlay(input: { videoId: string; principal: ContentPrincipal | null; videoDurationSeconds: number | null; requestId: string }): Promise<{ videoId: string; playCount: number }>;
+  recordWatchProgress(input: { videoId: string; principal: ContentPrincipal; watchedSeconds: number; currentTimeSeconds: number; videoDurationSeconds: number | null; event: 'pause' | 'leave' | 'ended'; requestId: string }): Promise<Record<string, unknown>>;
+  listDanmaku(videoId: string, fromMs: number, toMs: number): Promise<DanmakuRecord[]>;
+  createDanmaku(input: { videoId: string; principal: ContentPrincipal; body: string; timeOffsetMs: number; color: string; requestId: string }): Promise<DanmakuRecord>;
+  listFavoriteFolders(userId: string): Promise<FavoriteFolderRecord[]>;
+  createFavoriteFolder(input: { principal: ContentPrincipal; name: string; requestId: string }): Promise<FavoriteFolderRecord>;
+  deleteFavoriteFolder(input: { principal: ContentPrincipal; folderId: string; requestId: string }): Promise<{ deleted: true; folderId: string; movedToFolderId: string }>;
+  listUserVideos(userId: string, kind: 'favorites' | 'likes' | 'history', folderId?: string): Promise<VideoRecord[]>;
+  pendingNotifications(limit: number): Promise<NotificationOutboxRecord[]>;
+  markNotificationDelivered(id: string): Promise<void>;
+  markNotificationFailed(id: string, error: string, retryable: boolean, attempts: number): Promise<void>;
 }
 
 export function createFixtureState(): ContentState {
@@ -306,8 +374,21 @@ export function createFixtureState(): ContentState {
         url: 'https://cdn.example.test/videos/video-001.mp4',
       },
     ],
-    comments: [{ id: 'comment-001', videoId: '1', userId: '2', body: 'clear walkthrough', status: 'VISIBLE' }],
-    danmaku: [{ id: 'danmaku-001', videoId: '1', userId: '2', body: 'nice', status: 'VISIBLE' }],
+    comments: [{
+      id: 'comment-001', videoId: '1', userId: '2', parentId: null, rootId: null,
+      body: 'clear walkthrough', imageUrl: null, status: 'VISIBLE', replyCount: 0,
+      createdAt: '2026-08-27T02:10:00.000Z', updatedAt: '2026-08-27T02:10:00.000Z',
+    }],
+    danmaku: [{
+      id: 'danmaku-001', videoId: '1', userId: '2', body: 'nice', timeOffsetMs: 1_000,
+      color: '#FFFFFF', status: 'VISIBLE', createdAt: '2026-08-27T02:10:00.000Z',
+    }],
+    likes: [],
+    favoriteFolders: [],
+    favorites: [],
+    watches: [],
+    writeReceipts: [],
+    notificationOutbox: [],
     reviewDecisions: [],
     replays: [],
     deletedObjects: [],
@@ -322,6 +403,38 @@ export class MockIdentityBatchClient implements IdentityBatchClient {
 
   async batchSummary(userIds: string[]): Promise<Map<string, CreatorSummary>> {
     return new Map(userIds.map((id) => [id, this.summaries.get(id) ?? fallbackCreatorSummary(id)]));
+  }
+}
+
+export class HttpIdentityBatchClient implements IdentityBatchClient {
+  private readonly baseUrl: string;
+
+  constructor(baseUrl: string, private readonly jwtSecret: string, private readonly timeoutMs = 1_000) {
+    this.baseUrl = baseUrl.replace(/\/$/, '');
+  }
+
+  async batchSummary(userIds: string[], requestId: string): Promise<Map<string, CreatorSummary>> {
+    const token = issueServiceToken({
+      caller: 'content-media',
+      audience: 'identity-community',
+      scopes: ['internal:user-summary'],
+      secret: this.jwtSecret,
+      requestId,
+    });
+    const response = await fetch(`${this.baseUrl}/internal/v1/users/batch-summary`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json', 'x-request-id': requestId },
+      body: JSON.stringify({ userIds }),
+      signal: AbortSignal.timeout(this.timeoutMs),
+    });
+    if (!response.ok) throw new Error(`identity batch summary returned ${response.status}`);
+    const payload = await response.json() as { data?: { items?: Array<{ id?: unknown; nickname?: unknown; avatarUrl?: unknown }> } };
+    const items = Array.isArray(payload.data?.items) ? payload.data.items : [];
+    return new Map(items.flatMap((item) => {
+      const id = Number(item.id);
+      if (!Number.isSafeInteger(id) || typeof item.nickname !== 'string') return [];
+      return [[String(id), { id: String(id), nickname: item.nickname, avatarUrl: typeof item.avatarUrl === 'string' ? item.avatarUrl : null }] as const];
+    }));
   }
 }
 
@@ -501,6 +614,283 @@ class FixtureContentRepository implements ContentRepository {
     const video = this.state.videos.find((entry) => entry.id === item.videoId);
     return { targetType, targetId, videoId: item.videoId, content: item.body, status: item.status, user: { id: item.userId, nickname: `用户#${item.userId}` }, video: video ? { id: video.id, title: video.title } : { id: item.videoId, title: '' } };
   }
+
+  private async withReceipt<T>(input: { requestId: string; operation: string; actorId: string | null; resourceId: string; payload: unknown }, action: () => T | Promise<T>): Promise<T> {
+    const existing = this.state.writeReceipts.find((item) => item.requestId === input.requestId);
+    if (existing) {
+      if (existing.operation !== input.operation || existing.actorId !== input.actorId || existing.resourceId !== input.resourceId || canonicalJson(existing.payload) !== canonicalJson(input.payload)) {
+        throw new ContentHttpError(409, 'requestId conflicts with a different content write');
+      }
+      return existing.result as T;
+    }
+    const result = await action();
+    this.state.writeReceipts.push({ ...input, result });
+    return result;
+  }
+
+  private requirePublished(videoId: string): VideoRecord {
+    const video = this.state.videos.find((item) => item.id === videoId && item.status === 'PUBLISHED');
+    if (!video) throw new ContentHttpError(404, 'video not found');
+    return video;
+  }
+
+  private ensureDefaultFolder(userId: string) {
+    let folder = this.state.favoriteFolders.find((item) => item.userId === userId && item.isDefault);
+    if (!folder) {
+      const now = new Date().toISOString();
+      folder = { id: `folder-${randomUUID()}`, userId, name: '默认收藏夹', isDefault: true, createdAt: now, updatedAt: now };
+      this.state.favoriteFolders.push(folder);
+    }
+    return folder;
+  }
+
+  private enqueueNotification(notification: ContentNotification) {
+    if (this.state.notificationOutbox.some((item) => item.requestId === notification.requestId)) return;
+    this.state.notificationOutbox.push({
+      id: `outbox-${randomUUID()}`,
+      ...notification,
+      attempts: 0,
+      status: 'PENDING',
+      lastError: null,
+      nextRetryAt: new Date().toISOString(),
+    });
+  }
+
+  async viewerState(videoId: string, userId: string) {
+    return {
+      isLiked: this.state.likes.some((item) => item.videoId === videoId && item.userId === userId),
+      isFavorited: this.state.favorites.some((item) => item.videoId === videoId && item.userId === userId),
+    };
+  }
+
+  async listComments(videoId: string) {
+    return this.state.comments.filter((item) => item.videoId === videoId && item.status === 'VISIBLE');
+  }
+
+  async createComment(input: { videoId: string; principal: ContentPrincipal; body: string; imageUrl: string | null; parentId: string | null; requestId: string }) {
+    return this.withReceipt({ requestId: input.requestId, operation: 'comment.create', actorId: input.principal.id, resourceId: input.videoId, payload: { body: input.body, imageUrl: input.imageUrl, parentId: input.parentId } }, () => {
+      const video = this.requirePublished(input.videoId);
+      const parent = input.parentId ? this.state.comments.find((item) => item.id === input.parentId && item.videoId === input.videoId && item.status === 'VISIBLE') : null;
+      if (input.parentId && !parent) throw new ContentHttpError(404, 'parent comment not found');
+      const now = new Date().toISOString();
+      const comment: CommentRecord = {
+        id: `comment-${randomUUID()}`,
+        videoId: input.videoId,
+        userId: input.principal.id,
+        parentId: parent?.id ?? null,
+        rootId: parent ? parent.rootId ?? parent.id : null,
+        body: input.body,
+        imageUrl: input.imageUrl,
+        status: 'VISIBLE',
+        replyCount: 0,
+        createdAt: now,
+        updatedAt: now,
+      };
+      this.state.comments.push(comment);
+      video.commentCount += 1;
+      if (parent) parent.replyCount += 1;
+      const recipientId = parent?.userId ?? video.creatorId;
+      if (recipientId !== input.principal.id) {
+        this.enqueueNotification({
+          requestId: `${input.requestId}:notification`.slice(0, 128),
+          recipientId,
+          actorId: input.principal.id,
+          type: parent ? 'REPLY' : 'COMMENT',
+          title: parent ? '收到新的回复' : '收到新的评论',
+          content: `${input.principal.nickname}：${(input.body || '[图片评论]').slice(0, 80)}`,
+          relatedType: 'VIDEO',
+          relatedId: input.videoId,
+        });
+      }
+      return comment;
+    });
+  }
+
+  async withdrawComment(input: { videoId: string; commentId: string; principal: ContentPrincipal; requestId: string }) {
+    return this.withReceipt({ requestId: input.requestId, operation: 'comment.withdraw', actorId: input.principal.id, resourceId: input.commentId, payload: { videoId: input.videoId } }, () => {
+      const comment = this.state.comments.find((item) => item.id === input.commentId && item.videoId === input.videoId && item.status === 'VISIBLE');
+      if (!comment) throw new ContentHttpError(404, 'comment not found');
+      if (comment.userId !== input.principal.id && !input.principal.isAdmin) throw new ContentHttpError(403, 'cannot withdraw others comments');
+      const ids = new Set<string>([comment.id]);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const item of this.state.comments) {
+          if (item.parentId && ids.has(item.parentId) && item.status === 'VISIBLE' && !ids.has(item.id)) {
+            ids.add(item.id);
+            changed = true;
+          }
+        }
+      }
+      for (const item of this.state.comments) if (ids.has(item.id)) item.status = 'DELETED';
+      const video = this.state.videos.find((item) => item.id === input.videoId);
+      if (video) video.commentCount = Math.max(0, video.commentCount - ids.size);
+      const parent = comment.parentId ? this.state.comments.find((item) => item.id === comment.parentId) : null;
+      if (parent) parent.replyCount = Math.max(0, parent.replyCount - 1);
+      return { withdrawn: true as const, commentId: comment.id, withdrawnCount: ids.size };
+    });
+  }
+
+  async setLike(input: { videoId: string; principal: ContentPrincipal; liked: boolean; requestId: string }) {
+    return this.withReceipt({ requestId: input.requestId, operation: input.liked ? 'video.like' : 'video.unlike', actorId: input.principal.id, resourceId: input.videoId, payload: {} }, () => {
+      const video = this.requirePublished(input.videoId);
+      const index = this.state.likes.findIndex((item) => item.videoId === input.videoId && item.userId === input.principal.id);
+      if (input.liked && index < 0) {
+        this.state.likes.push({ id: `like-${randomUUID()}`, videoId: input.videoId, userId: input.principal.id });
+        video.likeCount += 1;
+        if (video.creatorId !== input.principal.id) this.enqueueNotification({ requestId: `${input.requestId}:notification`.slice(0, 128), recipientId: video.creatorId, actorId: input.principal.id, type: 'LIKE', title: '收到新的点赞', content: `${input.principal.nickname} 点赞了你的视频`, relatedType: 'VIDEO', relatedId: input.videoId });
+      }
+      if (!input.liked && index >= 0) {
+        this.state.likes.splice(index, 1);
+        video.likeCount = Math.max(0, video.likeCount - 1);
+      }
+      return { liked: input.liked };
+    });
+  }
+
+  async setFavorite(input: { videoId: string; principal: ContentPrincipal; folderId: string | null; favorited: boolean; requestId: string }) {
+    return this.withReceipt({ requestId: input.requestId, operation: input.favorited ? 'video.favorite' : 'video.unfavorite', actorId: input.principal.id, resourceId: input.videoId, payload: { folderId: input.folderId } }, () => {
+      const video = this.requirePublished(input.videoId);
+      const existing = this.state.favorites.find((item) => item.videoId === input.videoId && item.userId === input.principal.id);
+      if (!input.favorited) {
+        if (existing) {
+          this.state.favorites.splice(this.state.favorites.indexOf(existing), 1);
+          video.favoriteCount = Math.max(0, video.favoriteCount - 1);
+        }
+        return { favorited: false };
+      }
+      const defaultFolder = this.ensureDefaultFolder(input.principal.id);
+      const folder = input.folderId
+        ? this.state.favoriteFolders.find((item) => item.id === input.folderId && item.userId === input.principal.id)
+        : defaultFolder;
+      if (!folder) throw new ContentHttpError(404, 'favorite folder not found');
+      if (!existing) {
+        this.state.favorites.push({ id: `favorite-${randomUUID()}`, videoId: input.videoId, userId: input.principal.id, folderId: folder.id });
+        video.favoriteCount += 1;
+        if (video.creatorId !== input.principal.id) this.enqueueNotification({ requestId: `${input.requestId}:notification`.slice(0, 128), recipientId: video.creatorId, actorId: input.principal.id, type: 'FAVORITE', title: '收到新的收藏', content: `${input.principal.nickname} 收藏了你的视频`, relatedType: 'VIDEO', relatedId: input.videoId });
+      } else {
+        existing.folderId = folder.id;
+      }
+      return { favorited: true, folderId: folder.id, folderName: folder.name };
+    });
+  }
+
+  async recordPlay(input: { videoId: string; principal: ContentPrincipal | null; videoDurationSeconds: number | null; requestId: string }) {
+    return this.withReceipt({ requestId: input.requestId, operation: 'video.play', actorId: input.principal?.id ?? null, resourceId: input.videoId, payload: { videoDurationSeconds: input.videoDurationSeconds } }, () => {
+      const video = this.requirePublished(input.videoId);
+      video.playCount += 1;
+      if (input.principal) {
+        let watch = this.state.watches.find((item) => item.videoId === input.videoId && item.userId === input.principal?.id);
+        if (!watch) {
+          watch = { id: `watch-${randomUUID()}`, videoId: input.videoId, userId: input.principal.id, playCount: 0, totalWatchDurationSeconds: 0, lastWatchDurationSeconds: 0, videoDurationSeconds: 0, maxWatchRatio: 0, lastWatchRatio: 0, completedCount: 0, lastWatchedAt: null };
+          this.state.watches.push(watch);
+        }
+        watch.playCount += 1;
+        watch.videoDurationSeconds = Math.max(watch.videoDurationSeconds, input.videoDurationSeconds ?? 0, video.durationSeconds);
+        watch.lastWatchedAt = new Date().toISOString();
+      }
+      return { videoId: input.videoId, playCount: video.playCount };
+    });
+  }
+
+  async recordWatchProgress(input: { videoId: string; principal: ContentPrincipal; watchedSeconds: number; currentTimeSeconds: number; videoDurationSeconds: number | null; event: 'pause' | 'leave' | 'ended'; requestId: string }) {
+    return this.withReceipt({ requestId: input.requestId, operation: 'video.watch-progress', actorId: input.principal.id, resourceId: input.videoId, payload: { watchedSeconds: input.watchedSeconds, currentTimeSeconds: input.currentTimeSeconds, videoDurationSeconds: input.videoDurationSeconds, event: input.event } }, () => {
+      const video = this.requirePublished(input.videoId);
+      let watch = this.state.watches.find((item) => item.videoId === input.videoId && item.userId === input.principal.id);
+      if (!watch) {
+        watch = { id: `watch-${randomUUID()}`, videoId: input.videoId, userId: input.principal.id, playCount: 0, totalWatchDurationSeconds: 0, lastWatchDurationSeconds: 0, videoDurationSeconds: 0, maxWatchRatio: 0, lastWatchRatio: 0, completedCount: 0, lastWatchedAt: null };
+        this.state.watches.push(watch);
+      }
+      const duration = Math.max(video.durationSeconds, input.videoDurationSeconds ?? 0, watch.videoDurationSeconds);
+      const current = duration > 0 ? Math.min(input.currentTimeSeconds, duration) : input.currentTimeSeconds;
+      const ratio = duration > 0 ? Math.min(1, current / duration) : 0;
+      const completed = (input.event === 'ended' || ratio >= 0.9) && watch.maxWatchRatio < 0.9;
+      watch.totalWatchDurationSeconds += Math.min(input.watchedSeconds, 7_200);
+      watch.lastWatchDurationSeconds = current;
+      watch.videoDurationSeconds = duration;
+      watch.lastWatchRatio = ratio;
+      watch.maxWatchRatio = Math.max(watch.maxWatchRatio, ratio);
+      if (completed) watch.completedCount += 1;
+      watch.lastWatchedAt = new Date().toISOString();
+      return { ...watch, progressSeconds: current, completed: watch.completedCount > 0 };
+    });
+  }
+
+  async listDanmaku(videoId: string, fromMs: number, toMs: number) {
+    return this.state.danmaku.filter((item) => item.videoId === videoId && item.status === 'VISIBLE' && item.timeOffsetMs >= fromMs && item.timeOffsetMs <= toMs);
+  }
+
+  async createDanmaku(input: { videoId: string; principal: ContentPrincipal; body: string; timeOffsetMs: number; color: string; requestId: string }) {
+    return this.withReceipt({ requestId: input.requestId, operation: 'danmaku.create', actorId: input.principal.id, resourceId: input.videoId, payload: { body: input.body, timeOffsetMs: input.timeOffsetMs, color: input.color } }, () => {
+      this.requirePublished(input.videoId);
+      const item: DanmakuRecord = { id: `danmaku-${randomUUID()}`, videoId: input.videoId, userId: input.principal.id, body: input.body, timeOffsetMs: input.timeOffsetMs, color: input.color, status: 'VISIBLE', createdAt: new Date().toISOString() };
+      this.state.danmaku.push(item);
+      return item;
+    });
+  }
+
+  async listFavoriteFolders(userId: string) {
+    this.ensureDefaultFolder(userId);
+    return this.state.favoriteFolders.filter((item) => item.userId === userId).map((item) => ({ ...item, videoCount: this.state.favorites.filter((favorite) => favorite.folderId === item.id).length }));
+  }
+
+  async createFavoriteFolder(input: { principal: ContentPrincipal; name: string; requestId: string }) {
+    return this.withReceipt({ requestId: input.requestId, operation: 'favorite-folder.create', actorId: input.principal.id, resourceId: input.principal.id, payload: { name: input.name } }, () => {
+      const name = input.name.trim();
+      if (!name || name.length > 64 || name === '默认收藏夹') throw new ContentHttpError(400, 'invalid favorite folder name');
+      this.ensureDefaultFolder(input.principal.id);
+      if (this.state.favoriteFolders.some((item) => item.userId === input.principal.id && item.name === name)) throw new ContentHttpError(409, 'favorite folder name already exists');
+      const now = new Date().toISOString();
+      const folder = { id: `folder-${randomUUID()}`, userId: input.principal.id, name, isDefault: false, createdAt: now, updatedAt: now };
+      this.state.favoriteFolders.push(folder);
+      return { ...folder, videoCount: 0 };
+    });
+  }
+
+  async deleteFavoriteFolder(input: { principal: ContentPrincipal; folderId: string; requestId: string }) {
+    return this.withReceipt({ requestId: input.requestId, operation: 'favorite-folder.delete', actorId: input.principal.id, resourceId: input.folderId, payload: {} }, () => {
+      const defaultFolder = this.ensureDefaultFolder(input.principal.id);
+      const folder = this.state.favoriteFolders.find((item) => item.id === input.folderId && item.userId === input.principal.id);
+      if (!folder) throw new ContentHttpError(404, 'favorite folder not found');
+      if (folder.isDefault) throw new ContentHttpError(400, 'default favorite folder cannot be deleted');
+      for (const favorite of this.state.favorites) if (favorite.folderId === folder.id) favorite.folderId = defaultFolder.id;
+      this.state.favoriteFolders.splice(this.state.favoriteFolders.indexOf(folder), 1);
+      return { deleted: true as const, folderId: folder.id, movedToFolderId: defaultFolder.id };
+    });
+  }
+
+  async listUserVideos(userId: string, kind: 'favorites' | 'likes' | 'history', folderId?: string) {
+    if (kind === 'favorites') {
+      const targetFolder = folderId ?? this.ensureDefaultFolder(userId).id;
+      const ids = new Set(this.state.favorites.filter((item) => item.userId === userId && item.folderId === targetFolder).map((item) => item.videoId));
+      return publishedVideos(this.state).filter((video) => ids.has(video.id));
+    }
+    if (kind === 'likes') {
+      const ids = new Set(this.state.likes.filter((item) => item.userId === userId).map((item) => item.videoId));
+      return publishedVideos(this.state).filter((video) => ids.has(video.id));
+    }
+    const ids = new Set(this.state.watches.filter((item) => item.userId === userId).map((item) => item.videoId));
+    return publishedVideos(this.state).filter((video) => ids.has(video.id));
+  }
+
+  async pendingNotifications(limit: number) {
+    const now = Date.now();
+    return this.state.notificationOutbox.filter((item) => item.status === 'PENDING' && Date.parse(item.nextRetryAt) <= now).slice(0, limit);
+  }
+
+  async markNotificationDelivered(id: string) {
+    const item = this.state.notificationOutbox.find((entry) => entry.id === id);
+    if (item) item.status = 'DELIVERED';
+  }
+
+  async markNotificationFailed(id: string, error: string, retryable: boolean, attempts: number) {
+    const item = this.state.notificationOutbox.find((entry) => entry.id === id);
+    if (!item) return;
+    item.attempts = attempts;
+    item.lastError = error;
+    item.status = retryable && attempts < 5 ? 'PENDING' : 'FAILED';
+    item.nextRetryAt = new Date(Date.now() + Math.min(60_000, 1_000 * 2 ** attempts)).toISOString();
+  }
 }
 
 type RawVideo = {
@@ -532,6 +922,7 @@ type RawVideo = {
 interface PrismaLike {
   $queryRawUnsafe<T = unknown>(query: string, ...values: Array<string | number | Date | null>): Promise<T>;
   $executeRawUnsafe(query: string, ...values: Array<string | number | Date | null>): Promise<number>;
+  $transaction<T>(callback: (transaction: PrismaLike) => Promise<T>): Promise<T>;
 }
 
 class PrismaContentRepository implements ContentRepository {
@@ -543,6 +934,103 @@ class PrismaContentRepository implements ContentRepository {
       this.prisma = new module.PrismaClient();
     }
     return this.prisma;
+  }
+
+  private async receipt<T>(client: PrismaLike, requestId: string) {
+    const rows = await client.$queryRawUnsafe<Array<{
+      operation: string;
+      actorId: string | null;
+      resourceId: string;
+      payload: unknown;
+      result: unknown;
+    }>>('SELECT operation, actorId, resourceId, payload, result FROM `ContentWriteReceipt` WHERE requestId = ? LIMIT 1', requestId);
+    return rows[0] as ({ operation: string; actorId: string | null; resourceId: string; payload: unknown; result: T } | undefined);
+  }
+
+  private matchingReceipt<T>(existing: { operation: string; actorId: string | null; resourceId: string; payload: unknown; result: T }, input: { operation: string; actorId: string | null; resourceId: string; payload: unknown }): T {
+    if (existing.operation !== input.operation || existing.actorId !== input.actorId || existing.resourceId !== input.resourceId || canonicalJson(existing.payload) !== canonicalJson(input.payload)) {
+      throw new ContentHttpError(409, 'requestId conflicts with a different content write');
+    }
+    return existing.result;
+  }
+
+  private async withReceipt<T>(input: { requestId: string; operation: string; actorId: string | null; resourceId: string; payload: unknown }, action: (transaction: PrismaLike) => Promise<T>): Promise<T> {
+    const client = await this.client();
+    const existing = await this.receipt<T>(client, input.requestId);
+    if (existing) return this.matchingReceipt(existing, input);
+    try {
+      return await client.$transaction(async (transaction) => {
+        const inside = await this.receipt<T>(transaction, input.requestId);
+        if (inside) return this.matchingReceipt(inside, input);
+        const result = await action(transaction);
+        await transaction.$executeRawUnsafe(
+          'INSERT INTO `ContentWriteReceipt` (requestId, operation, actorId, resourceId, payload, result, createdAt) VALUES (?, ?, ?, ?, CAST(? AS JSON), CAST(? AS JSON), NOW(3))',
+          input.requestId,
+          input.operation,
+          input.actorId,
+          input.resourceId,
+          canonicalJson(input.payload),
+          JSON.stringify(result),
+        );
+        return result;
+      });
+    } catch (error) {
+      const winner = await this.receipt<T>(client, input.requestId);
+      if (winner) return this.matchingReceipt(winner, input);
+      throw error;
+    }
+  }
+
+  private async requirePublished(client: PrismaLike, videoId: string) {
+    const rows = await client.$queryRawUnsafe<Array<{
+      id: string;
+      creatorId: string;
+      durationSeconds: number;
+      playCount: number;
+      likeCount: number;
+      favoriteCount: number;
+      commentCount: number;
+    }>>('SELECT id, creatorId, durationSeconds, playCount, likeCount, favoriteCount, commentCount FROM `Video` WHERE id = ? AND status = \'PUBLISHED\' LIMIT 1', videoId);
+    if (!rows[0]) throw new ContentHttpError(404, 'video not found');
+    return rows[0];
+  }
+
+  private async ensureDefaultFolder(client: PrismaLike, userId: string) {
+    const existing = await client.$queryRawUnsafe<Array<{ id: string; name: string; isDefault: number | boolean; createdAt: Date; updatedAt: Date }>>(
+      'SELECT id, name, isDefault, createdAt, updatedAt FROM `FavoriteFolder` WHERE userId = ? AND isDefault = true ORDER BY createdAt ASC LIMIT 1',
+      userId,
+    );
+    if (existing[0]) return existing[0];
+    const id = `folder-${randomUUID()}`;
+    await client.$executeRawUnsafe(
+      'INSERT IGNORE INTO `FavoriteFolder` (id, userId, name, isDefault, createdAt, updatedAt) VALUES (?, ?, \'默认收藏夹\', true, NOW(3), NOW(3))',
+      id,
+      userId,
+    );
+    const rows = await client.$queryRawUnsafe<Array<{ id: string; name: string; isDefault: number | boolean; createdAt: Date; updatedAt: Date }>>(
+      'SELECT id, name, isDefault, createdAt, updatedAt FROM `FavoriteFolder` WHERE userId = ? AND name = \'默认收藏夹\' LIMIT 1',
+      userId,
+    );
+    if (!rows[0]) throw new Error('failed to create default favorite folder');
+    await client.$executeRawUnsafe('UPDATE `FavoriteFolder` SET isDefault = true WHERE id = ?', rows[0].id);
+    return { ...rows[0], isDefault: true };
+  }
+
+  private async enqueueNotification(client: PrismaLike, notification: ContentNotification) {
+    await client.$executeRawUnsafe(
+      `INSERT IGNORE INTO \`NotificationOutbox\`
+        (id, requestId, recipientId, actorId, type, title, content, relatedType, relatedId, status, attempts, nextRetryAt, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 0, NOW(3), NOW(3), NOW(3))`,
+      `outbox-${randomUUID()}`,
+      notification.requestId,
+      notification.recipientId,
+      notification.actorId,
+      notification.type,
+      notification.title,
+      notification.content,
+      notification.relatedType,
+      notification.relatedId,
+    );
   }
 
   async ready(): Promise<boolean> {
@@ -806,6 +1294,324 @@ class PrismaContentRepository implements ContentRepository {
     return row ? { targetType, targetId, videoId: row.videoId, content: row.body, status: row.status, user: { id: row.userId, nickname: `用户#${row.userId}` }, video: { id: row.videoId, title: row.videoTitle } } : null;
   }
 
+  async viewerState(videoId: string, userId: string) {
+    const [likes, favorites] = await Promise.all([
+      (await this.client()).$queryRawUnsafe<Array<{ total: bigint | number }>>('SELECT COUNT(*) AS total FROM `VideoLike` WHERE videoId = ? AND userId = ?', videoId, userId),
+      (await this.client()).$queryRawUnsafe<Array<{ total: bigint | number }>>('SELECT COUNT(*) AS total FROM `Favorite` WHERE videoId = ? AND userId = ?', videoId, userId),
+    ]);
+    return { isLiked: Number(likes[0]?.total ?? 0) > 0, isFavorited: Number(favorites[0]?.total ?? 0) > 0 };
+  }
+
+  async listComments(videoId: string) {
+    return (await this.client()).$queryRawUnsafe<CommentRecord[]>(
+      "SELECT id, videoId, userId, parentId, rootId, body, imageUrl, status, replyCount, createdAt, updatedAt FROM `Comment` WHERE videoId = ? AND status = 'VISIBLE' ORDER BY createdAt ASC, id ASC",
+      videoId,
+    );
+  }
+
+  async createComment(input: { videoId: string; principal: ContentPrincipal; body: string; imageUrl: string | null; parentId: string | null; requestId: string }) {
+    return this.withReceipt({ requestId: input.requestId, operation: 'comment.create', actorId: input.principal.id, resourceId: input.videoId, payload: { body: input.body, imageUrl: input.imageUrl, parentId: input.parentId } }, async (transaction) => {
+      const video = await this.requirePublished(transaction, input.videoId);
+      let parent: { id: string; rootId: string | null; userId: string } | undefined;
+      if (input.parentId) {
+        const parents = await transaction.$queryRawUnsafe<Array<{ id: string; rootId: string | null; userId: string }>>(
+          "SELECT id, rootId, userId FROM `Comment` WHERE id = ? AND videoId = ? AND status = 'VISIBLE' LIMIT 1",
+          input.parentId,
+          input.videoId,
+        );
+        parent = parents[0];
+        if (!parent) throw new ContentHttpError(404, 'parent comment not found');
+      }
+      const id = `comment-${randomUUID()}`;
+      const rootId = parent ? parent.rootId ?? parent.id : null;
+      await transaction.$executeRawUnsafe(
+        "INSERT INTO `Comment` (id, videoId, userId, parentId, rootId, body, imageUrl, status, replyCount, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, 'VISIBLE', 0, NOW(3), NOW(3))",
+        id,
+        input.videoId,
+        input.principal.id,
+        parent?.id ?? null,
+        rootId,
+        input.body,
+        input.imageUrl,
+      );
+      await transaction.$executeRawUnsafe('UPDATE `Video` SET commentCount = commentCount + 1 WHERE id = ?', input.videoId);
+      if (parent) await transaction.$executeRawUnsafe('UPDATE `Comment` SET replyCount = replyCount + 1 WHERE id = ?', parent.id);
+      const recipientId = parent?.userId ?? video.creatorId;
+      if (recipientId !== input.principal.id) {
+        await this.enqueueNotification(transaction, {
+          requestId: `${input.requestId}:notification`.slice(0, 128),
+          recipientId,
+          actorId: input.principal.id,
+          type: parent ? 'REPLY' : 'COMMENT',
+          title: parent ? '收到新的回复' : '收到新的评论',
+          content: `${input.principal.nickname}：${(input.body || '[图片评论]').slice(0, 80)}`,
+          relatedType: 'VIDEO',
+          relatedId: input.videoId,
+        });
+      }
+      const now = new Date().toISOString();
+      return { id, videoId: input.videoId, userId: input.principal.id, parentId: parent?.id ?? null, rootId, body: input.body, imageUrl: input.imageUrl, status: 'VISIBLE' as const, replyCount: 0, createdAt: now, updatedAt: now };
+    });
+  }
+
+  async withdrawComment(input: { videoId: string; commentId: string; principal: ContentPrincipal; requestId: string }) {
+    return this.withReceipt({ requestId: input.requestId, operation: 'comment.withdraw', actorId: input.principal.id, resourceId: input.commentId, payload: { videoId: input.videoId } }, async (transaction) => {
+      const targets = await transaction.$queryRawUnsafe<Array<{ id: string; userId: string; parentId: string | null; status: TextStatus }>>(
+        'SELECT id, userId, parentId, status FROM `Comment` WHERE id = ? AND videoId = ? LIMIT 1',
+        input.commentId,
+        input.videoId,
+      );
+      const target = targets[0];
+      if (!target || target.status !== 'VISIBLE') throw new ContentHttpError(404, 'comment not found');
+      if (target.userId !== input.principal.id && !input.principal.isAdmin) throw new ContentHttpError(403, 'cannot withdraw others comments');
+      const comments = await transaction.$queryRawUnsafe<Array<{ id: string; parentId: string | null }>>(
+        "SELECT id, parentId FROM `Comment` WHERE videoId = ? AND status = 'VISIBLE'",
+        input.videoId,
+      );
+      const ids = new Set<string>([target.id]);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const item of comments) {
+          if (item.parentId && ids.has(item.parentId) && !ids.has(item.id)) {
+            ids.add(item.id);
+            changed = true;
+          }
+        }
+      }
+      const values = [...ids];
+      await transaction.$executeRawUnsafe(`UPDATE \`Comment\` SET status = 'DELETED' WHERE id IN (${values.map(() => '?').join(',')})`, ...values);
+      await transaction.$executeRawUnsafe('UPDATE `Video` SET commentCount = GREATEST(commentCount - ?, 0) WHERE id = ?', values.length, input.videoId);
+      if (target.parentId) await transaction.$executeRawUnsafe('UPDATE `Comment` SET replyCount = GREATEST(replyCount - 1, 0) WHERE id = ?', target.parentId);
+      return { withdrawn: true as const, commentId: target.id, withdrawnCount: values.length };
+    });
+  }
+
+  async setLike(input: { videoId: string; principal: ContentPrincipal; liked: boolean; requestId: string }) {
+    return this.withReceipt({ requestId: input.requestId, operation: input.liked ? 'video.like' : 'video.unlike', actorId: input.principal.id, resourceId: input.videoId, payload: {} }, async (transaction) => {
+      const video = await this.requirePublished(transaction, input.videoId);
+      if (input.liked) {
+        const inserted = await transaction.$executeRawUnsafe(
+          'INSERT IGNORE INTO `VideoLike` (id, videoId, userId, requestId, createdAt) VALUES (?, ?, ?, ?, NOW(3))',
+          `like-${randomUUID()}`,
+          input.videoId,
+          input.principal.id,
+          input.requestId,
+        );
+        if (inserted === 1) {
+          await transaction.$executeRawUnsafe('UPDATE `Video` SET likeCount = likeCount + 1 WHERE id = ?', input.videoId);
+          if (video.creatorId !== input.principal.id) await this.enqueueNotification(transaction, { requestId: `${input.requestId}:notification`.slice(0, 128), recipientId: video.creatorId, actorId: input.principal.id, type: 'LIKE', title: '收到新的点赞', content: `${input.principal.nickname} 点赞了你的视频`, relatedType: 'VIDEO', relatedId: input.videoId });
+        }
+      } else {
+        const deleted = await transaction.$executeRawUnsafe('DELETE FROM `VideoLike` WHERE videoId = ? AND userId = ?', input.videoId, input.principal.id);
+        if (deleted === 1) await transaction.$executeRawUnsafe('UPDATE `Video` SET likeCount = GREATEST(likeCount - 1, 0) WHERE id = ?', input.videoId);
+      }
+      return { liked: input.liked };
+    });
+  }
+
+  async setFavorite(input: { videoId: string; principal: ContentPrincipal; folderId: string | null; favorited: boolean; requestId: string }) {
+    return this.withReceipt({ requestId: input.requestId, operation: input.favorited ? 'video.favorite' : 'video.unfavorite', actorId: input.principal.id, resourceId: input.videoId, payload: { folderId: input.folderId } }, async (transaction) => {
+      const video = await this.requirePublished(transaction, input.videoId);
+      if (!input.favorited) {
+        const deleted = await transaction.$executeRawUnsafe('DELETE FROM `Favorite` WHERE videoId = ? AND userId = ?', input.videoId, input.principal.id);
+        if (deleted === 1) await transaction.$executeRawUnsafe('UPDATE `Video` SET favoriteCount = GREATEST(favoriteCount - 1, 0) WHERE id = ?', input.videoId);
+        return { favorited: false };
+      }
+      const defaultFolder = await this.ensureDefaultFolder(transaction, input.principal.id);
+      const folderId = input.folderId ?? defaultFolder.id;
+      const folders = await transaction.$queryRawUnsafe<Array<{ id: string; name: string }>>('SELECT id, name FROM `FavoriteFolder` WHERE id = ? AND userId = ? LIMIT 1', folderId, input.principal.id);
+      const folder = folders[0];
+      if (!folder) throw new ContentHttpError(404, 'favorite folder not found');
+      const inserted = await transaction.$executeRawUnsafe(
+        'INSERT IGNORE INTO `Favorite` (id, userId, videoId, folderId, requestId, createdAt) VALUES (?, ?, ?, ?, ?, NOW(3))',
+        `favorite-${randomUUID()}`,
+        input.principal.id,
+        input.videoId,
+        folder.id,
+        input.requestId,
+      );
+      if (inserted === 1) {
+        await transaction.$executeRawUnsafe('UPDATE `Video` SET favoriteCount = favoriteCount + 1 WHERE id = ?', input.videoId);
+        if (video.creatorId !== input.principal.id) await this.enqueueNotification(transaction, { requestId: `${input.requestId}:notification`.slice(0, 128), recipientId: video.creatorId, actorId: input.principal.id, type: 'FAVORITE', title: '收到新的收藏', content: `${input.principal.nickname} 收藏了你的视频`, relatedType: 'VIDEO', relatedId: input.videoId });
+      } else {
+        await transaction.$executeRawUnsafe('UPDATE `Favorite` SET folderId = ? WHERE videoId = ? AND userId = ?', folder.id, input.videoId, input.principal.id);
+      }
+      return { favorited: true, folderId: folder.id, folderName: folder.name };
+    });
+  }
+
+  async recordPlay(input: { videoId: string; principal: ContentPrincipal | null; videoDurationSeconds: number | null; requestId: string }) {
+    return this.withReceipt({ requestId: input.requestId, operation: 'video.play', actorId: input.principal?.id ?? null, resourceId: input.videoId, payload: { videoDurationSeconds: input.videoDurationSeconds } }, async (transaction) => {
+      const video = await this.requirePublished(transaction, input.videoId);
+      await transaction.$executeRawUnsafe('UPDATE `Video` SET playCount = playCount + 1 WHERE id = ?', input.videoId);
+      await transaction.$executeRawUnsafe(
+        'INSERT INTO `CreatorPlayDaily` (id, creatorId, date, plays, createdAt, updatedAt) VALUES (?, ?, CURDATE(), 1, NOW(3), NOW(3)) ON DUPLICATE KEY UPDATE plays = plays + 1, updatedAt = NOW(3)',
+        `play-daily-${randomUUID()}`,
+        video.creatorId,
+      );
+      if (input.principal) {
+        const duration = Math.max(video.durationSeconds, input.videoDurationSeconds ?? 0);
+        await transaction.$executeRawUnsafe(
+          `INSERT INTO \`UserVideoWatch\`
+            (id, userId, videoId, progressSeconds, completed, playCount, totalWatchDurationSeconds, lastWatchDurationSeconds, videoDurationSeconds, maxWatchRatio, lastWatchRatio, completedCount, lastWatchedAt, createdAt, updatedAt)
+           VALUES (?, ?, ?, 0, false, 1, 0, 0, ?, 0, 0, 0, NOW(3), NOW(3), NOW(3))
+           ON DUPLICATE KEY UPDATE playCount = playCount + 1, videoDurationSeconds = GREATEST(videoDurationSeconds, VALUES(videoDurationSeconds)), lastWatchedAt = NOW(3), updatedAt = NOW(3)`,
+          `watch-${randomUUID()}`,
+          input.principal.id,
+          input.videoId,
+          duration,
+        );
+      }
+      const rows = await transaction.$queryRawUnsafe<Array<{ playCount: number }>>('SELECT playCount FROM `Video` WHERE id = ?', input.videoId);
+      return { videoId: input.videoId, playCount: Number(rows[0]?.playCount ?? video.playCount + 1) };
+    });
+  }
+
+  async recordWatchProgress(input: { videoId: string; principal: ContentPrincipal; watchedSeconds: number; currentTimeSeconds: number; videoDurationSeconds: number | null; event: 'pause' | 'leave' | 'ended'; requestId: string }) {
+    return this.withReceipt({ requestId: input.requestId, operation: 'video.watch-progress', actorId: input.principal.id, resourceId: input.videoId, payload: { watchedSeconds: input.watchedSeconds, currentTimeSeconds: input.currentTimeSeconds, videoDurationSeconds: input.videoDurationSeconds, event: input.event } }, async (transaction) => {
+      const video = await this.requirePublished(transaction, input.videoId);
+      const rows = await transaction.$queryRawUnsafe<Array<{ maxWatchRatio: number; videoDurationSeconds: number }>>('SELECT maxWatchRatio, videoDurationSeconds FROM `UserVideoWatch` WHERE userId = ? AND videoId = ? LIMIT 1', input.principal.id, input.videoId);
+      const existing = rows[0];
+      const duration = Math.max(video.durationSeconds, input.videoDurationSeconds ?? 0, existing?.videoDurationSeconds ?? 0);
+      const watched = Math.min(7_200, Math.max(0, Math.round(input.watchedSeconds)));
+      const current = duration > 0 ? Math.min(duration, Math.max(0, Math.round(input.currentTimeSeconds))) : Math.max(0, Math.round(input.currentTimeSeconds));
+      const ratio = duration > 0 ? Math.min(1, current / duration) : 0;
+      const complete = (input.event === 'ended' || ratio >= 0.9) && (existing?.maxWatchRatio ?? 0) < 0.9;
+      await transaction.$executeRawUnsafe(
+        `INSERT INTO \`UserVideoWatch\`
+          (id, userId, videoId, progressSeconds, completed, playCount, totalWatchDurationSeconds, lastWatchDurationSeconds, videoDurationSeconds, maxWatchRatio, lastWatchRatio, completedCount, lastWatchedAt, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, NOW(3), NOW(3), NOW(3))
+         ON DUPLICATE KEY UPDATE progressSeconds = VALUES(progressSeconds), completed = completed OR VALUES(completed), totalWatchDurationSeconds = totalWatchDurationSeconds + VALUES(totalWatchDurationSeconds), lastWatchDurationSeconds = VALUES(lastWatchDurationSeconds), videoDurationSeconds = GREATEST(videoDurationSeconds, VALUES(videoDurationSeconds)), maxWatchRatio = GREATEST(maxWatchRatio, VALUES(maxWatchRatio)), lastWatchRatio = VALUES(lastWatchRatio), completedCount = completedCount + VALUES(completedCount), lastWatchedAt = NOW(3), updatedAt = NOW(3)`,
+        `watch-${randomUUID()}`,
+        input.principal.id,
+        input.videoId,
+        current,
+        complete ? 1 : 0,
+        watched,
+        current,
+        duration,
+        ratio,
+        ratio,
+        complete ? 1 : 0,
+      );
+      const records = await transaction.$queryRawUnsafe<Array<Record<string, unknown>>>('SELECT id, userId, videoId, progressSeconds, completed, playCount, totalWatchDurationSeconds, lastWatchDurationSeconds, videoDurationSeconds, maxWatchRatio, lastWatchRatio, completedCount, lastWatchedAt, createdAt, updatedAt FROM `UserVideoWatch` WHERE userId = ? AND videoId = ? LIMIT 1', input.principal.id, input.videoId);
+      return records[0] ?? {};
+    });
+  }
+
+  async listDanmaku(videoId: string, fromMs: number, toMs: number) {
+    return (await this.client()).$queryRawUnsafe<DanmakuRecord[]>(
+      "SELECT id, videoId, userId, body, timeOffsetMs, color, status, createdAt FROM `VideoDanmaku` WHERE videoId = ? AND status = 'VISIBLE' AND timeOffsetMs BETWEEN ? AND ? ORDER BY timeOffsetMs ASC, createdAt ASC",
+      videoId,
+      fromMs,
+      toMs,
+    );
+  }
+
+  async createDanmaku(input: { videoId: string; principal: ContentPrincipal; body: string; timeOffsetMs: number; color: string; requestId: string }) {
+    return this.withReceipt({ requestId: input.requestId, operation: 'danmaku.create', actorId: input.principal.id, resourceId: input.videoId, payload: { body: input.body, timeOffsetMs: input.timeOffsetMs, color: input.color } }, async (transaction) => {
+      await this.requirePublished(transaction, input.videoId);
+      const id = `danmaku-${randomUUID()}`;
+      await transaction.$executeRawUnsafe(
+        "INSERT INTO `VideoDanmaku` (id, videoId, userId, body, offsetSeconds, timeOffsetMs, color, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, 'VISIBLE', NOW(3))",
+        id,
+        input.videoId,
+        input.principal.id,
+        input.body,
+        Math.floor(input.timeOffsetMs / 1_000),
+        input.timeOffsetMs,
+        input.color,
+      );
+      return { id, videoId: input.videoId, userId: input.principal.id, body: input.body, timeOffsetMs: input.timeOffsetMs, color: input.color, status: 'VISIBLE' as const, createdAt: new Date().toISOString() };
+    });
+  }
+
+  async listFavoriteFolders(userId: string) {
+    await this.ensureDefaultFolder(await this.client(), userId);
+    const rows = await (await this.client()).$queryRawUnsafe<Array<{ id: string; userId: string; name: string; isDefault: number | boolean; videoCount: bigint | number; createdAt: Date; updatedAt: Date }>>(
+      `SELECT folder.id, folder.userId, folder.name, folder.isDefault, folder.createdAt, folder.updatedAt, COUNT(favorite.id) AS videoCount
+       FROM \`FavoriteFolder\` folder LEFT JOIN \`Favorite\` favorite ON favorite.folderId = folder.id
+       WHERE folder.userId = ? GROUP BY folder.id ORDER BY folder.isDefault DESC, folder.updatedAt DESC, folder.createdAt ASC`,
+      userId,
+    );
+    return rows.map((row) => ({ ...row, isDefault: Boolean(row.isDefault), videoCount: Number(row.videoCount) }));
+  }
+
+  async createFavoriteFolder(input: { principal: ContentPrincipal; name: string; requestId: string }) {
+    const name = input.name.trim();
+    if (!name || name.length > 64 || name === '默认收藏夹') throw new ContentHttpError(400, 'invalid favorite folder name');
+    return this.withReceipt({ requestId: input.requestId, operation: 'favorite-folder.create', actorId: input.principal.id, resourceId: input.principal.id, payload: { name } }, async (transaction) => {
+      await this.ensureDefaultFolder(transaction, input.principal.id);
+      const id = `folder-${randomUUID()}`;
+      try {
+        await transaction.$executeRawUnsafe('INSERT INTO `FavoriteFolder` (id, userId, name, isDefault, createdAt, updatedAt) VALUES (?, ?, ?, false, NOW(3), NOW(3))', id, input.principal.id, name);
+      } catch (error) {
+        if (isDuplicateDatabaseError(error)) throw new ContentHttpError(409, 'favorite folder name already exists');
+        throw error;
+      }
+      const now = new Date().toISOString();
+      return { id, userId: input.principal.id, name, isDefault: false, videoCount: 0, createdAt: now, updatedAt: now };
+    });
+  }
+
+  async deleteFavoriteFolder(input: { principal: ContentPrincipal; folderId: string; requestId: string }) {
+    return this.withReceipt({ requestId: input.requestId, operation: 'favorite-folder.delete', actorId: input.principal.id, resourceId: input.folderId, payload: {} }, async (transaction) => {
+      const defaultFolder = await this.ensureDefaultFolder(transaction, input.principal.id);
+      const folders = await transaction.$queryRawUnsafe<Array<{ id: string; isDefault: number | boolean }>>('SELECT id, isDefault FROM `FavoriteFolder` WHERE id = ? AND userId = ? LIMIT 1', input.folderId, input.principal.id);
+      const folder = folders[0];
+      if (!folder) throw new ContentHttpError(404, 'favorite folder not found');
+      if (folder.isDefault) throw new ContentHttpError(400, 'default favorite folder cannot be deleted');
+      await transaction.$executeRawUnsafe('UPDATE `Favorite` SET folderId = ? WHERE userId = ? AND folderId = ?', defaultFolder.id, input.principal.id, folder.id);
+      await transaction.$executeRawUnsafe('DELETE FROM `FavoriteFolder` WHERE id = ?', folder.id);
+      return { deleted: true as const, folderId: folder.id, movedToFolderId: defaultFolder.id };
+    });
+  }
+
+  async listUserVideos(userId: string, kind: 'favorites' | 'likes' | 'history', folderId?: string) {
+    let join = '';
+    const parameters: Array<string | number> = [userId];
+    if (kind === 'favorites') {
+      const resolvedFolderId = folderId ?? (await this.ensureDefaultFolder(await this.client(), userId)).id;
+      join = 'INNER JOIN `Favorite` relation ON relation.videoId = v.id AND relation.userId = ? AND relation.folderId = ?';
+      parameters.push(resolvedFolderId);
+    } else if (kind === 'likes') {
+      join = 'INNER JOIN `VideoLike` relation ON relation.videoId = v.id AND relation.userId = ?';
+    } else {
+      join = 'INNER JOIN `UserVideoWatch` relation ON relation.videoId = v.id AND relation.userId = ?';
+    }
+    const orderBy = kind === 'history' ? 'COALESCE(relation.lastWatchedAt, relation.updatedAt) DESC' : 'relation.createdAt DESC';
+    const rows = await (await this.client()).$queryRawUnsafe<RawVideo[]>(
+      `${videoSelect()} ${join} WHERE v.status = 'PUBLISHED' ORDER BY ${orderBy}`,
+      ...parameters,
+    );
+    return rows.map(rawVideo);
+  }
+
+  async pendingNotifications(limit: number) {
+    return (await this.client()).$queryRawUnsafe<NotificationOutboxRecord[]>(
+      "SELECT id, requestId, recipientId, actorId, type, title, content, relatedType, relatedId, attempts FROM `NotificationOutbox` WHERE status = 'PENDING' AND nextRetryAt <= NOW(3) ORDER BY createdAt ASC LIMIT ?",
+      limit,
+    );
+  }
+
+  async markNotificationDelivered(id: string) {
+    await (await this.client()).$executeRawUnsafe("UPDATE `NotificationOutbox` SET status = 'DELIVERED', deliveredAt = NOW(3), lastError = NULL, updatedAt = NOW(3) WHERE id = ?", id);
+  }
+
+  async markNotificationFailed(id: string, error: string, retryable: boolean, attempts: number) {
+    const status = retryable && attempts < 5 ? 'PENDING' : 'FAILED';
+    const nextRetryAt = new Date(Date.now() + Math.min(60_000, 1_000 * 2 ** attempts));
+    await (await this.client()).$executeRawUnsafe(
+      'UPDATE `NotificationOutbox` SET status = ?, attempts = ?, lastError = ?, nextRetryAt = ?, updatedAt = NOW(3) WHERE id = ?',
+      status,
+      attempts,
+      error.slice(0, 2_000),
+      nextRetryAt,
+      id,
+    );
+  }
+
   private async findReviewDecision(decisionId: string): Promise<ReviewDecisionRecord | null> {
     const rows = await (await this.client()).$queryRawUnsafe<Array<{ id: string; reviewDecisionId: string | null; reviewDecision: ReviewDecisionRecord['decision'] | null; reviewDecisionReason: string | null; status: VideoStatus }>>(
       'SELECT id, reviewDecisionId, reviewDecision, reviewDecisionReason, status FROM `Video` WHERE reviewDecisionId = ? LIMIT 1',
@@ -977,6 +1783,32 @@ function normalizeSortBy(value: string | null): 'best' | 'hot' | 'latest' {
   return value === 'hot' || value === 'latest' ? value : 'best';
 }
 
+function canonicalValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalValue);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => [key, canonicalValue(item)]));
+  }
+  return value;
+}
+
+function canonicalJson(value: unknown): string {
+  return JSON.stringify(canonicalValue(value));
+}
+
+function isDuplicateDatabaseError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const value = error as { code?: unknown; meta?: unknown; message?: unknown };
+  const details = `${typeof value.message === 'string' ? value.message : ''} ${JSON.stringify(value.meta ?? '')}`;
+  return value.code === 'P2002' || (value.code === 'P2010' && /(?:1062|duplicate)/i.test(details));
+}
+
+function publicId(value: string): string | number {
+  const numeric = Number(value);
+  return Number.isSafeInteger(numeric) ? numeric : value;
+}
+
 function offset(options: { page: number; pageSize: number }): number {
   return (options.page - 1) * options.pageSize;
 }
@@ -1095,6 +1927,62 @@ async function creatorSummaries(
   }
 }
 
+async function identitySummaries(identityClient: IdentityBatchClient, userIds: string[], requestId: string, timeoutMs: number) {
+  const ids = [...new Set(userIds)];
+  try {
+    return await withTimeout(identityClient.batchSummary(ids, requestId), timeoutMs);
+  } catch {
+    return new Map(ids.map((id) => [id, fallbackCreatorSummary(id)]));
+  }
+}
+
+function publicCommentTree(comments: CommentRecord[], users: Map<string, CreatorSummary>) {
+  type CommentPayload = ReturnType<typeof publicComment> & { replies: CommentPayload[] };
+  const nodes = new Map<string, CommentPayload>();
+  for (const comment of comments) nodes.set(comment.id, { ...publicComment(comment, users), replies: [] });
+  const roots: CommentPayload[] = [];
+  for (const comment of comments) {
+    const node = nodes.get(comment.id)!;
+    const parent = comment.parentId ? nodes.get(comment.parentId) : undefined;
+    if (parent) parent.replies.push(node);
+    else roots.push(node);
+  }
+  return roots;
+}
+
+function publicComment(comment: CommentRecord, users: Map<string, CreatorSummary>) {
+  const user = users.get(comment.userId) ?? fallbackCreatorSummary(comment.userId);
+  return {
+    id: publicId(comment.id),
+    videoId: publicId(comment.videoId),
+    userId: publicId(comment.userId),
+    parentId: comment.parentId ? publicId(comment.parentId) : null,
+    rootId: comment.rootId ? publicId(comment.rootId) : null,
+    content: comment.body,
+    imageUrl: comment.imageUrl,
+    replyCount: comment.replyCount,
+    status: comment.status === 'VISIBLE' ? 'NORMAL' : comment.status,
+    createdAt: toIso(comment.createdAt) ?? new Date(0).toISOString(),
+    updatedAt: toIso(comment.updatedAt) ?? new Date(0).toISOString(),
+    user: { id: publicId(comment.userId), nickname: user.nickname, avatarUrl: user.avatarUrl },
+  };
+}
+
+function publicDanmaku(item: DanmakuRecord, users: Map<string, CreatorSummary>) {
+  const user = users.get(item.userId) ?? fallbackCreatorSummary(item.userId);
+  return {
+    id: publicId(item.id),
+    videoId: publicId(item.videoId),
+    userId: publicId(item.userId),
+    content: item.body,
+    color: item.color,
+    timeOffsetMs: item.timeOffsetMs,
+    status: item.status === 'VISIBLE' ? 'NORMAL' : item.status,
+    createdAt: toIso(item.createdAt) ?? new Date(0).toISOString(),
+    user: { id: publicId(item.userId), nickname: user.nickname },
+  };
+}
+
 function publicVideo(video: VideoRecord, creators: Map<string, CreatorSummary>) {
   const creator = creators.get(video.creatorId) ?? fallbackCreatorSummary(video.creatorId);
   const numericId = Number(video.id);
@@ -1127,7 +2015,7 @@ function publicVideo(video: VideoRecord, creators: Map<string, CreatorSummary>) 
   };
 }
 
-function publicVideoDetail(video: VideoRecord, creators: Map<string, CreatorSummary>) {
+function publicVideoDetail(video: VideoRecord, creators: Map<string, CreatorSummary>, viewer = { isLiked: false, isFavorited: false }) {
   const card = publicVideo(video, creators);
   const creator = card.creator;
   return {
@@ -1144,8 +2032,8 @@ function publicVideoDetail(video: VideoRecord, creators: Map<string, CreatorSumm
       followerCount: 0,
     },
     isFollowingCreator: false,
-    isLiked: false,
-    isFavorited: false,
+    isLiked: viewer.isLiked,
+    isFavorited: viewer.isFavorited,
     myCoinCount: 0,
     myCoinLimit: 5,
   };
@@ -1169,7 +2057,7 @@ function requireInternal(request: IncomingMessage, response: ServerResponse, req
   }
 }
 
-function trustedContentPrincipal(request: IncomingMessage, requestId: string, secret: string): { id: string; isAdmin: boolean } {
+function trustedContentPrincipal(request: IncomingMessage, requestId: string, secret: string): ContentPrincipal {
   const claims = authorizeServiceRequest(request.headers['x-gateway-authorization'], {
     audience: 'content-media',
     secret,
@@ -1179,9 +2067,31 @@ function trustedContentPrincipal(request: IncomingMessage, requestId: string, se
   if (claims.requestId !== requestId) throw new Error('Gateway JWT requestId does not match x-request-id');
   const rawId = String(request.headers['x-user-id'] ?? '').trim();
   const role = String(request.headers['x-user-role'] ?? 'USER').trim().toUpperCase();
+  const encodedNickname = String(request.headers['x-user-nickname'] ?? '').trim();
   const id = Number(rawId);
   if (!Number.isSafeInteger(id) || id < 1) throw new Error('Trusted user context is invalid');
-  return { id: String(id), isAdmin: role === 'ADMIN' };
+  let nickname = `user-${id}`;
+  if (encodedNickname) {
+    try {
+      nickname = decodeURIComponent(encodedNickname).trim().slice(0, 64) || nickname;
+    } catch {
+      throw new Error('Trusted user nickname is invalid');
+    }
+  }
+  return { id: String(id), nickname, role, isAdmin: role === 'ADMIN' };
+}
+
+function optionalTrustedContentPrincipal(request: IncomingMessage, requestId: string, secret: string): ContentPrincipal | null {
+  if (!request.headers['x-gateway-authorization']) return null;
+  return trustedContentPrincipal(request, requestId, secret);
+}
+
+function requireContentPrincipal(request: IncomingMessage, requestId: string, secret: string): ContentPrincipal {
+  try {
+    return trustedContentPrincipal(request, requestId, secret);
+  } catch (error) {
+    throw new ContentHttpError(401, error instanceof Error ? error.message : 'unauthorized');
+  }
 }
 
 function serviceStatus(startedAt: number, status: 'live' | 'ready'): ServiceStatus {
@@ -1195,18 +2105,46 @@ function serviceStatus(startedAt: number, status: 'live' | 'ready'): ServiceStat
 
 export function createContentService(options: ContentServiceOptions = {}): Server {
   const repository = options.repository ?? (options.state ? new FixtureContentRepository(options.state) : new PrismaContentRepository());
-  const identityClient = options.identityClient ?? new MockIdentityBatchClient();
   const internalJwtSecret = options.internalJwtSecret ?? process.env.SERVICE_JWT_SECRET ?? '';
   const identityTimeoutMs = options.identityTimeoutMs ?? DEFAULT_IDENTITY_TIMEOUT_MS;
+  const identityBaseUrl = process.env.IDENTITY_SERVICE_URL?.trim();
+  const identityClient = options.identityClient
+    ?? (identityBaseUrl && internalJwtSecret
+      ? new HttpIdentityBatchClient(identityBaseUrl, internalJwtSecret, identityTimeoutMs)
+      : new MockIdentityBatchClient());
   const governanceBaseUrl = process.env.GOVERNANCE_SERVICE_URL?.trim();
   const governanceClient = options.governanceClient === undefined
     ? governanceBaseUrl
       ? new HttpGovernanceReviewClient({ baseUrl: governanceBaseUrl, jwtSecret: internalJwtSecret, timeoutMs: options.governanceTimeoutMs })
       : null
     : options.governanceClient;
+  const notificationClient = options.notificationClient === undefined
+    ? identityBaseUrl && internalJwtSecret
+      ? new HttpIdentityNotificationClient(identityBaseUrl, internalJwtSecret, identityTimeoutMs)
+      : null
+    : options.notificationClient;
   const startedAt = Date.now();
+  let notificationFlushRunning = false;
 
-  return createServer(async (request, response) => {
+  async function flushNotificationOutbox() {
+    if (!notificationClient || notificationFlushRunning) return;
+    notificationFlushRunning = true;
+    try {
+      for (const item of await repository.pendingNotifications(10)) {
+        try {
+          await notificationClient.deliver(item);
+          await repository.markNotificationDelivered(item.id);
+        } catch (error) {
+          const retryable = !(error instanceof ContentHttpError) && (typeof error !== 'object' || error === null || !('retryable' in error) || Boolean((error as { retryable?: boolean }).retryable));
+          await repository.markNotificationFailed(item.id, error instanceof Error ? error.message : String(error), retryable, item.attempts + 1);
+        }
+      }
+    } finally {
+      notificationFlushRunning = false;
+    }
+  }
+
+  const server = createServer(async (request, response) => {
     const requestId = getRequestId(request);
     const method = request.method ?? 'GET';
     const url = new URL(request.url ?? '/', 'http://127.0.0.1');
@@ -1296,6 +2234,161 @@ export function createContentService(options: ContentServiceOptions = {}): Serve
         return;
       }
 
+      if (path === '/api/v1/videos/my/favorite-folders') {
+        const principal = requireContentPrincipal(request, requestId, internalJwtSecret);
+        if (method === 'GET') {
+          const folders = await repository.listFavoriteFolders(principal.id);
+          writeJson(response, 200, ok(folders.map((folder) => ({
+            id: publicId(folder.id),
+            name: folder.name,
+            isDefault: folder.isDefault,
+            videoCount: folder.videoCount,
+            createdAt: toIso(folder.createdAt),
+            updatedAt: toIso(folder.updatedAt),
+          })), requestId), requestId);
+          return;
+        }
+        if (method === 'POST') {
+          const body = (await readBody(request)) as { name?: unknown };
+          const folder = await repository.createFavoriteFolder({ principal, name: typeof body.name === 'string' ? body.name : '', requestId });
+          writeJson(response, 200, ok({ ...folder, id: publicId(folder.id), userId: publicId(folder.userId), createdAt: toIso(folder.createdAt), updatedAt: toIso(folder.updatedAt) }, requestId), requestId);
+          return;
+        }
+      }
+
+      const favoriteFolderDeleteMatch = path.match(/^\/api\/v1\/videos\/my\/favorite-folders\/([^/]+)$/);
+      if (method === 'DELETE' && favoriteFolderDeleteMatch) {
+        const principal = requireContentPrincipal(request, requestId, internalJwtSecret);
+        const result = await repository.deleteFavoriteFolder({ principal, folderId: decodeURIComponent(favoriteFolderDeleteMatch[1]), requestId });
+        writeJson(response, 200, ok({ ...result, folderId: publicId(result.folderId), movedToFolderId: publicId(result.movedToFolderId) }, requestId), requestId);
+        return;
+      }
+
+      const myVideosMatch = path.match(/^\/api\/v1\/videos\/my\/(favorites|likes|history)$/);
+      if (method === 'GET' && myVideosMatch) {
+        const principal = requireContentPrincipal(request, requestId, internalJwtSecret);
+        const kind = myVideosMatch[1] as 'favorites' | 'likes' | 'history';
+        const videos = await repository.listUserVideos(principal.id, kind, url.searchParams.get('folderId') ?? undefined);
+        const creators = await creatorSummaries(identityClient, videos, requestId, identityTimeoutMs);
+        writeJson(response, 200, ok(videos.map((video) => publicVideo(video, creators)), requestId), requestId);
+        return;
+      }
+
+      const commentThreadMatch = path.match(/^\/api\/v1\/videos\/([^/]+)\/comments\/([^/]+)\/thread$/);
+      if (method === 'GET' && commentThreadMatch) {
+        const comments = await repository.listComments(decodeURIComponent(commentThreadMatch[1]));
+        const users = await identitySummaries(identityClient, comments.map((item) => item.userId), requestId, identityTimeoutMs);
+        const threadId = decodeURIComponent(commentThreadMatch[2]);
+        const thread = publicCommentTree(comments, users).find((item) => String(item.id) === threadId);
+        if (!thread) throw new ContentHttpError(404, 'comment thread not found');
+        writeJson(response, 200, ok(thread, requestId), requestId);
+        return;
+      }
+
+      const commentDeleteMatch = path.match(/^\/api\/v1\/videos\/([^/]+)\/comments\/([^/]+)$/);
+      if (method === 'DELETE' && commentDeleteMatch) {
+        const principal = requireContentPrincipal(request, requestId, internalJwtSecret);
+        const result = await repository.withdrawComment({ videoId: decodeURIComponent(commentDeleteMatch[1]), commentId: decodeURIComponent(commentDeleteMatch[2]), principal, requestId });
+        writeJson(response, 200, ok({ ...result, commentId: publicId(result.commentId) }, requestId), requestId);
+        return;
+      }
+
+      const commentsMatch = path.match(/^\/api\/v1\/videos\/([^/]+)\/comments$/);
+      if (commentsMatch && method === 'GET') {
+        const videoId = decodeURIComponent(commentsMatch[1]);
+        const comments = await repository.listComments(videoId);
+        const users = await identitySummaries(identityClient, comments.map((item) => item.userId), requestId, identityTimeoutMs);
+        writeJson(response, 200, ok({ videoId: publicId(videoId), items: publicCommentTree(comments, users) }, requestId), requestId);
+        return;
+      }
+      if (commentsMatch && method === 'POST') {
+        const principal = requireContentPrincipal(request, requestId, internalJwtSecret);
+        const body = (await readBody(request)) as { content?: unknown; imageUrl?: unknown; parentId?: unknown };
+        const content = typeof body.content === 'string' ? body.content.trim() : '';
+        const imageUrl = typeof body.imageUrl === 'string' ? body.imageUrl.trim() : '';
+        if (!content && !imageUrl) throw new ContentHttpError(400, 'comment content or image is required');
+        if (content.length > 1_000 || imageUrl.length > 255) throw new ContentHttpError(400, 'comment content or image is too long');
+        const comment = await repository.createComment({ videoId: decodeURIComponent(commentsMatch[1]), principal, body: content, imageUrl: imageUrl || null, parentId: body.parentId === undefined || body.parentId === null ? null : String(body.parentId), requestId });
+        const users = new Map([[principal.id, { id: principal.id, nickname: principal.nickname, avatarUrl: null }]]);
+        void flushNotificationOutbox();
+        writeJson(response, 200, ok({ ...publicComment(comment, users), replies: [] }, requestId), requestId);
+        return;
+      }
+
+      const likeMatch = path.match(/^\/api\/v1\/videos\/([^/]+)\/like$/);
+      if (likeMatch && (method === 'POST' || method === 'DELETE')) {
+        const principal = requireContentPrincipal(request, requestId, internalJwtSecret);
+        const result = await repository.setLike({ videoId: decodeURIComponent(likeMatch[1]), principal, liked: method === 'POST', requestId });
+        void flushNotificationOutbox();
+        writeJson(response, 200, ok(result, requestId), requestId);
+        return;
+      }
+
+      const favoriteMatch = path.match(/^\/api\/v1\/videos\/([^/]+)\/favorite$/);
+      if (favoriteMatch && (method === 'POST' || method === 'DELETE')) {
+        const principal = requireContentPrincipal(request, requestId, internalJwtSecret);
+        const body = method === 'POST' ? (await readBody(request)) as { folderId?: unknown } : {};
+        const result = await repository.setFavorite({
+          videoId: decodeURIComponent(favoriteMatch[1]),
+          principal,
+          folderId: body.folderId === undefined || body.folderId === null ? null : String(body.folderId),
+          favorited: method === 'POST',
+          requestId,
+        });
+        void flushNotificationOutbox();
+        writeJson(response, 200, ok({ ...result, ...(result.folderId ? { folderId: publicId(result.folderId) } : {}) }, requestId), requestId);
+        return;
+      }
+
+      const playMatch = path.match(/^\/api\/v1\/videos\/([^/]+)\/play$/);
+      if (method === 'POST' && playMatch) {
+        const principal = request.headers['x-gateway-authorization'] ? requireContentPrincipal(request, requestId, internalJwtSecret) : null;
+        const body = (await readBody(request)) as { videoDurationSeconds?: unknown };
+        const duration = body.videoDurationSeconds === undefined ? null : Number(body.videoDurationSeconds);
+        if (duration !== null && (!Number.isInteger(duration) || duration < 0 || duration > 86_400)) throw new ContentHttpError(400, 'videoDurationSeconds is invalid');
+        const result = await repository.recordPlay({ videoId: decodeURIComponent(playMatch[1]), principal, videoDurationSeconds: duration, requestId });
+        writeJson(response, 200, ok({ ...result, videoId: publicId(result.videoId) }, requestId), requestId);
+        return;
+      }
+
+      const watchMatch = path.match(/^\/api\/v1\/videos\/([^/]+)\/watch-progress$/);
+      if (method === 'POST' && watchMatch) {
+        const principal = requireContentPrincipal(request, requestId, internalJwtSecret);
+        const body = (await readBody(request)) as { watchedSeconds?: unknown; currentTimeSeconds?: unknown; videoDurationSeconds?: unknown; event?: unknown };
+        const watchedSeconds = Number(body.watchedSeconds);
+        const currentTimeSeconds = Number(body.currentTimeSeconds);
+        const videoDurationSeconds = body.videoDurationSeconds === undefined ? null : Number(body.videoDurationSeconds);
+        if (!Number.isInteger(watchedSeconds) || watchedSeconds < 0 || !Number.isInteger(currentTimeSeconds) || currentTimeSeconds < 0 || (videoDurationSeconds !== null && (!Number.isInteger(videoDurationSeconds) || videoDurationSeconds < 0)) || !['pause', 'leave', 'ended'].includes(String(body.event))) {
+          throw new ContentHttpError(400, 'watch progress payload is invalid');
+        }
+        const result = await repository.recordWatchProgress({ videoId: decodeURIComponent(watchMatch[1]), principal, watchedSeconds, currentTimeSeconds, videoDurationSeconds, event: body.event as 'pause' | 'leave' | 'ended', requestId });
+        writeJson(response, 200, ok(result, requestId), requestId);
+        return;
+      }
+
+      const danmakuMatch = path.match(/^\/api\/v1\/videos\/([^/]+)\/danmaku$/);
+      if (danmakuMatch && method === 'GET') {
+        const fromMs = Math.max(0, Number(url.searchParams.get('fromMs') ?? 0));
+        const toMs = Math.min(86_400_000, Math.max(fromMs, Number(url.searchParams.get('toMs') ?? 600_000)));
+        if (!Number.isFinite(fromMs) || !Number.isFinite(toMs)) throw new ContentHttpError(400, 'danmaku range is invalid');
+        const items = await repository.listDanmaku(decodeURIComponent(danmakuMatch[1]), Math.floor(fromMs), Math.floor(toMs));
+        const users = await identitySummaries(identityClient, items.map((item) => item.userId), requestId, identityTimeoutMs);
+        writeJson(response, 200, ok(items.map((item) => publicDanmaku(item, users)), requestId), requestId);
+        return;
+      }
+      if (danmakuMatch && method === 'POST') {
+        const principal = requireContentPrincipal(request, requestId, internalJwtSecret);
+        const body = (await readBody(request)) as { content?: unknown; timeOffsetMs?: unknown; color?: unknown };
+        const content = typeof body.content === 'string' ? body.content.trim() : '';
+        const timeOffsetMs = Number(body.timeOffsetMs);
+        const color = typeof body.color === 'string' ? body.color.trim().toUpperCase() : '#FFFFFF';
+        if (!content || content.length > 255 || !Number.isInteger(timeOffsetMs) || timeOffsetMs < 0 || timeOffsetMs > 86_400_000 || !/^#[0-9A-F]{6}$/.test(color)) throw new ContentHttpError(400, 'danmaku payload is invalid');
+        const item = await repository.createDanmaku({ videoId: decodeURIComponent(danmakuMatch[1]), principal, body: content, timeOffsetMs, color, requestId });
+        const users = new Map([[principal.id, { id: principal.id, nickname: principal.nickname, avatarUrl: null }]]);
+        writeJson(response, 200, ok(publicDanmaku(item, users), requestId), requestId);
+        return;
+      }
+
       const videoDetailMatch = path.match(/^\/api\/v1\/videos\/([^/]+)$/);
       if (method === 'GET' && videoDetailMatch) {
         const video = await repository.findPublishedVideo(videoDetailMatch[1]);
@@ -1304,7 +2397,9 @@ export function createContentService(options: ContentServiceOptions = {}): Serve
           return;
         }
         const creators = await creatorSummaries(identityClient, [video], requestId, identityTimeoutMs);
-        writeJson(response, 200, ok(publicVideoDetail(video, creators), requestId), requestId);
+        const principal = optionalTrustedContentPrincipal(request, requestId, internalJwtSecret);
+        const viewer = principal ? await repository.viewerState(video.id, principal.id) : undefined;
+        writeJson(response, 200, ok(publicVideoDetail(video, creators, viewer), requestId), requestId);
         return;
       }
 
@@ -1392,7 +2487,14 @@ export function createContentService(options: ContentServiceOptions = {}): Serve
 
       writeJson(response, 404, failure('route not implemented in content-media foundation', requestId, 404), requestId);
     } catch (error) {
-      writeJson(response, 500, failure(error instanceof Error ? error.message : 'internal error', requestId, 500), requestId);
+      const status = error instanceof ContentHttpError ? error.status : 500;
+      writeJson(response, status, failure(error instanceof Error ? error.message : 'internal error', requestId, status), requestId);
     }
   });
+
+  const retryIntervalMs = Math.max(500, Number(process.env.CONTENT_NOTIFICATION_RETRY_INTERVAL_MS ?? 1_000) || 1_000);
+  const notificationTimer = setInterval(() => void flushNotificationOutbox(), retryIntervalMs);
+  notificationTimer.unref();
+  server.on('close', () => clearInterval(notificationTimer));
+  return server;
 }
