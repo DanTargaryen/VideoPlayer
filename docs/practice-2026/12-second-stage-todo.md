@@ -1,6 +1,6 @@
 # 第二阶段微服务执行 TODO
 
-> 状态：`MS-00 / MS-01 / MS-02 / MS-03 / MS-04 / MS-DOD / MS-CUTOVER-READ / MS-CUTOVER-IDENTITY DONE / REG-01 UC06 DONE`
+> 状态：`MS-00 / MS-01 / MS-02 / MS-03 / MS-04 / MS-DOD / MS-CUTOVER-READ / MS-CUTOVER-IDENTITY / MS-CUTOVER-CONTENT-DATA DONE / REG-01 UC06 DONE`
 >
 > 冻结基线：`monolith-start` / `main@70d197dc1a1f6febfdc7dcb12d8661384ad5d31e`。
 >
@@ -18,6 +18,7 @@
 - [x] B/C/D/E 从包含 MS-00 的最新 `main` 创建各自 foundation 分支。
 - [x] 四个 foundation 服务均可独立安装、lint、build、test、构建镜像和返回 health/version。
 - [x] identity/content 只读路由完成并保留单体 fallback。
+- [x] identity 写切流和 content 单体历史数据迁移完成；content/live/governance 写切流仍待完成。
 - [ ] identity/content/live/governance 写流量按顺序切换并保留回滚路径。
 - [ ] REG-01 在微服务 Gateway 上完成全部公开 API 和 UC01–UC06 回归。
 
@@ -334,7 +335,15 @@ services/<service>/
 
 说明：本轮使用 package-local Prisma Client，避免与单体 backend Client 相互覆盖；`IdentityBatchSummaryContract` 已进入 shared-contracts，并与已合入 MS-01 的数字型 userId、`items`/`byId`/`missingIds` wire contract 对齐，content 在服务边界统一转换为字符串外部 ID。`verify:container` 用隔离 MySQL 复测 image/migration/fixture/health/version/ffprobe；`verify:minio` 在同一流程中使用真实 MySQL、Prisma 和固定 digest 的 MinIO，验证伪装 MP4 400 且 0 object/row、合法 MP4 同时持久化一条真实 row/object、真实数据库唯一键失败后只删除本次 object。Compose 自动启动 content MySQL/migration，隔离 Kind 使用独立 `content_media` schema、专属账号与 migration Job；两套环境五个业务/Gateway 工作负载均通过 15 个 health/version 请求。Gateway 业务流量仍保持单体模式。
 
-### 5.6 C 第一批禁止事项
+### 5.6 历史数据迁移 Gate
+
+- [x] content schema 可无损承载 13 张单体 owner 表的历史字段、聚合计数、长资产 metadata、未绑定上传与外部 ID。
+- [x] migration 要求 `CONTENT_CUTOVER_CONFIRM=MIGRATE_CONTENT`，source/target 不同，非 test 目标精确匹配 `CONTENT_CUTOVER_ALLOWED_TARGET`。
+- [x] 按 FK 顺序 `createMany(skipDuplicates)`，迁移前检查唯一键，迁移后逐表全量比较，支持中断后安全重跑。
+- [x] 隔离 Kind MySQL 基线迁移执行两次；另在全新真实 MySQL 为其余 9 表注入非空数据，验证中断恢复与两次完整迁移，13 表逐行一致。HTTP 历史计数/多分类、236–242 字符资产和 `videoId=NULL` 资产均 PASS；账号最小权限与资源清理 PASS。
+- [ ] content 上传、投稿、评论、点赞、收藏、观看进度、弹幕等写 API、Gateway allowlist、Compose/浏览器回归和 monolith rollback。
+
+### 5.7 C 第一批禁止事项
 
 - [x] 未切上传、投稿或互动写流量。
 - [x] 未迁移 VideoAi 写路径。
