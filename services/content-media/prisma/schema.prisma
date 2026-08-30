@@ -228,6 +228,39 @@ model VideoAiChatMessage {
   @@index([sessionId])
 }
 
+model ContentWriteReceipt {
+  requestId  String   @id @db.VarChar(128)
+  operation  String   @db.VarChar(64)
+  actorId    String?
+  resourceId String
+  payload    Json
+  result     Json
+  createdAt  DateTime @default(now())
+
+  @@index([operation, createdAt])
+}
+
+model NotificationOutbox {
+  id          String    @id @default(cuid())
+  requestId   String    @unique @db.VarChar(128)
+  recipientId String
+  actorId     String?
+  type        String    @db.VarChar(32)
+  title       String    @db.VarChar(128)
+  content     String    @db.Text
+  relatedType String?   @db.VarChar(32)
+  relatedId   String?
+  status      String    @default("PENDING") @db.VarChar(16)
+  attempts    Int       @default(0)
+  lastError   String?   @db.Text
+  nextRetryAt DateTime  @default(now())
+  deliveredAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status, nextRetryAt])
+}
+
 enum VideoStatus {
   DRAFT
   PENDING_REVIEW
@@ -246,4 +279,5 @@ enum AssetKind {
 enum TextStatus {
   VISIBLE
   HIDDEN
+  DELETED
 }

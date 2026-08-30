@@ -27,9 +27,10 @@ if (mode === 'read') {
   await probe('/api/v1/feed/dynamic?page=1&pageSize=5', 'identity-community');
   await probe('/api/v1/feeds/recommend?page=1&pageSize=5', 'content-media');
   await probe('/api/v1/videos/1', 'content-media');
+  await probe('/api/v1/videos/1/comments', 'content-media');
   await probe('/api/v1/feed/sidebar/live', 'monolith');
   await probe('/api/v1/search/suggest?q=architecture', 'monolith');
-  await probe('/api/v1/videos/1/comments', 'monolith');
+  await probe('/api/v1/videos/1/reviews', 'monolith');
   await probe('/api/v1/auth/register', 'monolith', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },

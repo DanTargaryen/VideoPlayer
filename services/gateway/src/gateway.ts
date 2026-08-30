@@ -93,7 +93,8 @@ function capabilityOwner(pathname: string, method: string): GatewayServiceName |
     ) return 'identity-community';
     if (
       /^(?:feeds\/recommend|search\/all)$/.test(apiPath)
-      || /^videos\/(?!my(?:\/|$))[^/]+(?:\/recommendations)?$/.test(apiPath)
+      || /^videos\/(?!my(?:\/|$))[^/]+(?:\/recommendations|\/comments(?:\/[^/]+\/thread)?|\/danmaku)?$/.test(apiPath)
+      || /^videos\/my\/(?:favorites|favorite-folders|likes|history)$/.test(apiPath)
     ) return 'content-media';
     if (
       /^lives\/rooms(?:\/\d+(?:\/(?:messages|events))?)?$/.test(apiPath)
@@ -110,7 +111,11 @@ function capabilityOwner(pathname: string, method: string): GatewayServiceName |
     || /^messages\/(?:conversations\/[^/]+|read-all)$/.test(apiPath)
     || /^feed\/posts(?:\/[^/]+\/(?:like|comments))?$/.test(apiPath)
   ) return 'identity-community';
-  if (/^videos\/[^/]+\/submit-review$/.test(apiPath)) return 'content-media';
+  if (
+    /^videos\/[^/]+\/(?:submit-review|like|favorite|play|watch-progress|danmaku)$/.test(apiPath)
+    || /^videos\/[^/]+\/comments(?:\/[^/]+)?$/.test(apiPath)
+    || /^videos\/my\/favorite-folders(?:\/[^/]+)?$/.test(apiPath)
+  ) return 'content-media';
   if (
     /^lives\/rooms(?:\/\d+\/(?:start|stop|viewers|messages|publish|play|replay))?$/.test(apiPath)
     || /^lives\/rooms\/\d+\/viewers\/[^/]+$/.test(apiPath)
@@ -312,12 +317,9 @@ export function createGatewayServer(config: GatewayConfig = loadGatewayConfig())
     const primary = resolveUpstream(pathname, config, method);
     let upstreamName = resolveUpstreamName(pathname, config, method);
     try {
-      const needsContentUser = upstreamName === 'content-media'
-        && method === 'POST'
-        && /^\/api\/v1\/videos\/[^/]+\/submit-review$/.test(pathname);
       const trustedAudience = upstreamName === 'live-reward' || upstreamName === 'governance-ai'
         ? upstreamName
-        : needsContentUser
+        : upstreamName === 'content-media'
           ? 'content-media'
           : undefined;
       const trustedUser = trustedAudience
