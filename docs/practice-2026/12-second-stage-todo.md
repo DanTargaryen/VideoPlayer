@@ -1,6 +1,6 @@
 # 第二阶段微服务执行 TODO
 
-> 状态：`MS-00 / MS-01 / MS-02 / MS-03 / MS-04 / MS-DOD / MS-CUTOVER-READ / MS-CUTOVER-IDENTITY / MS-CUTOVER-CONTENT-DATA DONE / REG-01 UC06 DONE`
+> 状态：`MS-00 / MS-01 / MS-02 / MS-03 / MS-04 / MS-DOD / MS-CUTOVER-READ / MS-CUTOVER-IDENTITY / MS-CUTOVER-CONTENT-DATA / MS-CUTOVER-CONTENT-INTERACTIONS DONE / REG-01 UC06 DONE`
 >
 > 冻结基线：`monolith-start` / `main@70d197dc1a1f6febfdc7dcb12d8661384ad5d31e`。
 >
@@ -18,7 +18,7 @@
 - [x] B/C/D/E 从包含 MS-00 的最新 `main` 创建各自 foundation 分支。
 - [x] 四个 foundation 服务均可独立安装、lint、build、test、构建镜像和返回 health/version。
 - [x] identity/content 只读路由完成并保留单体 fallback。
-- [x] identity 写切流和 content 单体历史数据迁移完成；content/live/governance 写切流仍待完成。
+- [x] identity 写切流、content 历史迁移和 content 互动写切流完成；content 上传/投稿、live/governance 写切流仍待完成。
 - [ ] identity/content/live/governance 写流量按顺序切换并保留回滚路径。
 - [ ] REG-01 在微服务 Gateway 上完成全部公开 API 和 UC01–UC06 回归。
 
@@ -341,9 +341,18 @@ services/<service>/
 - [x] migration 要求 `CONTENT_CUTOVER_CONFIRM=MIGRATE_CONTENT`，source/target 不同，非 test 目标精确匹配 `CONTENT_CUTOVER_ALLOWED_TARGET`。
 - [x] 按 FK 顺序 `createMany(skipDuplicates)`，迁移前检查唯一键，迁移后逐表全量比较，支持中断后安全重跑。
 - [x] 隔离 Kind MySQL 基线迁移执行两次；另在全新真实 MySQL 为其余 9 表注入非空数据，验证中断恢复与两次完整迁移，13 表逐行一致。HTTP 历史计数/多分类、236–242 字符资产和 `videoId=NULL` 资产均 PASS；账号最小权限与资源清理 PASS。
-- [ ] content 上传、投稿、评论、点赞、收藏、观看进度、弹幕等写 API、Gateway allowlist、Compose/浏览器回归和 monolith rollback。
+- [ ] content multipart 上传、MinIO 投稿/草稿 CRUD、创作者视频/统计、review history/withdraw 的服务实现与切流。
 
-### 5.7 C 第一批禁止事项
+### 5.7 互动读写切流 Gate
+
+- [x] 评论/回复/撤回、点赞、收藏/收藏夹、播放、观看进度和弹幕由 content 独立 schema 读写。
+- [x] `ContentWriteReceipt` 对所有互动写统一执行 requestId 重放与冲突保护，计数和主体写入在事务内完成。
+- [x] `NotificationOutbox` 持久化通知；identity timeout/有限重试/幂等；通知失败不回滚主体。
+- [x] Gateway 只把已实现的 content interaction path 切到服务，伪造用户头被剥离并使用可信 Gateway JWT。
+- [x] 真实 MySQL、Compose 四库/五服务、浏览器、3 条 identity 通知和 monolith rollback PASS。
+- [ ] multipart 上传、MinIO 投稿/草稿 CRUD、创作者视频/统计、review history/withdraw 的服务实现与切流。
+
+### 5.8 C 第一批禁止事项
 
 - [x] 未切上传、投稿或互动写流量。
 - [x] 未迁移 VideoAi 写路径。
@@ -571,7 +580,7 @@ E 验收证据（2026-08-29，基于 `origin/main@933ccac`）：完成 governanc
 ### 10.3 写流量阶段
 
 - [x] identity 登录/资料/关注写流量切换。
-- [ ] content 上传/投稿/互动写流量切换。
+- [ ] content 上传/投稿/互动写流量切换（互动已完成；上传/投稿与创作者管理仍待）。
 - [ ] live 房间/Session/消息/回放/账本写流量切换。
 - [ ] governance 审核/举报/处置写流量切换。
 - [ ] 每一步切换前完成迁移、行数/唯一约束/抽样校验。
