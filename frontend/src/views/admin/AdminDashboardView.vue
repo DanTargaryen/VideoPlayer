@@ -81,9 +81,9 @@
       <div class="review-list">
         <article v-for="item in textReviews" :key="`${item.targetType}-${item.id}`" class="review-card">
           <div>
-            <h3>{{ item.targetType }} · {{ item.video.title }}</h3>
-            <p>{{ item.content }}</p>
-            <span class="status">状态：{{ item.status }} · 用户：{{ item.user.nickname }}</span>
+            <h3>{{ item.targetType }} · {{ item.video?.title || `视频 #${item.videoId || '未知'}` }}</h3>
+            <p>{{ item.content || '内容快照暂不可用' }}</p>
+            <span class="status">状态：{{ item.status }} · 用户：{{ item.user?.nickname || '未知用户' }}</span>
           </div>
           <div class="actions">
             <el-button @click="handleTextModeration(item.targetType, item.targetId, 'KEEP')">保留</el-button>
