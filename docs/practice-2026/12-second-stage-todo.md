@@ -1,6 +1,6 @@
 # 第二阶段微服务执行 TODO
 
-> 状态：`MS-00 / MS-01 / MS-02 / MS-03 / MS-04 / MS-DOD / MS-CUTOVER-READ DONE / REG-01 UC06 DONE`
+> 状态：`MS-00 / MS-01 / MS-02 / MS-03 / MS-04 / MS-DOD / MS-CUTOVER-READ / MS-CUTOVER-IDENTITY DONE / REG-01 UC06 DONE`
 >
 > 冻结基线：`monolith-start` / `main@70d197dc1a1f6febfdc7dcb12d8661384ad5d31e`。
 >
@@ -561,13 +561,15 @@ E 验收证据（2026-08-29，基于 `origin/main@933ccac`）：完成 governanc
 
 ### 10.3 写流量阶段
 
-- [ ] identity 登录/资料/关注写流量切换。
+- [x] identity 登录/资料/关注写流量切换。
 - [ ] content 上传/投稿/互动写流量切换。
 - [ ] live 房间/Session/消息/回放/账本写流量切换。
 - [ ] governance 审核/举报/处置写流量切换。
 - [ ] 每一步切换前完成迁移、行数/唯一约束/抽样校验。
 - [ ] 每一步切换后执行对应 UC，并演练 Gateway 切回单体。
 - [ ] REG-01 全部通过前不停止单体写入、不删除单体表。
+
+identity 统一复验（2026-08-31）：Kind 正式 schema migration 后，双 Prisma cutover 工具执行两次幂等迁移并逐表全量比较，User 8/8、Profile 1/1、Follow 5/5；Compose `writeCutover=identity-community` 下注册/登录/资料/关注/动态写 PASS，未实现与其他域写请求保持 monolith，最终 rollback 与资源清理 PASS。单体 identity 表仍保留。
 
 ## 11. A（组长）每日检查清单
 
