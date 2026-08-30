@@ -54,7 +54,8 @@ describe('gateway scaffold', () => {
     expect(resolveUpstreamName('/api/v1/reports', value, 'POST')).toBe('governance-ai');
     expect(resolveUpstream('/api/v1/feed/sidebar/live', value)).toBe(value.monolithBaseUrl);
     expect(resolveUpstream('/api/v1/search/suggest', value)).toBe(value.monolithBaseUrl);
-    expect(resolveUpstream('/api/v1/videos/1/comments', value)).toBe(value.monolithBaseUrl);
+    expect(resolveUpstream('/api/v1/videos/1/comments', value)).toBe('http://content:3000');
+    expect(resolveUpstream('/api/v1/videos/1/like', value, 'POST')).toBe('http://content:3000');
     expect(resolveUpstream('/api/v1/auth/login', { ...value, routeMode: 'monolith' }, 'POST')).toBe(value.monolithBaseUrl);
   });
 
@@ -106,7 +107,9 @@ describe('gateway scaffold', () => {
       ['/api/v1/videos/1/recommendations', 'content-media'],
       ['/api/v1/feed/sidebar/live', 'monolith'],
       ['/api/v1/search/suggest?q=arch', 'monolith'],
-      ['/api/v1/videos/1/comments', 'monolith'],
+      ['/api/v1/videos/1/comments', 'content-media'],
+      ['/api/v1/videos/1/danmaku', 'content-media'],
+      ['/api/v1/videos/my/favorite-folders', 'content-media'],
     ] as const) {
       const response = await fetch(`${gateway}${path}`, { headers: { 'x-request-id': `read-${owner}` } });
       expect(response.headers.get('x-gateway-upstream')).toBe(owner);
@@ -118,6 +121,78 @@ describe('gateway scaffold', () => {
       expect(response.headers.get('x-gateway-upstream')).toBe('monolith');
       expect(await response.json()).toMatchObject({ owner: 'monolith', method: 'POST', path });
     }
+  });
+
+  it('forwards verified users to content interaction writes and supports explicit rollback', async () => {
+    const identity = await listen(createServer((request, response) => {
+      if (request.headers.authorization !== 'Bearer valid-content-user') {
+        response.statusCode = 401;
+        response.end('{}');
+        return;
+      }
+      response.setHeader('content-type', 'application/json');
+      response.end(JSON.stringify({ data: { id: 9, nickname: '内容用户', role: 'USER' } }));
+    }));
+    const content = await listen(createServer((request, response) => {
+      const gatewayToken = String(request.headers['x-gateway-authorization']).replace(/^Bearer\s+/i, '');
+      const claims = verifyServiceToken(gatewayToken, {
+        audience: 'content-media',
+        secret: serviceSecret,
+        requiredScopes: ['content.user.forward'],
+        allowedCallers: ['gateway'],
+      });
+      response.setHeader('content-type', 'application/json');
+      response.end(JSON.stringify({
+        owner: 'content-media',
+        method: request.method,
+        path: request.url,
+        userId: request.headers['x-user-id'],
+        nickname: request.headers['x-user-nickname'],
+        requestId: claims.requestId,
+      }));
+    }));
+    const monolith = await listen(createServer((request, response) => {
+      response.setHeader('content-type', 'application/json');
+      response.end(JSON.stringify({ owner: 'monolith', method: request.method, path: request.url }));
+    }));
+    const gateway = await listen(createGatewayServer(config({
+      routeMode: 'services',
+      monolithBaseUrl: monolith,
+      identityBaseUrl: identity,
+      contentBaseUrl: content,
+      readCutover: ['content-media'],
+      writeCutover: ['content-media'],
+    })));
+
+    for (const path of [
+      '/api/v1/videos/1/comments',
+      '/api/v1/videos/1/like',
+      '/api/v1/videos/1/favorite',
+      '/api/v1/videos/1/watch-progress',
+      '/api/v1/videos/1/danmaku',
+      '/api/v1/videos/my/favorite-folders',
+    ]) {
+      const response = await fetch(`${gateway}${path}`, {
+        method: 'POST',
+        headers: { authorization: 'Bearer valid-content-user', 'content-type': 'application/json', 'x-request-id': `content-${path}`.slice(0, 128), 'x-user-id': '999' },
+        body: '{}',
+      });
+      expect(response.status).toBe(200);
+      expect(response.headers.get('x-gateway-upstream')).toBe('content-media');
+      expect(await response.json()).toMatchObject({ owner: 'content-media', userId: '9', nickname: encodeURIComponent('内容用户') });
+    }
+
+    const rollbackGateway = await listen(createGatewayServer(config({
+      routeMode: 'services',
+      monolithBaseUrl: monolith,
+      identityBaseUrl: identity,
+      contentBaseUrl: content,
+      readCutover: ['content-media'],
+      writeCutover: [],
+    })));
+    const rollback = await fetch(`${rollbackGateway}/api/v1/videos/1/like`, { method: 'POST', headers: { authorization: 'Bearer valid-content-user' } });
+    expect(rollback.headers.get('x-gateway-upstream')).toBe('monolith');
+    expect(await rollback.json()).toMatchObject({ owner: 'monolith' });
   });
 
   it('exposes gateway health and proxies to the monolith by default', async () => {

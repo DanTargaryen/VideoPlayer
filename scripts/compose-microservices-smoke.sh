@@ -254,7 +254,7 @@ fi
 compose exec -T content-mysql \
   mysql -N -ucontent_media -p"$CONTENT_DB_PASSWORD" content_media \
   -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'content_media'" \
-  | grep -Fx '14' >/dev/null
+  | grep -Fx '16' >/dev/null
 
 live_database_list=$(compose exec -T live-mysql \
   mysql -N -u"$LIVE_REWARD_DATABASE_USER" -p"$LIVE_REWARD_DATABASE_PASSWORD" -e 'SHOW DATABASES')
@@ -329,6 +329,33 @@ for _attempt in $(seq 1 30); do
 done
 node "$ROOT_DIR/scripts/read-cutover-probe.mjs" identity-write http://127.0.0.1:3100
 
+GATEWAY_ROUTE_MODE=services \
+GATEWAY_READ_CUTOVER=identity-community,content-media \
+GATEWAY_WRITE_CUTOVER=identity-community,content-media \
+  compose up -d --force-recreate --no-deps gateway
+for _attempt in $(seq 1 30); do
+  if curl -fsS 'http://127.0.0.1:3100/health/ready' >/dev/null 2>&1; then break; fi
+  sleep 1
+done
+CONTENT_BASE_URL='http://127.0.0.1:3100' \
+CONTENT_USER_TOKEN="$admin_token" \
+CONTENT_INTERACTION_RUN_ID='compose-content-interactions' \
+SERVICE_JWT_SECRET="$SERVICE_JWT_SECRET" \
+  node "$ROOT_DIR/scripts/content-interaction-smoke.mjs"
+
+for _attempt in $(seq 1 20); do
+  notification_count=$(compose exec -T identity-mysql \
+    mysql -N -u"$IDENTITY_DATABASE_USER" -p"$IDENTITY_DATABASE_PASSWORD" "$IDENTITY_DATABASE_NAME" \
+    -e "SELECT COUNT(*) FROM Notification WHERE requestId LIKE 'content-smoke-compose-content-interactions-%:notification'")
+  delivered_count=$(compose exec -T content-mysql \
+    mysql -N -ucontent_media -p"$CONTENT_DB_PASSWORD" content_media \
+    -e "SELECT COUNT(*) FROM NotificationOutbox WHERE requestId LIKE 'content-smoke-compose-content-interactions-%:notification' AND status = 'DELIVERED'")
+  if [[ "$notification_count" == "3" && "$delivered_count" == "3" ]]; then break; fi
+  sleep 1
+done
+test "$notification_count" = "3"
+test "$delivered_count" = "3"
+
 GATEWAY_ROUTE_MODE=monolith \
 GATEWAY_READ_CUTOVER=identity-community,content-media \
 GATEWAY_WRITE_CUTOVER=none \
@@ -340,4 +367,4 @@ done
 node "$ROOT_DIR/scripts/read-cutover-probe.mjs" rollback http://127.0.0.1:3100
 
 compose ps
-echo "Microservice Compose, UC06 governance, read/identity-write cutover, and rollback smoke passed."
+echo "Microservice Compose, UC06 governance, read/identity/content-interaction write cutover, and rollback smoke passed."

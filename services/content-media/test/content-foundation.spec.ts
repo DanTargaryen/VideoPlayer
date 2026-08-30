@@ -48,6 +48,7 @@ function trustedCreatorHeaders(requestId: string, id = 1, role = 'USER') {
     'x-gateway-authorization': `Bearer ${gatewayToken}`,
     'x-request-id': requestId,
     'x-user-id': String(id),
+    'x-user-nickname': encodeURIComponent(`用户${id}`),
     'x-user-role': role,
   };
 }
@@ -127,6 +128,117 @@ describe('content-media foundation public APIs', () => {
     const response = await json(await fetch(`${baseUrl}/api/v1/feeds/recommend`));
     const first = (response.data as unknown as Array<{ creator: { nickname: string } }>)[0]!;
     expect(first.creator).toEqual(expect.objectContaining({ nickname: '用户信息暂不可用' }));
+  });
+
+  it('keeps interaction writes idempotent and serves the same content-owned reads', async () => {
+    const state = createFixtureState();
+    const baseUrl = await start({ state, notificationClient: null });
+    const jsonHeaders = (requestId: string, id = 2) => ({ ...trustedCreatorHeaders(requestId, id), 'content-type': 'application/json' });
+
+    const commentBody = JSON.stringify({ content: '新的根评论' });
+    const firstComment = await fetch(`${baseUrl}/api/v1/videos/1/comments`, { method: 'POST', headers: jsonHeaders('interaction-comment'), body: commentBody });
+    const replayedComment = await fetch(`${baseUrl}/api/v1/videos/1/comments`, { method: 'POST', headers: jsonHeaders('interaction-comment'), body: commentBody });
+    expect(firstComment.status).toBe(200);
+    expect((await json(firstComment)).data).toEqual((await json(replayedComment)).data);
+    expect(state.comments).toHaveLength(2);
+    expect(state.videos[0]?.commentCount).toBe(2);
+    expect((await fetch(`${baseUrl}/api/v1/videos/1/comments`, { method: 'POST', headers: jsonHeaders('interaction-comment'), body: JSON.stringify({ content: '冲突载荷' }) })).status).toBe(409);
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const like = await fetch(`${baseUrl}/api/v1/videos/1/like`, { method: 'POST', headers: trustedCreatorHeaders('interaction-like', 2) });
+      expect(like.status).toBe(200);
+      expect((await json(like)).data).toEqual({ liked: true });
+    }
+    expect(state.likes).toHaveLength(1);
+    expect(state.videos[0]?.likeCount).toBe(40);
+
+    const folder = await json(await fetch(`${baseUrl}/api/v1/videos/my/favorite-folders`, {
+      method: 'POST',
+      headers: jsonHeaders('interaction-folder'),
+      body: JSON.stringify({ name: '课程收藏' }),
+    }));
+    const favorite = await fetch(`${baseUrl}/api/v1/videos/1/favorite`, {
+      method: 'POST',
+      headers: jsonHeaders('interaction-favorite'),
+      body: JSON.stringify({ folderId: folder.data.id }),
+    });
+    expect(favorite.status).toBe(200);
+    expect((await json(favorite)).data).toEqual(expect.objectContaining({ favorited: true, folderName: '课程收藏' }));
+    expect((await json(await fetch(`${baseUrl}/api/v1/videos/my/favorites?folderId=${folder.data.id}`, { headers: trustedCreatorHeaders('interaction-favorite-list', 2) }))).data).toHaveLength(1);
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      expect((await fetch(`${baseUrl}/api/v1/videos/1/play`, { method: 'POST', headers: { 'x-request-id': 'interaction-play', 'content-type': 'application/json' }, body: JSON.stringify({ videoDurationSeconds: 92 }) })).status).toBe(200);
+    }
+    expect(state.videos[0]?.playCount).toBe(411);
+
+    const watch = await fetch(`${baseUrl}/api/v1/videos/1/watch-progress`, {
+      method: 'POST',
+      headers: jsonHeaders('interaction-watch'),
+      body: JSON.stringify({ watchedSeconds: 90, currentTimeSeconds: 92, videoDurationSeconds: 92, event: 'ended' }),
+    });
+    expect(watch.status).toBe(200);
+    expect(state.watches[0]).toMatchObject({ completedCount: 1, totalWatchDurationSeconds: 90 });
+
+    const danmaku = await fetch(`${baseUrl}/api/v1/videos/1/danmaku`, {
+      method: 'POST',
+      headers: jsonHeaders('interaction-danmaku'),
+      body: JSON.stringify({ content: '弹幕测试', timeOffsetMs: 2_345, color: '#12abef' }),
+    });
+    expect(danmaku.status).toBe(200);
+    expect((await json(danmaku)).data).toEqual(expect.objectContaining({ content: '弹幕测试', timeOffsetMs: 2_345, color: '#12ABEF' }));
+    expect((await json(await fetch(`${baseUrl}/api/v1/videos/1/danmaku?fromMs=2000&toMs=3000`))).data).toHaveLength(1);
+
+    const detail = await json(await fetch(`${baseUrl}/api/v1/videos/1`, { headers: trustedCreatorHeaders('interaction-detail', 2) }));
+    expect(detail.data).toEqual(expect.objectContaining({ isLiked: true, isFavorited: true }));
+  });
+
+  it('keeps the main write successful when identity notification delivery fails', async () => {
+    const state = createFixtureState();
+    const baseUrl = await start({
+      state,
+      notificationClient: {
+        async deliver() {
+          throw new Error('identity unavailable');
+        },
+      },
+    });
+    const response = await fetch(`${baseUrl}/api/v1/videos/1/like`, { method: 'POST', headers: trustedCreatorHeaders('notification-outbox-like', 2) });
+    expect(response.status).toBe(200);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(state.likes).toHaveLength(1);
+    expect(state.notificationOutbox).toHaveLength(1);
+    expect(state.notificationOutbox[0]).toMatchObject({ status: 'PENDING', attempts: 1, lastError: 'identity unavailable' });
+  });
+
+  it('delivers the durable notification outbox without duplicating the main write', async () => {
+    const state = createFixtureState();
+    const delivered: Array<{ requestId: string; recipientId: string; type: string }> = [];
+    const baseUrl = await start({
+      state,
+      notificationClient: {
+        async deliver(notification) {
+          delivered.push(notification);
+        },
+      },
+    });
+    const requestId = 'notification-outbox-success';
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      expect((await fetch(`${baseUrl}/api/v1/videos/1/favorite`, {
+        method: 'POST',
+        headers: { ...trustedCreatorHeaders(requestId, 2), 'content-type': 'application/json' },
+        body: '{}',
+      })).status).toBe(200);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(state.favorites).toHaveLength(1);
+    expect(delivered).toHaveLength(1);
+    expect(delivered[0]).toMatchObject({ requestId: `${requestId}:notification`, recipientId: '1', type: 'FAVORITE' });
+    expect(state.notificationOutbox[0]).toMatchObject({ status: 'DELIVERED', attempts: 0 });
+  });
+
+  it('rejects forged direct interaction writes without the gateway user JWT', async () => {
+    const baseUrl = await start({ state: createFixtureState() });
+    expect((await fetch(`${baseUrl}/api/v1/videos/1/like`, { method: 'POST', headers: { 'x-user-id': '2' } })).status).toBe(401);
   });
 
   it('submits an owned draft to governance and exposes the pending target snapshot', async () => {
