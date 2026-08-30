@@ -1,6 +1,6 @@
 # 第二阶段微服务执行 TODO
 
-> 状态：`MS-00 / MS-01 / MS-02 / MS-03 / MS-04 DONE / REG-01 UC06 DONE`
+> 状态：`MS-00 / MS-01 / MS-02 / MS-03 / MS-04 / MS-DOD DONE / REG-01 UC06 DONE`
 >
 > 冻结基线：`monolith-start` / `main@70d197dc1a1f6febfdc7dcb12d8661384ad5d31e`。
 >
@@ -16,7 +16,7 @@
 - [x] `docs/ARCH-01-service-boundary-freeze` PR #40 已完成 Owner 自审记录并合并到 `main`。
 - [x] A 完成 `build/MS-00-microservice-scaffold`，PR #41 已由 Owner 自审并 squash 合并到 `main@9181e2c9655b3f0b751a0544e95b8ec77dfd5737`。
 - [x] B/C/D/E 从包含 MS-00 的最新 `main` 创建各自 foundation 分支。
-- [ ] 四个 foundation 服务均可独立安装、lint、build、test、构建镜像和返回 health/version。
+- [x] 四个 foundation 服务均可独立安装、lint、build、test、构建镜像和返回 health/version。
 - [ ] identity/content 只读路由完成并保留单体 fallback。
 - [ ] identity/content/live/governance 写流量按顺序切换并保留回滚路径。
 - [ ] REG-01 在微服务 Gateway 上完成全部公开 API 和 UC01–UC06 回归。
@@ -275,7 +275,7 @@ services/<service>/
 - [x] Docker runtime/migration 镜像构建；Compose migration、五服务 live/ready/version、identity 重启后登录、12 表与账号 schema 隔离通过。
 - [x] `phone` 保留，`sessionNonce` 持久化；`coinBalance` 不再属于 identity schema，迁移/回滚说明已同步。
 - [x] Gateway 保持 monolith/fallback；没有停止单体写入或删除单体表。
-- [ ] Kind 实际 rollout：`NOT RUN`；新增 Secret、migration Job、部署脚本已通过 Shell/Kustomize 静态检查，后续由平台集成批次在隔离 Kind 重跑。
+- [x] Kind 实际 rollout：2026-08-31 统一 DoD 在隔离测试 schema 上完成 identity migration、12 表、专属账号隔离、Deployment 1/1、health/live/ready/version 200 与 0 restart；测试资源已清理。
 
 ## 5. C（内容与媒体）TODO
 
@@ -508,23 +508,25 @@ E 验收证据（2026-08-29，基于 `origin/main@933ccac`）：完成 governanc
 
 每个 foundation PR 至少满足：
 
-- [ ] 分支从最新 `origin/main` 创建或已 rebase。
-- [ ] `git merge-base --is-ancestor origin/main HEAD` 通过。
-- [ ] `origin/main...HEAD` 目标侧计数为 0。
-- [ ] 服务可以独立安装、lint、build、test。
-- [ ] 独立 Docker image 可以构建。
-- [ ] `/health/live`、`/health/ready`、`/version` 可访问。
-- [ ] 有独立 Prisma schema、migration 和最小 fixture。
-- [ ] 服务数据库账号不访问其他 schema。
-- [ ] 不使用其他服务 Prisma Client。
-- [ ] 内部 API 有 contract 和 JWT scope。
-- [ ] 写操作有 requestId/decisionId 幂等。
-- [ ] 依赖失败有 timeout 和明确业务状态。
-- [ ] 有单体 fallback 和 rollback 说明。
-- [ ] 至少一条对应 UC 的 API/contract test。
-- [ ] 更新 `docs/practice-2026/00-progress.md`。
-- [ ] PR 由指定非作者 Reviewer 检查，或按已确认规则完成 Owner 自审书面记录。
-- [ ] 生成产物已跟踪数量为 0。
+- [x] 分支从最新 `origin/main` 创建或已 rebase。
+- [x] `git merge-base --is-ancestor origin/main HEAD` 通过。
+- [x] `origin/main...HEAD` 目标侧计数为 0。
+- [x] 服务可以独立安装、lint、build、test。
+- [x] 独立 Docker image 可以构建。
+- [x] `/health/live`、`/health/ready`、`/version` 可访问。
+- [x] 有独立 Prisma schema、migration 和最小 fixture。
+- [x] 服务数据库账号不访问其他 schema。
+- [x] 不使用其他服务 Prisma Client。
+- [x] 内部 API 有 contract 和 JWT scope。
+- [x] 写操作有 requestId/decisionId 幂等。
+- [x] 依赖失败有 timeout 和明确业务状态。
+- [x] 有单体 fallback 和 rollback 说明。
+- [x] 至少一条对应 UC 的 API/contract test。
+- [x] 更新 `docs/practice-2026/00-progress.md`。
+- [x] PR 由指定 Reviewer 检查，或按已确认规则完成 Owner 自审书面记录。
+- [x] 生成产物已跟踪数量为 0。
+
+统一复验（2026-08-31，`main@0a1418c`）：`test:ci` 249/249、requirements 116/116、frontend 24/24、六服务测试、四业务 runtime/migration 镜像、Compose 四库与 services-mode browser 1/1、Kind 四 migration/五 Deployment/15 个 health-version/0 restart 全部 PASS；所有测试资源已清理。
 
 不得提交：
 
@@ -542,10 +544,10 @@ E 验收证据（2026-08-29，基于 `origin/main@933ccac`）：完成 governanc
 ### 10.1 Foundation 阶段
 
 - [x] A 的 MS-00 已通过 PR #41 合并到 `main@9181e2c`。
-- [ ] B/C/D/E foundation 均从同一最新 `main` 开始。
-- [ ] 四服务独立 schema 与数据库账号就绪。
-- [ ] 四服务 health/version 和镜像就绪。
-- [ ] contract tests 在 mock/真实服务组合下可执行。
+- [x] B/C/D/E foundation 均已汇合到同一最新 `main` 并完成统一复验。
+- [x] 四服务独立 schema 与数据库账号就绪。
+- [x] 四服务 health/version 和镜像就绪。
+- [x] contract tests 在 mock/真实服务组合下可执行。
 
 ### 10.2 只读路由阶段
 

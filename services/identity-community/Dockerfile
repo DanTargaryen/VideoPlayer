@@ -1,5 +1,6 @@
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
+ARG SERVICE_BUILD_ATTEMPT_TIMEOUT=300s
 ENV NPM_CONFIG_FETCH_RETRIES=8 NPM_CONFIG_FETCH_RETRY_MINTIMEOUT=20000 NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT=120000 NPM_CONFIG_FETCH_TIMEOUT=300000
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates openssl \
@@ -16,8 +17,10 @@ RUN for attempt in 1 2 3 4 5; do \
     done; \
     exit 1
 RUN for attempt in 1 2 3 4 5; do \
-      npm --workspace @videoplayer/identity-community run build && exit 0; \
-      echo "identity build failed on attempt ${attempt}; retrying..."; \
+      timeout --signal=TERM --kill-after=30s "$SERVICE_BUILD_ATTEMPT_TIMEOUT" \
+        npm --workspace @videoplayer/identity-community run build && exit 0; \
+      status=$?; \
+      echo "identity build attempt ${attempt} failed or timed out with exit ${status}; retrying..."; \
       sleep $((attempt * 10)); \
     done; \
     exit 1

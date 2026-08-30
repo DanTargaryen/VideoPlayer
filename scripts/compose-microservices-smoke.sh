@@ -87,6 +87,9 @@ done
 compose exec -T content-mysql \
   mysql -ucontent_media -p"$CONTENT_DB_PASSWORD" content_media \
   < "$ROOT_DIR/services/content-media/prisma/fixture.sql"
+compose exec -T content-mysql \
+  mysql -ucontent_media -p"$CONTENT_DB_PASSWORD" content_media \
+  -e "INSERT INTO Comment (id, videoId, userId, body, status, createdAt, updatedAt) VALUES ('comment-001', '1', '1', 'clear walkthrough', 'VISIBLE', NOW(3), NOW(3)) ON DUPLICATE KEY UPDATE videoId = VALUES(videoId), userId = VALUES(userId), body = VALUES(body), status = VALUES(status), updatedAt = NOW(3)"
 
 curl -fsS -X POST 'http://127.0.0.1:3101/api/v1/auth/register' \
   -H 'content-type: application/json' \

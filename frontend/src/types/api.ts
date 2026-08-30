@@ -269,10 +269,11 @@ export interface TextReviewItem {
   id: number;
   targetId: string;
   targetType: 'COMMENT' | 'VIDEO_DANMAKU';
-  status: 'NORMAL' | 'HIDDEN' | 'DELETED';
-  content: string;
-  user: { id: number; nickname: string };
-  video: { id: number; title: string };
+  videoId?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  content?: string;
+  user?: { id: string | number; nickname: string } | null;
+  video?: { id: string | number; title: string } | null;
   createdAt: string;
 }
 
