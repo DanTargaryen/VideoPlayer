@@ -149,6 +149,7 @@ services:
       PORT: 3000
       GIT_SHA: ${GIT_SHA:-dev}
       CONTENT_DATABASE_URL: mysql://content_media:${CONTENT_DB_PASSWORD:-content-media-local-only}@content-mysql:3306/content_media
+      IDENTITY_SERVICE_URL: http://identity-community:3000
       GOVERNANCE_SERVICE_URL: http://governance-ai:3000
       SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET:?SERVICE_JWT_SECRET is required}
     ports:
@@ -156,6 +157,8 @@ services:
     depends_on:
       content-migrate:
         condition: service_completed_successfully
+      identity-community:
+        condition: service_healthy
     healthcheck:
       <<: *service-health
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
