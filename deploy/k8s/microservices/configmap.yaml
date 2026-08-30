@@ -6,6 +6,8 @@ metadata:
 data:
   GIT_SHA: local
   GATEWAY_ROUTE_MODE: monolith
+  GATEWAY_READ_CUTOVER: identity-community,content-media
+  GATEWAY_WRITE_CUTOVER: ""
   MONOLITH_BASE_URL: http://backend:3000
   IDENTITY_SERVICE_URL: http://identity-community:3000
   CONTENT_SERVICE_URL: http://content-media:3000

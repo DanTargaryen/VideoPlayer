@@ -4,7 +4,7 @@ import { createServer, type Server } from 'node:http';
 import { verifyServiceToken } from '@videoplayer/shared-contracts';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { createGatewayServer, resolveUpstream, resolveUpstreamName, type GatewayConfig } from '../src/gateway.js';
+import { createGatewayServer, loadGatewayConfig, resolveUpstream, resolveUpstreamName, type GatewayConfig } from '../src/gateway.js';
 
 const servers: Server[] = [];
 const serviceSecret = 'gateway-live-user-forward-secret-0123456789';
@@ -29,6 +29,8 @@ function config(overrides: Partial<GatewayConfig> = {}): GatewayConfig {
     fallbackEnabled: true,
     timeoutMs: 1000,
     serviceJwtSecret: serviceSecret,
+    readCutover: ['identity-community', 'content-media', 'live-reward', 'governance-ai'],
+    writeCutover: ['identity-community', 'content-media', 'live-reward', 'governance-ai'],
     ...overrides,
   };
 }
@@ -42,15 +44,80 @@ describe('gateway scaffold', () => {
       liveBaseUrl: 'http://live:3000',
       governanceBaseUrl: 'http://governance:3000',
     });
-    expect(resolveUpstream('/api/v1/auth/login', value)).toBe('http://identity:3000');
+    expect(resolveUpstream('/api/v1/auth/login', value, 'POST')).toBe('http://identity:3000');
     expect(resolveUpstream('/api/v1/feed/dynamic', value)).toBe('http://identity:3000');
     expect(resolveUpstream('/api/v1/videos/1', value)).toBe('http://content:3000');
-    expect(resolveUpstream('/api/v1/videos/1/coin', value)).toBe('http://live:3000');
-    expect(resolveUpstreamName('/api/v1/videos/1/coin', value)).toBe('live-reward');
+    expect(resolveUpstream('/api/v1/videos/1/coin', value, 'POST')).toBe('http://live:3000');
+    expect(resolveUpstreamName('/api/v1/videos/1/coin', value, 'POST')).toBe('live-reward');
     expect(resolveUpstream('/api/v1/lives/rooms', value)).toBe('http://live:3000');
-    expect(resolveUpstream('/api/v1/reports', value)).toBe('http://governance:3000');
-    expect(resolveUpstreamName('/api/v1/reports', value)).toBe('governance-ai');
-    expect(resolveUpstream('/api/v1/auth/login', { ...value, routeMode: 'monolith' })).toBe(value.monolithBaseUrl);
+    expect(resolveUpstream('/api/v1/reports', value, 'POST')).toBe('http://governance:3000');
+    expect(resolveUpstreamName('/api/v1/reports', value, 'POST')).toBe('governance-ai');
+    expect(resolveUpstream('/api/v1/feed/sidebar/live', value)).toBe(value.monolithBaseUrl);
+    expect(resolveUpstream('/api/v1/search/suggest', value)).toBe(value.monolithBaseUrl);
+    expect(resolveUpstream('/api/v1/videos/1/comments', value)).toBe(value.monolithBaseUrl);
+    expect(resolveUpstream('/api/v1/auth/login', { ...value, routeMode: 'monolith' }, 'POST')).toBe(value.monolithBaseUrl);
+  });
+
+  it('defaults services mode to verified identity and content reads with all writes disabled', () => {
+    const value = loadGatewayConfig({
+      GATEWAY_ROUTE_MODE: 'services',
+      MONOLITH_BASE_URL: 'http://monolith:3000',
+      IDENTITY_SERVICE_URL: 'http://identity:3000',
+      CONTENT_SERVICE_URL: 'http://content:3000',
+      LIVE_SERVICE_URL: 'http://live:3000',
+      GOVERNANCE_SERVICE_URL: 'http://governance:3000',
+    });
+    expect(value.readCutover).toEqual(['identity-community', 'content-media']);
+    expect(value.writeCutover).toEqual([]);
+    expect(resolveUpstreamName('/api/v1/users/7/homepage', value)).toBe('identity-community');
+    expect(resolveUpstreamName('/api/v1/feeds/recommend', value)).toBe('content-media');
+    expect(resolveUpstreamName('/api/v1/lives/rooms', value)).toBe('monolith');
+    expect(resolveUpstreamName('/api/v1/auth/register', value, 'POST')).toBe('monolith');
+    expect(resolveUpstreamName('/api/v1/videos/7/submit-review', value, 'POST')).toBe('monolith');
+  });
+
+  it('rejects unknown cutover services instead of silently routing them', () => {
+    expect(() => loadGatewayConfig({ GATEWAY_ROUTE_MODE: 'services', GATEWAY_READ_CUTOVER: 'identity-community,unknown' }))
+      .toThrow('Unsupported Gateway cutover service: unknown');
+  });
+
+  it('cuts over verified identity and content reads while preserving monolith writes and unsupported paths', async () => {
+    const upstream = (owner: string) => createServer((request, response) => {
+      response.setHeader('content-type', 'application/json');
+      response.end(JSON.stringify({ owner, method: request.method, path: request.url, requestId: request.headers['x-request-id'] }));
+    });
+    const monolith = await listen(upstream('monolith'));
+    const identity = await listen(upstream('identity-community'));
+    const content = await listen(upstream('content-media'));
+    const gateway = await listen(createGatewayServer(config({
+      routeMode: 'services',
+      monolithBaseUrl: monolith,
+      identityBaseUrl: identity,
+      contentBaseUrl: content,
+      readCutover: ['identity-community', 'content-media'],
+      writeCutover: [],
+    })));
+
+    for (const [path, owner] of [
+      ['/api/v1/feed/dynamic', 'identity-community'],
+      ['/api/v1/users/7/homepage', 'identity-community'],
+      ['/api/v1/feeds/recommend', 'content-media'],
+      ['/api/v1/search/all?q=architecture', 'content-media'],
+      ['/api/v1/videos/1/recommendations', 'content-media'],
+      ['/api/v1/feed/sidebar/live', 'monolith'],
+      ['/api/v1/search/suggest?q=arch', 'monolith'],
+      ['/api/v1/videos/1/comments', 'monolith'],
+    ] as const) {
+      const response = await fetch(`${gateway}${path}`, { headers: { 'x-request-id': `read-${owner}` } });
+      expect(response.headers.get('x-gateway-upstream')).toBe(owner);
+      expect(await response.json()).toMatchObject({ owner, path });
+    }
+
+    for (const path of ['/api/v1/auth/register', '/api/v1/videos/1/submit-review', '/api/v1/reports']) {
+      const response = await fetch(`${gateway}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+      expect(response.headers.get('x-gateway-upstream')).toBe('monolith');
+      expect(await response.json()).toMatchObject({ owner: 'monolith', method: 'POST', path });
+    }
   });
 
   it('exposes gateway health and proxies to the monolith by default', async () => {
@@ -77,8 +144,8 @@ describe('gateway scaffold', () => {
       monolithBaseUrl: monolith,
       identityBaseUrl: failingService,
     })));
-    expect(await (await fetch(`${gateway}/api/v1/users/1`)).text()).toBe('monolith');
-    expect((await fetch(`${gateway}/api/v1/users/1`, { method: 'POST', body: '{}' })).status).toBe(503);
+    expect(await (await fetch(`${gateway}/api/v1/users/1/homepage`)).text()).toBe('monolith');
+    expect((await fetch(`${gateway}/api/v1/users/1/follow`, { method: 'POST', body: '{}' })).status).toBe(503);
   });
 
   it('switches live writes to live-reward and rolls them back to the monolith', async () => {
