@@ -149,12 +149,12 @@
   - 完成内容：MySQL StatefulSet + 2Gi PVC、数据库同步 Job、前后端 Deployment/Service、readiness/liveness、Secret 动态创建、SHA 镜像加载、部署与健康脚本。
   - 测试/验证：Kind v0.32.0 / Kubernetes v1.36.1；Node Ready；迁移 Job Completed；MySQL/Backend/Frontend Ready；隔离 `video_player_test` API 16/16；集群内 health；端口转发后 Playwright 3/3。
   - 结果：PASS；K8s 数据库 Seed 6 用户/14 视频；Pod 0 次重启。正式 Prisma 基线 migration 和 Jenkins 自动触发仍是后续任务。
-- [ ] `CI-01` 建立单体 GitHub Actions 流水线并保留成功/失败记录。
-  - 已完成配置：新增质量门禁、MySQL 隔离 public E2E、测试证据上传、前后端 SHA 镜像构建三个 job。
+- [x] `CI-01` 建立单体 GitHub Actions 流水线并保留成功/失败记录。
+  - 已完成配置：质量门禁、MySQL 隔离 public E2E、测试证据上传，以及 Git SHA 镜像构建后自动部署到隔离 Kind、健康检查、证据上传和清理。
   - 本地验证：工作流 YAML 可解析；`test:ci` 和本地 Playwright 已通过。
-  - 安全配置：public E2E 使用仅存在于 GitHub Runner 生命周期内的空密码 MySQL；JWT/Admin Secret 在启动步骤动态生成。未来部署 job 仍必须使用 GitHub/K8s Secrets。
-  - 远端结果：PR #24 触发 run `32799446109`；quality 和 public-e2e 均为 failure、0 steps、无 runner，images skipped。GitHub UI 权威注解为：`The job was not started because your account is locked due to a billing issue.`
-  - 未打勾原因：workflow 尚未实际执行 quality/E2E/images jobs；课程要求的 Kubernetes 自动部署 job 仍未实现。
+  - 安全配置：public E2E 使用仅存在于 GitHub Runner 生命周期内的空密码 MySQL；JWT/Admin/数据库 Secret 均在步骤内随机生成并在清理阶段删除。持久环境仍必须使用 GitHub Environment/K8s Secrets。
+  - 远端结果：Billing 锁解除后，run `33244704729` attempt 3 暴露测试超时与全新库未 Seed；最小修复提交 `09c92ce` 后，run `33246999182` 的 quality、public-e2e 和 versioned images 三个 job 全部 `SUCCESS`，Playwright 3/3，E2E Artifact 上传成功。
+  - 远端 CD：首次 dispatch 因 job 级 `runner.temp` 表达式不受支持而在创建 Run 前被拒绝；改用 `github.workspace` 后，run `33249143440` 的 quality、public-e2e、Git SHA 镜像、Kind deployment、migration、rollout、health、Artifact 和 cleanup 全部 `SUCCESS`。该部署是 GitHub Runner 生命周期内的隔离验收环境，不等于长期在线生产环境。
 - [x] `CI-02` 建立 Jenkins + Kind 自动流水线并保留成功/失败证据。
   - 已完成配置：新增可移植 Declarative `Jenkinsfile`，按 Checkout、Install、Lint、Build、Unit、隔离数据库、API、Seed、E2E、SHA 镜像、Kind 部署、Health 顺序执行；新增本地等价入口、阶段标记、Artifact 收集和安全清理脚本。
   - 本地等价验证：第一次因 Seed 先于 API 导致推荐分页断言失败，调整为 API 后 Seed；第二次因 Vite 参数透传错误未监听指定端口，改用 `VITE_DEV_HOST/VITE_DEV_PORT`；第三次完整成功，107 项规则/单元测试、API 16/16、Playwright 3/3、SHA 镜像、Kind 和 Health 全部 PASS。
@@ -215,7 +215,7 @@
 | K8S-01 Kind 部署 | DONE | MySQL StatefulSet/PVC、同步 Job、前后端 Deployment/Service、探针与脚本 | Node/Pod/Job/PVC；隔离 API 16/16；集群 health；E2E 3/3 | PASS；3 工作负载 Ready；Pod 0 restart | 本提交 |
 | REPRO-01 Clean-machine README 复现 | DONE | 按 README 从空依赖、全新 Compose project/volume/image tag 和全新 Kind cluster 完整重跑；补充 TLS/ffmpeg-static 安全复现说明；修正 AdminController 单测 mock 与异常预期 | `npm ci`；`npm run test:ci`；Compose config/build/up；MySQL 建表；Seed；首页；Backend Health；Kind 部署；Kubernetes Health | PASS；运行环境保留；结论见 `docs/REPRO-01-clean-machine-checklist.md` | 本提交 |
 | DB-01 Prisma migration 基线 | DONE | 单一初始 migration、migration lock、migrate/seed/test-reset 入口、安全守卫、K8s/Compose/CI 切换到 `migrate deploy`，以及 clean-machine/生产部署口径同步 | 全新本机 MySQL 8.0 容器；`video_player_migration_test` 首次/重复迁移；seed；`db:test-reset`；失败阻断；schema diff；受保护 existing-database baseline 流程；Compose/K8s 启动复核；迁移入口远端精确白名单守卫 | PASS；默认支持全新验收数据库；6 用户/14 视频；失败库 `P3005` 阻断；等价库 baseline PASS；不等价库拒绝；非 test reset 拒绝；README 明确 31 个业务表 + 1 个迁移表；无共享远端 reset/baseline | 本提交 |
-| CI-01 流水线配置 | PARTIAL | quality、public-e2e、versioned images jobs；K8s 部署基线已补 | YAML 解析；本地 `test:ci`、API、Playwright、Kind 实跑；GitHub 注解 | LOCAL PASS；REMOTE BLOCKED BY BILLING；Jenkins PENDING | `f151429` + 本提交 |
+| CI-01 流水线配置 | DONE | quality、public-e2e、Git SHA 镜像和隔离 Kind 自动部署/健康/证据/清理 | YAML；本地 Kind；GitHub-hosted run `33249143440` | REMOTE CI/CD PASS；隔离 Kind 验收，非持久生产 | `09c92ce` + `ef35049` + `8ddb05f` + 本提交 |
 | CI-02 Jenkins Pipeline | DONE | 可移植 Jenkinsfile、隔离 DB 正式 migration、API/E2E、SHA 镜像、Kind、Health、Artifact、清理和本地等价入口 | Build #2 SUCCESS；#4 故意 FAILURE；#5 SCM 自动触发 SUCCESS；#7 migration SUCCESS | PASS；失败阻断、Artifact、cleanup、Poll SCM 与 `prisma migrate deploy` 均验证 | 本提交 |
 | CI-02-JUNIT 标准测试报告 | DONE | requirements/Jest/Vitest/API/Playwright 生成 11 份 JUnit XML；Jenkins `junit` 发布；reporter 单测 | Build #9 SUCCESS：186 passed/11 XML；#10 EXPECTED FAILURE：167 passed/9 XML、后续 7 阶段 skipped | PASS；Test Result、Artifact、完整流水线和失败阻断均验证 | 本轮提交 |
 | ARCH-01 服务/数据冻结 | DONE | 4 服务、31 表唯一 owner、接口、失败策略、七项默认决策、迁移/回滚、A-E 分工与 Review | Prisma Model 自动比对；唯一 owner；决策/分工/分支/Reviewer 文档一致性 | PASS；TEAM APPROVED；真实姓名/外部会议截图待补证据索引 | 本提交 |
@@ -309,6 +309,8 @@
 | 2026-08-27 | MS-03 Gateway rollback 与独立 K8s 验证 | 补 services/monolith 两种模式下 live/赠币/视频投币写路由切换、显式回滚和失败写不重放测试；增加 live-reward 独立 Namespace、MySQL PVC、migration Job、Secret/ConfigMap 注入、探针/资源限制和 Kind smoke 脚本 | Gateway test 5/5、lint/build；`bash -n scripts/k8s-live-reward-smoke.sh`；K8s client dry-run；真实 Kind 部署、migration、写入、应用 Pod 删除重建、health/live/ready/version、PVC 持久化 | PASS；Pod 重建后房间/观众数/钱包余额保持，测试 Namespace 已清理；本地配置级切换/回滚不等于生产切流；content-media 真实回放、MinIO Header 交叉验证和完整 UC05 浏览器回归仍 `BLOCKED/NOT RUN` |
 | 2026-08-29 | MS-03 PR #46 Owner 修复与最终复测 | 关闭默认 MemoryStore、伪造 `x-user-id`、账本/replay payload 冲突、content 400 分类、标准 Compose/K8s DB/migration、Prisma/迁移安全和跨 Docker builder/architecture 阻塞；更新 PR/进度证据 | clean `npm ci`；`test:ci` 207/207；live 18/18；Gateway 6/6；MySQL migrate first/repeat/reset/refuse；真实 content/live+MinIO+SRS；Compose services 身份验证/重启/三 schema；Kind migration/Pod replacement/PVC；Secret/Artifact/diff | PASS；真实联调和 Compose/Kind 的失败修复过程保留；全部隔离容器、volumes、namespace 清理；生产切流/历史迁移/完整 UC05 浏览器回归仍 `BLOCKED/NOT RUN` |
 | 2026-08-29 | MS-04 PR #47 审查修复 | 修复 Unicode 身份头、KEEP 非 no-op、文本目标 ID、视频快照/Dashboard 缺字段和补偿并发租约；补齐驳回原因/发布时间回写、端到端 requestId 幂等和待审队列隔离；新增数据库并发测试与真实前端 services-mode smoke | content/governance/frontend 聚焦测试 74/74；三处 lint/build；content Prisma schema validate；完整 PR diff-check | LOCAL PASS；更新后的 migration 与 Compose/真实浏览器 smoke NOT RUN；保持 Draft 等待非作者复审和远端 Check |
+| 2026-08-29 | CI-01 GitHub-hosted 远端复跑 | 为 10,001 条消息测试设置单例 15 秒预算；全新 E2E 数据库迁移后使用一次性确认值执行受保护 Seed | 本地 `test:ci` 207/207；隔离 MySQL migration/Seed + Playwright 3/3；GitHub Actions run `33246999182` | PASS；quality、public-e2e、versioned images 全部 SUCCESS；远端 CD 仍未实现 |
+| 2026-08-29 | CI-01 GitHub-hosted Kind CD | 将镜像任务升级为受 quality/E2E 门禁的 Git SHA build + Kind deploy；随机 Secret；migration、rollout、health、证据和 cleanup；首次 dispatch 的 `runner.temp` 作用域错误改为 `github.workspace` | 本地独立 Kind migration/前后端 health/0 restart；GitHub Actions run `33249143440` | PASS；3 jobs 全绿；后端/前端 Git SHA 镜像、MySQL、PVC、migration、health、2 Artifacts、集群清理全部成功；非持久生产环境 |
 
 ## 4. 阻塞与需组长决定
 
@@ -317,4 +319,4 @@
 - [x] 最终 UC smoke 使用全新隔离 MySQL/MinIO volumes 完成，不需要也未获得共享远端写入权限。
 - [x] 当前 Mac 已配置 Colima、Docker CLI、Kind 和 kubectl，并完成 Compose/Kubernetes 本地验收。
 - [x] PR #24 已合并到 `main`；远端功能分支已清理。
-- [ ] 仓库 owner 处理 GitHub Billing & plans 的付款失败或 Actions spending limit，之后重新运行 workflow。
+- [x] 仓库 owner 已处理 GitHub Billing & plans 阻塞；run `33244704729` attempt 3 已成功分配 GitHub-hosted Runner 并执行实际步骤。
