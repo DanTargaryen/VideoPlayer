@@ -203,6 +203,11 @@
   - 测试/验证：完整 `npm run test:ci` 255/255、迁移 guard 3/3、Gateway 11/11；Kind `video_player` → `video_player_identity_cutover_test` 正式 migration 后执行迁移两次；User 8/8、Profile 1/1、Follow 5/5，其余 8 表 0/0，逐行一致；目标账号只见目标 schema；Job/Secret/schema/user/port 清理。Compose identity-write 阶段真实注册、登录、资料更新、关注、动态发布走 identity；reset、content submit、governance report 走 monolith；随后 rollback PASS。
   - 安全与失败策略：需要 `IDENTITY_CUTOVER_CONFIRM=MIGRATE_IDENTITY`；source/target 不得相同；非 test 目标需要与 host/port/database 完全一致的 `IDENTITY_CUTOVER_ALLOWED_TARGET`。迁移使用 `createMany(skipDuplicates)` 支持中断后重跑，但最终全量比较会拒绝多余或不一致数据；单体表未删除。
   - 结果：PASS；identity 写切流与回滚 Gate 已关闭。content/live/governance 写流量仍未完成。
+- [x] `MS-CUTOVER-CONTENT-DATA` 完成 content 单体历史数据兼容与可重复迁移。
+  - 完成内容：为 content 独立 schema 补齐单体字段语义、长度、索引与聚合计数；新增双 Prisma Client 迁移，将 13 张 content-owned 表按依赖顺序复制并保留主键、多分类、绑定/未绑定资产、互动、观看进度、弹幕和 VideoAi 数据；content 读取投影改为返回迁移后的历史计数和 tags。迁移后按源字段逐表全量比较，目标存在多余或不一致行时失败停止。单体表保留，Gateway content 写流量未切换。
+  - 测试/验证：完整 `npm run test:ci` 258/258、迁移 guard 3/3、content 22/22、Prisma validate；全新 MySQL 顺序应用 3 条 content migration，并确认新增 migration/schema 无新 drift；隔离 Kind 基线迁移两次，VideoCategory 9/9、Video 14/14、Comment 3/3、FavoriteFolder 1/1；另用合成真实 MySQL 为其余 9 表注入非空数据后执行中断恢复和两次完整迁移，13 表全部逐行一致。HTTP 详情返回历史 321/17/8/4/6 计数，多分类筛选命中；236–242 字符 objectKey/URL 和 `videoId=NULL` 资产保留。Kind 目标账号只见目标 schema；Job/Secret/schema/user/port/容器清理。
+  - 安全与失败策略：需要 `CONTENT_CUTOVER_CONFIRM=MIGRATE_CONTENT`；source/target 不得相同；非 test 目标需要与 host/port/database 完全一致的 `CONTENT_CUTOVER_ALLOWED_TARGET`。`createMany(skipDuplicates)` 支持中断后重跑，唯一键预检和最终全量比较阻止静默丢失、覆盖或重复数据。
+  - 结果：PASS；content 历史数据迁移 Gate 已关闭。上传、投稿、评论、点赞、收藏、观看进度和弹幕等写 API/切流与 rollback 仍未完成。
 - [x] `MS-03` live-reward foundation 与 UC05 直播/礼物边界实现。
   - 当前分支：`feature/MS-03-live-reward`；当前已 rebase 到 `origin/main@be7a419`。
   - 已完成源码：独立 Prisma schema/migration/fixture、Prisma 默认生产存储、房间/Session/观众/消息/回放/币账本、SRS/content timeout、回放补偿、7 天/10,000 条留存、requestId 完整 payload 幂等和 live-reward HTTP contract。缺数据库配置或数据库不可用时 readiness/业务路由返回 503；MemoryStore 仅显式注入测试。
@@ -242,6 +247,7 @@
 | MS-DOD foundation 统一矩阵 | DONE | 四业务服务统一 build/image/schema/account/contract/Compose/Kind Gate；有界 Prisma build；快照降级与真实 text fixture | `test:ci` 249/249、requirements 116/116；Compose 12/14/11/5 表、browser 1/1；Kind 4 migration、5/5 Ready、15 HTTP、0 restart | PASS；隔离资源与测试 schema 全部清理；不代表生产切流完成 | 本轮提交 |
 | MS-CUTOVER-READ identity/content 只读切流 | DONE | 路径能力白名单、读写 allowlist、安全默认、真实服务读、未实现路径留单体、显式 rollback | `test:ci` 252/252、Gateway 11/11；Compose UC06 1/1 + read probe + rollback | PASS；requestId/upstream 可追踪；所有写流量仍留在单体 | 本轮提交 |
 | MS-CUTOVER-IDENTITY identity 写切流 | DONE | 11 表可重复 migration、唯一键/全量比较、登录/资料/关注/社区写 allowlist 与 rollback | `test:ci` 255/255、guard 3/3；Kind migration 2 次；8/1/5 核心行；Compose identity writes | PASS；最小权限与清理通过；单体表保留 | 本轮提交 |
+| MS-CUTOVER-CONTENT-DATA 历史数据迁移 | DONE | 13 表兼容 schema、可重复 migration、唯一键预检、逐表全量比较、历史计数/多分类投影与精确目标授权 | `test:ci` 258/258、guard 3/3、content 22/22；新库 3 migrations；Kind + 全表非空合成 migration 各 2 次；HTTP read | PASS；长字段、未绑定资产、最小权限与清理通过；content 写 API/切流仍待完成 | 本轮提交 |
 | GOV-GIT-01 Commit/PR 规范 | DONE | GitHub PR 模板、仓库规范、个人 Codex skill | quick_validate；模板章节/敏感信息/diff 检查 | PASS | 最终治理提交 |
 | GOV-GIT-02 分支/Commit 命名 | DONE | category 分支名、Conventional Commit 标题、Changes/Tests 正文、PR Commit 清单 | quick_validate；必填字段；diff check | PASS；应用测试 N/A（纯规范） | 最终治理提交 |
 | GOV-GIT-03 仓库内 skill | DONE | `.codex/skills/videoplayer-commit-pr` 与个人版同步 | 双 quick_validate；字节比对；TODO/diff check | PASS；应用测试 N/A（skill/docs） | 最终治理提交 |
@@ -333,6 +339,7 @@
 | 2026-08-31 | MS-DOD 四服务统一 Foundation Gate | 统一运行 Docker/Compose/Kind/contract/权限矩阵；修复 Prisma build 无界挂起、缺 comment fixture 与 null snapshot 页面崩溃；不把无效 Docker ignore 试验入库 | `test:ci` 249/249、requirements 116/116；frontend 24/24 + lint/build；Compose 四库 12/14/11/5 表、15 health/version、browser 1/1、三服务 restart；Kind 4 migrations、5/5 Ready、15 HTTP、0 restart | PASS；网络 `ECONNRESET` 经有界重试恢复；首次 browser FAIL 保留；Compose、K8s、schema/user/port 全部清理；下一步进入只读/写流量切换 |
 | 2026-08-31 | MS-CUTOVER-READ identity/content 只读切流 | 将全局 services 开关细化为路径能力 + 读写 allowlist；安全默认只切 identity/content reads；在标准 Compose 中追加真实 service、monolith fallback 与 rollback 探针 | `test:ci` 252/252、Gateway 11/11；full services UC06 browser 1/1；identity/content real reads；3 unsupported reads + 3 writes monolith；requestId/upstream；rollback | PASS；首次旧测试假设与隐藏 fixture 导致两次定点失败，均修复并完整复跑；测试容器/volume/port 清理 |
 | 2026-08-31 | MS-CUTOVER-IDENTITY identity 写流量 | 新增双 Prisma migration 与保护门禁；在 Kind 同一 MySQL 上从单体复制 identity owner 表并复跑；标准 Compose 增加 identity-only write 阶段 | `test:ci` 255/255、guard 3/3；migration 2 次；User 8/8、Profile 1/1、Follow 5/5、其余 0/0；注册/登录/资料/关注/动态写；reset/content/governance monolith；rollback | PASS；逐行一致、唯一键、最小权限、Job/Secret/schema/user/port/Compose 清理；content/live/governance writes 继续待办 |
+| 2026-08-31 | MS-CUTOVER-CONTENT-DATA content 历史数据 | 扩展 content schema 以无损承载单体字段、聚合计数、长资产 metadata 和未绑定上传；新增 13 表双 Prisma migration、确认值和精确目标授权；Kind 基线与全表非空合成 MySQL 均执行两次 | `test:ci` 258/258、guard 3/3、content 22/22、Prisma validate；全新 MySQL 3 migrations 与 drift 核对；13 表逐行一致；HTTP 详情计数和多分类筛选；236–242 字符 asset | PASS；自检先后拦截数字/字符串 ID 排序、同 ALTER 同名外键 `P3018`、过期 Client 和未保留计数/孤立资产，修复后中断恢复与两次幂等 PASS；镜像 `ECONNRESET`/300 秒 timeout 由有限重试恢复；Kind/Job/Secret/schema/user/port/容器清理；内容写切流继续待办 |
 
 ## 4. 阻塞与需组长决定
 

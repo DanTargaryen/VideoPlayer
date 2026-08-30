@@ -43,6 +43,7 @@ interface VideoRecord {
   description: string;
   creatorId: string;
   categoryId: string | null;
+  legacyCategory?: string | null;
   status: VideoStatus;
   coverUrl: string | null;
   playUrl: string | null;
@@ -508,10 +509,12 @@ type RawVideo = {
   description: string;
   creatorId: string;
   categoryId: string | null;
+  legacyCategory: string | null;
   status: VideoStatus;
   coverUrl: string | null;
   playUrl: string | null;
   durationSeconds: number;
+  tags: unknown;
   publishedAt: Date | string | null;
   submittedAt: Date | string | null;
   reviewSubmissionRequestId: string | null;
@@ -523,6 +526,7 @@ type RawVideo = {
   likeCount: bigint | number | null;
   favoriteCount: bigint | number | null;
   commentCount: bigint | number | null;
+  coinCount: bigint | number | null;
 };
 
 interface PrismaLike {
@@ -551,8 +555,8 @@ class PrismaContentRepository implements ContentRepository {
   }
 
   async listRecommended(options: { page: number; pageSize: number; categoryCode?: string }): Promise<VideoRecord[]> {
-    const whereCategory = options.categoryCode ? 'AND c.`code` = ?' : '';
-    const params = options.categoryCode ? [options.categoryCode, offset(options), options.pageSize] : [offset(options), options.pageSize];
+    const whereCategory = options.categoryCode ? 'AND (c.`code` = ? OR JSON_CONTAINS(v.tags, JSON_QUOTE(?)))' : '';
+    const params = options.categoryCode ? [options.categoryCode, options.categoryCode, offset(options), options.pageSize] : [offset(options), options.pageSize];
     const rows = await (await this.client()).$queryRawUnsafe<RawVideo[]>(`${videoSelect()} WHERE v.status = 'PUBLISHED' ${whereCategory} ORDER BY playCount DESC, v.publishedAt DESC LIMIT ?, ?`, ...params);
     return rows.map(rawVideo);
   }
@@ -565,8 +569,8 @@ class PrismaContentRepository implements ContentRepository {
       params.push(`%${options.keyword}%`, `%${options.keyword}%`);
     }
     if (options.categoryCode) {
-      clauses.push('c.`code` = ?');
-      params.push(options.categoryCode);
+      clauses.push('(c.`code` = ? OR JSON_CONTAINS(v.tags, JSON_QUOTE(?)))');
+      params.push(options.categoryCode, options.categoryCode);
     }
     const where = `WHERE ${clauses.join(' AND ')}`;
     const countRows = await (await this.client()).$queryRawUnsafe<Array<{ total: bigint | number }>>(`${videoCountSelect()} ${where}`, ...params);
@@ -999,17 +1003,12 @@ function statusToDecision(status: VideoStatus): ReviewDecisionRecord['decision']
 
 function videoSelect(): string {
   return `
-    SELECT v.id, v.title, v.description, v.creatorId, v.categoryId, v.status, v.coverUrl, v.playUrl,
-           v.durationSeconds, v.publishedAt, v.submittedAt, v.reviewSubmissionRequestId,
+    SELECT v.id, v.title, v.description, v.creatorId, v.categoryId, v.legacyCategory, v.status, v.coverUrl, v.playUrl,
+           v.durationSeconds, v.tags, v.publishedAt, v.submittedAt, v.reviewSubmissionRequestId,
            v.reviewDecisionReason AS rejectReason, v.createdAt, c.code AS categoryCode, c.name AS categoryName,
-           COALESCE(w.plays, 0) AS playCount, COALESCE(l.likes, 0) AS likeCount,
-           COALESCE(f.favorites, 0) AS favoriteCount, COALESCE(cm.comments, 0) AS commentCount
+           v.playCount, v.likeCount, v.favoriteCount, v.commentCount, v.coinCount
     FROM Video v
     LEFT JOIN VideoCategory c ON c.id = v.categoryId
-    LEFT JOIN (SELECT videoId, COUNT(*) AS plays FROM UserVideoWatch GROUP BY videoId) w ON w.videoId = v.id
-    LEFT JOIN (SELECT videoId, COUNT(*) AS likes FROM VideoLike GROUP BY videoId) l ON l.videoId = v.id
-    LEFT JOIN (SELECT videoId, COUNT(*) AS favorites FROM Favorite GROUP BY videoId) f ON f.videoId = v.id
-    LEFT JOIN (SELECT videoId, COUNT(*) AS comments FROM Comment WHERE status = 'VISIBLE' GROUP BY videoId) cm ON cm.videoId = v.id
   `;
 }
 
@@ -1029,6 +1028,7 @@ function rawVideo(row: RawVideo): VideoRecord {
     description: row.description,
     creatorId: row.creatorId,
     categoryId: row.categoryId,
+    legacyCategory: row.legacyCategory,
     status: row.status,
     coverUrl: row.coverUrl,
     playUrl: row.playUrl,
@@ -1037,12 +1037,12 @@ function rawVideo(row: RawVideo): VideoRecord {
     submittedAt: toIso(row.submittedAt),
     reviewSubmissionRequestId: row.reviewSubmissionRequestId,
     rejectReason: row.rejectReason,
-    tags: [],
+    tags: Array.isArray(row.tags) ? row.tags.filter((tag): tag is string => typeof tag === 'string') : [],
     playCount: Number(row.playCount ?? 0),
     likeCount: Number(row.likeCount ?? 0),
     favoriteCount: Number(row.favoriteCount ?? 0),
     commentCount: Number(row.commentCount ?? 0),
-    coinCount: 0,
+    coinCount: Number(row.coinCount ?? 0),
     createdAt: toIso(row.createdAt) ?? new Date(0).toISOString(),
     categoryCode: row.categoryCode,
     categoryName: row.categoryName,
@@ -1104,8 +1104,8 @@ function publicVideo(video: VideoRecord, creators: Map<string, CreatorSummary>) 
     title: video.title,
     description: video.description,
     status: video.status,
-    category: video.categoryCode ?? undefined,
-    categories: video.categoryCode ? [video.categoryCode] : [],
+    category: video.legacyCategory ?? video.categoryCode ?? undefined,
+    categories: video.tags.length ? video.tags : video.categoryCode ? [video.categoryCode] : [],
     coverUrl: video.coverUrl,
     playUrl: video.playUrl,
     durationSeconds: video.durationSeconds,
