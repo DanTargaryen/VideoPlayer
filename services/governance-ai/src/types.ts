@@ -10,6 +10,7 @@ export type ModerationApplyStatus =
   | 'APPLY_PENDING'
   | 'APPLYING'
   | 'APPLIED'
+  | 'WITHDRAWN'
   | 'APPLY_FAILED_RETRYABLE'
   | 'APPLY_FAILED_FINAL';
 
@@ -54,6 +55,18 @@ export interface ReportRecord {
   handledAt: Date | null;
 }
 
+export interface VideoReviewHistoryRecord {
+  id: number;
+  videoId: string;
+  reviewerId: number | null;
+  requestId: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN';
+  reason: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  reviewedAt: Date | null;
+}
+
 export interface CreateReviewInput {
   requestId: string;
   targetType: GovernanceTargetType;
@@ -86,6 +99,8 @@ export interface GovernanceStore {
   createOrGetReview(input: CreateReviewInput, decisionId: string): Promise<ReviewRecord>;
   findLatestReview(targetType: GovernanceTargetType, targetId: string): Promise<ReviewRecord | null>;
   listReviews(targetTypes: GovernanceTargetType[]): Promise<ReviewRecord[]>;
+  listVideoReviews(videoId: string): Promise<VideoReviewHistoryRecord[]>;
+  withdrawVideoReview(videoId: string, requestId: string): Promise<ReviewRecord>;
   decideReview(input: {
     reviewId: number;
     operatorId: number;

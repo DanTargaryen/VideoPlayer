@@ -118,6 +118,8 @@ export function createGovernanceRoute(application: GovernanceApplication, secret
 
   return async (context: ServiceRequestContext): Promise<boolean> => {
     const internalLatest = context.path.match(/^\/internal\/v1\/reviews\/(VIDEO|COMMENT|VIDEO_DANMAKU)\/([^/]+)\/latest$/);
+    const internalVideoHistory = context.path.match(/^\/internal\/v1\/reviews\/VIDEO\/([^/]+)\/history$/);
+    const internalVideoWithdraw = context.path.match(/^\/internal\/v1\/reviews\/VIDEO\/([^/]+)\/withdraw$/);
     const adminReport = context.path.match(/^\/api\/v1\/admin\/reports\/(\d+)$/);
     const adminVideoReview = context.path.match(/^\/api\/v1\/admin\/reviews\/videos\/(\d+)$/);
     const adminTextReview = context.path.match(/^\/api\/v1\/admin\/reviews\/text-content\/(COMMENT|VIDEO_DANMAKU)\/([^/]+)$/);
@@ -134,6 +136,15 @@ export function createGovernanceRoute(application: GovernanceApplication, secret
         authorizeInternal(context, secret, 'governance.reviews.read');
         const record = await application.latestReview(internalLatest[1] as GovernanceTargetType, decodeURIComponent(internalLatest[2]));
         if (!record) throw new GovernanceError('Review not found', 'NOT_FOUND');
+        context.writeJson(200, ok(record, context.requestId)); return true;
+      }
+      if (context.method === 'GET' && internalVideoHistory) {
+        authorizeInternal(context, secret, 'governance.reviews.read');
+        context.writeJson(200, ok(await application.listVideoReviews(decodeURIComponent(internalVideoHistory[1])), context.requestId)); return true;
+      }
+      if (context.method === 'POST' && internalVideoWithdraw) {
+        authorizeInternal(context, secret, 'governance.reviews.withdraw');
+        const record = await application.withdrawVideoReview(decodeURIComponent(internalVideoWithdraw[1]), context.requestId);
         context.writeJson(200, ok(record, context.requestId)); return true;
       }
       if (context.method === 'POST' && context.path === '/api/v1/reports') {

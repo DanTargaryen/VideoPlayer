@@ -84,6 +84,49 @@ export class PrismaGovernanceStore implements GovernanceStore {
     });
   }
 
+  listVideoReviews(videoId: string) {
+    return this.prisma.videoReview.findMany({
+      where: { videoId, status: { not: 'WITHDRAWN' } },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    });
+  }
+
+  async withdrawVideoReview(videoId: string, requestId: string): Promise<ReviewRecord> {
+    const replay = await this.prisma.moderationDecision.findUnique({ where: { withdrawRequestId: requestId } });
+    if (replay) {
+      if (replay.targetType !== 'VIDEO' || replay.targetId !== videoId || replay.applyStatus !== 'WITHDRAWN') {
+        throw new GovernanceError('withdraw requestId conflicts with another review', 'CONFLICT');
+      }
+      return replay;
+    }
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const pending = await tx.moderationDecision.findFirst({
+          where: { targetType: 'VIDEO', targetId: videoId, reportId: null, decision: null, applyStatus: 'PENDING' },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        });
+        if (!pending) throw new GovernanceError('Pending review not found', 'NOT_FOUND');
+        const updated = await tx.moderationDecision.updateMany({
+          where: { id: pending.id, decision: null, applyStatus: 'PENDING' },
+          data: { applyStatus: 'WITHDRAWN', withdrawRequestId: requestId },
+        });
+        if (updated.count !== 1) throw new GovernanceError('Review state changed while withdrawing', 'CONFLICT');
+        await tx.videoReview.updateMany({
+          where: { requestId: pending.requestId, status: 'PENDING' },
+          data: { status: 'WITHDRAWN', reviewedAt: new Date() },
+        });
+        return tx.moderationDecision.findUniqueOrThrow({ where: { id: pending.id } });
+      });
+    } catch (error) {
+      if (isUniqueError(error)) {
+        const winner = await this.prisma.moderationDecision.findUnique({ where: { withdrawRequestId: requestId } });
+        if (winner && winner.targetType === 'VIDEO' && winner.targetId === videoId && winner.applyStatus === 'WITHDRAWN') return winner;
+        throw new GovernanceError('withdraw requestId conflicts with another review', 'CONFLICT');
+      }
+      throw error;
+    }
+  }
+
   async decideReview(input: { reviewId: number; operatorId: number; requestId: string; action: ModerationAction; reason?: string }) {
     const existing = await this.prisma.moderationDecision.findUnique({ where: { id: input.reviewId } });
     if (!existing) throw new GovernanceError('Review not found', 'NOT_FOUND');

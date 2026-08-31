@@ -525,6 +525,13 @@ async function handleInternalRoute(options: {
     return;
   }
 
+  const creatorStatsMatch = /^\/internal\/v1\/users\/(\d+)\/creator-stats$/.exec(pathname);
+  if (method === 'GET' && creatorStatsMatch) {
+    const claims = authorizeInternalRequest(request.headers.authorization, serviceJwtSecret, ['internal:user-summary']);
+    writeJson(response, 200, ok(await store.getCreatorStats(Number(creatorStatsMatch[1]), 7), claims.requestId), claims.requestId);
+    return;
+  }
+
   if (method === 'POST' && pathname === '/internal/v1/notifications') {
     const claims = authorizeInternalRequest(request.headers.authorization, serviceJwtSecret, ['internal:notification-write']);
     const body = (await readJsonBody(request)) as {

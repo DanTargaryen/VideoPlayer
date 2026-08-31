@@ -55,6 +55,17 @@ export class GovernanceApplication {
     return this.store.listReviews(targetTypes);
   }
 
+  listVideoReviews(videoId: string) {
+    requireExternalId(videoId, 'videoId');
+    return this.store.listVideoReviews(videoId);
+  }
+
+  withdrawVideoReview(videoId: string, requestId: string) {
+    requireExternalId(videoId, 'videoId');
+    requireRequestId(requestId);
+    return this.store.withdrawVideoReview(videoId, requestId);
+  }
+
   decideReview(input: { reviewId: number; operatorId: number; requestId: string; action: ModerationAction; reason?: string }) {
     requirePositiveInteger(input.reviewId, 'reviewId');
     requirePositiveInteger(input.operatorId, 'operatorId');
