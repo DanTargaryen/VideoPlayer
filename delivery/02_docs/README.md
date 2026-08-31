@@ -22,6 +22,12 @@
 - [单体 Smoke 清单](../../docs/practice-2026/03-smoke-checklist.md)
 - [证据索引、统一 DoD 与 UC 追溯](../../docs/practice-2026/06-evidence-and-dod.md)
 
+## PDF 交付件
+
+- [PDF 总索引与页数/源文件映射](pdf/README.md)
+- 需求、概要设计、详细设计、数据库、API、测试/追溯和三层模型共 7 份 PDF、99 页。
+- PDF 由 `scripts/generate-delivery-pdfs.py` 从可编辑 Markdown/Mermaid 源生成；每页已用 Poppler 渲染并完成无空白页、无越界文字和视觉 montage 检查。
+
 ## 文档一致性原则
 
 1. 最终微服务事实边界以 `08-service-boundaries-and-data-ownership.md` 和实际 Prisma schema 为准；早期单体设计中的模块划分不覆盖该冻结决策。

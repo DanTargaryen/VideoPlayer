@@ -1,0 +1,317 @@
+{
+  "conclusion": "success",
+  "createdAt": "2026-08-31T09:47:17Z",
+  "databaseId": 33379394312,
+  "event": "workflow_dispatch",
+  "headSha": "c909875671a0f065df18183305bca6162211a660",
+  "jobs": [
+    {
+      "completedAt": "2026-08-31T09:49:26Z",
+      "conclusion": "success",
+      "databaseId": 99448041272,
+      "name": "Lint, build, and unit/API tests",
+      "startedAt": "2026-08-31T09:47:22Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-08-31T09:47:23Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-08-31T09:47:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:47:25Z",
+          "conclusion": "success",
+          "name": "Check out repository",
+          "number": 2,
+          "startedAt": "2026-08-31T09:47:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:47:29Z",
+          "conclusion": "success",
+          "name": "Set up Node.js",
+          "number": 3,
+          "startedAt": "2026-08-31T09:47:25Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:47:53Z",
+          "conclusion": "success",
+          "name": "Install dependencies",
+          "number": 4,
+          "startedAt": "2026-08-31T09:47:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:49:22Z",
+          "conclusion": "success",
+          "name": "Run local CI gate",
+          "number": 5,
+          "startedAt": "2026-08-31T09:47:53Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:49:23Z",
+          "conclusion": "success",
+          "name": "Post Set up Node.js",
+          "number": 9,
+          "startedAt": "2026-08-31T09:49:22Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:49:23Z",
+          "conclusion": "success",
+          "name": "Post Check out repository",
+          "number": 10,
+          "startedAt": "2026-08-31T09:49:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:49:23Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 11,
+          "startedAt": "2026-08-31T09:49:23Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/DanTargaryen/VideoPlayer/actions/runs/33379394312/job/99448041272"
+    },
+    {
+      "completedAt": "2026-08-31T09:48:43Z",
+      "conclusion": "success",
+      "databaseId": 99448041560,
+      "name": "Public browser smoke",
+      "startedAt": "2026-08-31T09:47:22Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-08-31T09:47:23Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-08-31T09:47:22Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:47:35Z",
+          "conclusion": "success",
+          "name": "Initialize containers",
+          "number": 2,
+          "startedAt": "2026-08-31T09:47:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:47:36Z",
+          "conclusion": "success",
+          "name": "Check out repository",
+          "number": 3,
+          "startedAt": "2026-08-31T09:47:35Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:47:40Z",
+          "conclusion": "success",
+          "name": "Set up Node.js",
+          "number": 4,
+          "startedAt": "2026-08-31T09:47:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:48:08Z",
+          "conclusion": "success",
+          "name": "Install dependencies",
+          "number": 5,
+          "startedAt": "2026-08-31T09:47:40Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:48:12Z",
+          "conclusion": "success",
+          "name": "Prepare Prisma schema",
+          "number": 6,
+          "startedAt": "2026-08-31T09:48:08Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:48:20Z",
+          "conclusion": "success",
+          "name": "Start backend and frontend",
+          "number": 7,
+          "startedAt": "2026-08-31T09:48:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:48:38Z",
+          "conclusion": "success",
+          "name": "Run Playwright public smoke",
+          "number": 8,
+          "startedAt": "2026-08-31T09:48:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:48:38Z",
+          "conclusion": "success",
+          "name": "Upload E2E evidence",
+          "number": 9,
+          "startedAt": "2026-08-31T09:48:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:48:41Z",
+          "conclusion": "success",
+          "name": "Post Set up Node.js",
+          "number": 16,
+          "startedAt": "2026-08-31T09:48:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:48:41Z",
+          "conclusion": "success",
+          "name": "Post Check out repository",
+          "number": 17,
+          "startedAt": "2026-08-31T09:48:41Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:48:41Z",
+          "conclusion": "success",
+          "name": "Stop containers",
+          "number": 18,
+          "startedAt": "2026-08-31T09:48:41Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:48:41Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 19,
+          "startedAt": "2026-08-31T09:48:41Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/DanTargaryen/VideoPlayer/actions/runs/33379394312/job/99448041560"
+    },
+    {
+      "completedAt": "2026-08-31T09:52:51Z",
+      "conclusion": "success",
+      "databaseId": 99448567204,
+      "name": "Build images and deploy to isolated Kind",
+      "startedAt": "2026-08-31T09:49:30Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-08-31T09:49:32Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-08-31T09:49:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:49:33Z",
+          "conclusion": "success",
+          "name": "Check out repository",
+          "number": 2,
+          "startedAt": "2026-08-31T09:49:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:50:13Z",
+          "conclusion": "success",
+          "name": "Build backend image",
+          "number": 3,
+          "startedAt": "2026-08-31T09:49:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:50:38Z",
+          "conclusion": "success",
+          "name": "Build frontend image",
+          "number": 4,
+          "startedAt": "2026-08-31T09:50:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:50:40Z",
+          "conclusion": "success",
+          "name": "Install Kind",
+          "number": 5,
+          "startedAt": "2026-08-31T09:50:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:50:51Z",
+          "conclusion": "success",
+          "name": "Prepare isolated deployment inputs",
+          "number": 6,
+          "startedAt": "2026-08-31T09:50:40Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:52:45Z",
+          "conclusion": "success",
+          "name": "Deploy Git SHA images to isolated Kind",
+          "number": 7,
+          "startedAt": "2026-08-31T09:50:51Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:52:46Z",
+          "conclusion": "success",
+          "name": "Verify Kubernetes deployment",
+          "number": 8,
+          "startedAt": "2026-08-31T09:52:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:52:47Z",
+          "conclusion": "success",
+          "name": "Collect deployment evidence",
+          "number": 9,
+          "startedAt": "2026-08-31T09:52:46Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:52:47Z",
+          "conclusion": "success",
+          "name": "Upload deployment evidence",
+          "number": 10,
+          "startedAt": "2026-08-31T09:52:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:52:49Z",
+          "conclusion": "success",
+          "name": "Clean up isolated deployment",
+          "number": 11,
+          "startedAt": "2026-08-31T09:52:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:52:49Z",
+          "conclusion": "success",
+          "name": "Post Check out repository",
+          "number": 22,
+          "startedAt": "2026-08-31T09:52:49Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-31T09:52:49Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 23,
+          "startedAt": "2026-08-31T09:52:49Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/DanTargaryen/VideoPlayer/actions/runs/33379394312/job/99448567204"
+    }
+  ],
+  "status": "completed",
+  "updatedAt": "2026-08-31T09:52:51Z",
+  "url": "https://github.com/DanTargaryen/VideoPlayer/actions/runs/33379394312"
+}

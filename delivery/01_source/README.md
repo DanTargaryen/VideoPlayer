@@ -23,6 +23,14 @@ done
 
 ## 最终技术 PR 与远端 CI
 
+完整、可重新生成的版本与提交记录：
+
+- [改造版本与完整提交 Manifest](complete-change-manifest.md)：原单体 tag、六 workspace 版本、PR #40–#62、head/merge SHA、合并时间和远端 run。
+- [全部 72 个 commit（TSV）](all-commits.tsv)：`monolith-start` 到 `main@bbe10fb` 的逐 commit 机器可读记录。
+- 生成器：`node scripts/generate-delivery-source-manifest.mjs`。
+
+下表保留最终技术 Gate 的快速索引；完整清单以 Manifest 为准。
+
 | PR | 任务 | 合并证据 | GitHub-hosted run |
 | --- | --- | --- | --- |
 | [#48](https://github.com/DanTargaryen/VideoPlayer/pull/48) | CI-01 远端稳定性与 Kind CD | merged | [33324914355](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33324914355) |
@@ -37,7 +45,7 @@ done
 | [#57](https://github.com/DanTargaryen/VideoPlayer/pull/57) | HPA、故障恢复与性能实验 | merged | [33367170484](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33367170484) |
 | [#58](https://github.com/DanTargaryen/VideoPlayer/pull/58) | DEL-01 六目录、三层模型、PPTX 与最终证据 | merged；`main@993d699` | [33372482927](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33372482927) |
 
-PR #48–#58 的最终 run 均为 `quality`、`public-e2e`、`versioned-images` 3/3 jobs success，并在合并前完成 Owner 书面自审。PR #58 先在 `45a952d` 运行 `33371629258`，再在最终 head `9d19aca` 运行 `33372482927`：quality 283/283、public E2E 3 passed/2 个显式 services-mode skip、Git SHA 镜像与隔离 Kind migration/deploy/health/evidence/cleanup 均 PASS；最终 merge commit 为 `993d699e047f2e12963af60646de47f4da862e2f`。
+PR #48–#62 的最终 run 均为 `quality`、`public-e2e`、`versioned-images` 3/3 jobs success，并在合并前完成 Owner 书面自审。最新交付树为 `main@bbe10fb935bfa3ce96051e2262168143dcbf5187`；逐 PR 详情与 72 个 commit 见完整 Manifest。
 
 ## 服务边界
 

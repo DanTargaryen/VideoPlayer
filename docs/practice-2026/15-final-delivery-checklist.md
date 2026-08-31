@@ -7,16 +7,20 @@
 ## 1. 仓库可自主完成项
 
 - [x] 建立 `delivery/01_source`–`delivery/06_defense` 六目录和总 README。
-- [x] `01_source` 索引单体 tag、四微服务版本、PR #48–#58 和远端 workflow。
+- [x] `01_source` 索引单体 tag、四微服务版本、PR #40–#62 和远端 workflow。
+- [x] `01_source` 另有完整 Manifest：PR #40–#62、23 个 head/merge SHA、最终 run，以及 `monolith-start` 到 `main@bbe10fb` 的 72 个 commit TSV。
 - [x] `02_docs` 索引需求、UC01–UC06、三层模型、服务边界、测试计划和追溯。
+- [x] `02_docs` 提供 7 份 PDF / 99 页，并同时保留可编辑 Markdown/Mermaid 源；Poppler 全页渲染、边界和视觉 QA PASS。
 - [x] `03_devops` 索引 Compose、Kubernetes、migration、CI/CD、回滚和 Secret 约束。
 - [x] `04_tests` 索引单元/API/E2E、REG-01、HPA、故障与性能证据。
+- [x] `04_tests` 固定最终成功 run 的三个完整 job log、Playwright HTML、Kind 原始文件、实验 CSV、run/artifact JSON 和 SHA-256。
 - [x] `05_management` 索引任务板、站会、决策和贡献权重模板，并显式标记未确认项。
 - [x] `06_defense` 包含最终 PPTX、技术总结、演示脚本和备用录屏拍摄清单。
 - [x] UC01–UC05 三层 Mermaid 模型和 UC06 状态模型均有版本化源文件。
 - [x] 最终答辩 PPTX 已渲染 10 页，逐页视觉检查且 `slides_test.py` 无越界。
 - [x] README 与六目录链接由自动测试检查；PPTX 具有有效 ZIP/PPT 结构。
 - [x] 技术变更完成本地 `npm run test:ci`：283/283 PASS。
+- [x] 根 README 写明环境版本、全部端口/健康地址、课程测试账号和 Seed 6 users / 14 videos / 11 published。
 - [x] DEL-01 PR #58 首轮远端 run `33371629258` 3/3 jobs，并实检 public E2E/Kind 两个 Artifact。
 - [x] PR #58 最终 head 通过 run `33372482927` 的远端 3/3 jobs、Owner 书面自审，并合并为 `main@993d699`。
 
@@ -25,6 +29,8 @@ PR #58 的仓库技术 Gate 已关闭；以下真人或外部系统证据仍是 
 ## 2. 必须由真人或外部系统补交
 
 - [x] 用户提供五名成员/学号表，并授权默认映射 A/林明、B/刘钟屹、C/李晓萌、D/张壮志、E/王一涵；映射来源与边界已版本化。
+- [x] 项目管理平台核心地址已提供并验证可访问；飞书页面含 8.25–8.31 日期导航、8.31 技术进度和课程交付子页面入口。
+- [ ] 导出并保存每日实名站会简报、看板/统计截图原件；当前公开视图只能证明日期索引和 8.31 可见条目。
 - [ ] 教师/助教对 UC01–UC06 与四服务范围的回复截图或可访问链接。
 - [ ] ARCH-01 会议的真实参会者名册、个人备份人，以及签到/聊天/录屏原件。
 - [ ] 一名非作者成员在另一台或清洁环境按 README 完成复现，并填写姓名、环境、commit、日期和结果。

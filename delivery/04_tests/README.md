@@ -45,6 +45,13 @@
 - `test-results/`、`coverage/`、`playwright-report/`、本地日志和渲染图片不进入 Git；需要共享时使用 CI Artifact。
 - 任何截图只能辅助说明，不能替代 runner JSON、JUnit、workflow、代码和可重跑命令。
 
+## 持久化原始报告包
+
+- [GitHub Actions run 33379394312 原始证据包](raw/github-run-33379394312/README.md)
+- 包含三个完整 job log、run/artifact JSON、Playwright HTML report、前后端 E2E 日志、Kind 节点/workload/镜像/migration/event/status 原始文件、HPA/故障/三轮性能 CSV 和全文件 SHA-256。
+- 收集命令：`DELIVERY_EVIDENCE_RUN_ID=33379394312 node scripts/collect-delivery-raw-evidence.mjs`。
+- 该目录是任务书明确要求“测试报告和流水线原始报告”的交付例外；其他临时报告仍保持 ignored。
+
 ## 交付包自检
 
 DEL-01 增加一个 Node 单元测试，检查六目录、README 链接、PPTX 结构和人工证据的显式待补状态。答辩 PPT 另用 presentation render 工具生成 10 页 PNG 和 montage，并用 `slides_test.py` 检查画布越界；这些临时渲染文件保持 ignored，不作为源码提交。

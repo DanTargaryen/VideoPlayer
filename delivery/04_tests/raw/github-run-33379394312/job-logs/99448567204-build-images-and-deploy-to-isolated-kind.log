@@ -1,0 +1,850 @@
+Build images and deploy to isolated Kind	UNKNOWN STEP	﻿2026-08-31T09:49:30.7952677Z Current runner version: '2.336.0'
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:30.7987541Z ##[group]Runner Image Provisioner
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:30.7988993Z Hosted Compute Agent
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:30.7989932Z Version: 20260819.586
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:30.7991084Z Commit: 3cc4a88dfa507ef76119ad1bb3eccc6378bb2b76
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:30.7992404Z Build Date: 2026-08-18T23:20:18Z
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:30.7993490Z Worker ID: {d1ab379b-f200-46cd-bf54-237475de8b9c}
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:30.7994793Z Azure Region: eastus
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:30.7995758Z ##[endgroup]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:30.7998904Z ##[group]Operating System
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:30.7999971Z Ubuntu
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:30.8000756Z 24.04.4
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:30.8001723Z LTS
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:30.8002568Z ##[endgroup]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:30.8003509Z ##[group]Runner Image
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:30.8004556Z Image: ubuntu-24.04
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:30.8005504Z Version: 20260823.283.1
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:30.8007938Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260823.283/images/ubuntu/Ubuntu2404-Readme.md
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:30.8011284Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260823.283
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:30.8013074Z ##[endgroup]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:30.8014912Z ##[group]GITHUB_TOKEN Permissions
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:30.8018075Z Contents: read
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:30.8019161Z Metadata: read
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:30.8020130Z ##[endgroup]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:30.8023275Z Secret source: Actions
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:30.8025264Z Prepare workflow directory
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:30.8826319Z Prepare all required actions
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:30.8900496Z Getting action download info
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:31.1195073Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:31.4158593Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.2163375Z Complete job name: Build images and deploy to isolated Kind
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.3143659Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.3152400Z ##[group]Run actions/checkout@v4
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.3153134Z with:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.3153589Z   repository: DanTargaryen/VideoPlayer
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.3156617Z   token: ***
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.3157033Z   ssh-strict: true
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.3157670Z   ssh-user: git
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.3158098Z   persist-credentials: true
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.3158559Z   clean: true
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.3158983Z   sparse-checkout-cone-mode: true
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.3159451Z   fetch-depth: 1
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.3159853Z   fetch-tags: false
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.3160264Z   show-progress: true
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.3160688Z   lfs: false
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.3161172Z   submodules: false
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.3161587Z   set-safe-directory: true
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.3162057Z   allow-unsafe-pr-checkout: false
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.3162817Z env:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.3163271Z   IMAGE_TAG: c909875671a0f065df18183305bca6162211a660
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.3163836Z   KIND_CLUSTER_NAME: video-player-33379394312-1
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.3164363Z   K8S_NAMESPACE: video-player
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.3165059Z   PRACTICE_ENV_FILE: /home/runner/work/VideoPlayer/VideoPlayer/.runtime-ci/videoplayer-practice.env
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.3166022Z   DEPLOYMENT_EVIDENCE_DIR: /home/runner/work/VideoPlayer/VideoPlayer/.runtime-ci/deployment-evidence
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.3166739Z ##[endgroup]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.4167877Z Syncing repository: DanTargaryen/VideoPlayer
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.4169980Z ##[group]Getting Git version info
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.4170695Z Working directory is '/home/runner/work/VideoPlayer/VideoPlayer'
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.4171717Z [command]/usr/bin/git version
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.5534982Z git version 2.55.0
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.5579695Z ##[endgroup]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.5588351Z Temporarily overriding HOME='/home/runner/work/_temp/480ec8b6-6365-49b9-8b18-337e317b92f5' before making global git config changes
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.5589888Z Adding repository directory to the temporary git global config as a safe directory
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.5590828Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/VideoPlayer/VideoPlayer
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.5674112Z Deleting the contents of '/home/runner/work/VideoPlayer/VideoPlayer'
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.5679460Z ##[group]Initializing the repository
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.5685149Z [command]/usr/bin/git init /home/runner/work/VideoPlayer/VideoPlayer
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.6494207Z hint: Using 'master' as the name for the initial branch. This default branch name
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.6496081Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.6497904Z hint: to use in all of your new repositories, which will suppress this warning,
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.6499375Z hint: call:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.6500126Z hint:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.6500847Z hint: 	git config --global init.defaultBranch <name>
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.6501740Z hint:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.6502287Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.6504402Z hint: 'development'. The just-created branch can be renamed via this command:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.6505485Z hint:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.6506186Z hint: 	git branch -m <name>
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.6506940Z hint:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.6508144Z hint: Disable this message with "git config set advice.defaultBranchName false"
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.6509564Z Initialized empty Git repository in /home/runner/work/VideoPlayer/VideoPlayer/.git/
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.6519730Z [command]/usr/bin/git remote add origin https://github.com/DanTargaryen/VideoPlayer
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.6568672Z ##[endgroup]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.6569976Z ##[group]Disabling automatic garbage collection
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.6572373Z [command]/usr/bin/git config --local gc.auto 0
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.6616595Z ##[endgroup]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.6617698Z ##[group]Setting up auth
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.6624039Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:32.6668715Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.1704968Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.1743068Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.1976802Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.2015564Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.2241677Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.2588043Z ##[endgroup]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.2589030Z ##[group]Fetching the repository
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.2600468Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +c909875671a0f065df18183305bca6162211a660:refs/remotes/origin/docs/DEL-01-defense-role-alignment
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.7725066Z From https://github.com/DanTargaryen/VideoPlayer
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.7725893Z  * [new ref]         c909875671a0f065df18183305bca6162211a660 -> origin/docs/DEL-01-defense-role-alignment
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.7730688Z ##[endgroup]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.7731460Z ##[group]Determining the checkout info
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.7733894Z ##[endgroup]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.7740468Z [command]/usr/bin/git sparse-checkout disable
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.7796664Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.7830727Z ##[group]Checking out the ref
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.7836022Z [command]/usr/bin/git checkout --progress --force -B docs/DEL-01-defense-role-alignment refs/remotes/origin/docs/DEL-01-defense-role-alignment
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.8358039Z Switched to a new branch 'docs/DEL-01-defense-role-alignment'
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.8364278Z branch 'docs/DEL-01-defense-role-alignment' set up to track 'origin/docs/DEL-01-defense-role-alignment'.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.8377983Z ##[endgroup]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.8427166Z [command]/usr/bin/git log -1 --format=%H
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.8454617Z c909875671a0f065df18183305bca6162211a660
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.8667582Z ##[group]Run docker build --file backend/Dockerfile --tag video-player/backend:$IMAGE_TAG .
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.8668463Z ^[[36;1mdocker build --file backend/Dockerfile --tag video-player/backend:$IMAGE_TAG .^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.8709828Z shell: /usr/bin/bash -e {0}
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.8710162Z env:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.8710454Z   IMAGE_TAG: c909875671a0f065df18183305bca6162211a660
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.8710883Z   KIND_CLUSTER_NAME: video-player-33379394312-1
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.8711253Z   K8S_NAMESPACE: video-player
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.8711773Z   PRACTICE_ENV_FILE: /home/runner/work/VideoPlayer/VideoPlayer/.runtime-ci/videoplayer-practice.env
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.8712518Z   DEPLOYMENT_EVIDENCE_DIR: /home/runner/work/VideoPlayer/VideoPlayer/.runtime-ci/deployment-evidence
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:33.8713055Z ##[endgroup]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.5258894Z #0 building with "default" instance using docker driver
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.5259566Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.5259919Z #1 [internal] load build definition from Dockerfile
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.5260567Z #1 transferring dockerfile: 1.98kB done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.5261067Z #1 DONE 0.0s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.5261325Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.5261604Z #2 [auth] library/node:pull token for registry-1.docker.io
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.5262213Z #2 DONE 0.0s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.5262454Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.5262788Z #3 [internal] load metadata for docker.io/library/node:22-bookworm-slim
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.6698002Z #3 DONE 0.3s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.7888839Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.7891654Z #4 [internal] load .dockerignore
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.7892468Z #4 transferring context: 263B done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.7892929Z #4 DONE 0.0s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.7893095Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.7893239Z #5 [internal] load build context
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.7893625Z #5 transferring context: 1.11MB 0.0s done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.7894022Z #5 DONE 0.0s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.7894190Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.7894875Z #6 [build 1/9] FROM docker.io/library/node:22-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.7896250Z #6 resolve docker.io/library/node:22-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5 done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.7897702Z #6 sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5 5.22kB / 5.22kB done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.7898688Z #6 sha256:4d676821dff059fd00d277ee4261ef34ea712317fed0737c03941481b5760c96 1.93kB / 1.93kB done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.7899742Z #6 sha256:6e6261159fd399ebe5a3d556b7d89da9c85c873f3f270918aad6c8107da8b411 6.87kB / 6.87kB done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.7900900Z #6 sha256:a8ac7f6c67abc236e4c745052c404112b8fab6fe8ac3a329d1ef3b867ad67c71 27.26MB / 28.23MB 0.1s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.7902122Z #6 sha256:cea7eb9bbe80eabf8356efb28b3796ab904f36a32049aeb6b435920ca93f9285 3.31kB / 3.31kB 0.0s done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.7903256Z #6 sha256:51c53f95c2cae3d00dfc0350297c92dea913fe129ec38b8deb8313e5f3e0297d 7.34MB / 49.94MB 0.1s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.7903954Z #6 sha256:3cddab114edadc7cf5a7b0b591e59f6312aade3dc4fb68e88aacca5eb1cc1c03 1.71MB / 1.71MB 0.1s done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.7904636Z #6 sha256:0282d618b52cd2eb8fcf041e780cd66b15e7ebae519a4054c5d293eae6b6d34f 0B / 447B 0.1s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.9336092Z #6 sha256:a8ac7f6c67abc236e4c745052c404112b8fab6fe8ac3a329d1ef3b867ad67c71 28.23MB / 28.23MB 0.1s done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.9338146Z #6 sha256:51c53f95c2cae3d00dfc0350297c92dea913fe129ec38b8deb8313e5f3e0297d 49.94MB / 49.94MB 0.2s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.9339699Z #6 sha256:0282d618b52cd2eb8fcf041e780cd66b15e7ebae519a4054c5d293eae6b6d34f 447B / 447B 0.1s done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:34.9340710Z #6 extracting sha256:a8ac7f6c67abc236e4c745052c404112b8fab6fe8ac3a329d1ef3b867ad67c71 0.1s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:35.0349467Z #6 sha256:51c53f95c2cae3d00dfc0350297c92dea913fe129ec38b8deb8313e5f3e0297d 49.94MB / 49.94MB 0.2s done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:35.8823531Z #6 extracting sha256:a8ac7f6c67abc236e4c745052c404112b8fab6fe8ac3a329d1ef3b867ad67c71 1.1s done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:36.0646445Z #6 extracting sha256:cea7eb9bbe80eabf8356efb28b3796ab904f36a32049aeb6b435920ca93f9285 done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:36.9815727Z #6 extracting sha256:51c53f95c2cae3d00dfc0350297c92dea913fe129ec38b8deb8313e5f3e0297d
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:38.3234957Z #6 extracting sha256:51c53f95c2cae3d00dfc0350297c92dea913fe129ec38b8deb8313e5f3e0297d 1.2s done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:38.3236184Z #6 extracting sha256:3cddab114edadc7cf5a7b0b591e59f6312aade3dc4fb68e88aacca5eb1cc1c03
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:38.5665568Z #6 extracting sha256:3cddab114edadc7cf5a7b0b591e59f6312aade3dc4fb68e88aacca5eb1cc1c03 0.0s done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:38.6304441Z #6 extracting sha256:0282d618b52cd2eb8fcf041e780cd66b15e7ebae519a4054c5d293eae6b6d34f done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:38.6305161Z #6 DONE 3.7s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:38.6305357Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:38.6305531Z #7 [build 2/9] WORKDIR /app
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:38.6305929Z #7 DONE 0.0s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:38.6306122Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:38.6306890Z #8 [runtime 3/9] RUN apt-get update   && apt-get install -y --no-install-recommends ca-certificates openssl   && rm -rf /var/lib/apt/lists/*
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:38.6308487Z #8 0.215 Get:1 http://deb.debian.org/debian bookworm InRelease [151 kB]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:38.7723042Z #8 0.225 Get:2 http://deb.debian.org/debian bookworm-updates InRelease [55.4 kB]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:38.7724160Z #8 0.225 Get:3 http://deb.debian.org/debian-security bookworm-security InRelease [34.8 kB]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:38.7725178Z #8 0.282 Get:4 http://deb.debian.org/debian bookworm/main amd64 Packages [8790 kB]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:38.7726170Z #8 0.357 Get:5 http://deb.debian.org/debian bookworm-updates/main amd64 Packages [6924 B]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:38.9862454Z #8 0.417 Get:6 http://deb.debian.org/debian-security bookworm-security/main amd64 Packages [335 kB]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:39.5463017Z #8 1.130 Fetched 9374 kB in 1s (10.2 MB/s)
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:40.1507578Z #8 1.130 Reading package lists...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:40.5540169Z #8 1.584 Reading package lists...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:40.6669878Z #8 2.023 Building dependency tree...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:40.6670626Z #8 2.151 Reading state information...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:40.8350336Z #8 2.261 The following additional packages will be installed:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:40.8352226Z #8 2.261   libssl3
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:40.8352747Z #8 2.291 The following NEW packages will be installed:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:40.8353351Z #8 2.291   ca-certificates libssl3 openssl
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:40.8354058Z #8 2.307 0 upgraded, 3 newly installed, 0 to remove and 0 not upgraded.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:40.8354682Z #8 2.307 Need to get 3637 kB of archives.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:40.8355318Z #8 2.307 After this operation, 8940 kB of additional disk space will be used.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:40.8356323Z #8 2.307 Get:1 http://deb.debian.org/debian bookworm/main amd64 libssl3 amd64 3.0.20-1~deb12u2 [2036 kB]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:40.8357661Z #8 2.324 Get:2 http://deb.debian.org/debian bookworm/main amd64 openssl amd64 3.0.20-1~deb12u2 [1439 kB]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:40.8358937Z #8 2.330 Get:3 http://deb.debian.org/debian-security bookworm-security/main amd64 ca-certificates all 20250419~deb12u1 [162 kB]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.0199763Z #8 2.423 debconf: delaying package configuration, since apt-utils is not installed
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.0201142Z #8 2.443 Fetched 3637 kB in 0s (100 MB/s)
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.0202254Z #8 2.460 Selecting previously unselected package libssl3:amd64.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.0203067Z #8 2.460 (Reading database ... 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.0214841Z (Reading database ... 5%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.0215887Z (Reading database ... 10%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.0216677Z (Reading database ... 15%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.0217101Z (Reading database ... 20%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.0217769Z (Reading database ... 25%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.0218183Z (Reading database ... 30%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.0218590Z (Reading database ... 35%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.0218968Z (Reading database ... 40%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.0219344Z (Reading database ... 45%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.0219729Z (Reading database ... 50%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.0220131Z (Reading database ... 55%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.0220532Z (Reading database ... 60%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.0220928Z (Reading database ... 65%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.0221632Z (Reading database ... 70%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.0222043Z (Reading database ... 75%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.0222431Z (Reading database ... 80%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.0222847Z (Reading database ... 85%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.0223241Z (Reading database ... 90%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.0223637Z (Reading database ... 95%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.0224171Z (Reading database ... 100%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.0224813Z (Reading database ... 6096 files and directories currently installed.)
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.0225648Z #8 2.472 Preparing to unpack .../libssl3_3.0.20-1~deb12u2_amd64.deb ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.0226373Z #8 2.476 Unpacking libssl3:amd64 (3.0.20-1~deb12u2) ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.0227003Z #8 2.604 Selecting previously unselected package openssl.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.1218146Z #8 2.606 Preparing to unpack .../openssl_3.0.20-1~deb12u2_amd64.deb ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.1218974Z #8 2.609 Unpacking openssl (3.0.20-1~deb12u2) ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.2516261Z #8 2.710 Selecting previously unselected package ca-certificates.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.2517868Z #8 2.711 Preparing to unpack .../ca-certificates_20250419~deb12u1_all.deb ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.2519376Z #8 2.712 Unpacking ca-certificates (20250419~deb12u1) ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.2520372Z #8 2.763 Setting up libssl3:amd64 (3.0.20-1~deb12u2) ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.2521289Z #8 2.766 Setting up openssl (3.0.20-1~deb12u2) ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.2522611Z #8 2.771 Setting up ca-certificates (20250419~deb12u1) ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.2523553Z #8 2.835 debconf: unable to initialize frontend: Dialog
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.2524440Z #8 2.835 debconf: (TERM is not set, so the dialog frontend is not usable.)
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.2525254Z #8 2.835 debconf: falling back to frontend: Readline
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.4041711Z #8 2.835 debconf: unable to initialize frontend: Readline
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.4050021Z #8 2.835 debconf: (Can't locate Term/ReadLine.pm in @INC (you may need to install the Term::ReadLine module) (@INC contains: /etc/perl /usr/local/lib/x86_64-linux-gnu/perl/5.36.0 /usr/local/share/perl/5.36.0 /usr/lib/x86_64-linux-gnu/perl5/5.36 /usr/share/perl5 /usr/lib/x86_64-linux-gnu/perl-base /usr/lib/x86_64-linux-gnu/perl/5.36 /usr/share/perl/5.36 /usr/local/lib/site_perl) at /usr/share/perl5/Debconf/FrontEnd/Readline.pm line 7.)
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.4052975Z #8 2.835 debconf: falling back to frontend: Teletype
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:41.8333610Z #8 3.267 Updating certificates in /etc/ssl/certs...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.4734393Z #8 3.878 150 added, 0 removed; done.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.4735086Z #8 3.893 Processing triggers for libc-bin (2.36-9+deb12u14) ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.4735860Z #8 3.903 Processing triggers for ca-certificates (20250419~deb12u1) ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.4736460Z #8 3.907 Updating certificates in /etc/ssl/certs...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.8035472Z #8 4.388 0 added, 0 removed; done.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.8036510Z #8 4.388 Running hooks in /etc/ca-certificates/update.d...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9039717Z #8 4.389 done.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9040783Z #8 DONE 4.4s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9042843Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9044340Z #9 [build 3/9] RUN apt-get update   && apt-get install -y --no-install-recommends ca-certificates openssl   && rm -rf /var/lib/apt/lists/*
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9046671Z #9 0.216 Get:1 http://deb.debian.org/debian bookworm InRelease [151 kB]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9048162Z #9 0.226 Get:2 http://deb.debian.org/debian bookworm-updates InRelease [55.4 kB]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9049386Z #9 0.227 Get:3 http://deb.debian.org/debian-security bookworm-security InRelease [34.8 kB]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9052533Z #9 0.283 Get:4 http://deb.debian.org/debian bookworm/main amd64 Packages [8790 kB]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9053920Z #9 0.359 Get:5 http://deb.debian.org/debian bookworm-updates/main amd64 Packages [6924 B]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9055073Z #9 0.420 Get:6 http://deb.debian.org/debian-security bookworm-security/main amd64 Packages [335 kB]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9055896Z #9 1.149 Fetched 9374 kB in 1s (9954 kB/s)
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9056360Z #9 1.149 Reading package lists...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9057075Z #9 1.584 Reading package lists...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9057773Z #9 2.019 Building dependency tree...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9058195Z #9 2.138 Reading state information...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9058853Z #9 2.251 The following additional packages will be installed:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9059496Z #9 2.251   libssl3
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9059918Z #9 2.283 The following NEW packages will be installed:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9060508Z #9 2.284   ca-certificates libssl3 openssl
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9061143Z #9 2.302 0 upgraded, 3 newly installed, 0 to remove and 0 not upgraded.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9061733Z #9 2.302 Need to get 3637 kB of archives.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9062116Z #9 2.302 After this operation, 8940 kB of additional disk space will be used.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9062697Z #9 2.302 Get:1 http://deb.debian.org/debian bookworm/main amd64 libssl3 amd64 3.0.20-1~deb12u2 [2036 kB]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9063755Z #9 2.318 Get:2 http://deb.debian.org/debian bookworm/main amd64 openssl amd64 3.0.20-1~deb12u2 [1439 kB]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9064946Z #9 2.325 Get:3 http://deb.debian.org/debian-security bookworm-security/main amd64 ca-certificates all 20250419~deb12u1 [162 kB]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9066270Z #9 2.419 debconf: delaying package configuration, since apt-utils is not installed
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9067045Z #9 2.440 Fetched 3637 kB in 0s (96.3 MB/s)
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9067906Z #9 2.458 Selecting previously unselected package libssl3:amd64.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9068541Z #9 2.458 (Reading database ... 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9068799Z (Reading database ... 5%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9069029Z (Reading database ... 10%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9069252Z (Reading database ... 15%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9069465Z (Reading database ... 20%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9069677Z (Reading database ... 25%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9070080Z (Reading database ... 30%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9070470Z (Reading database ... 35%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9070846Z (Reading database ... 40%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9071216Z (Reading database ... 45%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9071606Z (Reading database ... 50%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9072117Z (Reading database ... 55%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9072516Z (Reading database ... 60%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9075501Z (Reading database ... 65%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9075920Z (Reading database ... 70%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9076309Z (Reading database ... 75%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9076743Z (Reading database ... 80%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9077136Z (Reading database ... 85%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9078023Z (Reading database ... 90%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9078413Z (Reading database ... 95%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9078798Z (Reading database ... 100%
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9079380Z (Reading database ... 6096 files and directories currently installed.)
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9080204Z #9 2.465 Preparing to unpack .../libssl3_3.0.20-1~deb12u2_amd64.deb ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9080893Z #9 2.470 Unpacking libssl3:amd64 (3.0.20-1~deb12u2) ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9081543Z #9 2.606 Selecting previously unselected package openssl.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9082264Z #9 2.606 Preparing to unpack .../openssl_3.0.20-1~deb12u2_amd64.deb ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9082939Z #9 2.608 Unpacking openssl (3.0.20-1~deb12u2) ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9083655Z #9 2.706 Selecting previously unselected package ca-certificates.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9084485Z #9 2.708 Preparing to unpack .../ca-certificates_20250419~deb12u1_all.deb ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9085232Z #9 2.709 Unpacking ca-certificates (20250419~deb12u1) ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9085856Z #9 2.760 Setting up libssl3:amd64 (3.0.20-1~deb12u2) ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9086732Z #9 2.762 Setting up openssl (3.0.20-1~deb12u2) ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9087533Z #9 2.768 Setting up ca-certificates (20250419~deb12u1) ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9088179Z #9 2.838 debconf: unable to initialize frontend: Dialog
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9088905Z #9 2.838 debconf: (TERM is not set, so the dialog frontend is not usable.)
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9089629Z #9 2.838 debconf: falling back to frontend: Readline
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9090220Z #9 2.838 debconf: unable to initialize frontend: Readline
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9093301Z #9 2.838 debconf: (Can't locate Term/ReadLine.pm in @INC (you may need to install the Term::ReadLine module) (@INC contains: /etc/perl /usr/local/lib/x86_64-linux-gnu/perl/5.36.0 /usr/local/share/perl/5.36.0 /usr/lib/x86_64-linux-gnu/perl5/5.36 /usr/share/perl5 /usr/lib/x86_64-linux-gnu/perl-base /usr/lib/x86_64-linux-gnu/perl/5.36 /usr/share/perl/5.36 /usr/local/lib/site_perl) at /usr/share/perl5/Debconf/FrontEnd/Readline.pm line 7.)
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9099012Z #9 2.838 debconf: falling back to frontend: Teletype
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9102006Z #9 3.267 Updating certificates in /etc/ssl/certs...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9102554Z #9 3.877 150 added, 0 removed; done.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9103105Z #9 3.892 Processing triggers for libc-bin (2.36-9+deb12u14) ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9103863Z #9 3.903 Processing triggers for ca-certificates (20250419~deb12u1) ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9104579Z #9 3.907 Updating certificates in /etc/ssl/certs...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9105127Z #9 4.390 0 added, 0 removed; done.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9105687Z #9 4.390 Running hooks in /etc/ca-certificates/update.d...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9106236Z #9 4.391 done.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9106565Z #9 DONE 4.4s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9106929Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9107176Z #10 [build 4/9] COPY package.json package-lock.json ./
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9108646Z #10 DONE 0.0s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9108862Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9109114Z #11 [runtime 4/9] COPY package.json package-lock.json ./
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9109724Z #11 DONE 0.0s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9109926Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9110201Z #12 [build 5/9] COPY backend/package.json backend/package.json
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9110785Z #12 DONE 0.0s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9110988Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9111287Z #13 [runtime 5/9] COPY backend/package.json backend/package.json
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9111861Z #13 DONE 0.0s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9112049Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:42.9112265Z #14 [runtime 6/9] COPY backend/prisma backend/prisma
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:43.1050743Z #14 DONE 0.0s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:43.1051551Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:43.1052025Z #15 [runtime 7/9] COPY backend/scripts backend/scripts
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:43.1052860Z #15 DONE 0.0s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:43.1053268Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:43.1055354Z #16 [runtime 8/9] RUN for attempt in 1 2 3 4 5; do       npm ci --omit=dev --workspace backend --include-workspace-root && break;       if [ "$attempt" -eq 5 ]; then exit 1; fi;       echo "npm ci failed on attempt ${attempt}; retrying...";       sleep $((attempt * 10));     done   && npm --workspace backend run prisma:generate   && npm cache clean --force
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:49.7640212Z #16 ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:49.7640736Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:49.7642163Z #17 [build 6/9] RUN for attempt in 1 2 3 4 5; do       npm ci --workspace backend --include-workspace-root && exit 0;       echo "npm ci failed on attempt ${attempt}; retrying...";       sleep $((attempt * 10));     done;     exit 1
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:49.7646026Z #17 3.535 npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:49.7652246Z #17 5.823 npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:51.0612153Z #17 8.169 npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:51.2385946Z #17 8.175 npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:51.2390070Z #17 8.198 npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:57.1106682Z #17 ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:57.1107199Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:57.1110033Z #16 [runtime 8/9] RUN for attempt in 1 2 3 4 5; do       npm ci --omit=dev --workspace backend --include-workspace-root && break;       if [ "$attempt" -eq 5 ]; then exit 1; fi;       echo "npm ci failed on attempt ${attempt}; retrying...";       sleep $((attempt * 10));     done   && npm --workspace backend run prisma:generate   && npm cache clean --force
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:57.1112557Z #16 14.16 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:57.1113263Z #16 14.16 added 175 packages, and audited 177 packages in 14s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:57.1114043Z #16 14.16 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:57.1114624Z #16 14.16 44 packages are looking for funding
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:57.2701414Z #16 14.16   run `npm fund` for details
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:57.2702516Z #16 14.17 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:57.2703132Z #16 14.17 7 vulnerabilities (1 low, 2 moderate, 4 high)
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:57.2703709Z #16 14.17 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:57.2704076Z #16 14.17 To address all issues, run:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:57.2704565Z #16 14.17   npm audit fix
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:57.2704970Z #16 14.17 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:57.2705357Z #16 14.17 Run `npm audit` for details.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:57.2705842Z #16 14.17 npm notice
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:57.2706424Z #16 14.17 npm notice New major version of npm available! 10.9.8 -> 12.0.2
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:57.2708408Z #16 14.17 npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.0.2
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:57.2709302Z #16 14.17 npm notice To update run: npm install -g npm@12.0.2
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:57.2709906Z #16 14.17 npm notice
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:57.3342837Z #16 14.38 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:57.3343966Z #16 14.38 > backend@0.1.0 prisma:generate
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:57.3344543Z #16 14.38 > prisma generate
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:57.3344916Z #16 14.38 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:58.1262387Z #16 15.17 Prisma schema loaded from prisma/schema.prisma
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:58.9011840Z #16 15.95 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:58.9013576Z #16 15.95 ✔ Generated Prisma Client (v6.9.0) to ./node_modules/@prisma/client in 353ms
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:58.9014366Z #16 15.95 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:58.9015058Z #16 15.95 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:58.9015906Z #16 15.95 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:58.9017951Z #16 15.95 Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:58.9018835Z #16 15.95 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:49:59.0522771Z #16 16.10 npm warn using --force Recommended protections disabled.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:02.1003383Z #16 DONE 19.1s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:02.1004015Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:02.1005462Z #17 [build 6/9] RUN for attempt in 1 2 3 4 5; do       npm ci --workspace backend --include-workspace-root && exit 0;       echo "npm ci failed on attempt ${attempt}; retrying...";       sleep $((attempt * 10));     done;     exit 1
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:02.6798432Z #17 19.79 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:02.6799001Z #17 19.79 added 729 packages, and audited 731 packages in 20s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:02.6799575Z #17 19.79 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:02.8408120Z #17 19.79 148 packages are looking for funding
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:02.8409026Z #17 19.79   run `npm fund` for details
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:02.8409803Z #17 19.80 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:02.8410571Z #17 19.80 11 vulnerabilities (1 low, 2 moderate, 8 high)
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:02.8411076Z #17 19.80 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:02.8411386Z #17 19.80 To address all issues, run:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:02.8411792Z #17 19.80   npm audit fix
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:02.8412124Z #17 19.80 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:02.8412429Z #17 19.80 Run `npm audit` for details.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:02.8412834Z #17 19.80 npm notice
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:02.8413317Z #17 19.80 npm notice New major version of npm available! 10.9.8 -> 12.0.2
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:02.8414103Z #17 19.80 npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.0.2
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:02.8415040Z #17 19.80 npm notice To update run: npm install -g npm@12.0.2
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:02.8415568Z #17 19.80 npm notice
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:02.8793530Z #17 DONE 20.0s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:03.0633360Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:03.0633959Z #18 [build 7/9] COPY backend backend
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:03.0634579Z #18 DONE 0.0s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:03.0634809Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:03.0635106Z #19 [build 8/9] RUN npm --workspace backend run prisma:generate
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:03.1511370Z #19 0.238 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:03.1512168Z #19 0.238 > backend@0.1.0 prisma:generate
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:03.1512933Z #19 0.238 > prisma generate
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:03.1513421Z #19 0.238 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:03.7845294Z #19 0.872 Prisma schema loaded from prisma/schema.prisma
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:04.3293193Z #19 1.416 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:04.3294318Z #19 1.416 ✔ Generated Prisma Client (v6.9.0) to ./node_modules/@prisma/client in 228ms
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:04.3295272Z #19 1.416 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:04.3296022Z #19 1.416 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:04.3296836Z #19 1.416 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:04.3297736Z #19 1.416 Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:04.3298466Z #19 1.416 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:04.5413782Z #19 DONE 1.5s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:04.5414417Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:04.5415016Z #20 [build 9/9] RUN npm run build:backend
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:04.7355770Z #20 0.348 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:04.7356298Z #20 0.348 > video-player-workspace@0.1.0 build:backend
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:04.7356720Z #20 0.348 > npm --workspace backend run build
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:04.7357117Z #20 0.348 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:04.8487935Z #20 0.461 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:04.8488369Z #20 0.461 > backend@0.1.0 build
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:04.8488818Z #20 0.461 > nest build
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:04.8489187Z #20 0.461 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:10.7312800Z #20 DONE 6.3s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:10.8655257Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:10.8656071Z #21 [runtime 9/9] COPY --from=build /app/backend/dist backend/dist
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:11.0658710Z #21 DONE 0.0s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:11.0659305Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:11.0659860Z #22 exporting to image
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:11.0660548Z #22 exporting layers
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:13.7742156Z #22 exporting layers 2.9s done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:13.7982597Z #22 writing image sha256:d5e4346738908493bc44d6fe942328c41e76f5fba80ac18649277f73fdd391b4 done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:13.7983454Z #22 naming to docker.io/video-player/backend:c909875671a0f065df18183305bca6162211a660 done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:13.7984010Z #22 DONE 2.9s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:13.8073807Z ##[group]Run docker build --file frontend/Dockerfile --tag video-player/frontend:$IMAGE_TAG .
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:13.8074497Z ^[[36;1mdocker build --file frontend/Dockerfile --tag video-player/frontend:$IMAGE_TAG .^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:13.8112275Z shell: /usr/bin/bash -e {0}
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:13.8112528Z env:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:13.8112764Z   IMAGE_TAG: c909875671a0f065df18183305bca6162211a660
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:13.8113102Z   KIND_CLUSTER_NAME: video-player-33379394312-1
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:13.8113406Z   K8S_NAMESPACE: video-player
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:13.8113864Z   PRACTICE_ENV_FILE: /home/runner/work/VideoPlayer/VideoPlayer/.runtime-ci/videoplayer-practice.env
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:13.8114567Z   DEPLOYMENT_EVIDENCE_DIR: /home/runner/work/VideoPlayer/VideoPlayer/.runtime-ci/deployment-evidence
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:13.8115058Z ##[endgroup]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.1405998Z #0 building with "default" instance using docker driver
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.1407032Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.1407555Z #1 [internal] load build definition from Dockerfile
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.1408016Z #1 transferring dockerfile: 911B done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.1408321Z #1 DONE 0.0s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.1408452Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.1408637Z #2 [auth] library/nginx:pull token for registry-1.docker.io
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.1409020Z #2 DONE 0.0s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.1409155Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.1409374Z #3 [internal] load metadata for docker.io/library/node:22-bookworm-slim
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.1409802Z #3 DONE 0.1s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.1409937Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.1410134Z #4 [internal] load metadata for docker.io/library/nginx:1.27-alpine
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.2685563Z #4 DONE 0.3s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.3724188Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.3727132Z #5 [internal] load .dockerignore
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.3728119Z #5 transferring context: 263B done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.3729311Z #5 DONE 0.0s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.3729684Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.3731524Z #6 [build 1/7] FROM docker.io/library/node:22-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.3732867Z #6 DONE 0.0s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.3733064Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.3733221Z #7 [build 2/7] WORKDIR /app
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.3733806Z #7 CACHED
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.3734006Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.3734419Z #8 [internal] load build context
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.3734821Z #8 transferring context: 4.73MB 0.1s done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.3735300Z #8 DONE 0.1s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.3735506Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.3735906Z #9 [build 3/7] COPY package.json package-lock.json ./
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.3736457Z #9 DONE 0.0s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.3736628Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.3736931Z #10 [build 4/7] COPY frontend/package.json frontend/package.json
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.3737762Z #10 DONE 0.0s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.3737954Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.3738563Z #11 [runtime 1/3] FROM docker.io/library/nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.3740400Z #11 resolve docker.io/library/nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10 done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.3741456Z #11 extracting sha256:f18232174bc91741fdf3da96d85011092101a032a93a388b79e99e69c2d5c870
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.4748882Z #11 extracting sha256:f18232174bc91741fdf3da96d85011092101a032a93a388b79e99e69c2d5c870 0.1s done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.4750797Z #11 sha256:d7e5070240863957ebb0b5a44a5729963c3462666baa2947d00628cb5f2d5773 955B / 955B 0.1s done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.4752376Z #11 sha256:81bd8ed7ec6789b0cb7f1b47ee731c522f6dba83201ec73cd6bca1350f582948 402B / 402B 0.1s done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.4775207Z #11 sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10 10.33kB / 10.33kB done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.4777035Z #11 sha256:f18232174bc91741fdf3da96d85011092101a032a93a388b79e99e69c2d5c870 3.64MB / 3.64MB 0.0s done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.4778898Z #11 sha256:61ca4f733c802afd9e05a32f0de0361b6d713b8b53292dc15fb093229f648674 1.79MB / 1.79MB 0.1s done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.4780822Z #11 sha256:b464cfdf2a6319875aeb27359ec549790ce14d8214fcb16ef915e4530e5ed235 629B / 629B 0.0s done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.4782461Z #11 sha256:197eb75867ef4fcecd4724f17b0972ab0489436860a594a9445f8eaff8155053 1.21kB / 1.21kB 0.1s done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.4784053Z #11 sha256:34a64644b756511a2e217f0508e11d1a572085d66cd6dc9a555a082ad49a3102 1.40kB / 1.40kB 0.1s done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.4785589Z #11 sha256:39c2ddfd6010082a4a646e7ca44e95aca9bf3eaebc00f17f7ccc2954004f2a7d 5.24MB / 15.52MB 0.1s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.4787117Z #11 sha256:62223d644fa234c3a1cc785ee14242ec47a77364226f1c811d2f669f96dc2ac8 2.50kB / 2.50kB done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.4788938Z #11 sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea 10.79kB / 10.79kB done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.6896500Z #11 sha256:39c2ddfd6010082a4a646e7ca44e95aca9bf3eaebc00f17f7ccc2954004f2a7d 15.52MB / 15.52MB 0.1s done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.6899099Z #11 extracting sha256:61ca4f733c802afd9e05a32f0de0361b6d713b8b53292dc15fb093229f648674 0.1s done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.6900399Z #11 extracting sha256:b464cfdf2a6319875aeb27359ec549790ce14d8214fcb16ef915e4530e5ed235
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.8588644Z #11 extracting sha256:b464cfdf2a6319875aeb27359ec549790ce14d8214fcb16ef915e4530e5ed235 done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.8590841Z #11 extracting sha256:d7e5070240863957ebb0b5a44a5729963c3462666baa2947d00628cb5f2d5773 done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.8592600Z #11 extracting sha256:81bd8ed7ec6789b0cb7f1b47ee731c522f6dba83201ec73cd6bca1350f582948 done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.8594837Z #11 extracting sha256:197eb75867ef4fcecd4724f17b0972ab0489436860a594a9445f8eaff8155053 done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.8596171Z #11 extracting sha256:34a64644b756511a2e217f0508e11d1a572085d66cd6dc9a555a082ad49a3102 done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:14.8598371Z #11 extracting sha256:39c2ddfd6010082a4a646e7ca44e95aca9bf3eaebc00f17f7ccc2954004f2a7d 0.1s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:15.2582801Z #11 extracting sha256:39c2ddfd6010082a4a646e7ca44e95aca9bf3eaebc00f17f7ccc2954004f2a7d 0.4s done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:15.2583560Z #11 DONE 1.0s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:15.2583708Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:15.2584526Z #12 [build 5/7] RUN for attempt in 1 2 3 4 5; do       npm ci --workspace frontend --include-workspace-root && exit 0;       echo "npm ci failed on attempt ${attempt}; retrying...";       sleep $((attempt * 10));     done;     exit 1
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:15.4258426Z #12 ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:15.4259052Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:15.4259617Z #13 [runtime 2/3] COPY deploy/nginx/default.conf /etc/nginx/conf.d/default.conf
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:15.4260611Z #13 DONE 0.0s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:15.5754592Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:15.5756018Z #12 [build 5/7] RUN for attempt in 1 2 3 4 5; do       npm ci --workspace frontend --include-workspace-root && exit 0;       echo "npm ci failed on attempt ${attempt}; retrying...";       sleep $((attempt * 10));     done;     exit 1
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:21.7888397Z #12 7.415 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:21.7889205Z #12 7.415 added 265 packages, and audited 267 packages in 7s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:21.7889816Z #12 7.415 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:21.9584954Z #12 7.415 68 packages are looking for funding
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:21.9585515Z #12 7.415   run `npm fund` for details
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:21.9585996Z #12 7.433 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:21.9586396Z #12 7.433 8 vulnerabilities (1 moderate, 7 high)
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:21.9586897Z #12 7.433 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:21.9587439Z #12 7.433 To address all issues, run:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:21.9587897Z #12 7.433   npm audit fix
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:21.9588156Z #12 7.433 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:21.9588365Z #12 7.433 Run `npm audit` for details.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:21.9588634Z #12 7.435 npm notice
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:21.9588948Z #12 7.435 npm notice New major version of npm available! 10.9.8 -> 12.0.2
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:21.9589454Z #12 7.435 npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.0.2
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:21.9589902Z #12 7.435 npm notice To update run: npm install -g npm@12.0.2
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:21.9590219Z #12 7.435 npm notice
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:22.1284138Z #12 DONE 7.8s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:22.3110035Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:22.3110627Z #14 [build 6/7] COPY frontend frontend
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:22.3111118Z #14 DONE 0.0s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:22.3111345Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:22.3112241Z #15 [build 7/7] RUN npm run build:frontend
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:22.3823067Z #15 0.222 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:22.3823842Z #15 0.222 > video-player-workspace@0.1.0 build:frontend
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:22.3824280Z #15 0.222 > npm --workspace frontend run build
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:22.3824599Z #15 0.222 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:22.4976580Z #15 0.337 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:22.4977513Z #15 0.337 > frontend@0.1.0 build
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:22.4978168Z #15 0.337 > vue-tsc --noEmit && vite build
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:22.4978731Z #15 0.337 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:29.8511103Z #15 7.691 vite v6.4.2 building for production...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:29.9546809Z #15 7.794 transforming...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:36.5406931Z #15 14.38 ✓ 1817 modules transformed.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:37.3087798Z #15 15.15 rendering chunks...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:37.4694255Z #15 15.16 computing gzip size...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:37.4696447Z #15 15.20 dist/index.html                     0.42 kB │ gzip:   0.31 kB
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:37.4709388Z #15 15.20 dist/assets/index-CPBoxzA4.css    518.59 kB │ gzip:  74.73 kB
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:37.4724787Z #15 15.20 dist/assets/index-TxFgvIOR.js   1,361.09 kB │ gzip: 443.08 kB
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:37.4725773Z #15 15.20 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:37.4726513Z #15 15.20 (!) Some chunks are larger than 500 kB after minification. Consider:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:37.4727580Z #15 15.20 - Using dynamic import() to code-split the application
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:37.4728834Z #15 15.20 - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:37.4730127Z #15 15.20 - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:37.4730946Z #15 15.20 ✓ built in 7.49s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:37.4731332Z #15 DONE 15.3s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:37.6701822Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:37.6702689Z #16 [runtime 3/3] COPY --from=build /app/frontend/dist /usr/share/nginx/html
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:37.6703469Z #16 DONE 0.0s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:37.6703681Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:37.6703843Z #17 exporting to image
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:37.6704275Z #17 exporting layers
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:38.0066429Z #17 exporting layers 0.5s done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:38.0252090Z #17 writing image sha256:8568d944419907c500b1def06f8d18f32308c0d4bd458b4b202bfa0e21971ce2 done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:38.0253561Z #17 naming to docker.io/video-player/frontend:c909875671a0f065df18183305bca6162211a660 done
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:38.0254348Z #17 DONE 0.5s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:38.0333286Z ##[group]Run curl -fsSL https://kind.sigs.k8s.io/dl/v0.32.0/kind-linux-amd64 \
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:38.0333902Z ^[[36;1mcurl -fsSL https://kind.sigs.k8s.io/dl/v0.32.0/kind-linux-amd64 \^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:38.0334338Z ^[[36;1m  --output "$RUNNER_TEMP/kind-linux-amd64"^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:38.0334643Z ^[[36;1mprintf '%s  %s\n' \^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:38.0335002Z ^[[36;1m  '50030de23cf40a18505f20426f6a8506bedf13c6e509244bd1fa9463721b0f54' \^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:38.0335480Z ^[[36;1m  "$RUNNER_TEMP/kind-linux-amd64" | sha256sum --check -^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:38.0335967Z ^[[36;1msudo install -m 0755 "$RUNNER_TEMP/kind-linux-amd64" /usr/local/bin/kind^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:38.0336390Z ^[[36;1mkind version^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:38.0336619Z ^[[36;1mkubectl version --client^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:38.0372700Z shell: /usr/bin/bash -e {0}
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:38.0372945Z env:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:38.0373173Z   IMAGE_TAG: c909875671a0f065df18183305bca6162211a660
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:38.0373553Z   KIND_CLUSTER_NAME: video-player-33379394312-1
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:38.0373864Z   K8S_NAMESPACE: video-player
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:38.0374318Z   PRACTICE_ENV_FILE: /home/runner/work/VideoPlayer/VideoPlayer/.runtime-ci/videoplayer-practice.env
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:38.0375015Z   DEPLOYMENT_EVIDENCE_DIR: /home/runner/work/VideoPlayer/VideoPlayer/.runtime-ci/deployment-evidence
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:38.0375477Z ##[endgroup]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:38.2514363Z /home/runner/work/_temp/kind-linux-amd64: OK
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:38.2656438Z kind v0.32.0 go1.26.3 linux/amd64
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.3740304Z Client Version: v1.36.4
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.3748050Z Kustomize Version: v5.8.1
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.3792552Z ##[group]Run docker pull mysql:8.0
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.3792891Z ^[[36;1mdocker pull mysql:8.0^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.3793186Z ^[[36;1mmkdir -p "$(dirname "$PRACTICE_ENV_FILE")"^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.3793534Z ^[[36;1mmysql_root_password="$(openssl rand -hex 18)"^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.3793872Z ^[[36;1mjwt_secret="$(openssl rand -hex 24)"^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.3794180Z ^[[36;1madmin_secret="$(openssl rand -hex 18)"^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.3794455Z ^[[36;1m{^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.3794726Z ^[[36;1m  printf 'MYSQL_ROOT_PASSWORD=%s\n' "$mysql_root_password"^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.3795095Z ^[[36;1m  printf 'JWT_SECRET=%s\n' "$jwt_secret"^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.3795423Z ^[[36;1m  printf 'ADMIN_SECRET=%s\n' "$admin_secret"^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.3795726Z ^[[36;1m} > "$PRACTICE_ENV_FILE"^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.3795990Z ^[[36;1mchmod 600 "$PRACTICE_ENV_FILE"^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.3832309Z shell: /usr/bin/bash -e {0}
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.3832559Z env:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.3832826Z   IMAGE_TAG: c909875671a0f065df18183305bca6162211a660
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.3833372Z   KIND_CLUSTER_NAME: video-player-33379394312-1
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.3833680Z   K8S_NAMESPACE: video-player
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.3834148Z   PRACTICE_ENV_FILE: /home/runner/work/VideoPlayer/VideoPlayer/.runtime-ci/videoplayer-practice.env
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.3834859Z   DEPLOYMENT_EVIDENCE_DIR: /home/runner/work/VideoPlayer/VideoPlayer/.runtime-ci/deployment-evidence
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.3835329Z ##[endgroup]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.6162723Z 8.0: Pulling from library/mysql
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.6899464Z edf85873f64e: Pulling fs layer
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.6899975Z 6ef6c7b50a93: Pulling fs layer
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.6905999Z e3e5d1ac74c1: Pulling fs layer
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.6906473Z 0d74d296605b: Pulling fs layer
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.6907253Z 297d04cfe470: Pulling fs layer
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.6907705Z 4c8a3e0d4e4b: Pulling fs layer
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.6908571Z a63160a5eda1: Pulling fs layer
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.6908995Z 7534d1db9f8d: Pulling fs layer
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.6909469Z 49ec2dab01d9: Pulling fs layer
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.6909943Z ab24264a27e9: Pulling fs layer
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.6910357Z 96d30d9fbee8: Pulling fs layer
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.6910777Z a63160a5eda1: Waiting
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.6911134Z 7534d1db9f8d: Waiting
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.6911491Z 49ec2dab01d9: Waiting
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.6911846Z ab24264a27e9: Waiting
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.6912197Z 0d74d296605b: Waiting
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.6912548Z 297d04cfe470: Waiting
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.6912901Z 4c8a3e0d4e4b: Waiting
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.6913252Z 96d30d9fbee8: Waiting
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.7193888Z 6ef6c7b50a93: Verifying Checksum
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.7199747Z 6ef6c7b50a93: Download complete
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.7326721Z e3e5d1ac74c1: Verifying Checksum
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.7327503Z e3e5d1ac74c1: Download complete
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.7585797Z 297d04cfe470: Verifying Checksum
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.7586977Z 297d04cfe470: Download complete
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.7847122Z 0d74d296605b: Verifying Checksum
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.7847674Z 0d74d296605b: Download complete
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.7867758Z 4c8a3e0d4e4b: Verifying Checksum
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.7874980Z 4c8a3e0d4e4b: Download complete
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.8155536Z 7534d1db9f8d: Verifying Checksum
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.8161640Z 7534d1db9f8d: Download complete
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.8782434Z edf85873f64e: Verifying Checksum
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.8783237Z edf85873f64e: Download complete
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.9242568Z ab24264a27e9: Verifying Checksum
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.9243482Z ab24264a27e9: Download complete
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.9571099Z 96d30d9fbee8: Verifying Checksum
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:40.9572073Z 96d30d9fbee8: Download complete
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:41.0169762Z a63160a5eda1: Verifying Checksum
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:41.0170909Z a63160a5eda1: Download complete
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:41.2713373Z 49ec2dab01d9: Verifying Checksum
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:41.2713873Z 49ec2dab01d9: Download complete
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:42.1971568Z edf85873f64e: Pull complete
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:42.7598995Z 6ef6c7b50a93: Pull complete
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:42.7830309Z e3e5d1ac74c1: Pull complete
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:42.9790040Z 0d74d296605b: Pull complete
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:42.9929155Z 297d04cfe470: Pull complete
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:43.0024714Z 4c8a3e0d4e4b: Pull complete
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:43.7692394Z a63160a5eda1: Pull complete
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:43.7825353Z 7534d1db9f8d: Pull complete
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:51.3530719Z 49ec2dab01d9: Pull complete
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:51.3640611Z ab24264a27e9: Pull complete
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:51.3729384Z 96d30d9fbee8: Pull complete
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:51.3768121Z Digest: sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:51.3778657Z Status: Downloaded newer image for mysql:8.0
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:51.3785950Z docker.io/library/mysql:8.0
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:51.3966192Z ##[group]Run bash scripts/k8s-deploy.sh "$IMAGE_TAG"
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:51.3966585Z ^[[36;1mbash scripts/k8s-deploy.sh "$IMAGE_TAG"^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:51.4002643Z shell: /usr/bin/bash -e {0}
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:51.4002899Z env:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:51.4003309Z   IMAGE_TAG: c909875671a0f065df18183305bca6162211a660
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:51.4003646Z   KIND_CLUSTER_NAME: video-player-33379394312-1
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:51.4003954Z   K8S_NAMESPACE: video-player
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:51.4004419Z   PRACTICE_ENV_FILE: /home/runner/work/VideoPlayer/VideoPlayer/.runtime-ci/videoplayer-practice.env
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:51.4005111Z   DEPLOYMENT_EVIDENCE_DIR: /home/runner/work/VideoPlayer/VideoPlayer/.runtime-ci/deployment-evidence
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:51.4005570Z ##[endgroup]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:51.4727517Z No kind clusters found.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:51.7023213Z Creating cluster "video-player-33379394312-1" ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:51.7024053Z  • Ensuring node image (kindest/node:v1.36.1) 🖼  ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:59.3341231Z  ✓ Ensuring node image (kindest/node:v1.36.1) 🖼
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:50:59.3342117Z  • Preparing nodes 📦   ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:51:01.2859072Z  ✓ Preparing nodes 📦 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:51:01.3108591Z  • Writing configuration 📜  ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:51:01.4870201Z  ✓ Writing configuration 📜
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:51:01.4870801Z  • Starting control-plane 🕹️  ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:51:09.2180941Z  ✓ Starting control-plane 🕹️
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:51:09.2181502Z  • Installing CNI 🔌  ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:51:09.5152054Z  ✓ Installing CNI 🔌
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:51:09.5152619Z  • Installing StorageClass 💾  ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:51:09.8398702Z  ✓ Installing StorageClass 💾
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:51:09.8682964Z  • Waiting ≤ 3m0s for control-plane = Ready ⏳  ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:51:27.3734406Z  ✓ Waiting ≤ 3m0s for control-plane = Ready ⏳
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:51:27.3735068Z  • Ready after 17s 💚
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:51:27.5087037Z Set kubectl context to "kind-video-player-33379394312-1"
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:51:27.5087958Z You can now use your cluster with:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:51:27.5088259Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:51:27.5088614Z kubectl cluster-info --context kind-video-player-33379394312-1
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:51:27.5089019Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:51:27.5089575Z Have a question, bug, or feature request? Let us know! https://kind.sigs.k8s.io/#community 🙂
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:51:27.7890348Z Image: "video-player/backend:c909875671a0f065df18183305bca6162211a660" with ID "sha256:d5e4346738908493bc44d6fe942328c41e76f5fba80ac18649277f73fdd391b4" not yet present on node "video-player-33379394312-1-control-plane", loading...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:51:27.9553709Z Image: "video-player/frontend:c909875671a0f065df18183305bca6162211a660" with ID "sha256:8568d944419907c500b1def06f8d18f32308c0d4bd458b4b202bfa0e21971ce2" not yet present on node "video-player-33379394312-1-control-plane", loading...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:11.1080074Z docker.io/library/mysql:8.0             	saved	
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:11.1087420Z application/vnd.oci.image.manifest.v1+json sha256:bdf3fd53f552ba36b7e6bc84a865075a629f411cd9594ce8bfd015351f7ef0ab
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:11.1089078Z Importing	elapsed: 12.2s	total:   0.0 B	(0.0 B/s)	
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:11.4274288Z namespace/video-player created
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:11.5578749Z secret/videoplayer-secrets created
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:11.6540536Z configmap/videoplayer-config created
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:11.7465842Z service/mysql created
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:11.8356882Z statefulset.apps/mysql created
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:11.9135180Z Waiting for 1 pods to be ready...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:27.4860676Z partitioned roll out complete: 1 new pods have been updated...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:27.6036794Z job.batch/db-migrate created
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:33.4889774Z job.batch/db-migrate condition met
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:33.5809305Z service/backend created
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:33.6554047Z deployment.apps/backend created
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:33.7360393Z Waiting for deployment "backend" rollout to finish: 0 of 1 updated replicas are available...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:39.4957403Z deployment "backend" successfully rolled out
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:39.5897272Z service/frontend created
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:39.6667153Z deployment.apps/frontend created
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:39.7364064Z Waiting for deployment "frontend" rollout to finish: 0 of 1 updated replicas are available...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.5004784Z deployment "frontend" successfully rolled out
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.5030734Z Kubernetes deployment completed with image tag c909875671a0f065df18183305bca6162211a660.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.5582926Z NAME                           READY   STATUS      RESTARTS   AGE
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.5584075Z pod/backend-56bd8788cc-d6xh4   1/1     Running     0          12s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.5584669Z pod/db-migrate-rmq7c           0/1     Completed   0          18s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.5585389Z pod/frontend-d877c965c-mdbls   1/1     Running     0          6s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.5586066Z pod/mysql-0                    1/1     Running     0          34s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.5586317Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.5586477Z NAME               TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)    AGE
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.5587528Z service/backend    ClusterIP   10.96.91.35    <none>        3000/TCP   12s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.5588377Z service/frontend   ClusterIP   10.96.74.191   <none>        80/TCP     6s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.5588851Z service/mysql      ClusterIP   None           <none>        3306/TCP   34s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.5589135Z 
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.5589491Z NAME                                       STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.5590411Z persistentvolumeclaim/mysql-data-mysql-0   Bound    pvc-51c4eefa-d455-41f7-8dd5-ffe230aabe52   2Gi        RWO            standard       <unset>                 34s
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.5645106Z ##[group]Run bash scripts/k8s-health-check.sh
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.5645486Z ^[[36;1mbash scripts/k8s-health-check.sh^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.5682278Z shell: /usr/bin/bash -e {0}
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.5682698Z env:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.5683060Z   IMAGE_TAG: c909875671a0f065df18183305bca6162211a660
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.5683423Z   KIND_CLUSTER_NAME: video-player-33379394312-1
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.5683725Z   K8S_NAMESPACE: video-player
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.5684192Z   PRACTICE_ENV_FILE: /home/runner/work/VideoPlayer/VideoPlayer/.runtime-ci/videoplayer-practice.env
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.5684880Z   DEPLOYMENT_EVIDENCE_DIR: /home/runner/work/VideoPlayer/VideoPlayer/.runtime-ci/deployment-evidence
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.5685368Z ##[endgroup]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.6368613Z partitioned roll out complete: 1 new pods have been updated...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.7898939Z job.batch/db-migrate condition met
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.8480062Z deployment "backend" successfully rolled out
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:45.9028803Z deployment "frontend" successfully rolled out
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.3885463Z mysqladmin: [Warning] Using a password on the command line interface can be insecure.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.4014768Z mysqld is alive
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.5708652Z 200 {"code":0,"message":"ok","data":{"status":"ok","service":"backend"}}
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.7541746Z {"code":0,"message":"ok","data":{"status":"ok","service":"backend"}}
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.7542203Z Kubernetes health checks passed.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8051151Z NAME                       READY   IMAGE                                                            RESTARTS
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8068609Z backend-56bd8788cc-d6xh4   true    video-player/backend:c909875671a0f065df18183305bca6162211a660    0
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8069747Z db-migrate-rmq7c           false   video-player/backend:c909875671a0f065df18183305bca6162211a660    0
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8070731Z frontend-d877c965c-mdbls   true    video-player/frontend:c909875671a0f065df18183305bca6162211a660   0
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8071747Z mysql-0                    true    mysql:8.0                                                        0
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8120431Z ##[group]Run mkdir -p "$DEPLOYMENT_EVIDENCE_DIR"
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8120856Z ^[[36;1mmkdir -p "$DEPLOYMENT_EVIDENCE_DIR"^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8121268Z ^[[36;1mif kind get clusters 2>/dev/null | grep -Fxq "$KIND_CLUSTER_NAME"; then^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8121776Z ^[[36;1m  kubectl config use-context "kind-$KIND_CLUSTER_NAME" >/dev/null^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8122274Z ^[[36;1m  kubectl get nodes -o wide > "$DEPLOYMENT_EVIDENCE_DIR/nodes.txt" || true^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8122790Z ^[[36;1m  kubectl -n "$K8S_NAMESPACE" get pods,services,pvc -o wide \^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8123411Z ^[[36;1m    > "$DEPLOYMENT_EVIDENCE_DIR/workloads.txt" || true^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8123769Z ^[[36;1m  kubectl -n "$K8S_NAMESPACE" get pods \^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8124547Z ^[[36;1m    -o custom-columns='NAME:.metadata.name,READY:.status.containerStatuses[*].ready,IMAGE:.spec.containers[*].image,RESTARTS:.status.containerStatuses[*].restartCount' \^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8125378Z ^[[36;1m    > "$DEPLOYMENT_EVIDENCE_DIR/images.txt" || true^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8125876Z ^[[36;1m  kubectl -n "$K8S_NAMESPACE" logs job/db-migrate --all-containers=true --tail=200 \^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8126385Z ^[[36;1m    > "$DEPLOYMENT_EVIDENCE_DIR/migration.log" 2>&1 || true^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8126831Z ^[[36;1m  kubectl -n "$K8S_NAMESPACE" get events --sort-by=.lastTimestamp \^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8127532Z ^[[36;1m    > "$DEPLOYMENT_EVIDENCE_DIR/events.txt" || true^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8128256Z ^[[36;1m  printf 'evidence=collected\ncluster=%s\nnamespace=%s\nimage_tag=%s\n' \^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8128766Z ^[[36;1m    "$KIND_CLUSTER_NAME" "$K8S_NAMESPACE" "$IMAGE_TAG" \^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8129152Z ^[[36;1m    > "$DEPLOYMENT_EVIDENCE_DIR/status.properties"^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8129461Z ^[[36;1melse^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8129797Z ^[[36;1m  printf 'evidence=cluster_not_created\ncluster=%s\n' "$KIND_CLUSTER_NAME" \^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8130284Z ^[[36;1m    > "$DEPLOYMENT_EVIDENCE_DIR/status.properties"^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8130597Z ^[[36;1mfi^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8167055Z shell: /usr/bin/bash -e {0}
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8167549Z env:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8167795Z   IMAGE_TAG: c909875671a0f065df18183305bca6162211a660
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8168159Z   KIND_CLUSTER_NAME: video-player-33379394312-1
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8168478Z   K8S_NAMESPACE: video-player
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8168944Z   PRACTICE_ENV_FILE: /home/runner/work/VideoPlayer/VideoPlayer/.runtime-ci/videoplayer-practice.env
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8169655Z   DEPLOYMENT_EVIDENCE_DIR: /home/runner/work/VideoPlayer/VideoPlayer/.runtime-ci/deployment-evidence
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:46.8170127Z ##[endgroup]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.1735408Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.1737031Z ##[group]Run actions/upload-artifact@v4
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.1737797Z with:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.1738015Z   name: kind-deployment-evidence
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.1738435Z   path: /home/runner/work/VideoPlayer/VideoPlayer/.runtime-ci/deployment-evidence
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.1738865Z   if-no-files-found: error
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.1739109Z   compression-level: 6
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.1739321Z   overwrite: false
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.1739537Z   include-hidden-files: false
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.1739770Z env:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.1739989Z   IMAGE_TAG: c909875671a0f065df18183305bca6162211a660
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.1740369Z   KIND_CLUSTER_NAME: video-player-33379394312-1
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.1740673Z   K8S_NAMESPACE: video-player
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.1741124Z   PRACTICE_ENV_FILE: /home/runner/work/VideoPlayer/VideoPlayer/.runtime-ci/videoplayer-practice.env
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.1741809Z   DEPLOYMENT_EVIDENCE_DIR: /home/runner/work/VideoPlayer/VideoPlayer/.runtime-ci/deployment-evidence
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.1742277Z ##[endgroup]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.3688705Z (node:20477) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.3690015Z (Use `node --trace-deprecation ...` to show where the warning was created)
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.3779404Z With the provided path, there will be 6 files uploaded
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.3794119Z Artifact name is valid!
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.3795488Z Root directory input is valid!
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.5614422Z Beginning upload of artifact content to blob storage
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.5894336Z (node:20477) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.6320900Z Uploaded bytes 3342
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.6515968Z Finished uploading artifact content to blob storage!
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.6517123Z SHA256 digest of uploaded artifact zip is df786c84f36d58e822cb46c8623dfe25c6f11a162b1b6a217de8cdcc857fe4a1
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.6518965Z Finalizing artifact upload
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.8326660Z Artifact kind-deployment-evidence.zip successfully finalized. Artifact ID 9753284871
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.8328026Z Artifact kind-deployment-evidence has been successfully uploaded! Final size is 3342 bytes. Artifact ID is 9753284871
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.8335791Z Artifact download URL: https://github.com/DanTargaryen/VideoPlayer/actions/runs/33379394312/artifacts/9753284871
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.8462241Z ##[group]Run kind delete cluster --name "$KIND_CLUSTER_NAME" || true
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.8515628Z ^[[36;1mkind delete cluster --name "$KIND_CLUSTER_NAME" || true^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.8516376Z ^[[36;1munlink "$PRACTICE_ENV_FILE" 2>/dev/null || true^[[0m
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.8554243Z shell: /usr/bin/bash -e {0}
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.8554511Z env:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.8554762Z   IMAGE_TAG: c909875671a0f065df18183305bca6162211a660
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.8555112Z   KIND_CLUSTER_NAME: video-player-33379394312-1
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.8555422Z   K8S_NAMESPACE: video-player
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.8555888Z   PRACTICE_ENV_FILE: /home/runner/work/VideoPlayer/VideoPlayer/.runtime-ci/videoplayer-practice.env
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.8556590Z   DEPLOYMENT_EVIDENCE_DIR: /home/runner/work/VideoPlayer/VideoPlayer/.runtime-ci/deployment-evidence
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.8557091Z ##[endgroup]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:47.8750635Z Deleting cluster "video-player-33379394312-1" ...
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:49.7016449Z Deleted nodes: ["video-player-33379394312-1-control-plane"]
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:49.7170317Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:49.7171613Z Post job cleanup.
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:49.7995832Z [command]/usr/bin/git version
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:49.8040988Z git version 2.55.0
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:49.8112108Z Temporarily overriding HOME='/home/runner/work/_temp/f2ebe783-f571-4f99-9783-854c289ab73d' before making global git config changes
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:49.8113652Z Adding repository directory to the temporary git global config as a safe directory
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:49.8117454Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/VideoPlayer/VideoPlayer
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:49.8156019Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:49.8193798Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:49.8452399Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:49.8482358Z http.https://github.com/.extraheader
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:49.8494520Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:49.8528422Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:49.8801045Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:49.8839959Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:49.9255633Z Cleaning up orphan processes
+Build images and deploy to isolated Kind	UNKNOWN STEP	2026-08-31T09:52:49.9660634Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

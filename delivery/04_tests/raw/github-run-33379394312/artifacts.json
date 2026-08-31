@@ -1,0 +1,45 @@
+{
+  "total_count": 2,
+  "artifacts": [
+    {
+      "id": 9753284871,
+      "node_id": "MDg6QXJ0aWZhY3Q5NzUzMjg0ODcx",
+      "name": "kind-deployment-evidence",
+      "size_in_bytes": 3342,
+      "url": "https://api.github.com/repos/DanTargaryen/VideoPlayer/actions/artifacts/9753284871",
+      "archive_download_url": "https://api.github.com/repos/DanTargaryen/VideoPlayer/actions/artifacts/9753284871/zip",
+      "expired": false,
+      "digest": "sha256:df786c84f36d58e822cb46c8623dfe25c6f11a162b1b6a217de8cdcc857fe4a1",
+      "created_at": "2026-08-31T09:52:47Z",
+      "updated_at": "2026-08-31T09:52:47Z",
+      "expires_at": "2026-11-29T09:47:19Z",
+      "workflow_run": {
+        "id": 33379394312,
+        "repository_id": 1175915767,
+        "head_repository_id": 1175915767,
+        "head_branch": "docs/DEL-01-defense-role-alignment",
+        "head_sha": "c909875671a0f065df18183305bca6162211a660"
+      }
+    },
+    {
+      "id": 9753161825,
+      "node_id": "MDg6QXJ0aWZhY3Q5NzUzMTYxODI1",
+      "name": "public-e2e-evidence",
+      "size_in_bytes": 200408,
+      "url": "https://api.github.com/repos/DanTargaryen/VideoPlayer/actions/artifacts/9753161825",
+      "archive_download_url": "https://api.github.com/repos/DanTargaryen/VideoPlayer/actions/artifacts/9753161825/zip",
+      "expired": false,
+      "digest": "sha256:a4c17e480556b874ab9e2099afba6162652147e27c8f5d7ac1b1bb25d6a02a35",
+      "created_at": "2026-08-31T09:48:38Z",
+      "updated_at": "2026-08-31T09:48:38Z",
+      "expires_at": "2026-11-29T09:47:19Z",
+      "workflow_run": {
+        "id": 33379394312,
+        "repository_id": 1175915767,
+        "head_repository_id": 1175915767,
+        "head_branch": "docs/DEL-01-defense-role-alignment",
+        "head_sha": "c909875671a0f065df18183305bca6162211a660"
+      }
+    }
+  ]
+}

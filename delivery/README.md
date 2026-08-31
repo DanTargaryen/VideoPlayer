@@ -4,15 +4,17 @@
 >
 > 本目录汇总可从仓库验证的技术产物，不把模板、计划或自动生成文件冒充真人签名、成员复现和实际录屏。最终关闭条件见 [`docs/practice-2026/15-final-delivery-checklist.md`](../docs/practice-2026/15-final-delivery-checklist.md)。
 
+任务书九项逐条判定见 [`requirements-audit.md`](requirements-audit.md)：当前严格状态为 **7 项完整、2 项部分完成、0 项完全缺失**。
+
 ## 六目录导航
 
 | 目录 | 内容 | 仓库状态 |
 | --- | --- | --- |
 | [`01_source`](01_source/README.md) | 仓库、tag、服务版本、PR 与 workflow | 技术索引完成 |
-| [`02_docs`](02_docs/README.md) | 需求、用例、三层模型、设计与追溯 | 技术索引完成 |
+| [`02_docs`](02_docs/README.md) | 需求、用例、三层模型、设计、追溯与 PDF | 7 份 PDF / 99 页 + 可编辑源 |
 | [`03_devops`](03_devops/README.md) | Docker、CI/CD、K8s、migration、部署与回滚 | 技术索引完成 |
-| [`04_tests`](04_tests/README.md) | Unit/API/E2E/REG、HPA、故障、性能与报告 | 技术索引完成 |
-| [`05_management`](05_management/README.md) | 任务板、决策、站会、贡献和权重确认 | 模板完成；真人确认待补 |
+| [`04_tests`](04_tests/README.md) | Unit/API/E2E/REG、HPA、故障、性能与原始报告 | 最终 run 离线原始包 + SHA-256 |
+| [`05_management`](05_management/README.md) | 飞书管理平台、任务板、站会、贡献和权重确认 | 平台地址已验证；每日截图/签字待补 |
 | [`06_defense`](06_defense/README.md) | PPT、技术总结、演示脚本与备用录屏 | PPT/脚本完成；实际录屏待补 |
 
 ## 一次性技术验收
@@ -57,7 +59,7 @@ Compose Smoke：PASS / FAIL / NOT RUN
 - Gateway 的读写切流以能力白名单控制；全部服务写路径验证后仍可显式回滚单体。
 - REG-01 同一 runner 对单体和 Gateway 各跑 UC01–UC06，12/12 PASS。
 - HPA、三类依赖故障恢复和性能三轮对比已有实测值和清理记录。
-- PR #48–#58 均已在远端 3/3 jobs 成功后合并；DEL-01 技术包 merge commit 为 `993d699e047f2e12963af60646de47f4da862e2f`。
+- PR #48–#62 均已在远端 3/3 jobs 成功后合并；当前交付基线为 `main@bbe10fb935bfa3ce96051e2262168143dcbf5187`。
 
 ## 尚未证明、不能代填的结论
 

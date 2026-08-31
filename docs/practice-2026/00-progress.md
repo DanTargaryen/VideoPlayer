@@ -251,6 +251,8 @@
   - [x] 最终证据提交 `9d19aca` 的 run `33372482927` 再次 3/3 SUCCESS：public E2E 1m15s、quality 2m12s、Git SHA 镜像/隔离 Kind 3m29s；两个 Artifact 下载实检，2 migrations、backend/frontend 1/1、0 restart、evidence/cleanup PASS。Owner 全 diff 自审结论 `MERGE READY`，PR #58 已合并为 `main@993d699e047f2e12963af60646de47f4da862e2f`。
   - [x] 用户于 2026-08-31 提供五名成员/学号表，并授权按表格行顺序默认映射 A/林明、B/刘钟屹、C/李晓萌、D/张壮志、E/王一涵；该映射已进入任务板、ARCH、第二阶段 TODO 和交付管理索引，不替代成员本人签字。
   - [x] 按默认 A–E 映射补齐现场演示与备用录屏的分段负责人：A 负责架构/平台/收口，B 负责身份，C 负责内容，D 负责直播，E 负责治理/REG/证据；实际讲解人、操作者、录制人和计时人仍需在演练后填写。
+  - [x] 用户提供飞书项目管理平台核心地址；只读验证页面标题“软工小学期进度文档”、8.25–8.31 日期索引、8.31 技术进度、Git 仓库及项目文档/图表/用例/追溯/微服务/最终材料入口。每日站会全文和看板/统计截图原件仍待导出，未提前标记完成。
+  - [x] 补齐任务书可自动交付缺口：完整版本/PR/72 commit Manifest；README 环境/端口/health/测试账号/Seed；最终 run 三个完整 job log、Playwright/Kind 原始文件和实验 CSV；7 份主文档 PDF/99 页、技术总结/待签权重 2 份补充 PDF/6 页及可编辑源；飞书平台与 8.25 两张 PNG 截图及 SHA-256。生成器、Poppler 全页渲染、pdfplumber 边界/文本、视觉复核和三组 SHA-256 均 PASS。
   - [ ] 非作者成员在另一台或 clean-machine 环境按 README 复现并签名。
   - [ ] 五名成员核对默认角色与实际贡献，确认权重合计 100%，并签字/填写日期。
   - [ ] 实际录制并上传 5–8 分钟备用演示，完成无痕窗口权限与敏感信息复查。
@@ -389,6 +391,7 @@
 | 2026-08-31 | EXP-01/02 + PERF-01 | 官方 metrics-server 离线构建、HPA 负载时间线；MySQL/SRS/MinIO 故障恢复；同机双目标三轮性能脚本；K8s 重复部署修复 | HPA 1→3→2→1；3 类依赖 failure/recovery；1440 请求 0 error，p95 max 14.85/22.32ms；K8s 5/5 Ready | PASS；原始关键值进入 `13-resilience-performance-experiments.md`；HPA/metrics/load、微服务 K8s 资源、PVC、四 schema/user 清理 |
 | 2026-08-31 | DEL-01 技术交付与合并 | 建立六目录、最终 PPTX/总结/脚本/模板、UC01–05 三层模型、证据/追溯和自动交付测试；PR #58 两轮远端复核、Owner 自审后合并 | 本地 `test:ci` 283/283；PPT 10/10 + no overflow；runs `33371629258`/`33372482927` 3/3；每轮两个 Artifact 实检 | TECHNICAL DONE；`main@993d699`，SHA 镜像、2 migrations、Kind 0 restart、cleanup；真人复现/权重/签字/录屏/演练仍 PENDING |
 | 2026-08-31 | DEL-01 A–E 默认成员映射 | 用户提供五名成员/学号表并授权按行顺序对齐 A–E；同步 README、任务板、ARCH、启动会、TODO、交付管理/贡献模板和最终清单；新增映射证据边界 | `npm run test:ci` 283/283；delivery package mapping/link test 1/1；stale phrase、unchecked item 和 diff audit | PASS；A/林明、B/刘钟屹、C/李晓萌、D/张壮志、E/王一涵；个人贡献/权重/签字、实际参会、可用时间和备份人仍 PENDING |
+| 2026-08-31 | DEL-01 九项交付补齐 | 生成 PR #40–#62 / 72 commit manifest；补 README；固定最终 CI/Playwright/Kind/实验原始包；从可编辑源生成 7 份主 PDF/99 页和 2 份补充 PDF/6 页；登记并验证飞书平台、固定平台/8.25 PNG | `npm run test:ci` 283/283；manifest/raw/PDF generator；19 个原始证据文件与全部 SHA-256；PDF 105 页程序+视觉 QA；delivery package test；Notebook HTTP/渲染/控制台复验 | 自动交付项 PASS，严格统计 7 完整/2 部分/0 完全缺失。8.26–8.31 每日原件、权重签字、真实录屏/演练和教师/会议原件仍 PENDING |
 
 ## 4. 阻塞与需组长决定
 

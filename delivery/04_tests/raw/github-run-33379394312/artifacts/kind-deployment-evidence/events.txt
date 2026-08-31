@@ -1,0 +1,33 @@
+LAST SEEN   TYPE      REASON                  OBJECT                                     MESSAGE
+36s         Normal    WaitForFirstConsumer    persistentvolumeclaim/mysql-data-mysql-0   waiting for first consumer to be created before binding
+36s         Normal    SuccessfulCreate        statefulset/mysql                          Create Pod mysql-0 in StatefulSet mysql successful
+36s         Normal    SuccessfulCreate        statefulset/mysql                          Create Claim mysql-data-mysql-0 Pod mysql-0 in StatefulSet mysql success
+36s         Normal    Provisioning            persistentvolumeclaim/mysql-data-mysql-0   External provisioner is provisioning volume for claim "video-player/mysql-data-mysql-0"
+33s         Normal    ExternalProvisioning    persistentvolumeclaim/mysql-data-mysql-0   Waiting for a volume to be created either by the external provisioner 'rancher.io/local-path' or manually by the system administrator. If volume creation is delayed, please verify that the provisioner is running and correctly registered.
+31s         Normal    ProvisioningSucceeded   persistentvolumeclaim/mysql-data-mysql-0   Successfully provisioned volume pvc-51c4eefa-d455-41f7-8dd5-ffe230aabe52
+31s         Normal    Scheduled               pod/mysql-0                                Successfully assigned video-player/mysql-0 to video-player-33379394312-1-control-plane
+30s         Normal    Started                 pod/mysql-0                                Container started
+30s         Normal    Created                 pod/mysql-0                                Container created
+30s         Normal    Pulled                  pod/mysql-0                                Container image "mysql:8.0" already present on machine and can be accessed by the pod
+25s         Warning   Unhealthy               pod/mysql-0                                Readiness probe failed: mysqladmin: [Warning] Using a password on the command line interface can be insecure.
+20s         Normal    SuccessfulCreate        job/db-migrate                             Created pod: db-migrate-rmq7c
+20s         Normal    Scheduled               pod/db-migrate-rmq7c                       Successfully assigned video-player/db-migrate-rmq7c to video-player-33379394312-1-control-plane
+19s         Normal    Created                 pod/db-migrate-rmq7c                       Container created
+19s         Normal    Pulled                  pod/db-migrate-rmq7c                       Container image "video-player/backend:c909875671a0f065df18183305bca6162211a660" already present on machine and can be accessed by the pod
+19s         Normal    Started                 pod/db-migrate-rmq7c                       Container started
+19s         Normal    Pulled                  pod/db-migrate-rmq7c                       Container image "video-player/backend:c909875671a0f065df18183305bca6162211a660" already present on machine and can be accessed by the pod
+19s         Normal    Created                 pod/db-migrate-rmq7c                       Container created
+19s         Normal    Started                 pod/db-migrate-rmq7c                       Container started
+14s         Normal    SuccessfulCreate        replicaset/backend-56bd8788cc              Created pod: backend-56bd8788cc-d6xh4
+14s         Normal    Scheduled               pod/backend-56bd8788cc-d6xh4               Successfully assigned video-player/backend-56bd8788cc-d6xh4 to video-player-33379394312-1-control-plane
+14s         Normal    Completed               job/db-migrate                             Job completed
+14s         Normal    ScalingReplicaSet       deployment/backend                         Scaled up replica set backend-56bd8788cc from 0 to 1
+13s         Normal    Started                 pod/backend-56bd8788cc-d6xh4               Container started
+13s         Normal    Created                 pod/backend-56bd8788cc-d6xh4               Container created
+13s         Normal    Pulled                  pod/backend-56bd8788cc-d6xh4               Container image "video-player/backend:c909875671a0f065df18183305bca6162211a660" already present on machine and can be accessed by the pod
+8s          Normal    ScalingReplicaSet       deployment/frontend                        Scaled up replica set frontend-d877c965c from 0 to 1
+8s          Normal    Scheduled               pod/frontend-d877c965c-mdbls               Successfully assigned video-player/frontend-d877c965c-mdbls to video-player-33379394312-1-control-plane
+8s          Normal    SuccessfulCreate        replicaset/frontend-d877c965c              Created pod: frontend-d877c965c-mdbls
+7s          Normal    Started                 pod/frontend-d877c965c-mdbls               Container started
+7s          Normal    Created                 pod/frontend-d877c965c-mdbls               Container created
+7s          Normal    Pulled                  pod/frontend-d877c965c-mdbls               Container image "video-player/frontend:c909875671a0f065df18183305bca6162211a660" already present on machine and can be accessed by the pod

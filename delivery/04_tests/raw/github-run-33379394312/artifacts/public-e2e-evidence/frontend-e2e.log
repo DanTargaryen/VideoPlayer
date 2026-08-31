@@ -1,0 +1,35 @@
+
+> video-player-workspace@0.1.0 dev:frontend
+> npm --workspace frontend run dev
+
+
+> frontend@0.1.0 dev
+> vite
+
+
+  [32m[1mVITE[22m v6.4.2[39m  [2mready in [0m[1m371[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://10.1.0.8:[1m5173[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://172.18.0.1:[1m5173[22m/[39m
+[2m9:48:13 AM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/v1/health[39m
+Error: connect ECONNREFUSED 127.0.0.1:3000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1638:16)
+[2m9:48:14 AM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/v1/health[39m
+Error: connect ECONNREFUSED 127.0.0.1:3000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1638:16)
+[2m9:48:15 AM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/v1/health[39m
+Error: connect ECONNREFUSED 127.0.0.1:3000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1638:16)
+[2m9:48:16 AM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/v1/health[39m
+Error: connect ECONNREFUSED 127.0.0.1:3000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1638:16)
+[2m9:48:17 AM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/v1/health[39m
+Error: connect ECONNREFUSED 127.0.0.1:3000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1638:16)
+[2m9:48:18 AM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/v1/health[39m
+Error: connect ECONNREFUSED 127.0.0.1:3000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1638:16)
+[2m9:48:19 AM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/v1/health[39m
+Error: connect ECONNREFUSED 127.0.0.1:3000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1638:16)
