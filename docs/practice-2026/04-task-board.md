@@ -51,15 +51,15 @@
 
 ## 4. 第二阶段已确认分工
 
-> ARCH-01 评审于 2026-08-27 完成，组长确认全员同意默认方案并确认本人承担 A。下表按角色 A-E 固化任务与 Review；真实姓名、可用时间和个人备份人仍由组长在管理表补录；逐项执行清单见 `12-second-stage-todo.md`。
+> ARCH-01 评审于 2026-08-27 完成，组长确认全员同意默认方案并确认本人承担 A。2026-08-31 用户提供成员表并授权按行顺序默认对齐 A–E；下表据此固化姓名、任务与 Review。个人可用时间、备份人和五人签字仍待补；逐项执行清单见 `12-second-stage-todo.md`。
 
 | 角色 | 主任务 | 第一批分支 | 第一批可验证产出 | 主 Reviewer | 截止 / 状态 |
 | --- | --- | --- | --- | --- | --- |
-| 组长 / A 平台与集成 | ARCH-01、MS-00、K8S-01 | `docs/ARCH-01-service-boundary-freeze`、`build/MS-00-microservice-scaffold` | 决策/owner/contract 已冻结；四服务公共目录、health/ready/version、服务 JWT、Docker/K8s/Jenkins 矩阵已验证 | 全员核对 ARCH-01；MS-00 由 Owner 自审留痕 | ARCH 已合并；MS-00 Done（PR #41） |
-| B 身份与社区 | MS-01 | `feature/MS-01-identity-community` + cutover PR | identity schema、用户摘要/通知、UC01/04、历史迁移、写切流和回滚 | C / Owner 留痕 | DONE；技术证据 PR #45/#49/#51 |
-| C 内容与媒体 | MS-02 | `feature/MS-02-content-media` + cutover PR | content schema、发现/上传/互动/发布、MinIO、历史迁移、写切流和回滚 | B / Owner 留痕 | DONE；技术证据 PR #43/#49/#52–#54 |
-| D 直播与礼物 | MS-03 | `feature/MS-03-live-reward` + cutover PR | 房间/Session/消息/观众/录播/账本、SRS、历史迁移、UC05 和回滚 | A / Owner 留痕 | DONE；技术证据 PR #46/#49/#55 |
-| E 治理、质量与文档 | MS-04、REG-01、DEL-01 | governance/REG/DEL 任务分支 | governance 审核/举报/补偿、UC06、REG 12/12；DEL 技术包 | D / Owner 留痕 | 技术 DONE；DEL 真人证据 PENDING |
+| 林明 / A 平台与集成 | ARCH-01、MS-00、K8S-01 | `docs/ARCH-01-service-boundary-freeze`、`build/MS-00-microservice-scaffold` | 决策/owner/contract 已冻结；四服务公共目录、health/ready/version、服务 JWT、Docker/K8s/Jenkins 矩阵已验证 | 全员核对 ARCH-01；E/王一涵核对平台证据；MS-00 Owner 自审留痕 | ARCH 已合并；MS-00 Done（PR #41） |
+| 刘钟屹 / B 身份与社区 | MS-01 | `feature/MS-01-identity-community` + cutover PR | identity schema、用户摘要/通知、UC01/04、历史迁移、写切流和回滚 | C/李晓萌 / Owner 留痕 | DONE；技术证据 PR #45/#49/#51 |
+| 李晓萌 / C 内容与媒体 | MS-02 | `feature/MS-02-content-media` + cutover PR | content schema、发现/上传/互动/发布、MinIO、历史迁移、写切流和回滚 | B/刘钟屹 / Owner 留痕 | DONE；技术证据 PR #43/#49/#52–#54 |
+| 张壮志 / D 直播与礼物 | MS-03 | `feature/MS-03-live-reward` + cutover PR | 房间/Session/消息/观众/录播/账本、SRS、历史迁移、UC05 和回滚 | A/林明 / Owner 留痕 | DONE；技术证据 PR #46/#49/#55 |
+| 王一涵 / E 治理、质量与文档 | MS-04、REG-01、DEL-01 | governance/REG/DEL 任务分支 | governance 审核/举报/补偿、UC06、REG 12/12；DEL 技术包 | D/张壮志 / Owner 留痕 | 技术 DONE；DEL 真人证据 PENDING |
 
 ### 4.1 依赖与合并顺序
 
@@ -74,12 +74,12 @@
 
 | 作者 | Reviewer | 必查边界 |
 | --- | --- | --- |
-| A | E | contract、CI、Secret、证据与回滚 |
-| B | C | 用户摘要、身份数据归属、content 依赖 |
-| C | B | 用户边界、通知调用、禁止直查 User |
-| D | A | SRS、K8s、持久化、录播与账本风险 |
-| E | D | 审核/举报补偿、目标状态应用、审计 |
-| 跨服务 Gateway | 组长 + 两侧 owner | 路由、兼容、timeout、fallback 和回滚 |
+| A / 林明 | E / 王一涵 | contract、CI、Secret、证据与回滚 |
+| B / 刘钟屹 | C / 李晓萌 | 用户摘要、身份数据归属、content 依赖 |
+| C / 李晓萌 | B / 刘钟屹 | 用户边界、通知调用、禁止直查 User |
+| D / 张壮志 | A / 林明 | SRS、K8s、持久化、录播与账本风险 |
+| E / 王一涵 | D / 张壮志 | 审核/举报补偿、目标状态应用、审计 |
+| 跨服务 Gateway | A/林明 + 两侧 owner | 路由、兼容、timeout、fallback 和回滚 |
 
 ## 5. 每日看板规则
 

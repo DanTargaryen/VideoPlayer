@@ -9,6 +9,7 @@
 - [Commit、PR、Review、push 和 merge 规范](../../docs/practice-2026/09-commit-pr-convention.md)
 - [唯一执行进度源](../../docs/practice-2026/00-progress.md)
 - [贡献与权重确认表](contribution-weight-confirmation.md)
+- [A–E 组员默认映射与证据边界](member-role-mapping.md)
 
 ## 当前缺失的真人原始证据
 
@@ -16,13 +17,13 @@
 | --- | --- | --- |
 | 教师/助教范围确认回复 | `NOT PROVIDED` | 组长提供可访问截图或链接 |
 | ARCH-01 参会/聊天/录屏 | `NOT PROVIDED` | 会议组织者导出原件 |
-| 五人 A–E 角色实名映射 | `NOT CONFIRMED` | 五名成员逐一确认 |
+| 五人 A–E 角色实名映射 | `DEFAULT MAPPING RECORDED` | 用户提供成员表并授权按行顺序映射；见 `member-role-mapping.md` |
 | 个人可用时间与备份人 | `NOT CONFIRMED` | 每名成员填写 |
 | 另一成员 README 复现 | `NOT RUN / NOT SIGNED` | 非作者成员实际执行 |
 | 贡献权重合计 100% | `NOT CONFIRMED` | 全员协商并填写 |
 | 五人签字与日期 | `NOT PROVIDED` | 五名成员本人签署 |
 
-这些材料不能根据 Git commit 数量、PR 作者或聊天摘要自动生成。若课程平台不允许把签字公开提交，应把原件上传到受限课程空间，并在本目录记录文件名、访问负责人、权限和 SHA-256；不要把不可访问的个人本机路径当作证据。
+A–E 默认姓名映射来自用户明确授权，不是从 Git commit 数量推断；但实际贡献、权重、个人签字、参会和可用时间仍不能从 PR 作者或聊天摘要自动生成。若课程平台不允许把签字公开提交，应把原件上传到受限课程空间，并在本目录记录文件名、访问负责人、权限和 SHA-256；不要把不可访问的个人本机路径当作证据。
 
 ## 非作者 clean-machine 复现记录模板
 

@@ -56,6 +56,10 @@ test('DEL-01 package is complete, linked, renderable, and honest about human evi
     path.join(deliveryRoot, '05_management', 'contribution-weight-confirmation.md'),
     'utf8',
   );
+  const memberMapping = fs.readFileSync(
+    path.join(deliveryRoot, '05_management', 'member-role-mapping.md'),
+    'utf8',
+  );
   const recording = fs.readFileSync(
     path.join(deliveryRoot, '06_defense', 'backup-recording-shot-list.md'),
     'utf8',
@@ -63,6 +67,17 @@ test('DEL-01 package is complete, linked, renderable, and honest about human evi
   const progress = fs.readFileSync(path.join(root, 'docs/practice-2026/00-progress.md'), 'utf8');
 
   assert.match(packageReadme, /HUMAN EVIDENCE PENDING/);
+  assert.match(memberMapping, /DEFAULT MAPPING AUTHORIZED BY USER/);
+  for (const [role, name, studentId] of [
+    ['A', '林明', '23375181'],
+    ['B', '刘钟屹', '23375291'],
+    ['C', '李晓萌', '24371422'],
+    ['D', '张壮志', '24371350'],
+    ['E', '王一涵', '24371063'],
+  ]) {
+    assert.match(memberMapping, new RegExp(`\\| ${role} \\| ${name} \\| ${studentId} \\|`));
+    assert.match(contribution, new RegExp(`\\| ${name} \\| ${studentId} \\| ${role}：`));
+  }
   assert.match(contribution, /PENDING HUMAN CONFIRMATION/);
   assert.match(contribution, /未签/);
   assert.match(recording, /RECORDING NOT PROVIDED/);
