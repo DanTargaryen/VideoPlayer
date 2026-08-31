@@ -6,6 +6,7 @@ resources:
   - configmap.yaml
   - services.yaml
   - content-minio.yaml
+  - hpa.yaml
 images:
   - name: video-player/identity-community
     newTag: local

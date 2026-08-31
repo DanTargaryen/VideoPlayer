@@ -106,7 +106,9 @@ docker image inspect "$governance_migration_image" >/dev/null
 images+=("$identity_migration_image" "$content_migration_image" "$live_migration_image" "$governance_migration_image")
 content_minio_image="minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e"
 docker image inspect "$content_minio_image" >/dev/null || docker pull "$content_minio_image"
-images+=("$content_minio_image")
+content_minio_local_image="video-player/content-minio:$IMAGE_TAG"
+docker tag "$content_minio_image" "$content_minio_local_image"
+images+=("$content_minio_local_image")
 
 if ! kind get clusters | grep -Fxq "$CLUSTER_NAME"; then
   echo "Kind cluster $CLUSTER_NAME does not exist; deploy the monolith baseline first." >&2
@@ -114,7 +116,15 @@ if ! kind get clusters | grep -Fxq "$CLUSTER_NAME"; then
 fi
 
 kubectl config use-context "kind-$CLUSTER_NAME" >/dev/null
-kind load docker-image "${images[@]}" --name "$CLUSTER_NAME"
+image_archive=$(mktemp "${TMPDIR:-/tmp}/videoplayer-microservice-images.XXXXXX.tar")
+trap 'rm -f "$image_archive"' EXIT
+for image in "${images[@]}"; do
+  docker save -o "$image_archive" "$image"
+  docker exec --privileged -i "$CLUSTER_NAME-control-plane" \
+    ctr --namespace=k8s.io images import --snapshotter=overlayfs - < "$image_archive"
+done
+rm -f "$image_archive"
+trap - EXIT
 
 kubectl apply -f "$ROOT_DIR/deploy/k8s/microservices/namespace.yaml"
 kubectl -n "$NAMESPACE" rollout status statefulset/mysql --timeout=240s
@@ -201,13 +211,18 @@ if grep -Fx 'video_player' <<<"$governance_database_list" >/dev/null || grep -Fx
 fi
 
 kubectl apply -k "$ROOT_DIR/deploy/k8s/microservices"
-kubectl -n "$NAMESPACE" rollout status statefulset/content-minio --timeout=180s
 kubectl -n "$NAMESPACE" patch configmap videoplayer-microservice-config \
   --type merge \
   -p "{\"data\":{\"GIT_SHA\":\"$IMAGE_TAG\"}}"
 
 for service in "${services[@]}"; do
   kubectl -n "$NAMESPACE" set image "deployment/$service" "$service=video-player/$service:$IMAGE_TAG"
+done
+kubectl -n "$NAMESPACE" set image statefulset/content-minio "minio=$content_minio_local_image"
+kubectl -n "$NAMESPACE" delete pod content-minio-0 --ignore-not-found --wait=true
+kubectl -n "$NAMESPACE" rollout status statefulset/content-minio --timeout=180s
+for service in "${services[@]}"; do
+  kubectl -n "$NAMESPACE" rollout restart "deployment/$service"
   kubectl -n "$NAMESPACE" rollout status "deployment/$service" --timeout=180s
 done
 

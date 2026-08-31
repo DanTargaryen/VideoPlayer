@@ -44,9 +44,9 @@
 | MS-04 | governance-ai | E | 9/1 | 审核/举报独立且不直查 content 表 | PR、contract/API report |
 | K8S-01 | 微服务自动部署 | A + 全员 | 9/1 | 相关服务自动部署；探针/版本/回滚 | YAML/Helm、run、rollback |
 | REG-01 | 全接口与全 UC 回归 | E + owner | 9/2 | 所有公开 API 和确认 UC 自动通过 | JUnit/HTML report |
-| EXP-01 | HPA 实验 | A + C | 9/2 | 压力升高扩容、下降缩容 | k6、Pod/metrics 时间线 |
-| EXP-02 | 故障处理实验 | D + A | 9/2 | 依赖故障降级，其他服务健康 | 故障脚本、日志、health |
-| PERF-01 | 单体/微服务性能对比 | A + C + E | 9/3 | 同机/同数据/同脚本，至少 3 次 | 原始数据、环境、分析 |
+| EXP-01 | HPA 实验 | A + C | 9/2 / DONE | 压力升高扩容、下降缩容 | `13-resilience-performance-experiments.md`；1→3→2→1 Pod/CPU 时间线 |
+| EXP-02 | 故障处理实验 | D + A | 9/2 / DONE | 依赖故障降级，其他服务健康 | `fault-experiment-probe.mjs`；MySQL/SRS/MinIO failure+recovery |
+| PERF-01 | 单体/微服务性能对比 | A + C + E | 9/3 / DONE | 同机/同数据/同脚本，至少 3 次 | `performance-compare.mjs`；3 轮原始值与聚合分析 |
 | DEL-01 | 交付与答辩 | E + 全员 | 9/3 | 六目录齐全、README 可复现、全员确认 | 交付包、PPT、录屏、签字 |
 
 ## 4. 第二阶段已确认分工
