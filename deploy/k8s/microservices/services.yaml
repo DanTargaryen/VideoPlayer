@@ -265,6 +265,11 @@ spec:
                 configMapKeyRef:
                   name: videoplayer-microservice-config
                   key: CONTENT_SERVICE_URL
+            - name: IDENTITY_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: videoplayer-microservice-config
+                  key: IDENTITY_SERVICE_URL
           readinessProbe:
             httpGet:
               path: /health/ready

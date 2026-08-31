@@ -1452,38 +1452,58 @@ class PrismaContentRepository implements ContentRepository {
     if (existing) {
       return sameReplay(existing, input) ? { ok: true as const, record: existing, replayed: true } : { ok: false as const, status: 409 as const, message: 'replay idempotency key conflicts with a different payload' };
     }
-    const sequenceClient = await this.client();
-    const videoId = await this.nextPublicId(sequenceClient, 'video');
-    const assetId = await this.nextPublicId(sequenceClient, 'asset');
-    await (await this.client()).$executeRawUnsafe(
-      "INSERT INTO `VideoCategory` (`id`, `code`, `name`, `sortOrder`) VALUES ('cat-live', 'live', 'Live Replay', 30) ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `sortOrder` = VALUES(`sortOrder`)",
-    );
-    await (await this.client()).$executeRawUnsafe(
-      "INSERT INTO `Video` (`id`, `creatorId`, `categoryId`, `title`, `description`, `status`, `playUrl`) VALUES (?, ?, 'cat-live', ?, 'Replay registered by live-reward internal API.', 'DRAFT', ?)",
-      videoId,
-      input.creatorId,
-      input.title,
-      `https://cdn.example.test/${input.objectKey}`,
-    );
+    let created: { videoId: string; assetId: string };
     try {
-      await (await this.client()).$executeRawUnsafe(
-        "INSERT INTO `VideoAsset` (`id`, `videoId`, `kind`, `bucket`, `objectKey`, `requestId`, `mimeType`, `url`) VALUES (?, ?, 'REPLAY', 'videoplayer-content', ?, ?, ?, ?)",
-        assetId,
-        videoId,
-        input.objectKey,
-        input.requestId,
-        input.mimeType,
-        `https://cdn.example.test/${input.objectKey}`,
-      );
+      created = await (await this.client()).$transaction(async (transaction) => {
+        const uploaded = await transaction.$queryRawUnsafe<Array<{ id: string; videoId: string | null; mimeType: string; url: string }>>(
+          'SELECT id, videoId, mimeType, url FROM `VideoAsset` WHERE objectKey = ? LIMIT 1 FOR UPDATE',
+          input.objectKey,
+        );
+        const upload = uploaded[0];
+        if (upload?.videoId) throw new Error('replay object is already attached to content');
+        if (upload && upload.mimeType !== input.mimeType) throw new Error('replay object MIME type conflicts with uploaded asset');
+        const videoId = await this.nextPublicId(transaction, 'video');
+        const assetId = upload?.id ?? await this.nextPublicId(transaction, 'asset');
+        const playUrl = upload?.url ?? `https://cdn.example.test/${input.objectKey}`;
+        await transaction.$executeRawUnsafe(
+          "INSERT INTO `VideoCategory` (`id`, `code`, `name`, `sortOrder`) VALUES ('cat-live', 'live', 'Live Replay', 30) ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `sortOrder` = VALUES(`sortOrder`)",
+        );
+        await transaction.$executeRawUnsafe(
+          "INSERT INTO `Video` (`id`, `creatorId`, `categoryId`, `title`, `description`, `status`, `playUrl`) VALUES (?, ?, 'cat-live', ?, 'Replay registered by live-reward internal API.', 'DRAFT', ?)",
+          videoId,
+          input.creatorId,
+          input.title,
+          playUrl,
+        );
+        if (upload) {
+          const updated = await transaction.$executeRawUnsafe(
+            "UPDATE `VideoAsset` SET videoId = ?, kind = 'REPLAY', requestId = ?, updatedAt = NOW(3) WHERE id = ? AND videoId IS NULL",
+            videoId,
+            input.requestId,
+            assetId,
+          );
+          if (updated !== 1) throw new Error('replay upload attachment changed concurrently');
+        } else {
+          await transaction.$executeRawUnsafe(
+            "INSERT INTO `VideoAsset` (`id`, `videoId`, `kind`, `bucket`, `objectKey`, `requestId`, `mimeType`, `url`) VALUES (?, ?, 'REPLAY', 'videoplayer-content', ?, ?, ?, ?)",
+            assetId,
+            videoId,
+            input.objectKey,
+            input.requestId,
+            input.mimeType,
+            playUrl,
+          );
+        }
+        return { videoId, assetId };
+      });
     } catch {
-      await (await this.client()).$executeRawUnsafe('DELETE FROM `Video` WHERE id = ?', videoId);
       const replay = await this.findReplay(input.requestId, input.objectKey);
       if (replay) {
         return sameReplay(replay, input) ? { ok: true as const, record: replay, replayed: true } : { ok: false as const, status: 409 as const, message: 'replay idempotency key conflicts with a different payload' };
       }
       throw new Error('failed to register replay content asset');
     }
-    return { ok: true as const, record: { ...input, contentVideoId: videoId, assetId }, replayed: false };
+    return { ok: true as const, record: { ...input, contentVideoId: created.videoId, assetId: created.assetId }, replayed: false };
   }
 
   async batchSummary(ids: string[]) {

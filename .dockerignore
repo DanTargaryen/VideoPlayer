@@ -1,5 +1,6 @@
 .git
 .github
+.codex-run
 .DS_Store
 .env
 .env.*

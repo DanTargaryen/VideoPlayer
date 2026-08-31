@@ -50,6 +50,12 @@ describe('gateway scaffold', () => {
     expect(resolveUpstream('/api/v1/videos/1/coin', value, 'POST')).toBe('http://live:3000');
     expect(resolveUpstreamName('/api/v1/videos/1/coin', value, 'POST')).toBe('live-reward');
     expect(resolveUpstream('/api/v1/lives/rooms', value)).toBe('http://live:3000');
+    for (const path of ['/api/v1/lives/center/overview', '/api/v1/lives/plaza', '/api/v1/lives/hot', '/api/v1/lives/categories', '/api/v1/lives/rooms/1/frame', '/api/v1/lives/rooms/1/events', '/api/v1/lives/rooms/1/publisher/pending-viewers', '/api/v1/lives/rooms/1/viewers/viewer-1/answer']) {
+      expect(resolveUpstreamName(path, value)).toBe('live-reward');
+    }
+    for (const path of ['/api/v1/lives/rooms/1/frame', '/api/v1/lives/rooms/1/viewers/viewer-1/offer', '/api/v1/lives/rooms/1/viewers/viewer-1/answer']) {
+      expect(resolveUpstreamName(path, value, 'POST')).toBe('live-reward');
+    }
     expect(resolveUpstream('/api/v1/reports', value, 'POST')).toBe('http://governance:3000');
     expect(resolveUpstreamName('/api/v1/reports', value, 'POST')).toBe('governance-ai');
     expect(resolveUpstream('/api/v1/feed/sidebar/live', value)).toBe(value.monolithBaseUrl);
@@ -294,6 +300,20 @@ describe('gateway scaffold', () => {
       expect(response.headers.get('x-gateway-upstream')).toBe('live-reward');
     }
     expect(monolithWrites).toBe(0);
+  });
+
+  it('survives a client disconnect after streaming response headers', async () => {
+    const live = await listen(createServer((_request, response) => {
+      response.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' });
+      response.write('event: snapshot\ndata: {}\n\n');
+    }));
+    const gateway = await listen(createGatewayServer(config({ routeMode: 'services', liveBaseUrl: live })));
+    const stream = await fetch(`${gateway}/api/v1/lives/rooms/1/events`);
+    expect(stream.status).toBe(200);
+    expect(stream.headers.get('x-gateway-upstream')).toBe('live-reward');
+    await stream.body?.cancel();
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect((await fetch(`${gateway}/health/ready`)).status).toBe(200);
   });
 
   it('forwards a verified role to governance and strips forged identity headers', async () => {

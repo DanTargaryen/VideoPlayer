@@ -1,6 +1,6 @@
 # 第二阶段微服务执行 TODO
 
-> 状态：`MS-00 / MS-01 / MS-02 / MS-03 / MS-04 / MS-DOD / MS-CUTOVER-READ / MS-CUTOVER-IDENTITY / MS-CUTOVER-CONTENT-DATA / MS-CUTOVER-CONTENT-INTERACTIONS / MS-CUTOVER-CONTENT-PUBLISHING DONE / REG-01 UC06 DONE`
+> 状态：`MS-00 / MS-01 / MS-02 / MS-03 / MS-04 / MS-DOD / MS-CUTOVER-READ / MS-CUTOVER-IDENTITY / MS-CUTOVER-CONTENT-DATA / MS-CUTOVER-CONTENT-INTERACTIONS / MS-CUTOVER-CONTENT-PUBLISHING / MS-CUTOVER-LIVE-GOVERNANCE DONE / REG-01 UC06 DONE`
 >
 > 冻结基线：`monolith-start` / `main@70d197dc1a1f6febfdc7dcb12d8661384ad5d31e`。
 >
@@ -18,8 +18,8 @@
 - [x] B/C/D/E 从包含 MS-00 的最新 `main` 创建各自 foundation 分支。
 - [x] 四个 foundation 服务均可独立安装、lint、build、test、构建镜像和返回 health/version。
 - [x] identity/content 只读路由完成并保留单体 fallback。
-- [x] identity/content 第一批读写切流和历史迁移完成；live/governance 写切流仍待完成。
-- [ ] identity/content/live/governance 写流量按顺序切换并保留回滚路径。
+- [x] identity/content/live/governance 历史迁移和分阶段读写切流完成；单体表仍保留。
+- [x] identity/content/live/governance 写流量按顺序切换并保留回滚路径。
 - [ ] REG-01 在微服务 Gateway 上完成全部公开 API 和 UC01–UC06 回归。
 
 冻结执行顺序：
@@ -446,9 +446,11 @@ services/<service>/
 - [x] clean `npm ci`；完整 `test:ci` 207/207；live 18/18；Gateway 6/6。
 - [x] 真实双 MySQL + content/live + MinIO + SRS 回放/账本联调、标准 Compose 三 schema 隔离/重启、隔离 Kind migration/Pod replacement/PVC 全部 PASS。
 - [x] migration target guard、Prisma 6.9 pin、Docker CA/有限重试、跨 builder/architecture image load 已验证。
-- [ ] 生产切流、单体历史迁移和完整 UC05 微服务浏览器回归：`BLOCKED/NOT RUN`，作为后续独立 Gate。
+- [x] 单体历史迁移、隔离 services-mode 写切流/rollback 和完整 UC05 微服务浏览器回归；共享生产环境变更不在本地验收授权范围内，未冒充执行。
 
-当前剩余门禁：Gateway 生产写流量切换与 rollback 需要 A/平台提供部署权限和切换窗口；完整 UC05 微服务浏览器回归需要前端/C 侧提供与 live-reward 一致的录播上传、回放 URL/metadata 展示 contract。单体 UC05 历史回归已有 PASS，但不能替代本分支微服务 Gateway 目标环境的回归证据；在依赖补齐前保持 `BLOCKED`。
+后续切流验收（2026-08-31）：`scripts/live-cutover-migrate.mjs` 将 User.coinBalance、DailyCoinClaim、StreakMilestoneClaim、VideoCoinContribution 和 CoinTransaction 迁入 live owner 库；`scripts/governance-cutover-migrate.mjs` 将 VideoReview、CommentAiTask、ReportRecord 迁入 governance，并重建 ModerationDecision。两工具均要求显式确认、拒绝同源目标、对非 test 目标要求精确授权，使用唯一键预检、`skipDuplicates` 和逐表全量比较支持安全重跑。最终非空真实 MySQL 样本包含 ID 10/12 并连续执行两次：live 为 6/1/1/1/3 行，governance 为 3/1/2/4 行，全部逐行一致。
+
+标准 Compose 在四个独立 MySQL、MinIO 和真实 Gateway 上完成 services-mode 浏览器 2/2（admin + UC05）、live 房间/Session/兼容帧/观众信令/弹幕/账本/录播转稿件、live 重启持久化、governance UC06，以及 identity → content → live → governance 分阶段写 allowlist 和最终 `GATEWAY_ROUTE_MODE=monolith` rollback。期间修复了已上传 REPLAY asset 再登记时的唯一键冲突、Gateway SSE 客户端断连后重复写响应头导致进程退出、identity 重启登录探针使旧 token 失效，以及 Docker context 未排除 `.codex-run` 的问题。单体 owner 表未删除、单体写入口未停止。
 
 ## 7. E（治理、质量与文档）TODO
 
@@ -590,13 +592,15 @@ E 验收证据（2026-08-29，基于 `origin/main@933ccac`）：完成 governanc
 
 - [x] identity 登录/资料/关注写流量切换。
 - [x] content 上传/投稿/互动写流量切换（VideoAi 写按冻结决策继续留单体）。
-- [ ] live 房间/Session/消息/回放/账本写流量切换。
-- [ ] governance 审核/举报/处置写流量切换。
-- [ ] 每一步切换前完成迁移、行数/唯一约束/抽样校验。
-- [ ] 每一步切换后执行对应 UC，并演练 Gateway 切回单体。
-- [ ] REG-01 全部通过前不停止单体写入、不删除单体表。
+- [x] live 房间/Session/消息/回放/账本写流量切换。
+- [x] governance 审核/举报/处置写流量切换。
+- [x] 每一步切换前完成迁移、行数/唯一约束/全量校验。
+- [x] 每一步切换后执行对应 UC，并演练 Gateway 切回单体。
+- [x] REG-01 全部通过前不停止单体写入、不删除单体表。
 
 identity 统一复验（2026-08-31）：Kind 正式 schema migration 后，双 Prisma cutover 工具执行两次幂等迁移并逐表全量比较，User 8/8、Profile 1/1、Follow 5/5；Compose `writeCutover=identity-community` 下注册/登录/资料/关注/动态写 PASS，未实现与其他域写请求保持 monolith，最终 rollback 与资源清理 PASS。单体 identity 表仍保留。
+
+live/governance 统一复验（2026-08-31）：完整 `test:ci` 277/277；含 ID 10/12 的真实 MySQL 双跑迁移 live 6/1/1/1/3、governance 3/1/2/4；Gateway 13/13（含 SSE 断连存活）；live 18/18；content 34/34。标准 Compose browser 2/2、UC05 API smoke、UC06、服务重启、四库账号隔离、分阶段 allowlist 和 monolith rollback 全部 PASS；容器、volumes、端口与专用迁移数据库清理 PASS。
 
 ## 11. A（组长）每日检查清单
 

@@ -8,6 +8,8 @@ import { createStore, IdempotencyConflictError, type MessageRecord, type ReplayR
 type User = { id: number; nickname: string };
 type SrsExchange = { type: 'offer' | 'answer'; sdp: string };
 type SrsResponse = { type: 'answer'; sdp: string; sessionId: string | null; server: string | null };
+type UserSummary = { id: number; nickname: string; avatarUrl: string | null };
+type ViewerSignal = { viewerId: string; offer: SrsExchange | null; answer: SrsExchange | null; updatedAt: string };
 
 export interface SrsClient {
   probe(): Promise<void>;
@@ -18,10 +20,16 @@ export interface ReplayClient {
   register(input: { sessionId: number; objectKey: string; mimeType: string | null; requestId: string; creatorId: string; title: string }): Promise<{ contentVideoId: string }>;
 }
 
+export interface IdentityClient {
+  batchSummary(userIds: number[], requestId: string): Promise<Map<number, UserSummary>>;
+  followingIds(userId: number, requestId: string): Promise<number[]>;
+}
+
 export interface LiveAppOptions {
   store?: Store;
   srs?: SrsClient;
   replayClient?: ReplayClient;
+  identityClient?: IdentityClient;
   now?: () => Date;
 }
 
@@ -88,14 +96,52 @@ export class ContentReplayClient implements ReplayClient {
   }
 }
 
+export class HttpIdentityClient implements IdentityClient {
+  constructor(private readonly baseUrl: string, private readonly secret: string, private readonly timeoutMs = 1000) {}
+
+  async batchSummary(userIds: number[], requestId: string): Promise<Map<number, UserSummary>> {
+    if (!userIds.length) return new Map();
+    const token = issueServiceToken({ caller: 'live-reward', audience: 'identity-community', scopes: ['internal:user-summary'], secret: this.secret, requestId });
+    const response = await fetch(`${this.baseUrl}/internal/v1/users/batch-summary`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json', 'x-request-id': requestId },
+      body: JSON.stringify({ userIds }),
+      signal: AbortSignal.timeout(this.timeoutMs),
+    });
+    if (!response.ok) throw new Error(`identity batch-summary returned ${response.status}`);
+    const payload = await response.json() as { data?: { items?: Array<{ id?: unknown; nickname?: unknown; avatarUrl?: unknown }> } };
+    const items = Array.isArray(payload.data?.items) ? payload.data.items : [];
+    return new Map(items.flatMap((item) => {
+      const id = Number(item.id);
+      if (!Number.isSafeInteger(id) || id < 1 || typeof item.nickname !== 'string') return [];
+      return [[id, { id, nickname: item.nickname, avatarUrl: typeof item.avatarUrl === 'string' ? item.avatarUrl : null }] as const];
+    }));
+  }
+
+  async followingIds(userId: number, requestId: string): Promise<number[]> {
+    const response = await fetch(`${this.baseUrl}/api/v1/users/${userId}/following`, {
+      headers: { 'x-request-id': requestId },
+      signal: AbortSignal.timeout(this.timeoutMs),
+    });
+    if (!response.ok) throw new Error(`identity following returned ${response.status}`);
+    const payload = await response.json() as { data?: Array<{ id?: unknown }> };
+    return (Array.isArray(payload.data) ? payload.data : []).map((item) => Number(item.id)).filter((id) => Number.isSafeInteger(id) && id > 0);
+  }
+}
+
 export class LiveApplication {
   readonly store: Store;
   private readonly srs: SrsClient;
   private readonly replayClient: ReplayClient;
+  private readonly identityClient: IdentityClient;
   private readonly now: () => Date;
   private readonly srsRequired: boolean;
   private readonly runtimeConfigured: boolean;
   private readonly viewerIds = new Map<number, Set<string>>();
+  private readonly viewerSignals = new Map<number, Map<string, ViewerSignal>>();
+  private readonly frames = new Map<number, { image: string; updatedAt: string }>();
+  private readonly roomSubscribers = new Map<number, Set<ServerResponse>>();
+  private readonly broadcasterCache = new Map<number, UserSummary>();
 
   constructor(options: LiveAppOptions = {}) {
     this.runtimeConfigured = Boolean(options.store) || Boolean(process.env.LIVE_REWARD_DATABASE_URL?.trim());
@@ -103,6 +149,7 @@ export class LiveApplication {
     this.srs = options.srs ?? buildSrsClient();
     this.srsRequired = Boolean(options.srs) || this.isSrsConfigured();
     this.replayClient = options.replayClient ?? buildReplayClient();
+    this.identityClient = options.identityClient ?? buildIdentityClient();
     this.now = options.now ?? (() => new Date());
   }
 
@@ -115,7 +162,8 @@ export class LiveApplication {
     const roomId = randomUUID().replaceAll('-', '').slice(0, 20);
     const streamKey = `room-${roomId}`;
     const room = await this.store.createRoom({ broadcasterId: user.id, title: title.slice(0, 128), category: input.category?.trim() || 'live', coverUrl: input.coverUrl?.trim() || null, sourceMode: input.sourceMode ?? 'camera', streamKey, rtmpUrl: `${baseUrl('SRS_RTMP_BASE', 'rtmp://127.0.0.1/live')}/${streamKey}`, playUrl: `${baseUrl('SRS_PLAY_BASE', 'http://127.0.0.1:8080/live')}/${streamKey}.flv`, status: 'IDLE' });
-    return serializeRoom(room, 0, null);
+    this.broadcasterCache.set(user.id, { id: user.id, nickname: user.nickname, avatarUrl: null });
+    return this.serializeRoom(room, 0, null, this.broadcasterCache);
   }
 
   async listRooms(query: { status?: string; category?: string; broadcasterId?: number; keyword?: string; limit?: number }) {
@@ -124,12 +172,60 @@ export class LiveApplication {
     rooms = rooms.filter((room) => (!query.status || room.status === query.status) && (!query.category || room.category === query.category) && (!query.broadcasterId || room.broadcasterId === query.broadcasterId) && (!keyword || `${room.title} ${room.category}`.toLowerCase().includes(keyword)));
     rooms.sort((a, b) => statusOrder(a.status) - statusOrder(b.status) || b.createdAt.getTime() - a.createdAt.getTime());
     const limit = clampLimit(query.limit);
-    return Promise.all(rooms.slice(0, limit).map(async (room) => serializeRoom(room, await this.activeViewerCount(room.id), await this.latestSession(room.id))));
+    return this.serializeRooms(rooms.slice(0, limit));
   }
 
   async getRoom(id: number) {
     const room = await this.requireRoom(id);
-    return serializeRoom(room, await this.activeViewerCount(id), await this.latestSession(id));
+    return (await this.serializeRooms([room]))[0]!;
+  }
+
+  liveCategories() {
+    return [
+      { code: 'all', label: '全部' }, { code: 'following', label: '关注' }, { code: 'study', label: '学习' },
+      { code: 'game', label: '游戏' }, { code: 'tech', label: '科技' }, { code: 'life', label: '生活' },
+      { code: 'entertainment', label: '娱乐' }, { code: 'chat', label: '聊天' }, { code: 'beauty', label: '颜值' },
+    ];
+  }
+
+  async centerOverview(user?: User) {
+    const rooms = await this.store.listRooms();
+    const myRooms = user ? rooms.filter((room) => room.broadcasterId === user.id) : [];
+    const myRoom = myRooms.sort((left, right) => statusOrder(left.status) - statusOrder(right.status) || right.updatedAt.getTime() - left.updatedAt.getTime())[0];
+    const dayStart = startOfDay(this.now()).getTime();
+    const todayViewerCount = (await Promise.all(rooms.filter((room) => room.createdAt.getTime() >= dayStart).map((room) => this.activeViewerCount(room.id)))).reduce((sum, count) => sum + count, 0);
+    return {
+      metrics: {
+        livingRoomCount: rooms.filter((room) => room.status === 'LIVING').length,
+        myLivingRoomCount: myRooms.filter((room) => room.status === 'LIVING').length,
+        identity: { label: user ? '主播' : '游客', description: user ? '已认证' : '未登录' },
+        todayViewerCount,
+      },
+      myRoom: myRoom ? (await this.serializeRooms([myRoom]))[0]! : null,
+      categories: this.liveCategories(),
+      tips: ['保持网络稳定，推荐使用有线网络', '开播前检查摄像头和麦克风', '标题越清晰，越容易被观众发现', '遵守平台规则，营造良好直播环境'],
+    };
+  }
+
+  async plaza(query: { category?: string; keyword?: string; limit?: number }, user?: User) {
+    const category = query.category?.trim() || 'all';
+    let following = new Set<number>();
+    if (category === 'following' && user) {
+      try { following = new Set(await this.identityClient.followingIds(user.id, randomUUID())); } catch { following = new Set(); }
+    }
+    const keyword = query.keyword?.trim().toLowerCase();
+    const rooms = (await this.store.listRooms()).filter((room) => room.status === 'LIVING')
+      .filter((room) => category === 'all' || (category === 'following' ? following.has(room.broadcasterId) : room.category === category))
+      .filter((room) => !keyword || `${room.title} ${room.category}`.toLowerCase().includes(keyword))
+      .sort((left, right) => right.updatedAt.getTime() - left.updatedAt.getTime());
+    return { list: await this.serializeRooms(rooms.slice(0, clampLimit(query.limit))), total: rooms.length, categories: this.liveCategories() };
+  }
+
+  async hot(limit?: number) {
+    const rooms = (await this.store.listRooms()).filter((room) => room.status === 'LIVING');
+    const ranked = await Promise.all(rooms.map(async (room) => ({ room, viewers: await this.activeViewerCount(room.id) })));
+    ranked.sort((left, right) => right.viewers - left.viewers || right.room.updatedAt.getTime() - left.room.updatedAt.getTime());
+    return { list: await this.serializeRooms(ranked.slice(0, clampLimit(limit ?? 8)).map((item) => item.room)) };
   }
 
   async startRoom(id: number, user: User) {
@@ -140,7 +236,9 @@ export class LiveApplication {
     await this.store.updateRoom(id, { status: 'LIVING', updatedAt: this.now() });
     this.viewerIds.set(session.id, new Set());
     await this.store.addMessage({ sessionId: session.id, senderId: null, kind: 'SYSTEM', content: '直播已开始' });
-    return { roomId: id, sessionId: session.id, status: 'LIVING' };
+    const result = { roomId: id, sessionId: session.id, status: 'LIVING' as const };
+    await this.emitRoom(id, 'session', await this.getSession(session.id));
+    return result;
   }
 
   async stopRoom(id: number, user: User) {
@@ -152,13 +250,28 @@ export class LiveApplication {
     await this.store.updateRoom(id, { status: 'ENDED', updatedAt: endedAt });
     await this.store.addMessage({ sessionId: session.id, senderId: null, kind: 'SYSTEM', content: '直播已结束' });
     this.viewerIds.delete(session.id);
-    return { roomId: id, sessionId: session.id, status: 'ENDED', replayStatus: 'PENDING' };
+    this.viewerSignals.delete(session.id);
+    this.frames.delete(id);
+    const result = { roomId: id, sessionId: session.id, status: 'ENDED' as const, replayStatus: 'PENDING' as const };
+    await this.emitRoom(id, 'session', await this.getSession(session.id));
+    return result;
   }
 
   async getSession(id: number) {
-    const session = await this.store.getSession(id);
+    let session = await this.store.getSession(id);
+    if (!session) session = await this.store.getLatestSession(id);
     if (!session) throw new HttpError(404, 'Live session not found', 404);
-    return { ...session, startedAt: session.startedAt.toISOString(), endedAt: session.endedAt?.toISOString() ?? null, viewerCount: await this.activeViewerCountBySession(id), replay: await this.store.getReplayBySession(id) };
+    const room = await this.requireRoom(session.roomId);
+    const replay = await this.store.getReplayBySession(session.id);
+    const summary = await this.userSummaries([room.broadcasterId]);
+    const broadcaster = summary.get(room.broadcasterId) ?? fallbackUser(room.broadcasterId);
+    return {
+      id: session.id, roomId: session.roomId, title: room.title, status: session.status, playUrl: room.playUrl,
+      coverUrl: room.coverUrl, sourceMode: room.sourceMode, viewerCount: await this.activeViewerCountBySession(session.id),
+      startedAt: session.startedAt.toISOString(), endedAt: session.endedAt?.toISOString() ?? null,
+      replayStatus: session.replayStatus, replayUrl: replay ? mediaObjectUrl(replay.objectKey) : null,
+      replayVideoId: numericExternalId(replay?.contentVideoId), replay: replay ? serializeReplay(replay) : null, broadcaster,
+    };
   }
 
   async addViewer(roomId: number, viewerId?: string) {
@@ -168,7 +281,11 @@ export class LiveApplication {
     const id = viewerId?.trim().slice(0, 128) || randomUUID();
     const viewers = this.viewerIds.get(session.id) ?? new Set(await this.store.listActiveViewers(session.id));
     viewers.add(id); this.viewerIds.set(session.id, viewers);
+    const signals = this.viewerSignals.get(session.id) ?? new Map<string, ViewerSignal>();
+    signals.set(id, { viewerId: id, offer: null, answer: null, updatedAt: this.now().toISOString() });
+    this.viewerSignals.set(session.id, signals);
     await this.store.addViewerEvent({ sessionId: session.id, viewerId: id, eventType: 'JOIN' });
+    await this.emitRoom(roomId, 'session', await this.getSession(session.id));
     return { roomId, sessionId: session.id, viewerId: id, status: room.status };
   }
 
@@ -177,21 +294,81 @@ export class LiveApplication {
     const viewers = this.viewerIds.get(session.id) ?? new Set(await this.store.listActiveViewers(session.id));
     if (!viewers?.has(viewerId)) throw new HttpError(404, 'Viewer not found', 404);
     viewers.delete(viewerId);
+    this.viewerSignals.get(session.id)?.delete(viewerId);
     await this.store.addViewerEvent({ sessionId: session.id, viewerId, eventType: 'LEAVE' });
+    await this.emitRoom(roomId, 'session', await this.getSession(session.id));
     return { roomId, viewerId, removed: true };
   }
 
-  async listMessages(roomId: number) { const session = await this.latestSession(roomId); return session ? (await this.store.listMessages(session.id, 100)).map(serializeMessage) : []; }
+  async listMessages(roomId: number) {
+    const session = await this.latestSession(roomId);
+    if (!session) return [];
+    const messages = await this.store.listMessages(session.id, 100);
+    const summaries = await this.userSummaries(messages.flatMap((message) => message.senderId === null ? [] : [message.senderId]));
+    return messages.map((message) => serializeMessage(message, roomId, summaries));
+  }
   async createMessage(roomId: number, user: User, content: string) {
     const session = await this.requireActiveSession(roomId);
     const value = content?.trim(); if (!value) throw new HttpError(400, 'Message content is required', 400);
-    return serializeMessage(await this.store.addMessage({ sessionId: session.id, senderId: user.id, kind: 'CHAT', content: value.slice(0, 200) }));
+    this.broadcasterCache.set(user.id, { id: user.id, nickname: user.nickname, avatarUrl: null });
+    const message = serializeMessage(
+      await this.store.addMessage({ sessionId: session.id, senderId: user.id, kind: 'CHAT', content: value.slice(0, 200) }),
+      roomId,
+      new Map([[user.id, { id: user.id, nickname: user.nickname, avatarUrl: null }]]),
+    );
+    await this.emitRoom(roomId, 'chat-message', message);
+    return message;
+  }
+
+  async getFrame(roomId: number) {
+    await this.requireRoom(roomId);
+    const frame = this.frames.get(roomId);
+    return frame ?? { image: null, updatedAt: null };
+  }
+
+  async updateFrame(roomId: number, user: User, image: string) {
+    const room = await this.requireOwnedRoom(roomId, user.id);
+    if (room.status !== 'LIVING') throw new HttpError(409, 'Live room is not active', 409);
+    const value = image?.trim();
+    if (!value || !value.startsWith('data:image/') || value.length > 2_000_000) throw new HttpError(400, 'A valid frame image is required', 400);
+    const frame = { image: value, updatedAt: this.now().toISOString() };
+    this.frames.set(roomId, frame);
+    await this.emitRoom(roomId, 'frame', frame);
+    return frame;
+  }
+
+  async submitViewerOffer(roomId: number, viewerId: string, offer: SrsExchange) {
+    const session = await this.requireActiveSession(roomId);
+    const signal = this.requireViewerSignal(session.id, viewerId);
+    signal.offer = offer; signal.answer = null; signal.updatedAt = this.now().toISOString();
+    return { roomId, viewerId, received: true };
+  }
+
+  async pendingViewers(roomId: number, user: User) {
+    await this.requireOwnedRoom(roomId, user.id);
+    const session = await this.requireActiveSession(roomId);
+    return [...(this.viewerSignals.get(session.id)?.values() ?? [])].filter((signal) => signal.offer && !signal.answer)
+      .map((signal) => ({ viewerId: signal.viewerId, offer: signal.offer!, updatedAt: signal.updatedAt }));
+  }
+
+  async submitViewerAnswer(roomId: number, viewerId: string, user: User, answer: SrsExchange) {
+    await this.requireOwnedRoom(roomId, user.id);
+    const session = await this.requireActiveSession(roomId);
+    const signal = this.requireViewerSignal(session.id, viewerId);
+    signal.answer = answer; signal.updatedAt = this.now().toISOString();
+    return { roomId, viewerId, delivered: true };
+  }
+
+  async viewerAnswer(roomId: number, viewerId: string) {
+    const session = await this.requireActiveSession(roomId);
+    const signal = this.requireViewerSignal(session.id, viewerId);
+    return { ready: Boolean(signal.answer), answer: signal.answer, updatedAt: signal.updatedAt };
   }
 
   async publish(roomId: number, user: User, offer: SrsExchange) { const room = await this.requireOwnedRoom(roomId, user.id); if (room.status !== 'LIVING') throw new HttpError(409, 'Start the room before publishing', 409); return this.srs.exchange('publish', room.streamKey, offer); }
   async play(roomId: number, offer: SrsExchange) { const room = await this.requireRoom(roomId); if (room.status !== 'LIVING') throw new HttpError(409, 'Live room is not active', 409); return this.srs.exchange('play', room.streamKey, offer); }
 
-  async registerReplay(roomId: number, user: User, input: { objectKey: string; mimeType?: string; requestId?: string }) {
+  async registerReplay(roomId: number, user: User, input: { objectKey: string; mimeType?: string; requestId?: string; title?: string }) {
     const room = await this.requireOwnedRoom(roomId, user.id);
     const session = await this.latestSession(room.id);
     if (!session || session.status !== 'ENDED') throw new HttpError(409, 'Replay can be registered after the session ends', 409);
@@ -205,7 +382,18 @@ export class LiveApplication {
       if (error instanceof IdempotencyConflictError) throw new HttpError(409, error.message, 409);
       throw error;
     }
-    return this.attemptReplay(replay, room);
+    return this.attemptReplay(replay, room, input.title);
+  }
+
+  async saveReplay(roomId: number, user: User, input: { objectKey: string; mimeType?: string; requestId?: string; title?: string; saveMode?: string }) {
+    const replay = await this.registerReplay(roomId, user, input);
+    return {
+      roomId,
+      replayUrl: mediaObjectUrl(input.objectKey),
+      replayVideoId: numericExternalId(replay.contentVideoId),
+      saveMode: input.saveMode === 'REPLAY' ? 'REPLAY' : 'UPLOAD',
+      registration: replay,
+    };
   }
 
   async retryReplay(id: number) {
@@ -221,16 +409,44 @@ export class LiveApplication {
   async coinVideo(userId: number, videoId: string | number, amount: number, requestId: string) { const externalVideoId = String(videoId).trim(); if (!externalVideoId || externalVideoId.length > 191) throw new HttpError(400, 'videoId is invalid', 400); if (!Number.isInteger(amount) || amount < 1 || amount > 2) throw new HttpError(400, '投币数量必须是 1 到 2 的整数', 400); try { return await this.store.coinVideo(userId, externalVideoId, amount, requestId); } catch (error) { throw ledgerError(error); } }
   async gift(userId: number, amount: number, requestId: string) { if (!Number.isInteger(amount) || amount < 1 || amount > 100) throw new HttpError(400, '礼物数量必须是 1 到 100 的整数', 400); try { return await this.store.gift(userId, amount, requestId); } catch (error) { throw ledgerError(error); } }
 
-  private async attemptReplay(replay: ReplayRecord, roomHint?: RoomRecord) {
+  subscribeRoom(roomId: number, response: ServerResponse) {
+    const subscribers = this.roomSubscribers.get(roomId) ?? new Set<ServerResponse>();
+    subscribers.add(response); this.roomSubscribers.set(roomId, subscribers);
+    response.writeHead(200, {
+      'content-type': 'text/event-stream; charset=utf-8',
+      'cache-control': 'no-cache, no-transform',
+      connection: 'keep-alive',
+      'x-accel-buffering': 'no',
+    });
+    response.flushHeaders();
+    void Promise.all([this.getSession(roomId), this.listMessages(roomId)]).then(([session, messages]) => {
+      if (!response.destroyed) writeSse(response, 'snapshot', { session, messages });
+    }).catch(() => response.end());
+    const heartbeat = setInterval(() => { if (!response.destroyed) response.write(': heartbeat\n\n'); }, 15_000);
+    response.on('close', () => {
+      clearInterval(heartbeat);
+      subscribers.delete(response);
+      if (!subscribers.size) this.roomSubscribers.delete(roomId);
+    });
+  }
+
+  private async emitRoom(roomId: number, event: string, data: unknown) {
+    for (const response of this.roomSubscribers.get(roomId) ?? []) {
+      if (!response.destroyed) writeSse(response, event, data);
+    }
+  }
+
+  private async attemptReplay(replay: ReplayRecord, roomHint?: RoomRecord, titleHint?: string) {
     if (replay.status === 'COMPLETED') return serializeReplay(replay);
     const registering = await this.store.updateReplay(replay.id, { status: 'REGISTERING', attempts: replay.attempts + 1, lastError: null, nextRetryAt: null });
     try {
       const session = await this.store.getSession(registering.sessionId);
       const room = roomHint ?? (session ? await this.store.getRoom(session.roomId) : null);
       if (!room) throw new HttpError(500, 'Live room for replay registration was not found', 500);
-      const result = await this.replayClient.register({ sessionId: registering.sessionId, objectKey: registering.objectKey, mimeType: registering.mimeType, requestId: registering.requestId, creatorId: String(room.broadcasterId), title: room.title });
+      const result = await this.replayClient.register({ sessionId: registering.sessionId, objectKey: registering.objectKey, mimeType: registering.mimeType, requestId: registering.requestId, creatorId: String(room.broadcasterId), title: titleHint?.trim() || room.title });
       const completed = await this.store.updateReplay(registering.id, { status: 'COMPLETED', contentVideoId: result.contentVideoId, lastError: null });
       await this.store.updateSession(registering.sessionId, { replayStatus: 'COMPLETED' });
+      await this.emitRoom(room.id, 'session', await this.getSession(registering.sessionId));
       return serializeReplay(completed);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'content-media replay registration failed';
@@ -246,17 +462,70 @@ export class LiveApplication {
   private async requireActiveSession(roomId: number) { const session = await this.latestSession(roomId); if (!session || session.status !== 'LIVING') throw new HttpError(409, 'Live room is not active', 409); return session; }
   private async activeViewerCount(roomId: number) { const session = await this.latestSession(roomId); return session ? this.activeViewerCountBySession(session.id) : 0; }
   private async activeViewerCountBySession(sessionId: number) { const inMemory = this.viewerIds.get(sessionId); if (inMemory && !this.store.persistent) return inMemory.size; return this.store.countViewers(sessionId); }
+  private requireViewerSignal(sessionId: number, viewerId: string) {
+    const signal = this.viewerSignals.get(sessionId)?.get(viewerId);
+    if (!signal) throw new HttpError(404, 'Viewer not found', 404);
+    return signal;
+  }
+  private async userSummaries(userIds: number[]) {
+    const ids = [...new Set(userIds)];
+    const result = new Map<number, UserSummary>();
+    for (const id of ids) {
+      const cached = this.broadcasterCache.get(id);
+      if (cached) result.set(id, cached);
+    }
+    const missing = ids.filter((id) => !result.has(id));
+    if (missing.length) {
+      try {
+        const remote = await this.identityClient.batchSummary(missing, randomUUID());
+        for (const [id, summary] of remote) { result.set(id, summary); this.broadcasterCache.set(id, summary); }
+      } catch {
+        // Fallback labels preserve availability while identity is degraded.
+      }
+    }
+    for (const id of missing) if (!result.has(id)) result.set(id, fallbackUser(id));
+    return result;
+  }
+  private async serializeRooms(rooms: RoomRecord[]) {
+    const summaries = await this.userSummaries(rooms.map((room) => room.broadcasterId));
+    return Promise.all(rooms.map(async (room) => this.serializeRoom(room, await this.activeViewerCount(room.id), await this.latestSession(room.id), summaries)));
+  }
+  private serializeRoom(room: RoomRecord, viewerCount: number, session: SessionRecord | null, summaries: Map<number, UserSummary>) {
+    const broadcaster = summaries.get(room.broadcasterId) ?? fallbackUser(room.broadcasterId);
+    return {
+      id: room.id, title: room.title, category: room.category, coverUrl: room.coverUrl, sourceMode: room.sourceMode,
+      streamKey: room.streamKey, rtmpUrl: room.rtmpUrl, playUrl: room.playUrl, status: room.status, viewerCount,
+      createdAt: room.createdAt.toISOString(), startedAt: session?.status === 'LIVING' ? session.startedAt.toISOString() : null,
+      endedAt: session?.endedAt?.toISOString() ?? null, sessionId: session?.id ?? null, replayStatus: session?.replayStatus ?? 'NONE',
+      broadcaster,
+    };
+  }
   private isSrsConfigured() { return Boolean(process.env.SRS_API_BASE?.trim()); }
 }
 
 function buildSrsClient(): SrsClient { const api = process.env.SRS_API_BASE?.trim(); return api ? new FetchSrsClient(api.replace(/\/$/, ''), baseUrl('SRS_WEBRTC_BASE', 'webrtc://127.0.0.1/live')) : new DisabledSrsClient(); }
 function buildReplayClient(): ReplayClient { const base = process.env.CONTENT_SERVICE_URL?.trim(); return base ? new ContentReplayClient(base.replace(/\/$/, '')) : { register: async () => { throw new HttpError(503, 'content-media is unavailable', 503); } }; }
+function buildIdentityClient(): IdentityClient {
+  const base = process.env.IDENTITY_SERVICE_URL?.trim();
+  const secret = process.env.SERVICE_JWT_SECRET?.trim();
+  if (base && secret) return new HttpIdentityClient(base.replace(/\/$/, ''), secret);
+  return {
+    batchSummary: async (userIds) => new Map(userIds.map((id) => [id, fallbackUser(id)])),
+    followingIds: async () => [],
+  };
+}
 function baseUrl(name: string, fallback: string) { return (process.env[name]?.trim() || fallback).replace(/\/$/, ''); }
 function clampLimit(value?: number) { return Number.isInteger(value) && value! > 0 ? Math.min(value!, 50) : 20; }
 function statusOrder(status: RoomStatus) { return status === 'LIVING' ? 0 : status === 'IDLE' ? 1 : 2; }
-function serializeRoom(room: RoomRecord, viewerCount: number, session: SessionRecord | null) { return { id: room.id, title: room.title, category: room.category, coverUrl: room.coverUrl, sourceMode: room.sourceMode, streamKey: room.streamKey, rtmpUrl: room.rtmpUrl, playUrl: room.playUrl, status: room.status, viewerCount, createdAt: room.createdAt.toISOString(), startedAt: session?.status === 'LIVING' ? session.startedAt.toISOString() : null, endedAt: session?.endedAt?.toISOString() ?? null, sessionId: session?.id ?? null, replayStatus: session?.replayStatus ?? 'NONE', broadcaster: { id: room.broadcasterId } }; }
-function serializeMessage(message: MessageRecord) { return { id: message.id, sessionId: message.sessionId, kind: message.kind, content: message.content, senderId: message.senderId, createdAt: message.createdAt.toISOString() }; }
+function fallbackUser(id: number): UserSummary { return { id, nickname: `用户 ${id}`, avatarUrl: null }; }
+function serializeMessage(message: MessageRecord, roomId: number, summaries: Map<number, UserSummary>) {
+  const sender = message.senderId === null ? { id: null, nickname: '系统', avatarUrl: null } : summaries.get(message.senderId) ?? fallbackUser(message.senderId);
+  return { id: message.id, roomId, sessionId: message.sessionId, kind: message.kind, content: message.content, sender, createdAt: message.createdAt.toISOString() };
+}
 function serializeReplay(replay: ReplayRecord) { return { ...replay, createdAt: replay.createdAt.toISOString(), updatedAt: replay.updatedAt.toISOString(), nextRetryAt: replay.nextRetryAt?.toISOString() ?? null }; }
+function numericExternalId(value: string | null | undefined) { if (!value) return null; const number = Number(value); return Number.isSafeInteger(number) && number > 0 ? number : value; }
+function mediaObjectUrl(objectKey: string) { return `/api/v1/media/objects/${objectKey.split('/').map(encodeURIComponent).join('/')}`; }
+function writeSse(response: ServerResponse, event: string, data: unknown) { response.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`); }
 function normalizeReplayMime(objectKey: string, value?: string) {
   const mimeType = value?.split(';', 1)[0]?.trim().toLowerCase();
   const extension = objectKey.toLowerCase().split(/[?#]/, 1)[0]!.match(/\.([a-z0-9]+)$/)?.[1];
@@ -277,6 +546,8 @@ export function createLiveHttpServer(app = new LiveApplication()): Server {
       const url = new URL(request.url ?? '/', 'http://127.0.0.1');
       if (await handleHealth(request, response, url.pathname, requestId, startedAt, app)) return;
       if (!await app.ready()) throw new HttpError(503, 'live-reward persistence is not configured or unavailable', 503);
+      const roomEvents = request.method === 'GET' ? url.pathname.match(/^\/api\/v1\/lives\/rooms\/(\d+)\/events$/) : null;
+      if (roomEvents) { app.subscribeRoom(Number(roomEvents[1]), response); return; }
       const body = ['GET', 'HEAD'].includes(request.method ?? 'GET') ? {} : await readBody(request);
       const data = await dispatch(app, request, url, body, requestId);
       writeJson(response, 200, ok(data, requestId), requestId);
@@ -293,10 +564,16 @@ export function createLiveHttpServer(app = new LiveApplication()): Server {
 
 async function dispatch(app: LiveApplication, request: IncomingMessage, url: URL, body: Record<string, unknown>, requestId: string): Promise<unknown> {
   const method = request.method ?? 'GET'; const path = url.pathname; const user = userFromHeaders(request);
+  if (method === 'GET' && path === '/api/v1/lives/center/overview') return app.centerOverview(user ?? undefined);
+  if (method === 'GET' && path === '/api/v1/lives/plaza') return app.plaza({ category: url.searchParams.get('category') ?? undefined, keyword: url.searchParams.get('keyword') ?? undefined, limit: parseOptionalInt(url.searchParams.get('limit')) }, user ?? undefined);
+  if (method === 'GET' && path === '/api/v1/lives/hot') return app.hot(parseOptionalInt(url.searchParams.get('limit')));
+  if (method === 'GET' && path === '/api/v1/lives/categories') return app.liveCategories();
   if (method === 'POST' && path === '/api/v1/lives/rooms') return app.createRoom(requireUser(user), asRoomBody(body));
   if (method === 'GET' && path === '/api/v1/lives/rooms') return app.listRooms({ status: url.searchParams.get('status') ?? undefined, category: url.searchParams.get('category') ?? undefined, keyword: url.searchParams.get('keyword') ?? undefined, broadcasterId: parseOptionalInt(url.searchParams.get('broadcasterId')), limit: parseOptionalInt(url.searchParams.get('limit')) });
-  const roomMatch = path.match(/^\/api\/v1\/lives\/rooms\/(\d+)(?:\/(.*))?$/); if (roomMatch) { const id = Number(roomMatch[1]); const suffix = roomMatch[2] ?? ''; if (method === 'GET' && !suffix) return app.getRoom(id); if (method === 'POST' && suffix === 'start') return app.startRoom(id, requireUser(user)); if (method === 'POST' && suffix === 'stop') return app.stopRoom(id, requireUser(user)); if (method === 'POST' && suffix === 'viewers') return app.addViewer(id, typeof body.viewerId === 'string' ? body.viewerId : undefined); if (method === 'POST' && suffix === 'messages') return app.createMessage(id, requireUser(user), stringValue(body.content)); if (method === 'GET' && suffix === 'messages') return app.listMessages(id); if (method === 'GET' && suffix === 'events') return { session: await app.getRoom(id), messages: await app.listMessages(id) }; if (method === 'POST' && suffix === 'publish') return app.publish(id, requireUser(user), asSrsBody(body)); if (method === 'POST' && suffix === 'play') return app.play(id, asSrsBody(body)); if (method === 'POST' && suffix === 'replay') return app.registerReplay(id, requireUser(user), { objectKey: stringValue(body.objectKey), mimeType: optionalString(body.mimeType), requestId }); }
+  const roomMatch = path.match(/^\/api\/v1\/lives\/rooms\/(\d+)(?:\/(.*))?$/); if (roomMatch) { const id = Number(roomMatch[1]); const suffix = roomMatch[2] ?? ''; if (method === 'GET' && !suffix) return app.getRoom(id); if (method === 'POST' && suffix === 'start') return app.startRoom(id, requireUser(user)); if (method === 'POST' && suffix === 'stop') return app.stopRoom(id, requireUser(user)); if (method === 'POST' && suffix === 'viewers') return app.addViewer(id, typeof body.viewerId === 'string' ? body.viewerId : undefined); if (method === 'POST' && suffix === 'messages') return app.createMessage(id, requireUser(user), stringValue(body.content)); if (method === 'GET' && suffix === 'messages') return app.listMessages(id); if (method === 'GET' && suffix === 'frame') return app.getFrame(id); if (method === 'POST' && suffix === 'frame') return app.updateFrame(id, requireUser(user), stringValue(body.image)); if (method === 'POST' && suffix === 'publish') return app.publish(id, requireUser(user), asSrsBody(body)); if (method === 'POST' && suffix === 'play') return app.play(id, asSrsBody(body)); if (method === 'GET' && suffix === 'publisher/pending-viewers') return app.pendingViewers(id, requireUser(user)); if (method === 'POST' && suffix === 'replay') { const objectKey = stringValue(body.objectKey ?? body.uploadToken); return app.saveReplay(id, requireUser(user), { objectKey, mimeType: optionalString(body.mimeType), requestId, title: optionalString(body.title), saveMode: optionalString(body.saveMode) }); } }
   const viewerMatch = path.match(/^\/api\/v1\/lives\/rooms\/(\d+)\/viewers\/([^/]+)$/); if (viewerMatch && method === 'DELETE') return app.removeViewer(Number(viewerMatch[1]), decodeURIComponent(viewerMatch[2]!));
+  const viewerOfferMatch = path.match(/^\/api\/v1\/lives\/rooms\/(\d+)\/viewers\/([^/]+)\/offer$/); if (viewerOfferMatch && method === 'POST') return app.submitViewerOffer(Number(viewerOfferMatch[1]), decodeURIComponent(viewerOfferMatch[2]!), asSrsBody(body));
+  const viewerAnswerMatch = path.match(/^\/api\/v1\/lives\/rooms\/(\d+)\/viewers\/([^/]+)\/answer$/); if (viewerAnswerMatch && method === 'POST') return app.submitViewerAnswer(Number(viewerAnswerMatch[1]), decodeURIComponent(viewerAnswerMatch[2]!), requireUser(user), asSrsBody(body)); else if (viewerAnswerMatch && method === 'GET') return app.viewerAnswer(Number(viewerAnswerMatch[1]), decodeURIComponent(viewerAnswerMatch[2]!));
   const sessionMatch = path.match(/^\/api\/v1\/lives\/sessions\/(\d+)$/); if (sessionMatch && method === 'GET') return app.getSession(Number(sessionMatch[1]));
   if (method === 'GET' && path === '/api/v1/gift-coins/wallet') return app.wallet(requireUser(user).id);
   if (method === 'POST' && path === '/api/v1/gift-coins/daily-claim') return app.claimDaily(requireUser(user).id, requestId);
