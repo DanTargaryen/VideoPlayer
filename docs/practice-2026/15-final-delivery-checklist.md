@@ -17,9 +17,10 @@
 - [x] 最终答辩 PPTX 已渲染 10 页，逐页视觉检查且 `slides_test.py` 无越界。
 - [x] README 与六目录链接由自动测试检查；PPTX 具有有效 ZIP/PPT 结构。
 - [x] 技术变更完成本地 `npm run test:ci`：283/283 PASS。
-- [ ] DEL-01 PR 按仓库规范通过远端 3/3 jobs、Owner 书面自审和合并复核。
+- [x] DEL-01 PR #58 首轮远端 run `33371629258` 3/3 jobs，并实检 public E2E/Kind 两个 Artifact。
+- [ ] PR #58 最终证据提交通过当前 head 的远端 3/3 jobs、Owner 书面自审和合并复核。
 
-最后一项只能在 DEL-01 PR 的远端 run 成功并合并后改为 `[x]`；合并前若引用本文件，应以 PR 最新状态为准。
+最后一项只能在 PR #58 最终 head 的远端 run 成功并合并后改为 `[x]`；合并前若引用本文件，应以 PR 最新状态为准。
 
 ## 2. 必须由真人或外部系统补交
 

@@ -35,8 +35,9 @@ done
 | [#55](https://github.com/DanTargaryen/VideoPlayer/pull/55) | live/governance 迁移、切流、UC05/06 | merged | [33352991611](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33352991611) |
 | [#56](https://github.com/DanTargaryen/VideoPlayer/pull/56) | REG-01 双目标六 UC | merged | [33359785882](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33359785882) |
 | [#57](https://github.com/DanTargaryen/VideoPlayer/pull/57) | HPA、故障恢复与性能实验 | merged | [33367170484](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33367170484) |
+| [#58](https://github.com/DanTargaryen/VideoPlayer/pull/58) | DEL-01 六目录、三层模型、PPTX 与最终证据 | Draft；技术 CI 通过，待最终复核/合并 | [33371629258](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33371629258) |
 
-每个最终 run 均为 `quality`、`public-e2e`、`versioned-images` 3/3 jobs success，并在 PR 合并前完成 Owner 书面自审。DEL-01 PR 的编号、run 与 merge SHA 应在合并后追加到本表或 [`docs/practice-2026/00-progress.md`](../../docs/practice-2026/00-progress.md)。
+PR #48–#57 的最终 run 均为 `quality`、`public-e2e`、`versioned-images` 3/3 jobs success，并在合并前完成 Owner 书面自审。PR #58 的首轮当前源码 run `33371629258` 也为 3/3 success：quality 283/283、public E2E 3 passed/2 个显式 services-mode skip、Git SHA 镜像与隔离 Kind migration/deploy/health/evidence/cleanup PASS；合并 SHA 以 PR 完成后的 [`00-progress.md`](../../docs/practice-2026/00-progress.md) 为准。
 
 ## 服务边界
 
