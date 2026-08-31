@@ -93,8 +93,10 @@ function capabilityOwner(pathname: string, method: string): GatewayServiceName |
     ) return 'identity-community';
     if (
       /^(?:feeds\/recommend|search\/all)$/.test(apiPath)
-      || /^videos\/(?!my(?:\/|$))[^/]+(?:\/recommendations|\/comments(?:\/[^/]+\/thread)?|\/danmaku)?$/.test(apiPath)
+      || /^videos\/(?!my(?:\/|$))[^/]+(?:\/recommendations|\/comments(?:\/[^/]+\/thread)?|\/danmaku|\/reviews)?$/.test(apiPath)
       || /^videos\/my\/(?:favorites|favorite-folders|likes|history)$/.test(apiPath)
+      || /^creator\/(?:dashboard|videos(?:\/play-trend)?|followers\/trend)$/.test(apiPath)
+      || /^media\/objects\/.+$/.test(apiPath)
     ) return 'content-media';
     if (
       /^lives\/rooms(?:\/\d+(?:\/(?:messages|events))?)?$/.test(apiPath)
@@ -115,12 +117,13 @@ function capabilityOwner(pathname: string, method: string): GatewayServiceName |
     /^videos\/[^/]+\/(?:submit-review|like|favorite|play|watch-progress|danmaku)$/.test(apiPath)
     || /^videos\/[^/]+\/comments(?:\/[^/]+)?$/.test(apiPath)
     || /^videos\/my\/favorite-folders(?:\/[^/]+)?$/.test(apiPath)
+    || /^videos(?:\/upload|\/[^/]+(?:\/withdraw-review)?)?$/.test(apiPath)
   ) return 'content-media';
   if (
     /^lives\/rooms(?:\/\d+\/(?:start|stop|viewers|messages|publish|play|replay))?$/.test(apiPath)
     || /^lives\/rooms\/\d+\/viewers\/[^/]+$/.test(apiPath)
     || /^gift-coins\/(?:daily-claim|streak-claim|gift|video(?:\/\d+)?)$/.test(apiPath)
-    || /^videos\/\d+\/coin$/.test(apiPath)
+    || /^videos\/[^/]+\/coin$/.test(apiPath)
   ) return 'live-reward';
   if (
     /^reports$/.test(apiPath)

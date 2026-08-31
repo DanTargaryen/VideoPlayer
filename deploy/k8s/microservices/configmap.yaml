@@ -13,5 +13,9 @@ data:
   CONTENT_SERVICE_URL: http://content-media:3000
   LIVE_SERVICE_URL: http://live-reward:3000
   GOVERNANCE_SERVICE_URL: http://governance-ai:3000
+  MINIO_ENDPOINT: content-minio
+  MINIO_PORT: "9000"
+  MINIO_USE_SSL: "false"
+  MINIO_BUCKET: videoplayer-content
   GATEWAY_MONOLITH_FALLBACK: "true"
   GATEWAY_UPSTREAM_TIMEOUT_MS: "2000"
