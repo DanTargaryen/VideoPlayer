@@ -1,76 +1,51 @@
-# 2026 夏季《软件工程基础实践》启动包
+# 2026 夏季《软件工程基础实践》执行资料
 
-> 状态：`CONFIRMED SCOPE / MONOLITH BASELINE VERIFIED`。组长于 2026-08-24 报告教师已确认当前范围；UC01–UC06 最终统一 Smoke 已全部通过，外部回复证据待补。
+> 状态：`TECHNICAL GATES VERIFIED / DEL-01 HUMAN EVIDENCE PENDING`。
 >
-> 基准日期：2026-08-24。
+> 基准日期：2026-08-31；最终答辩：2026-09-04 14:00–17:00。
 >
-> 课程节点：8 月 29 日中期检查；9 月 4 日 14:00-17:00 最终答辩。
+> 唯一进度源：[`00-progress.md`](00-progress.md)。没有真实执行、远端检查或真人原始证据的事项不能标记为完成。
 
-## 1. 目的
+## 已验证范围
 
-本目录把课程任务书转成可直接执行、分工和验收的材料。它不替代教师确认，也不表示仓库当前已经满足验收要求。
+- UC01–UC06 单体基线和 `monolith-start` annotated tag。
+- identity-community、content-media、live-reward、governance-ai 四个业务微服务的独立 schema、migration、镜像、探针、最小权限和 contract。
+- Gateway 读写能力白名单、分阶段历史迁移与切流、requestId 追踪、单体 fallback 和 rollback。
+- REG-01 同一 runner 对单体与微服务 Gateway 各跑六个 UC，12/12 PASS。
+- GitHub-hosted CI/CD 的 quality、public E2E、Git SHA 镜像、Kind deploy/health/evidence/cleanup 3/3 jobs。
+- HPA 1→3→2→1、MySQL/SRS/MinIO 故障与恢复、双目标三轮性能对比。
+- DEL-01 六目录技术包、答辩 PPT、技术总结、演示脚本和备用录屏拍摄清单。
 
-要求的优先级按以下顺序解释：
+以下仍需要真人原始证据，仓库不会代填：教师确认截图/链接、ARCH 参会/聊天/录屏、成员与 A–E 角色映射、另一成员 clean-machine 复现确认、贡献权重与五人签字、5–8 分钟备用录屏。
 
-1. 课程任务书原文。
-2. 教师或助教对本组业务场景和工具方案的确认记录。
-3. 本目录的用例范围、任务卡、测试和证据模板。
-4. 原项目既有文档。
+## 文件索引
 
-如有冲突，立即记录到决策日志并按更高优先级修订，不在群聊中口头覆盖。
-
-## 2. 当前已确认状态
-
-- `main` 与 `origin/main` 在检查时提交同步。
-- 前端、后端生产构建通过。
-- 单体曾实际启动，前端、后端健康接口、Vite 代理和推荐接口通过。
-- MySQL 与 MinIO 当前使用远端开发环境；这不能代替课程要求的容器化数据库。
-- 仓库没有自动化测试文件、前后端 Dockerfile、CI 工作流和 Kubernetes 配置。
-- 直播房间、观众和消息当前保存在后端进程内存中，不适合多副本和重启恢复。
-- 当前单体基线验证提交：`9a6f4d8 fix(video): explain media playback failures (#38)`；最终证据提交合并后创建标签。
-- `monolith-start` Gate 已通过；标签使用 annotated tag，固定指向最终证据进入 `main` 后的提交，不得移动。
-
-## 3. 文件索引
-
-| 文件 | 用途 | 组长何时使用 |
+| 文件 | 用途 | 当前状态 |
 | --- | --- | --- |
-| `00-progress.md` | 唯一执行进度源；记录勾选、改动、测试、结果和 commit | 每完成一项立即更新 |
-| `01-use-case-scope.md` | 6 个候选业务场景的完整说明和追溯编号 | 发教师确认、组会冻结范围 |
-| `02-teacher-confirmation-message.md` | 可复制的教师/助教确认消息 | 8 月 25 日尽早发送 |
-| `03-smoke-checklist.md` | 单体基线全用例人工 smoke 记录 | D1 全员并行执行 |
-| `04-task-board.md` | 看板列、任务字段、19 个首轮任务包 | 导入 GitHub Project/其他看板 |
-| `05-kickoff-and-standup.md` | 60 分钟启动会、实名分工、每日站会模板 | 组会和每天 9:00/12:00 |
-| `06-evidence-and-dod.md` | 证据索引、命名、Definition of Done | 每张任务卡和每次验收 |
-| `07-environment-decision.md` | Docker/Kubernetes 环境选择和验收表 | D0-D1 解除环境阻塞 |
-| `08-service-boundaries-and-data-ownership.md` | 四服务边界、31 表归属、接口、失败和迁移草案 | 微服务拆分前全员评审 |
-| `09-commit-pr-convention.md` | Commit、push、PR、review、tag 和授权规范 | 每次提交/推送/PR 前读取 |
-| `10-uc06-state-diagrams.md` | UC06 系统级、组件级、对象级状态图及实现差距、测试落点 | UC06 设计评审、开发分工和测试追溯 |
-| `11-jenkins-kind-cicd-runbook.md` | Jenkins + Kind 换机执行、资源估算、验收与证据清单 | 在指定 Docker/Kubernetes 主机落地 CI/CD |
-| `12-second-stage-todo.md` | A–E 第二阶段分支任务、禁止事项、Review、DoD、切流与管理待办 | ARCH-01 合并后逐人领取并每日勾选 |
+| [`00-progress.md`](00-progress.md) | 唯一进度源、测试结果、PR/workflow 与阻塞 | 持续维护 |
+| [`01-use-case-scope.md`](01-use-case-scope.md) | UC01–UC06 范围、成功/异常/恢复路径 | 已冻结；教师原始回复待补 |
+| [`02-teacher-confirmation-message.md`](02-teacher-confirmation-message.md) | 教师/助教确认消息模板 | 模板完成；回复待补 |
+| [`03-smoke-checklist.md`](03-smoke-checklist.md) | 单体基线全用例 Smoke | 技术验证完成 |
+| [`04-task-board.md`](04-task-board.md) | 任务卡、角色、Reviewer、状态 | 技术状态已同步 |
+| [`05-kickoff-and-standup.md`](05-kickoff-and-standup.md) | 启动会、实名分工和站会模板 | 会议原件待组长补 |
+| [`06-evidence-and-dod.md`](06-evidence-and-dod.md) | 最终证据索引、追溯与统一 DoD | 技术证据已索引 |
+| [`07-environment-decision.md`](07-environment-decision.md) | Docker/Kubernetes 环境选择与验收 | 已执行 |
+| [`08-service-boundaries-and-data-ownership.md`](08-service-boundaries-and-data-ownership.md) | 四服务边界、31 表 owner、失败和迁移 | `DONE / FROZEN` |
+| [`09-commit-pr-convention.md`](09-commit-pr-convention.md) | Commit、push、PR、review、tag 和授权 | 所有最终 PR 遵循 |
+| [`10-e2e-test-spec.md`](10-e2e-test-spec.md) | 公开 E2E 范围 | 已执行 |
+| [`10-uc06-state-diagrams.md`](10-uc06-state-diagrams.md) | UC06 三层模型与状态机 | 已验证 |
+| [`11-jenkins-kind-cicd-runbook.md`](11-jenkins-kind-cicd-runbook.md) | Jenkins、Kind、migration 与回滚 | 已执行 |
+| [`12-second-stage-todo.md`](12-second-stage-todo.md) | A–E 第二阶段任务、禁止事项与 Gate | 技术项完成；管理项待补 |
+| [`13-resilience-performance-experiments.md`](13-resilience-performance-experiments.md) | HPA、故障恢复与性能原始值 | 已验证 |
+| [`14-uc01-05-three-layer-models.md`](14-uc01-05-three-layer-models.md) | UC01–UC05 系统/组件/对象模型源 | 已完成 |
+| [`15-final-delivery-checklist.md`](15-final-delivery-checklist.md) | DEL-01 技术与真人证据清单 | 技术包就绪；真人项待补 |
 
-## 4. 组长今天的完成清单
+最终课程交付从仓库根目录 [`delivery/README.md`](../../delivery/README.md) 进入。
 
-- [x] 创建实践启动分支。
-- [x] 把 `.gitignore` 与 ESLint ignore 形成独立本地提交。
-- [ ] 审阅本目录全部草稿。
-- [x] 教师已确认 UC01-UC06 与当前架构方向；待补回复截图/链接。
-- [ ] 创建教师可访问的项目看板，并导入 `04-task-board.md`。
-- [ ] 确定 Docker/Kubernetes 验收主机和负责人。
-- [ ] 预约 60 分钟启动会，把成员 A-E 替换成真实姓名。
-- [ ] 安排 D1 全员执行 `03-smoke-checklist.md`。
-- [x] 业务场景、阻断缺陷、干净基线和 UC01–UC06 最终 Smoke 均已确认；最终证据合并后创建 `monolith-start`。
+## 执行原则
 
-## 5. 不应提前做的事情
-
-- 不在教师确认业务场景前扩大功能范围。
-- 不在全用例 smoke 前打 `monolith-start` 标签。
-- 不把远端数据库和 MinIO 当成容器化验收证据。
-- 不先拆微服务再补测试和追溯。
-- 不把所有测试、文档或截图任务交给一个人。
-- 不提交真实数据库口令、MinIO 密钥、Token、云平台密钥或个人隐私信息。
-
-## 6. 决策日志
-
-| 日期 | 决策 | 参与人 | 原因 | 影响文件/任务 | 证据链接 |
-| --- | --- | --- | --- | --- | --- |
-| 2026-08-24 | 采用 6 个端到端用例、4 个业务服务、5 人并行 | 教师已确认（据组长反馈） | 限制验收范围并匹配现有模块 | 本目录全部文件 | 待补教师回复截图/链接 |
+1. 课程任务书和教师/助教的真实确认优先于仓库计划。
+2. 所有数据库、migration、Seed、故障与性能实验只对明确命名的隔离环境执行。
+3. 业务 `FAIL` 必须让 runner 和 CI 非零退出；截图不能代替原始日志、代码和可重跑命令。
+4. 单体表和 fallback 在课程验收前保留；任何服务切流失败均可回滚。
+5. Commit 数量不能作为贡献权重；实名、复现、权重、签字和录屏必须由成员本人完成。

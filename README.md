@@ -1,360 +1,186 @@
-# 24级软工项目
+# 观澜视频平台（VideoPlayer）
 
-本仓库用于 24 级软件工程项目的协作与开发，当前项目主题为“观澜视频平台”，定位为 Web 端在线视频与直播网站。
+观澜视频平台是面向 Web 的视频、直播与内容治理系统。仓库同时保留可回归的 NestJS 单体基线，以及经 API Gateway 访问的四个独立业务微服务；六条业务链路、数据迁移、回滚、CI/CD、Kubernetes 弹性、故障恢复和性能对比均有可重跑证据。
 
 ## 项目成员
 
-| 成员 | 学号 | 分工 |
+| 成员 | 学号 | 个人分工确认 |
 | --- | --- | --- |
-| 林明 | 23375181 |  |
-| 刘钟屹 | 23375291 |  |
-| 李晓萌 | 24371422 |  |
-| 张壮志 | 24371350 |  |
-| 王一涵 | 24371063 |  |
+| 林明 | 23375181 | 待成员本人确认 |
+| 刘钟屹 | 23375291 | 待成员本人确认 |
+| 李晓萌 | 24371422 | 待成员本人确认 |
+| 张壮志 | 24371350 | 待成员本人确认 |
+| 王一涵 | 24371063 | 待成员本人确认 |
 
-## 当前结构
+仓库中的 A–E 技术角色、任务和 Reviewer 映射见 [`docs/practice-2026/04-task-board.md`](docs/practice-2026/04-task-board.md)。真实姓名与角色、贡献权重和签字只能由成员确认，不能从提交数量推断。
+
+## 当前状态
+
+| 范围 | 状态 | 证据入口 |
+| --- | --- | --- |
+| 单体基线 | UC01–UC06 已验证；annotated tag `monolith-start` | [`docs/practice-2026/03-smoke-checklist.md`](docs/practice-2026/03-smoke-checklist.md) |
+| 四业务微服务 | identity、content、live、governance 均有独立 schema、migration、镜像、探针和测试 | [`docs/practice-2026/08-service-boundaries-and-data-ownership.md`](docs/practice-2026/08-service-boundaries-and-data-ownership.md) |
+| 路由与迁移 | 六条业务链路已分阶段切流；单体 fallback、历史迁移双跑和显式回滚均通过 | [`docs/practice-2026/00-progress.md`](docs/practice-2026/00-progress.md) |
+| 全量回归 | 同一 runner 对单体和微服务 Gateway 各跑 UC01–UC06，12/12 PASS | [`test/regression/`](test/regression/) |
+| 工程实验 | HPA 1→3→2→1；MySQL/SRS/MinIO 故障恢复；双目标三轮性能对比 | [`docs/practice-2026/13-resilience-performance-experiments.md`](docs/practice-2026/13-resilience-performance-experiments.md) |
+| 最终交付 | 六目录技术包和答辩 PPT 已就绪；录屏、成员复现、权重与签字仍需真人补交 | [`delivery/README.md`](delivery/README.md) |
+
+精确提交、PR、远端 workflow、测试计数和仍未关闭的人工 Gate 以 [`docs/practice-2026/00-progress.md`](docs/practice-2026/00-progress.md) 为唯一进度源。
+
+## 架构与目录
 
 ```text
 VideoPlayer/
-  docs/         课程过程文档与设计文档
-  frontend/     Vue 3 + TypeScript 前端骨架
-  backend/      NestJS 风格后端骨架
-  deploy/       演示环境部署示例
+  frontend/                    Vue 3 + TypeScript 主站与管理端
+  backend/                     NestJS 单体基线与 Prisma schema
+  services/
+    gateway/                   统一入口、身份转发、能力白名单与回滚
+    identity-community/        账号、资料、关系、社区动态、通知
+    content-media/             视频、上传、互动、观看记录、MinIO
+    live-reward/               直播、Session、消息、录播、币账本
+    governance-ai/             提审、举报、处置、审计与补偿
+    shared-contracts/          通用响应、requestId、服务 JWT contract
+  deploy/                      Compose、Kubernetes、SRS、MySQL 配置
+  scripts/                     CI、部署、迁移、回归与实验入口
+  test/                        需求、单元、API、E2E、REG-01
+  docs/                        需求、设计、运行手册与执行证据
+  delivery/                    DEL-01 六目录交付包
 ```
 
-## 工程说明
+Gateway 支持 `monolith` 与 `services` 两种路由模式，并用 `GATEWAY_READ_CUTOVER`、`GATEWAY_WRITE_CUTOVER` 只开放已实现的能力。未开放路径继续落到单体；每个切流阶段都保留显式回滚，单体 owner 表没有被删除。
 
-- `frontend/` 已包含主站、直播间、用户中心、审核后台等页面占位。
-- `backend/` 已包含健康检查、认证、视频、搜索、直播、用户中心、审核、礼物币、Agent 等模块骨架。
-- `docs/` 已补齐计划书、需求、概要设计、详细设计、数据库设计、API 文档和分工文档。
+## 环境要求
 
-## 常用命令
+- Node.js 22 或更高版本、npm。
+- Docker Engine 与 Docker Compose。
+- 完整 Kubernetes 验收还需要 Kind、kubectl 和 Bash。
+- 浏览器 E2E 使用 Playwright；首次安装按 Playwright 提示安装 Chromium。
+- 所有数据库、JWT、MinIO 和管理密钥都通过本地环境文件或 Kubernetes Secret 注入，不提交真实值。
 
-在仓库根目录执行：
+Windows 建议使用 Git Bash，并在检出前执行 `git config --global core.autocrlf false`，避免 shell 脚本被 CRLF 破坏。
+
+## 最短验证路径
+
+从全新依赖开始验证代码、构建、六个 workspace 和 REG harness：
+
+```bash
+npm ci
+npm run test:ci
+```
+
+`test:ci` 依次执行 Prisma Client 生成，单体和微服务 lint/build，需求/单元测试，以及 REG-01 runner 自身测试；任一阶段非零退出都会阻断后续步骤。最新精确计数记录在进度文档和远端 workflow 中。
+
+完整 Compose 微服务验收会创建四个隔离业务 schema、MinIO、SRS、四服务、Gateway，以及用于双目标回归的独立单体数据库和后端；它验证迁移、最小权限、15 个 health/version contract、真实浏览器流程、单体 6/6、Gateway 6/6 和 rollback，结束后自动清理：
+
+```bash
+MICROSERVICE_COMPOSE_PROJECT_NAME="video-player-final-$(git rev-parse --short=12 HEAD)" \
+  bash scripts/compose-microservices-smoke.sh
+```
+
+不要对共享或生产数据库直接执行该 Smoke。脚本和 migration guard 默认只允许隔离测试目标；非测试目标必须使用文档规定的精确 host/port/database 白名单与一次性确认值。
+
+## 本地开发
+
+启动单体开发环境：
 
 ```bash
 npm run dev
 ```
 
-这条命令会统一启动本机 MySQL 检查、Redis、MinIO、SRS，以及前后端开发服务。
+分别启动前后端：
 
-如果要让同一局域网内的其他设备通过机器 IP 访问并演示直播，不要使用普通的
-`http://<IP>:5173`。浏览器会在非安全来源下禁用摄像头、麦克风和屏幕共享，导致
-开播失败。请使用：
+```bash
+npm run dev:backend
+npm run dev:frontend
+```
+
+局域网演示直播应使用 HTTPS，以便浏览器允许摄像头、麦克风和屏幕共享：
 
 ```bash
 npm run dev:lan
 ```
 
-脚本会自动检测本机局域网 IP，生成本地开发 HTTPS 证书，启动前端 HTTPS 服务，并把
-SRS 的公开播放地址配置为局域网 IP。启动后访问脚本输出的地址，例如：
+若自动选择的 IP 不正确，可显式设置 `LAN_HOST`；若后端端口被非本项目进程占用，可设置 `PORT`。Docker 不可用时脚本会跳过 Redis、MinIO 和 SRS，页面仍可启动，但 RTC/SRS 链路会退回兼容帧模式。
 
-```text
-https://174.16.0.182:5173
-```
-
-首次访问时浏览器可能会提示证书不受信任，接受本地开发证书后即可授权摄像头、麦克风
-或屏幕共享。如果自动检测的 IP 不正确，可以显式指定：
-
-```bash
-LAN_HOST=174.16.0.182 npm run dev:lan
-```
-
-如果后端端口已被占用，启动脚本会检查 `3000` 端口是否已经是健康的本项目后端：
-
-- 如果是，会复用现有后端；
-- 如果不是，会输出占用端口的进程信息并退出；
-- 也可以临时换端口启动，例如：
-
-```bash
-PORT=3001 LAN_HOST=174.16.0.182 npm run dev:lan
-```
-
-如果当前机器没有可用的 Docker，`dev:lan` 会跳过 Redis、MinIO 和 SRS 容器，系统仍会启动。
-此时 SRS RTC 链路不可用，直播观看会退回兼容帧模式；需要完整 RTC/SRS 直播时，再安装或启动 Docker。
-
-如果需要分别启动，也可以使用：
-
-```bash
-npm run dev:frontend
-npm run dev:backend
-```
-
-## MS-00 微服务公共骨架
-
-`services/` 提供四个业务服务、兼容 Gateway 和共享 contract/JWT 运行包。MS-00 只提供独立构建、健康接口、镜像和部署骨架；业务 API、独立 Prisma schema 和流量切换由 MS-01 至 MS-04 完成。
-
-```bash
-npm run test:services:ci
-```
-
-本地 Compose Smoke 会启动隔离的 identity/content MySQL 和各自的一次性 migration 容器，再启动 Gateway `3100`、identity `3101`、content `3102`、live `3103` 和 governance `3104`，验证两套数据库的迁移与最小权限，以及各服务的 `/health/live`、`/health/ready` 和 `/version`，随后自动清理：
-
-```bash
-MICROSERVICE_COMPOSE_PROJECT_NAME=video-player-ms00-local \
-  bash scripts/compose-microservices-smoke.sh
-```
-
-Gateway 默认使用 `GATEWAY_ROUTE_MODE=monolith`，业务请求仍指向现有单体；只有后续受评审任务才能按路径切换微服务。Kind 中先部署单体基线，再执行：
-
-```bash
-set -a
-source .env.practice
-set +a
-export IDENTITY_DATABASE_NAME=video_player_identity_test
-export IDENTITY_DATABASE_USER=identity_app
-export IDENTITY_DATABASE_PASSWORD="$(node -e 'process.stdout.write(require("node:crypto").randomBytes(24).toString("hex"))')"
-export IDENTITY_DATABASE_URL="mysql://${IDENTITY_DATABASE_USER}:${IDENTITY_DATABASE_PASSWORD}@mysql:3306/${IDENTITY_DATABASE_NAME}"
-export IDENTITY_ADMIN_SECRET="$(node -e 'process.stdout.write(require("node:crypto").randomBytes(24).toString("hex"))')"
-export SERVICE_JWT_SECRET="$(node -e 'process.stdout.write(require("node:crypto").randomBytes(24).toString("hex"))')"
-export CONTENT_DB_PASSWORD="$(node -e 'process.stdout.write(require("node:crypto").randomBytes(18).toString("hex"))')"
-bash scripts/k8s-deploy-microservices.sh "$(git rev-parse --short=12 HEAD)"
-bash scripts/k8s-health-check-microservices.sh
-unset IDENTITY_DATABASE_NAME IDENTITY_DATABASE_USER IDENTITY_DATABASE_PASSWORD IDENTITY_DATABASE_URL
-unset IDENTITY_ADMIN_SECRET SERVICE_JWT_SECRET CONTENT_DB_PASSWORD
-```
-
-真实数据库口令、`IDENTITY_ADMIN_SECRET`、`SERVICE_JWT_SECRET` 和 `MYSQL_ROOT_PASSWORD` 只能通过本地环境或 Kubernetes Secret 注入，不得写入仓库。部署脚本会在现有 MySQL 实例中创建隔离的 identity/content schema 和各自的最小权限账号，随后依次运行两个独立 migration Job。
-
-## Clean-machine 课程实践复现
-
-以下顺序用于空机器验收，覆盖依赖安装、CI 等价测试、Compose、MySQL、Seed、HTTP 入口和 Kind。禁止复制其他工作区的 `node_modules`、`.env.practice`、Docker Volume、`dist/` 或镜像；每次复现使用新的 Compose project、镜像 tag 和 Kind cluster。需要 Node.js 22+、npm、Docker Engine + Compose、Kind、kubectl、curl，以及 Bash。Windows 请使用 Git Bash，并在检出仓库前设置 `git config --global core.autocrlf false`，否则 CRLF 会使 `scripts/*.sh` 报 `pipefail\r` 错误。
-
-### 1. 安装与 CI 等价测试
-
-```bash
-rm -rf node_modules frontend/node_modules backend/node_modules \
-  backend/dist frontend/dist coverage test-results playwright-report
-npm ci
-npm run test:ci
-```
-
-`npm run test:ci` 会先生成 Prisma Client，再依次执行单体与 MS-00 的 lint、build、需求测试和 unit tests；必须以退出码 `0` 结束才算通过。若 `ffmpeg-static` 或 Prisma 下载报告自签名证书错误，应把组织 CA 安装到 Node/npm 信任链；不要把长期关闭 TLS 校验写入项目配置。只修改 npm registry 并不能改变 `ffmpeg-static` 的二进制下载地址；可为本次命令设置可信的 `FFMPEG_BINARIES_URL` 镜像，或使用经官方 SHA-256 校验后由本机临时 HTTP 服务提供的官方文件。不要使用 `NODE_TLS_REJECT_UNAUTHORIZED=0`、`strict-ssl=false` 或 `curl -k` 作为复现步骤。
-
-### 2. 创建全新 Compose 环境
-
-从示例创建本次专用的 `.env.practice`，逐项替换占位符；不得复用其他机器或上一次运行的文件。该文件已被 Git 忽略，不能提交。
-
-```bash
-cp deploy/practice.env.example .env.practice
-$EDITOR .env.practice
-
-export IMAGE_TAG="repro-$(git rev-parse --short=12 HEAD)"
-export COMPOSE_PROJECT_NAME="video-player-$IMAGE_TAG"
-
-docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml config --quiet
-docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml build --no-cache
-docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml up -d
-docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml ps
-```
-
-新的 `COMPOSE_PROJECT_NAME` 会创建隔离的 MySQL、Redis、MinIO Volume，而不会读取或删除旧项目数据。`ps` 中 MySQL、Redis、MinIO、Backend、Frontend 应为 healthy，SRS 应为 running。
-
-### 3. MySQL 建表与 Seed
-
-后端启动命令会先通过 `npm --workspace backend run db:migrate` 执行受目标守卫保护的 Prisma `migrate deploy`。应检查迁移表和业务表均已创建，再为本次隔离数据库设置一次性 Seed Guard 确认值。`db:seed` 会清空目标库数据，禁止对共享或生产数据库执行。
-
-```bash
-docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml exec -T mysql sh -lc \
-  'mysql -N -uroot -p"$MYSQL_ROOT_PASSWORD" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=\"video_player\";"'
-
-read -r -s -p "Set one-time db:seed confirmation: " SEED_CONFIRM; echo
-docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml exec -T \
-  -e SEED_GUARD_PASSWORD="$SEED_CONFIRM" -e SEED_GUARD_CONFIRM="$SEED_CONFIRM" \
-  backend npm --workspace backend run db:seed
-unset SEED_CONFIRM
-
-docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml exec -T mysql sh -lc \
-  'mysql -N -uroot -p"$MYSQL_ROOT_PASSWORD" video_player -e "SELECT CONCAT((SELECT COUNT(*) FROM User),\" users / \",(SELECT COUNT(*) FROM Video),\" videos\");"'
-```
-
-当前 schema 应创建 31 张业务表，加上 Prisma 的 `_prisma_migrations` 表后查询总数应为 32；Seed 应报告 6 users、14 videos、11 published videos。
-
-上述流程面向本次新建的隔离 Compose Volume。复用由旧版 `db:push` 创建的已有数据库时，不要删除数据卷或直接反复启动后端；应先备份数据库，再按 `docs/practice-2026/11-jenkins-kind-cicd-runbook.md` 的 existing-database baseline 流程执行 schema diff、精确目标授权和 `migrate resolve`。Schema 不一致时必须停止，不能强行登记 migration。
-
-### 4. Compose HTTP 验收
-
-```bash
-curl -fsS http://127.0.0.1:5173/ | grep -q '<div id="app"></div>'
-curl -fsS http://127.0.0.1:3000/api/v1/health
-```
-
-首页命令退出码应为 `0`；后端应返回 `code: 0` 且 `data.status: ok`。其他入口包括 MinIO API `http://127.0.0.1:9000`、MinIO Console `http://127.0.0.1:9001` 和 SRS HTTP `http://127.0.0.1:8080`。
-
-### 5. 全新 Kind 部署与 Health
-
-复用本次刚刚从源码无缓存构建的带版本 tag 镜像，不使用其他构建产物。设置新的集群名，避免复用已有集群和 PVC。
-
-```bash
-export KIND_CLUSTER_NAME="video-player-$IMAGE_TAG"
-./scripts/k8s-deploy.sh "$IMAGE_TAG"
-./scripts/k8s-health-check.sh
-```
-
-部署应得到 Ready 的 MySQL StatefulSet/PVC、Completed 的 `db-migrate` Job、Ready 的 Backend/Frontend Deployment；Health 脚本会检查 MySQL、后端、前端首页和前端代理 Health。需要宿主机访问时另开终端执行：
-
-```bash
-kubectl -n video-player port-forward service/frontend 15173:80
-```
-
-端口转发后访问 `http://127.0.0.1:15173`。验收结束后只清理本次隔离资源：
-
-```bash
-docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml down --volumes
-kind delete cluster --name "$KIND_CLUSTER_NAME"
-```
-
-`down --volumes` 和 `kind delete cluster` 会永久删除本次隔离的 MySQL 数据，执行前必须再次核对 `COMPOSE_PROJECT_NAME` 和 `KIND_CLUSTER_NAME`。
-
-## Jenkins + Kind 流水线
-
-根目录 `Jenkinsfile` 提供可移植的 Pipeline from SCM，不包含个人绝对路径或真实凭据。流水线依次执行安装、Lint、Build、Unit、隔离数据库、API、Seed、Playwright、Git SHA 镜像、Kind 部署和健康检查，并将阶段标记与运行证据归档为 Jenkins Artifact。
-
-测试阶段会在 `ci-evidence/build-<BUILD_NUMBER>/test-results/junit/` 生成 11 份标准 JUnit XML：requirements、后端 Jest、前端 Vitest、六个微服务 Vitest、API Integration 和 Playwright E2E。Jenkins `post` 阶段使用 `junit` 步骤发布这些报告，因此 Build 页面可查看测试数量、失败明细和历史趋势；XML 同时保留在 Artifact 中。Unit 后故意失败时仍会发布已经生成的 9 份 Unit XML。
-
-Jenkins Job 推荐配置：
-
-```text
-Repository URL：https://github.com/DanTargaryen/VideoPlayer.git
-Branch：*/main
-Script Path：Jenkinsfile
-Poll SCM：H/2 * * * *
-```
-
-不启动 Jenkins时可先执行同构脚本：
-
-```bash
-BUILD_NUMBER=9001 FORCE_TEST_FAILURE_VALUE=false \
-  ./scripts/ci-local-run.sh
-
-BUILD_NUMBER=9002 FORCE_TEST_FAILURE_VALUE=true \
-  ./scripts/ci-local-run.sh
-```
-
-`FORCE_TEST_FAILURE=true` 会在 Unit 后故意失败，用于证明后续 Migration、API、E2E、镜像和部署不会继续。数据库阶段固定使用 DB-01 提供的 `prisma migrate deploy`，目标是流水线动态创建的隔离测试库；不对共享或远端数据库执行迁移、重置或 Seed。
-
-停止由开发环境启动的 Redis、MinIO、SRS：
+停止开发依赖：
 
 ```bash
 npm run dev:down
 ```
 
-首次安装与数据库初始化：
+## Clean-machine 单体复现
+
+1. 从示例生成本次专用且被 Git 忽略的环境文件：
+
+   ```bash
+   cp deploy/practice.env.example .env.practice
+   $EDITOR .env.practice
+   ```
+
+2. 使用新 project 与 Git SHA tag 构建并启动：
+
+   ```bash
+   export IMAGE_TAG="repro-$(git rev-parse --short=12 HEAD)"
+   export COMPOSE_PROJECT_NAME="video-player-$IMAGE_TAG"
+   docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml config --quiet
+   docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml build --no-cache
+   docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml up -d
+   docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml ps
+   ```
+
+3. 验证首页和健康接口：
+
+   ```bash
+   curl -fsS http://127.0.0.1:5173/ | grep -q '<div id="app"></div>'
+   curl -fsS http://127.0.0.1:3000/api/v1/health
+   ```
+
+4. 如需全新 Kind 单体环境：
+
+   ```bash
+   export KIND_CLUSTER_NAME="video-player-$IMAGE_TAG"
+   ./scripts/k8s-deploy.sh "$IMAGE_TAG"
+   ./scripts/k8s-health-check.sh
+   ```
+
+5. 验收后仅清理本次隔离资源：
+
+   ```bash
+   docker compose --env-file .env.practice -f deploy/docker-compose.practice.yml down --volumes
+   kind delete cluster --name "$KIND_CLUSTER_NAME"
+   ```
+
+`down --volumes` 与 `kind delete cluster` 会永久删除对应隔离数据。执行前必须核对 `COMPOSE_PROJECT_NAME` 和 `KIND_CLUSTER_NAME`，禁止把空变量、通配符或共享环境作为清理目标。
+
+数据库 migration、existing-database baseline、完整 Kind 微服务环境变量和回滚步骤见 [`docs/practice-2026/11-jenkins-kind-cicd-runbook.md`](docs/practice-2026/11-jenkins-kind-cicd-runbook.md) 与 [`delivery/03_devops/README.md`](delivery/03_devops/README.md)。
+
+## CI/CD 与工程实验
+
+- GitHub Actions：`quality` → `public-e2e` → Git SHA 镜像 → 隔离 Kind deploy/health/evidence/cleanup。
+- Jenkins：Checkout、Install、Lint、Build、Unit、Migration、API、Seed、E2E、Image、Kind、Health；同时发布 JUnit 和 Artifact。
+- HPA、依赖故障和性能实验必须按 [`docs/practice-2026/13-resilience-performance-experiments.md`](docs/practice-2026/13-resilience-performance-experiments.md) 的前置条件、隔离命名和清理步骤执行，不能在共享环境直接注入故障。
+
+本地运行 Jenkins 同构流程：
 
 ```bash
-npm run db:init
+BUILD_NUMBER=9001 FORCE_TEST_FAILURE_VALUE=false ./scripts/ci-local-run.sh
+BUILD_NUMBER=9002 FORCE_TEST_FAILURE_VALUE=true ./scripts/ci-local-run.sh
 ```
 
+第二条命令用于验证 Unit 后的故意失败会阻断 migration、API、E2E、镜像和部署。
 
-## 数据库初始化
+## 演示与交付
 
-当前后端目标数据库为 MySQL。初始化步骤如下：
+- 交付总入口：[`delivery/README.md`](delivery/README.md)
+- 最终答辩：[`delivery/06_defense/VideoPlayer-最终答辩.pptx`](delivery/06_defense/VideoPlayer-最终答辩.pptx)
+- 演示脚本：[`delivery/06_defense/demo-script.md`](delivery/06_defense/demo-script.md)
+- 最终 Gate：[`docs/practice-2026/15-final-delivery-checklist.md`](docs/practice-2026/15-final-delivery-checklist.md)
 
-```bash
-# 1. 启动本机 MySQL（脚本也会自动尝试拉起 mysql 服务）
-sudo systemctl start mysql
+技术包进入 `main` 不等于课程 DEL-01 已完全关闭。只有真实成员完成另一台机器复现、贡献权重确认和签字，并上传 5–8 分钟备用录屏后，才可把 DEL-01 标记为 `DONE`。
 
-# 2. 创建数据库
-MYSQL_PWD=proot mysql -h 127.0.0.1 -P 3306 -u root < deploy/mysql/init.sql
+## 安全与协作
 
-# 3. 生成 Prisma Client
-npm --workspace backend run prisma:generate
-
-# 4. 推送表结构
-npm --workspace backend run db:migrate
-
-# 5. 写入演示数据
-npm --workspace backend run db:seed
-```
-
-默认本地开发数据库连接为 `mysql://root:proot@127.0.0.1:3306/video_player`。
-
-如果本机没有 MySQL 服务，后端将无法连接数据库，需先补齐运行环境。`npm run dev` 和 `npm run db:init` 会先检查连接，连接失败时会自动尝试启动 Linux 下的 `mysql` 服务。`npm run dev` 还会自动拉起 Docker 中的 Redis、MinIO 和 SRS。
-
-
-## 登录说明
-
-- 普通用户直接在登录页使用用户账号登录。
-- 管理员不在常规入口直接暴露。需要先点击登录页中的“管理入口”，输入密钥 `123456`，再使用管理员账号登录。
-- 非管理员角色和游客在主站头部不会看到“审核后台”入口。
-
-演示账号：
-
-- 用户：`demo_user / User123456!`
-- 管理员：`demo_admin / Admin123456!`
-
-## MinIO 上传说明
-
-当前项目默认使用 MinIO 作为对象存储，并接入真实文件上传链路。
-
-- 视频原文件会上传到 MinIO 的 `video-player` bucket
-- 封面图片支持本地上传
-- 视频创建后会执行基础媒体处理：
-  - 时长解析
-  - 自动转码到 MP4
-  - 若未手动上传封面，则自动抽帧生成封面
-- 后端会自动创建 bucket，并配置匿名只读策略，返回的资源 URL 可直接在前端访问
-
-对象路径示例：
-
-```text
-videos/original/YYYY/MM/DD/<timestamp>-sample.mp4
-videos/covers/YYYY/MM/DD/<timestamp>-cover.jpg
-videos/transcoded/YYYY/MM/DD/<timestamp>-sample.mp4
-```
-
-MinIO 默认访问地址：`http://127.0.0.1:9000`
-MinIO 控制台默认访问地址：`http://127.0.0.1:9001`
-
-如需本地启动 MinIO，可在 `deploy/` 目录使用 Docker Compose 启动 `minio` 服务；若确实需要退回本地磁盘存储，可显式设置 `STORAGE_BACKEND=local`。
-
-## 协作注意事项
-
-- 提交代码前先同步远端，减少冲突。
-- 提交信息尽量简洁明确，例如：`docs: 更新需求文档`、`feat: 新增首页推荐页`。
-- 不要提交依赖目录、构建产物、日志和本地密钥文件。
-- 文档、接口、数据库和代码命名必须保持一致。
-
-## 本地启动步骤（已验证）
-
-在项目根目录 `D:\Java_Code\Projects\VideoPlayer` 执行：
-
-```bash
-# 1. 启动 Docker 依赖
-docker compose -f deploy/docker-compose.example.yml up -d mysql redis minio srs
-
-# 2. 生成 Prisma Client
-npm --workspace backend run prisma:generate
-
-# 3. 同步数据库结构
-npm --workspace backend run db:migrate
-
-# 4. 写入演示数据
-npm --workspace backend run db:seed
-
-# 5. 构建后端
-npm --workspace backend run build
-
-# 6. 启动后端
-node backend/dist/main.js
-
-# 7. 启动前端
-npm --workspace frontend run dev -- --host 127.0.0.1 --port 5173
-```
-
-启动成功后可访问：
-
-- 前端：`http://127.0.0.1:5173`
-- 后端 API：`http://127.0.0.1:3000/api/v1`
-- MinIO：`http://127.0.0.1:9000`
-- MinIO 控制台：`http://127.0.0.1:9001`
-- SRS HTTP：`http://127.0.0.1:8080`
-- SRS API：`http://127.0.0.1:1985/api/v1/versions`
-
-本次本地启动使用的 MySQL 配置为：
-
-- Host：`127.0.0.1`
-- Port：`3306`
-- Database：`video_player`
-- User：`root`
-- Password：`你在本地单独配置的管理员密钥`
+- 不提交 `.env.practice`、数据库口令、JWT、MinIO 密钥、Token、录屏中的敏感信息或个人隐私。
+- 数据迁移、Seed、reset 和故障实验只对明确命名的隔离环境执行。
+- Commit、PR、Review、push 与合并规则见 [`docs/practice-2026/09-commit-pr-convention.md`](docs/practice-2026/09-commit-pr-convention.md)。
+- 生成的 test-results、coverage、日志和临时渲染走 CI Artifact 或 ignored 目录；课程明确要求的最终 PPTX 是交付物，可提交到 `delivery/`。
