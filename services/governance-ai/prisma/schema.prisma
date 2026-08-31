@@ -18,6 +18,7 @@ enum ReviewStatus {
   PENDING
   APPROVED
   REJECTED
+  WITHDRAWN
 }
 
 enum CommentAiTaskStatus {
@@ -47,6 +48,7 @@ enum ModerationApplyStatus {
   APPLY_PENDING
   APPLYING
   APPLIED
+  WITHDRAWN
   APPLY_FAILED_RETRYABLE
   APPLY_FAILED_FINAL
 }
@@ -67,19 +69,19 @@ model VideoReview {
 }
 
 model CommentAiTask {
-  id           Int                    @id @default(autoincrement())
-  targetType   GovernanceTargetType
-  targetId     String                  @db.VarChar(191)
-  videoId      String?                 @db.VarChar(191)
-  requesterId  Int
-  requestId    String                 @unique @db.VarChar(128)
-  prompt       String                 @db.VarChar(1000)
-  status       CommentAiTaskStatus    @default(PENDING)
-  attempts     Int                    @default(0)
-  lastError    String?                @db.VarChar(1024)
-  createdAt    DateTime               @default(now())
-  updatedAt    DateTime               @updatedAt
-  completedAt  DateTime?
+  id          Int                  @id @default(autoincrement())
+  targetType  GovernanceTargetType
+  targetId    String               @db.VarChar(191)
+  videoId     String?              @db.VarChar(191)
+  requesterId Int
+  requestId   String               @unique @db.VarChar(128)
+  prompt      String               @db.VarChar(1000)
+  status      CommentAiTaskStatus  @default(PENDING)
+  attempts    Int                  @default(0)
+  lastError   String?              @db.VarChar(1024)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  completedAt DateTime?
 
   @@index([targetType, targetId, createdAt])
   @@index([status, updatedAt])
@@ -87,20 +89,20 @@ model CommentAiTask {
 }
 
 model ReportRecord {
-  id             Int                    @id @default(autoincrement())
+  id             Int                  @id @default(autoincrement())
   reporterId     Int
   handlerId      Int?
   targetType     GovernanceTargetType
-  targetId       String                 @db.VarChar(191)
-  videoId        String?                @db.VarChar(191)
+  targetId       String               @db.VarChar(191)
+  videoId        String?              @db.VarChar(191)
   targetSnapshot Json?
-  pendingKey     String?                @unique @db.VarChar(160)
-  requestId      String                 @unique @db.VarChar(128)
-  reason         String                 @db.VarChar(255)
-  status         ReportStatus           @default(PENDING)
-  handleNote     String?                @db.VarChar(255)
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
+  pendingKey     String?              @unique @db.VarChar(160)
+  requestId      String               @unique @db.VarChar(128)
+  reason         String               @db.VarChar(255)
+  status         ReportStatus         @default(PENDING)
+  handleNote     String?              @db.VarChar(255)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
   handledAt      DateTime?
 
   @@index([status, createdAt])
@@ -109,27 +111,28 @@ model ReportRecord {
 }
 
 model ModerationDecision {
-  id          Int                    @id @default(autoincrement())
-  decisionId  String                 @unique @db.VarChar(128)
-  requestId   String                 @unique @db.VarChar(128)
-  targetType  GovernanceTargetType
-  targetId    String                 @db.VarChar(191)
-  videoId     String?                @db.VarChar(191)
-  reportId    Int?
+  id                      Int                   @id @default(autoincrement())
+  decisionId              String                @unique @db.VarChar(128)
+  requestId               String                @unique @db.VarChar(128)
+  withdrawRequestId       String?               @unique @db.VarChar(128)
+  targetType              GovernanceTargetType
+  targetId                String                @db.VarChar(191)
+  videoId                 String?               @db.VarChar(191)
+  reportId                Int?
   notificationRecipientId Int?
-  decision    ModerationAction?
-  reason      String?                @db.VarChar(255)
-  operatorId  Int?
-  applyStatus ModerationApplyStatus  @default(PENDING)
-  attempts    Int                    @default(0)
-  lastError   String?                @db.VarChar(1024)
-  decidedAt   DateTime?
-  appliedAt   DateTime?
-  nextRetryAt DateTime?
-  leaseToken String?                  @db.VarChar(128)
-  leaseExpiresAt DateTime?
-  createdAt   DateTime               @default(now())
-  updatedAt   DateTime               @updatedAt
+  decision                ModerationAction?
+  reason                  String?               @db.VarChar(255)
+  operatorId              Int?
+  applyStatus             ModerationApplyStatus @default(PENDING)
+  attempts                Int                   @default(0)
+  lastError               String?               @db.VarChar(1024)
+  decidedAt               DateTime?
+  appliedAt               DateTime?
+  nextRetryAt             DateTime?
+  leaseToken              String?               @db.VarChar(128)
+  leaseExpiresAt          DateTime?
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
 
   @@index([targetType, targetId, createdAt])
   @@index([applyStatus, nextRetryAt])

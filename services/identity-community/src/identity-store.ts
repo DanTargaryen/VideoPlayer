@@ -890,6 +890,25 @@ export class IdentityStore {
     return [...this.followRelations.values()].filter((relation) => relation.followingId === userId).length;
   }
 
+  getCreatorStats(userId: number, days = 7) {
+    const user = this.users.get(userId);
+    if (!user) throw new IdentityStoreError(404, 'User not found');
+    const normalizedDays = Math.max(1, Math.min(30, Math.floor(days)));
+    const followerCount = this.getFollowerCount(userId);
+    const followingCount = this.getFollowingCount(userId);
+    const followerTrend = Array.from({ length: normalizedDays }, (_, index) => {
+      const date = new Date();
+      date.setUTCDate(date.getUTCDate() - (normalizedDays - 1 - index));
+      return { date: date.toISOString().slice(0, 10), followerCount: index === normalizedDays - 1 ? followerCount : 0 };
+    });
+    return {
+      user: { id: user.id, username: user.username, nickname: user.nickname, avatarUrl: user.avatarUrl, bio: user.bio, email: user.email, messagePrivacy: user.messagePrivacy, role: user.role, createdAt: user.createdAt },
+      followerCount,
+      followingCount,
+      followerTrend,
+    };
+  }
+
   getFollowingCount(userId: number) {
     return [...this.followRelations.values()].filter((relation) => relation.followerId === userId).length;
   }

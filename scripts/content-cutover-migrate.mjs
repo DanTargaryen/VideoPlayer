@@ -82,7 +82,7 @@ try {
       createdAt: video.createdAt, updatedAt: video.updatedAt,
     })),
     VideoAsset: (await sourceClient.videoAsset.findMany({ orderBy: { id: 'asc' } })).map((row) => ({
-      id: String(row.id), videoId: row.videoId === null ? null : String(row.videoId), kind: assetKind(row.assetType), bucket: row.bucket, objectKey: row.objectKey,
+      id: String(row.id), videoId: row.videoId === null ? null : String(row.videoId), uploaderId: null, kind: assetKind(row.assetType), bucket: row.bucket, objectKey: row.objectKey,
       requestId: null, mimeType: row.mimeType, originalName: row.originalName, url: row.url, sizeBytes: BigInt(row.fileSize), createdAt: row.createdAt, updatedAt: row.updatedAt,
     })),
     UserVideoWatch: (await sourceClient.userVideoWatch.findMany({ orderBy: { id: 'asc' } })).map((row) => ({

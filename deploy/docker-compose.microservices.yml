@@ -64,6 +64,18 @@ services:
       content-mysql:
         condition: service_healthy
 
+  content-minio:
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${CONTENT_MINIO_ACCESS_KEY:?CONTENT_MINIO_ACCESS_KEY is required}
+      MINIO_ROOT_PASSWORD: ${CONTENT_MINIO_SECRET_KEY:?CONTENT_MINIO_SECRET_KEY is required}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - content-minio-data:/data
+
   live-mysql:
     image: mysql:8.0
     environment:
@@ -149,7 +161,14 @@ services:
       PORT: 3000
       GIT_SHA: ${GIT_SHA:-dev}
       CONTENT_DATABASE_URL: mysql://content_media:${CONTENT_DB_PASSWORD:-content-media-local-only}@content-mysql:3306/content_media
+      MINIO_ENDPOINT: content-minio
+      MINIO_PORT: 9000
+      MINIO_USE_SSL: "false"
+      MINIO_ROOT_USER: ${CONTENT_MINIO_ACCESS_KEY:?CONTENT_MINIO_ACCESS_KEY is required}
+      MINIO_ROOT_PASSWORD: ${CONTENT_MINIO_SECRET_KEY:?CONTENT_MINIO_SECRET_KEY is required}
+      MINIO_BUCKET: ${CONTENT_MINIO_BUCKET:-videoplayer-content}
       IDENTITY_SERVICE_URL: http://identity-community:3000
+      LIVE_SERVICE_URL: http://live-reward:3000
       GOVERNANCE_SERVICE_URL: http://governance-ai:3000
       SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET:?SERVICE_JWT_SECRET is required}
     ports:
@@ -159,6 +178,10 @@ services:
         condition: service_completed_successfully
       identity-community:
         condition: service_healthy
+      live-reward:
+        condition: service_healthy
+      content-minio:
+        condition: service_started
     healthcheck:
       <<: *service-health
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
@@ -247,5 +270,6 @@ services:
 volumes:
   identity-mysql-data:
   content-mysql-data:
+  content-minio-data:
   live-mysql-data:
   governance-mysql-data:

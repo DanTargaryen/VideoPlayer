@@ -73,7 +73,7 @@ export interface TransactionRecord {
   type: TransactionType;
   amount: number;
   balanceAfter: number;
-  videoId: number | null;
+  videoId: string | null;
   requestId: string;
   requestPayload: string;
   createdAt: Date;
@@ -116,7 +116,7 @@ export interface Store {
   getDailyClaims(userId: number): Promise<Date[]>;
   getClaimedMilestones(userId: number): Promise<number[]>;
   claimMilestone(userId: number, milestone: number, requestId: string): Promise<{ claimed: boolean; amount: number; balance: number; message?: string }>;
-  coinVideo(userId: number, videoId: number, amount: number, requestId: string): Promise<{ amount: number; balance: number; userVideoCoinCount: number }>;
+  coinVideo(userId: number, videoId: string, amount: number, requestId: string): Promise<{ amount: number; balance: number; userVideoCoinCount: number }>;
   gift(userId: number, amount: number, requestId: string): Promise<{ amount: number; balance: number }>;
 }
 
@@ -264,7 +264,7 @@ export class MemoryStore implements Store {
     this.milestones.add(key);
     return { ...(await this.credit(userId, 10, 'STREAK_REWARD', null, requestId, requestPayload)), claimed: true };
   }
-  async coinVideo(userId: number, videoId: number, amount: number, requestId: string): Promise<{ amount: number; balance: number; userVideoCoinCount: number }> {
+  async coinVideo(userId: number, videoId: string, amount: number, requestId: string): Promise<{ amount: number; balance: number; userVideoCoinCount: number }> {
     const requestPayload = videoCoinRequestPayload(userId, videoId, amount);
     const existingTransaction = this.transactions.find((item) => item.requestId === requestId);
     if (existingTransaction) {
@@ -287,13 +287,13 @@ export class MemoryStore implements Store {
     }
     return { amount, balance: await this.debit(userId, amount, 'LIVE_GIFT', null, requestId, requestPayload) };
   }
-  private credit(userId: number, amount: number, type: TransactionType, videoId: number | null, requestId: string, requestPayload: string) {
+  private credit(userId: number, amount: number, type: TransactionType, videoId: string | null, requestId: string, requestPayload: string) {
     const balance = (this.balances.get(userId) ?? 10) + amount;
     this.balances.set(userId, balance);
     this.transactions.push({ id: this.nextTransactionId++, userId, type, amount, balanceAfter: balance, videoId, requestId, requestPayload, createdAt: new Date() });
     return { claimed: true, amount, balance };
   }
-  private async debit(userId: number, amount: number, type: TransactionType, videoId: number | null, requestId: string, requestPayload: string) {
+  private async debit(userId: number, amount: number, type: TransactionType, videoId: string | null, requestId: string, requestPayload: string) {
     const existing = this.transactions.find((item) => item.requestId === requestId);
     if (existing) {
       assertTransactionPayload(existing, requestPayload);
@@ -430,7 +430,7 @@ export class PrismaStore implements Store {
       throw error;
     }
   }
-  async coinVideo(userId: number, videoId: number, amount: number, requestId: string) {
+  async coinVideo(userId: number, videoId: string, amount: number, requestId: string) {
     const requestPayload = videoCoinRequestPayload(userId, videoId, amount);
     const existingTx = await this.prisma.coinTransaction.findUnique({ where: { requestId } });
     if (existingTx) {
@@ -517,7 +517,7 @@ function milestoneRequestPayload(userId: number, milestone: number): string {
   return `milestone:${userId}:${milestone}`;
 }
 
-function videoCoinRequestPayload(userId: number, videoId: number, amount: number): string {
+function videoCoinRequestPayload(userId: number, videoId: string, amount: number): string {
   return `video-coin:${userId}:${videoId}:${amount}`;
 }
 

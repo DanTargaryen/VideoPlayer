@@ -63,6 +63,7 @@ model VideoCategory {
 model VideoAsset {
   id           String    @id @default(cuid())
   videoId      String?
+  uploaderId   String?
   kind         AssetKind
   bucket       String    @db.VarChar(64)
   objectKey    String    @unique @db.VarChar(255)
@@ -76,6 +77,7 @@ model VideoAsset {
   video        Video?    @relation(fields: [videoId], references: [id], onDelete: SetNull)
 
   @@index([videoId])
+  @@index([uploaderId, createdAt])
 }
 
 model UserVideoWatch {
@@ -259,6 +261,12 @@ model NotificationOutbox {
   updatedAt   DateTime  @updatedAt
 
   @@index([status, nextRetryAt])
+}
+
+model ContentIdSequence {
+  name      String   @id @db.VarChar(64)
+  nextId    BigInt
+  updatedAt DateTime @updatedAt
 }
 
 enum VideoStatus {

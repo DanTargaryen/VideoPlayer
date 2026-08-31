@@ -5,6 +5,7 @@ resources:
   - namespace.yaml
   - configmap.yaml
   - services.yaml
+  - content-minio.yaml
 images:
   - name: video-player/identity-community
     newTag: local

@@ -30,7 +30,7 @@ if (mode === 'read') {
   await probe('/api/v1/videos/1/comments', 'content-media');
   await probe('/api/v1/feed/sidebar/live', 'monolith');
   await probe('/api/v1/search/suggest?q=architecture', 'monolith');
-  await probe('/api/v1/videos/1/reviews', 'monolith');
+  await probe('/api/v1/ai/video-chat/1', 'monolith');
   await probe('/api/v1/auth/register', 'monolith', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },

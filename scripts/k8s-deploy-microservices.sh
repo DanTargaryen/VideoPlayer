@@ -13,6 +13,8 @@ IDENTITY_DATABASE_URL=${IDENTITY_DATABASE_URL:-}
 IDENTITY_ADMIN_SECRET=${IDENTITY_ADMIN_SECRET:-}
 MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-}
 CONTENT_DB_PASSWORD=${CONTENT_DB_PASSWORD:-}
+CONTENT_MINIO_ACCESS_KEY=${CONTENT_MINIO_ACCESS_KEY:-}
+CONTENT_MINIO_SECRET_KEY=${CONTENT_MINIO_SECRET_KEY:-}
 LIVE_REWARD_DATABASE_NAME=${LIVE_REWARD_DATABASE_NAME:-}
 LIVE_REWARD_DATABASE_USER=${LIVE_REWARD_DATABASE_USER:-}
 LIVE_REWARD_DATABASE_PASSWORD=${LIVE_REWARD_DATABASE_PASSWORD:-}
@@ -57,6 +59,10 @@ if [[ ${#CONTENT_DB_PASSWORD} -lt 24 || ! "$CONTENT_DB_PASSWORD" =~ ^[A-Za-z0-9]
   echo "CONTENT_DB_PASSWORD must contain at least 24 alphanumeric characters." >&2
   exit 1
 fi
+if [[ -z "$CONTENT_MINIO_ACCESS_KEY" || ${#CONTENT_MINIO_SECRET_KEY} -lt 24 ]]; then
+  echo "CONTENT_MINIO_ACCESS_KEY and a secret with at least 24 characters are required." >&2
+  exit 1
+fi
 if [[ ! "$LIVE_REWARD_DATABASE_NAME" =~ ^[A-Za-z0-9_]+test[A-Za-z0-9_]*$ ]]; then
   echo "LIVE_REWARD_DATABASE_NAME must be a test database with a safe identifier." >&2
   exit 1
@@ -98,6 +104,9 @@ docker image inspect "$content_migration_image" >/dev/null
 docker image inspect "$live_migration_image" >/dev/null
 docker image inspect "$governance_migration_image" >/dev/null
 images+=("$identity_migration_image" "$content_migration_image" "$live_migration_image" "$governance_migration_image")
+content_minio_image="minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e"
+docker image inspect "$content_minio_image" >/dev/null || docker pull "$content_minio_image"
+images+=("$content_minio_image")
 
 if ! kind get clusters | grep -Fxq "$CLUSTER_NAME"; then
   echo "Kind cluster $CLUSTER_NAME does not exist; deploy the monolith baseline first." >&2
@@ -128,6 +137,8 @@ kubectl -n "$NAMESPACE" create secret generic videoplayer-microservice-secrets \
   --from-literal=content-database-url="mysql://content_media:${CONTENT_DB_PASSWORD}@mysql:3306/content_media" \
   --from-literal=live-reward-database-url="$LIVE_REWARD_DATABASE_URL" \
   --from-literal=governance-database-url="$GOVERNANCE_DATABASE_URL" \
+  --from-literal=minio-access-key="$CONTENT_MINIO_ACCESS_KEY" \
+  --from-literal=minio-secret-key="$CONTENT_MINIO_SECRET_KEY" \
   --dry-run=client -o yaml | kubectl apply -f -
 kubectl -n "$NAMESPACE" delete job identity-migrate --ignore-not-found
 sed "s|video-player/identity-community-migration:local|$identity_migration_image|g" \
@@ -190,6 +201,7 @@ if grep -Fx 'video_player' <<<"$governance_database_list" >/dev/null || grep -Fx
 fi
 
 kubectl apply -k "$ROOT_DIR/deploy/k8s/microservices"
+kubectl -n "$NAMESPACE" rollout status statefulset/content-minio --timeout=180s
 kubectl -n "$NAMESPACE" patch configmap videoplayer-microservice-config \
   --type merge \
   -p "{\"data\":{\"GIT_SHA\":\"$IMAGE_TAG\"}}"

@@ -690,6 +690,31 @@ export class PrismaIdentityStore {
     return this.prisma.followRelation.count({ where: { followerId: userId } });
   }
 
+  async getCreatorStats(userId: number, days = 7) {
+    const user = await this.requireUserById(userId);
+    const normalizedDays = Math.max(1, Math.min(30, Math.floor(days)));
+    const dates = Array.from({ length: normalizedDays }, (_, index) => {
+      const date = new Date();
+      date.setUTCDate(date.getUTCDate() - (normalizedDays - 1 - index));
+      return date.toISOString().slice(0, 10);
+    });
+    const [followerCount, followingCount, snapshots] = await Promise.all([
+      this.getFollowerCount(userId),
+      this.getFollowingCount(userId),
+      this.prisma.creatorFollowerDaily.findMany({
+        where: { creatorId: userId, statDate: { gte: dates[0], lte: dates[dates.length - 1] } },
+        orderBy: { statDate: 'asc' },
+      }),
+    ]);
+    const byDate = new Map(snapshots.map((item) => [item.statDate, item.followerCount]));
+    return {
+      user: { id: user.id, username: user.username, nickname: user.nickname, avatarUrl: user.avatarUrl, bio: user.bio, email: user.email, messagePrivacy: user.messagePrivacy, role: user.role, createdAt: user.createdAt },
+      followerCount,
+      followingCount,
+      followerTrend: dates.map((date) => ({ date, followerCount: byDate.get(date) ?? (date === dates[dates.length - 1] ? followerCount : 0) })),
+    };
+  }
+
   async getFollowingIds(userId?: number) {
     if (!userId) return [];
     const relations = await this.prisma.followRelation.findMany({

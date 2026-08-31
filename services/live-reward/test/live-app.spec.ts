@@ -346,6 +346,16 @@ describe('live-reward HTTP adapters and internal auth', () => {
     const response = await fetch(`${baseUrl}/internal/v1/videos/99/coin`, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json', 'x-request-id': 'gateway-coin-1' }, body: JSON.stringify({ userId: 7, amount: 1 }) });
     expect(response.status).toBe(200);
     expect((await response.json()).data).toMatchObject({ amount: 1, balance: 9 });
+    const cuidRequestId = 'gateway-coin-cuid';
+    const cuidToken = issueServiceToken({ caller: 'gateway', audience: 'live-reward', scopes: ['live.ledger.write'], secret: serviceSecret, requestId: cuidRequestId });
+    const cuid = await fetch(`${baseUrl}/internal/v1/videos/video-cuid-1/coin`, { method: 'POST', headers: { authorization: `Bearer ${cuidToken}`, 'content-type': 'application/json', 'x-request-id': cuidRequestId }, body: JSON.stringify({ userId: 7, amount: 1 }) });
+    expect(cuid.status).toBe(200);
+
+    const walletRequestId = 'content-wallet-read';
+    const walletToken = issueServiceToken({ caller: 'content-media', audience: 'live-reward', scopes: ['live.wallet.read'], secret: serviceSecret, requestId: walletRequestId });
+    const wallet = await fetch(`${baseUrl}/internal/v1/users/7/wallet`, { headers: { authorization: `Bearer ${walletToken}`, 'x-request-id': walletRequestId } });
+    expect(wallet.status).toBe(200);
+    expect((await wallet.json()).data.balance).toBe(8);
     const denied = await fetch(`${baseUrl}/internal/v1/videos/99/coin`, { method: 'POST', headers: { authorization: `Bearer ${issueServiceToken({ caller: 'gateway', audience: 'live-reward', scopes: [], secret: serviceSecret })}`, 'content-type': 'application/json' }, body: JSON.stringify({ userId: 7, amount: 1 }) });
     expect(denied.status).toBe(401);
   });

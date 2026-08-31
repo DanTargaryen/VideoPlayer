@@ -42,6 +42,9 @@ RUN for attempt in 1 2 3 4 5; do \
     exit 1
 COPY --from=build /app/services/content-media/dist ./dist
 COPY --from=build /app/services/content-media/generated ./generated
+COPY --from=build /app/node_modules ./node_modules
+RUN rm -f node_modules/@videoplayer/content-media node_modules/@videoplayer/shared-contracts \
+  && mkdir -p node_modules/@videoplayer/shared-contracts
 COPY --from=build /app/services/shared-contracts/package.json ./node_modules/@videoplayer/shared-contracts/package.json
 COPY --from=build /app/services/shared-contracts/dist ./node_modules/@videoplayer/shared-contracts/dist
 USER node

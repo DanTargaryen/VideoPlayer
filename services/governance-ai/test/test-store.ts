@@ -6,6 +6,7 @@ import type {
   HandleReportInput,
   ReportRecord,
   ReviewRecord,
+  VideoReviewHistoryRecord,
 } from '../src/types.js';
 
 export class TestGovernanceStore implements GovernanceStore {
@@ -15,6 +16,7 @@ export class TestGovernanceStore implements GovernanceStore {
   private nextDecisionId = 1;
   private readonly reports = new Map<number, ReportRecord>();
   private readonly decisions = new Map<number, ReviewRecord>();
+  private readonly withdrawals = new Map<string, number>();
 
   async ready() {
     return this.isReady;
@@ -54,6 +56,40 @@ export class TestGovernanceStore implements GovernanceStore {
     return [...this.decisions.values()]
       .filter((item) => targetTypes.includes(item.targetType) && !item.reportId && !item.decision && item.applyStatus === 'PENDING')
       .sort((a, b) => b.id - a.id);
+  }
+
+  async listVideoReviews(videoId: string): Promise<VideoReviewHistoryRecord[]> {
+    return [...this.decisions.values()]
+      .filter((item) => item.targetType === 'VIDEO' && item.targetId === videoId && !item.reportId && item.applyStatus !== 'WITHDRAWN')
+      .sort((left, right) => right.id - left.id)
+      .map((item) => ({
+        id: item.id,
+        videoId,
+        reviewerId: item.operatorId ?? null,
+        requestId: item.requestId,
+        status: item.applyStatus === 'WITHDRAWN' ? 'WITHDRAWN' : item.decision === 'APPROVE' ? 'APPROVED' : item.decision === 'REJECT' ? 'REJECTED' : 'PENDING',
+        reason: item.reason ?? null,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+        reviewedAt: item.decision || item.applyStatus === 'WITHDRAWN' ? item.updatedAt : null,
+      }));
+  }
+
+  async withdrawVideoReview(videoId: string, requestId: string) {
+    const replayId = this.withdrawals.get(requestId);
+    if (replayId) {
+      const replay = this.decisions.get(replayId)!;
+      if (replay.targetId !== videoId) throw new GovernanceError('withdraw requestId conflicts with another review', 'CONFLICT');
+      return replay;
+    }
+    const pending = [...this.decisions.values()]
+      .filter((item) => item.targetType === 'VIDEO' && item.targetId === videoId && !item.reportId && !item.decision && item.applyStatus === 'PENDING')
+      .sort((left, right) => right.id - left.id)[0];
+    if (!pending) throw new GovernanceError('Pending review not found', 'NOT_FOUND');
+    const updated = { ...pending, applyStatus: 'WITHDRAWN' as const, updatedAt: new Date() };
+    this.decisions.set(updated.id, updated);
+    this.withdrawals.set(requestId, updated.id);
+    return updated;
   }
 
   async decideReview(input: { reviewId: number; operatorId: number; requestId: string; action: ReviewRecord['decision']; reason?: string }) {

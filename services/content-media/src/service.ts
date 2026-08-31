@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -27,6 +27,12 @@ import {
   type ContentNotification,
   type IdentityNotificationClient,
 } from './notification-client.js';
+import { readSingleFileMultipart } from './multipart.js';
+import {
+  MinioContentObjectStorage,
+  type ContentObjectStorage,
+} from './object-storage.js';
+import { HttpLiveWalletClient, type LiveWalletClient } from './live-client.js';
 
 export const SERVICE_OPTIONS: ServiceRuntimeOptions = {
   serviceName: 'content-media',
@@ -61,6 +67,7 @@ interface VideoRecord {
   coverUrl: string | null;
   playUrl: string | null;
   durationSeconds: number;
+  uploadToken?: string;
   publishedAt: string | null;
   submittedAt: string | null;
   reviewSubmissionRequestId: string | null;
@@ -72,19 +79,23 @@ interface VideoRecord {
   commentCount: number;
   coinCount: number;
   createdAt: string;
+  updatedAt?: string;
   categoryCode: string | null;
   categoryName: string | null;
 }
 
 interface VideoAssetRecord {
   id: string;
-  videoId: string;
+  videoId: string | null;
+  uploaderId?: string | null;
   kind: AssetKind;
   objectKey: string;
   requestId?: string | null;
   bucket: string;
   mimeType: string;
+  originalName?: string | null;
   url: string;
+  sizeBytes?: bigint | number | null;
 }
 
 interface CommentRecord {
@@ -163,12 +174,21 @@ export interface ContentState {
 
 export interface IdentityBatchClient {
   batchSummary(userIds: string[], requestId: string): Promise<Map<string, CreatorSummary>>;
+  creatorStats?(userId: string, requestId: string): Promise<{
+    user: { id: number; username: string; nickname: string; avatarUrl: string | null; bio: string | null; email: string; messagePrivacy: string; role: string; createdAt: string | Date };
+    followerCount: number;
+    followingCount: number;
+    followerTrend: Array<{ date: string; followerCount: number }>;
+  }>;
 }
 
 export interface ContentServiceOptions {
   identityClient?: IdentityBatchClient;
   governanceClient?: GovernanceReviewClient | null;
   notificationClient?: IdentityNotificationClient | null;
+  objectStorage?: ContentObjectStorage | null;
+  liveWalletClient?: LiveWalletClient | null;
+  videoStreamProbe?: VideoStreamProbe;
   internalJwtSecret?: string;
   identityTimeoutMs?: number;
   governanceTimeoutMs?: number;
@@ -285,6 +305,14 @@ export interface ContentRepository {
   pendingNotifications(limit: number): Promise<NotificationOutboxRecord[]>;
   markNotificationDelivered(id: string): Promise<void>;
   markNotificationFailed(id: string, error: string, retryable: boolean, attempts: number): Promise<void>;
+  registerUpload(input: { principal: ContentPrincipal; requestId: string; assetType: 'ORIGINAL' | 'COVER' | 'RECORDING'; filename: string; mimeType: string; size: number; digest: string; bucket: string; objectKey: string; url: string }): Promise<VideoAssetRecord>;
+  createVideoDraft(input: { principal: ContentPrincipal; requestId: string; assetId: string | null; uploadToken: string | null; title: string; description: string; categories: string[]; durationSeconds: number; coverUrl: string | null; coverAssetId: string | null; coverUploadToken: string | null }): Promise<VideoRecord>;
+  updateVideoDraft(input: { principal: ContentPrincipal; requestId: string; videoId: string; title?: string; description?: string; categories?: string[]; coverUrl?: string | null }): Promise<VideoRecord>;
+  deleteCreatorVideo(input: { principal: ContentPrincipal; requestId: string; videoId: string }): Promise<{ deleted: true; videoId: string; assets: Array<{ bucket: string; objectKey: string }> }>;
+  withdrawVideoReview(input: { principal: ContentPrincipal; requestId: string; videoId: string }): Promise<VideoRecord>;
+  listCreatorVideos(creatorId: string): Promise<VideoRecord[]>;
+  creatorDashboard(creatorId: string): Promise<{ totalVideos: number; pendingReviews: number; publishedVideos: number; rejectedVideos: number; totalLikes: number; totalFavorites: number; totalComments: number; recentRejectedVideos: Array<{ id: string; title: string; rejectReason: string | null; updatedAt: Date | string }> }>;
+  creatorPlayTrend(creatorId: string, days: number): Promise<Array<{ date: string; playCount: number }>>;
 }
 
 export function createFixtureState(): ContentState {
@@ -404,6 +432,11 @@ export class MockIdentityBatchClient implements IdentityBatchClient {
   async batchSummary(userIds: string[]): Promise<Map<string, CreatorSummary>> {
     return new Map(userIds.map((id) => [id, this.summaries.get(id) ?? fallbackCreatorSummary(id)]));
   }
+
+  async creatorStats(userId = '1') {
+    const summary = this.summaries.get(userId) ?? fallbackCreatorSummary(userId);
+    return { user: { id: Number(userId), username: `user-${userId}`, nickname: summary.nickname, avatarUrl: summary.avatarUrl, bio: null, email: `user-${userId}@example.test`, messagePrivacy: 'ALLOW_ALL', role: 'USER', createdAt: new Date(0).toISOString() }, followerCount: 0, followingCount: 0, followerTrend: [] };
+  }
 }
 
 export class HttpIdentityBatchClient implements IdentityBatchClient {
@@ -435,6 +468,35 @@ export class HttpIdentityBatchClient implements IdentityBatchClient {
       if (!Number.isSafeInteger(id) || typeof item.nickname !== 'string') return [];
       return [[String(id), { id: String(id), nickname: item.nickname, avatarUrl: typeof item.avatarUrl === 'string' ? item.avatarUrl : null }] as const];
     }));
+  }
+
+  async creatorStats(userId: string, requestId: string) {
+    const token = issueServiceToken({ caller: 'content-media', audience: 'identity-community', scopes: ['internal:user-summary'], secret: this.jwtSecret, requestId });
+    const response = await fetch(`${this.baseUrl}/internal/v1/users/${encodeURIComponent(userId)}/creator-stats`, {
+      headers: { authorization: `Bearer ${token}`, 'x-request-id': requestId },
+      signal: AbortSignal.timeout(this.timeoutMs),
+    });
+    if (!response.ok) throw new Error(`identity creator stats returned ${response.status}`);
+    const payload = await response.json() as { data?: { user?: Record<string, unknown>; followerCount?: unknown; followingCount?: unknown; followerTrend?: unknown } };
+    const followerCount = Number(payload.data?.followerCount);
+    const followingCount = Number(payload.data?.followingCount);
+    const followerTrend = Array.isArray(payload.data?.followerTrend) ? payload.data.followerTrend : [];
+    const user = payload.data?.user;
+    if (!Number.isInteger(followerCount) || !Number.isInteger(followingCount) || !user || !Number.isInteger(Number(user.id)) || typeof user.username !== 'string' || typeof user.nickname !== 'string' || typeof user.email !== 'string' || typeof user.role !== 'string') throw new Error('identity creator stats returned an invalid response');
+    return {
+      user: {
+        id: Number(user.id), username: user.username, nickname: user.nickname,
+        avatarUrl: typeof user.avatarUrl === 'string' ? user.avatarUrl : null,
+        bio: typeof user.bio === 'string' ? user.bio : null,
+        email: user.email,
+        messagePrivacy: typeof user.messagePrivacy === 'string' ? user.messagePrivacy : 'ALLOW_ALL',
+        role: user.role,
+        createdAt: typeof user.createdAt === 'string' ? user.createdAt : new Date(String(user.createdAt)).toISOString(),
+      },
+      followerCount,
+      followingCount,
+      followerTrend: followerTrend as Array<{ date: string; followerCount: number }>,
+    };
   }
 }
 
@@ -634,11 +696,19 @@ class FixtureContentRepository implements ContentRepository {
     return video;
   }
 
+  private nextPublicId(records: Array<{ id: string }>) {
+    const maximum = records.reduce((value, item) => {
+      const numeric = Number(item.id);
+      return Number.isSafeInteger(numeric) ? Math.max(value, numeric) : value;
+    }, 1_000_000);
+    return String(maximum + 1);
+  }
+
   private ensureDefaultFolder(userId: string) {
     let folder = this.state.favoriteFolders.find((item) => item.userId === userId && item.isDefault);
     if (!folder) {
       const now = new Date().toISOString();
-      folder = { id: `folder-${randomUUID()}`, userId, name: '默认收藏夹', isDefault: true, createdAt: now, updatedAt: now };
+      folder = { id: this.nextPublicId(this.state.favoriteFolders), userId, name: '默认收藏夹', isDefault: true, createdAt: now, updatedAt: now };
       this.state.favoriteFolders.push(folder);
     }
     return folder;
@@ -674,7 +744,7 @@ class FixtureContentRepository implements ContentRepository {
       if (input.parentId && !parent) throw new ContentHttpError(404, 'parent comment not found');
       const now = new Date().toISOString();
       const comment: CommentRecord = {
-        id: `comment-${randomUUID()}`,
+        id: this.nextPublicId(this.state.comments),
         videoId: input.videoId,
         userId: input.principal.id,
         parentId: parent?.id ?? null,
@@ -823,7 +893,7 @@ class FixtureContentRepository implements ContentRepository {
   async createDanmaku(input: { videoId: string; principal: ContentPrincipal; body: string; timeOffsetMs: number; color: string; requestId: string }) {
     return this.withReceipt({ requestId: input.requestId, operation: 'danmaku.create', actorId: input.principal.id, resourceId: input.videoId, payload: { body: input.body, timeOffsetMs: input.timeOffsetMs, color: input.color } }, () => {
       this.requirePublished(input.videoId);
-      const item: DanmakuRecord = { id: `danmaku-${randomUUID()}`, videoId: input.videoId, userId: input.principal.id, body: input.body, timeOffsetMs: input.timeOffsetMs, color: input.color, status: 'VISIBLE', createdAt: new Date().toISOString() };
+      const item: DanmakuRecord = { id: this.nextPublicId(this.state.danmaku), videoId: input.videoId, userId: input.principal.id, body: input.body, timeOffsetMs: input.timeOffsetMs, color: input.color, status: 'VISIBLE', createdAt: new Date().toISOString() };
       this.state.danmaku.push(item);
       return item;
     });
@@ -841,7 +911,7 @@ class FixtureContentRepository implements ContentRepository {
       this.ensureDefaultFolder(input.principal.id);
       if (this.state.favoriteFolders.some((item) => item.userId === input.principal.id && item.name === name)) throw new ContentHttpError(409, 'favorite folder name already exists');
       const now = new Date().toISOString();
-      const folder = { id: `folder-${randomUUID()}`, userId: input.principal.id, name, isDefault: false, createdAt: now, updatedAt: now };
+      const folder = { id: this.nextPublicId(this.state.favoriteFolders), userId: input.principal.id, name, isDefault: false, createdAt: now, updatedAt: now };
       this.state.favoriteFolders.push(folder);
       return { ...folder, videoCount: 0 };
     });
@@ -891,6 +961,148 @@ class FixtureContentRepository implements ContentRepository {
     item.status = retryable && attempts < 5 ? 'PENDING' : 'FAILED';
     item.nextRetryAt = new Date(Date.now() + Math.min(60_000, 1_000 * 2 ** attempts)).toISOString();
   }
+
+  async registerUpload(input: { principal: ContentPrincipal; requestId: string; assetType: 'ORIGINAL' | 'COVER' | 'RECORDING'; filename: string; mimeType: string; size: number; digest: string; bucket: string; objectKey: string; url: string }) {
+    return this.withReceipt({ requestId: input.requestId, operation: 'media.upload', actorId: input.principal.id, resourceId: input.objectKey, payload: { assetType: input.assetType, filename: input.filename, mimeType: input.mimeType, size: input.size, digest: input.digest } }, () => {
+      const asset: VideoAssetRecord = {
+        id: this.nextPublicId(this.state.assets),
+        videoId: null,
+        uploaderId: input.principal.id,
+        kind: input.assetType === 'RECORDING' ? 'REPLAY' : input.assetType,
+        objectKey: input.objectKey,
+        requestId: input.requestId,
+        bucket: input.bucket,
+        mimeType: input.mimeType,
+        originalName: input.filename,
+        url: input.url,
+        sizeBytes: input.size,
+      };
+      this.state.assets.push(asset);
+      return asset;
+    });
+  }
+
+  async createVideoDraft(input: { principal: ContentPrincipal; requestId: string; assetId: string | null; uploadToken: string | null; title: string; description: string; categories: string[]; durationSeconds: number; coverUrl: string | null; coverAssetId: string | null; coverUploadToken: string | null }) {
+    return this.withReceipt({ requestId: input.requestId, operation: 'video.create', actorId: input.principal.id, resourceId: input.assetId ?? input.uploadToken ?? '', payload: { title: input.title, description: input.description, categories: input.categories, durationSeconds: input.durationSeconds, coverUrl: input.coverUrl, coverAssetId: input.coverAssetId, coverUploadToken: input.coverUploadToken } }, () => {
+      const asset = this.state.assets.find((item) => (input.assetId ? item.id === input.assetId : item.objectKey === input.uploadToken) && item.videoId === null);
+      if (!asset || (asset.uploaderId && asset.uploaderId !== input.principal.id && !input.principal.isAdmin)) throw new ContentHttpError(404, 'uploaded asset not found');
+      const cover = input.coverAssetId || input.coverUploadToken
+        ? this.state.assets.find((item) => (input.coverAssetId ? item.id === input.coverAssetId : item.objectKey === input.coverUploadToken) && item.videoId === null)
+        : undefined;
+      if ((input.coverAssetId || input.coverUploadToken) && (!cover || (cover.uploaderId && cover.uploaderId !== input.principal.id && !input.principal.isAdmin))) throw new ContentHttpError(404, 'cover asset not found');
+      const now = new Date().toISOString();
+      const video: VideoRecord = {
+        id: this.nextPublicId(this.state.videos),
+        creatorId: input.principal.id,
+        categoryId: `cat-${input.categories[0]}`,
+        legacyCategory: input.categories[0],
+        title: input.title,
+        description: input.description,
+        status: 'DRAFT',
+        coverUrl: cover?.url ?? input.coverUrl,
+        playUrl: asset.url,
+        durationSeconds: input.durationSeconds,
+        publishedAt: null,
+        submittedAt: null,
+        reviewSubmissionRequestId: null,
+        rejectReason: null,
+        tags: input.categories,
+        playCount: 0,
+        likeCount: 0,
+        favoriteCount: 0,
+        commentCount: 0,
+        coinCount: 0,
+        createdAt: now,
+        categoryCode: input.categories[0],
+        categoryName: input.categories[0],
+      };
+      asset.videoId = video.id;
+      if (cover) cover.videoId = video.id;
+      this.state.videos.push(video);
+      return video;
+    });
+  }
+
+  async updateVideoDraft(input: { principal: ContentPrincipal; requestId: string; videoId: string; title?: string; description?: string; categories?: string[]; coverUrl?: string | null }) {
+    return this.withReceipt({ requestId: input.requestId, operation: 'video.update', actorId: input.principal.id, resourceId: input.videoId, payload: { title: input.title, description: input.description, categories: input.categories, coverUrl: input.coverUrl } }, () => {
+      const video = this.state.videos.find((item) => item.id === input.videoId);
+      if (!video) throw new ContentHttpError(404, 'video not found');
+      if (video.creatorId !== input.principal.id && !input.principal.isAdmin) throw new ContentHttpError(403, 'cannot update others videos');
+      if (input.title !== undefined) video.title = input.title;
+      if (input.description !== undefined) video.description = input.description;
+      if (input.categories) {
+        video.tags = input.categories;
+        video.legacyCategory = input.categories[0];
+        video.categoryId = `cat-${input.categories[0]}`;
+        video.categoryCode = input.categories[0];
+        video.categoryName = input.categories[0];
+      }
+      if (input.coverUrl !== undefined) video.coverUrl = input.coverUrl;
+      if (video.status === 'PENDING_REVIEW' || video.status === 'PUBLISHED') {
+        video.status = 'DRAFT';
+        video.submittedAt = null;
+        video.publishedAt = null;
+        video.reviewSubmissionRequestId = null;
+      }
+      return video;
+    });
+  }
+
+  async deleteCreatorVideo(input: { principal: ContentPrincipal; requestId: string; videoId: string }) {
+    return this.withReceipt({ requestId: input.requestId, operation: 'video.delete', actorId: input.principal.id, resourceId: input.videoId, payload: {} }, () => {
+      const video = this.state.videos.find((item) => item.id === input.videoId);
+      if (!video) throw new ContentHttpError(404, 'video not found');
+      if (video.creatorId !== input.principal.id && !input.principal.isAdmin) throw new ContentHttpError(403, 'cannot delete others videos');
+      const assets = this.state.assets.filter((item) => item.videoId === video.id).map((item) => ({ bucket: item.bucket, objectKey: item.objectKey }));
+      this.state.videos.splice(this.state.videos.indexOf(video), 1);
+      this.state.assets = this.state.assets.filter((item) => item.videoId !== video.id);
+      this.state.comments = this.state.comments.filter((item) => item.videoId !== video.id);
+      this.state.danmaku = this.state.danmaku.filter((item) => item.videoId !== video.id);
+      this.state.likes = this.state.likes.filter((item) => item.videoId !== video.id);
+      this.state.favorites = this.state.favorites.filter((item) => item.videoId !== video.id);
+      this.state.watches = this.state.watches.filter((item) => item.videoId !== video.id);
+      return { deleted: true as const, videoId: video.id, assets };
+    });
+  }
+
+  async withdrawVideoReview(input: { principal: ContentPrincipal; requestId: string; videoId: string }) {
+    return this.withReceipt({ requestId: input.requestId, operation: 'video.withdraw-review', actorId: input.principal.id, resourceId: input.videoId, payload: {} }, () => {
+      const video = this.state.videos.find((item) => item.id === input.videoId);
+      if (!video) throw new ContentHttpError(404, 'video not found');
+      if (video.creatorId !== input.principal.id && !input.principal.isAdmin) throw new ContentHttpError(403, 'cannot withdraw others videos');
+      if (video.status !== 'PENDING_REVIEW') throw new ContentHttpError(409, 'only pending review videos can be withdrawn');
+      video.status = 'DRAFT';
+      video.submittedAt = null;
+      video.reviewSubmissionRequestId = null;
+      return video;
+    });
+  }
+
+  async listCreatorVideos(creatorId: string) {
+    return this.state.videos.filter((item) => item.creatorId === creatorId);
+  }
+
+  async creatorDashboard(creatorId: string) {
+    const videos = this.state.videos.filter((item) => item.creatorId === creatorId);
+    return {
+      totalVideos: videos.length,
+      pendingReviews: videos.filter((item) => item.status === 'PENDING_REVIEW').length,
+      publishedVideos: videos.filter((item) => item.status === 'PUBLISHED').length,
+      rejectedVideos: videos.filter((item) => item.status === 'REJECTED').length,
+      totalLikes: videos.reduce((sum, item) => sum + item.likeCount, 0),
+      totalFavorites: videos.reduce((sum, item) => sum + item.favoriteCount, 0),
+      totalComments: videos.reduce((sum, item) => sum + item.commentCount, 0),
+      recentRejectedVideos: videos.filter((item) => item.status === 'REJECTED').slice(0, 5).map((item) => ({ id: item.id, title: item.title, rejectReason: item.rejectReason, updatedAt: item.createdAt })),
+    };
+  }
+
+  async creatorPlayTrend(_creatorId: string, days: number) {
+    return Array.from({ length: days }, (_, index) => {
+      const date = new Date();
+      date.setUTCDate(date.getUTCDate() - (days - 1 - index));
+      return { date: date.toISOString().slice(0, 10), playCount: 0 };
+    });
+  }
 }
 
 type RawVideo = {
@@ -904,12 +1116,14 @@ type RawVideo = {
   coverUrl: string | null;
   playUrl: string | null;
   durationSeconds: number;
+  legacyUploadToken: string | null;
   tags: unknown;
   publishedAt: Date | string | null;
   submittedAt: Date | string | null;
   reviewSubmissionRequestId: string | null;
   rejectReason: string | null;
   createdAt: Date | string;
+  updatedAt: Date | string;
   categoryCode: string | null;
   categoryName: string | null;
   playCount: bigint | number | null;
@@ -995,13 +1209,27 @@ class PrismaContentRepository implements ContentRepository {
     return rows[0];
   }
 
+  private async findVideoRecord(client: PrismaLike, videoId: string): Promise<VideoRecord | null> {
+    const rows = await client.$queryRawUnsafe<RawVideo[]>(`${videoSelect()} WHERE v.id = ? LIMIT 1`, videoId);
+    return rows[0] ? rawVideo(rows[0]) : null;
+  }
+
+  private async nextPublicId(client: PrismaLike, name: string) {
+    await client.$executeRawUnsafe('INSERT IGNORE INTO `ContentIdSequence` (name, nextId, updatedAt) VALUES (?, 1000000, NOW(3))', name);
+    await client.$executeRawUnsafe('UPDATE `ContentIdSequence` SET nextId = LAST_INSERT_ID(nextId + 1), updatedAt = NOW(3) WHERE name = ?', name);
+    const rows = await client.$queryRawUnsafe<Array<{ id: bigint | number }>>('SELECT LAST_INSERT_ID() AS id');
+    const id = Number(rows[0]?.id);
+    if (!Number.isSafeInteger(id) || id < 1) throw new Error(`failed to allocate ${name} ID`);
+    return String(id);
+  }
+
   private async ensureDefaultFolder(client: PrismaLike, userId: string) {
     const existing = await client.$queryRawUnsafe<Array<{ id: string; name: string; isDefault: number | boolean; createdAt: Date; updatedAt: Date }>>(
       'SELECT id, name, isDefault, createdAt, updatedAt FROM `FavoriteFolder` WHERE userId = ? AND isDefault = true ORDER BY createdAt ASC LIMIT 1',
       userId,
     );
     if (existing[0]) return existing[0];
-    const id = `folder-${randomUUID()}`;
+    const id = await this.nextPublicId(client, 'favorite-folder');
     await client.$executeRawUnsafe(
       'INSERT IGNORE INTO `FavoriteFolder` (id, userId, name, isDefault, createdAt, updatedAt) VALUES (?, ?, \'默认收藏夹\', true, NOW(3), NOW(3))',
       id,
@@ -1224,8 +1452,9 @@ class PrismaContentRepository implements ContentRepository {
     if (existing) {
       return sameReplay(existing, input) ? { ok: true as const, record: existing, replayed: true } : { ok: false as const, status: 409 as const, message: 'replay idempotency key conflicts with a different payload' };
     }
-    const videoId = randomUUID();
-    const assetId = randomUUID();
+    const sequenceClient = await this.client();
+    const videoId = await this.nextPublicId(sequenceClient, 'video');
+    const assetId = await this.nextPublicId(sequenceClient, 'asset');
     await (await this.client()).$executeRawUnsafe(
       "INSERT INTO `VideoCategory` (`id`, `code`, `name`, `sortOrder`) VALUES ('cat-live', 'live', 'Live Replay', 30) ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `sortOrder` = VALUES(`sortOrder`)",
     );
@@ -1322,7 +1551,7 @@ class PrismaContentRepository implements ContentRepository {
         parent = parents[0];
         if (!parent) throw new ContentHttpError(404, 'parent comment not found');
       }
-      const id = `comment-${randomUUID()}`;
+      const id = await this.nextPublicId(transaction, 'comment');
       const rootId = parent ? parent.rootId ?? parent.id : null;
       await transaction.$executeRawUnsafe(
         "INSERT INTO `Comment` (id, videoId, userId, parentId, rootId, body, imageUrl, status, replyCount, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, 'VISIBLE', 0, NOW(3), NOW(3))",
@@ -1512,7 +1741,7 @@ class PrismaContentRepository implements ContentRepository {
   async createDanmaku(input: { videoId: string; principal: ContentPrincipal; body: string; timeOffsetMs: number; color: string; requestId: string }) {
     return this.withReceipt({ requestId: input.requestId, operation: 'danmaku.create', actorId: input.principal.id, resourceId: input.videoId, payload: { body: input.body, timeOffsetMs: input.timeOffsetMs, color: input.color } }, async (transaction) => {
       await this.requirePublished(transaction, input.videoId);
-      const id = `danmaku-${randomUUID()}`;
+      const id = await this.nextPublicId(transaction, 'danmaku');
       await transaction.$executeRawUnsafe(
         "INSERT INTO `VideoDanmaku` (id, videoId, userId, body, offsetSeconds, timeOffsetMs, color, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, 'VISIBLE', NOW(3))",
         id,
@@ -1543,7 +1772,7 @@ class PrismaContentRepository implements ContentRepository {
     if (!name || name.length > 64 || name === '默认收藏夹') throw new ContentHttpError(400, 'invalid favorite folder name');
     return this.withReceipt({ requestId: input.requestId, operation: 'favorite-folder.create', actorId: input.principal.id, resourceId: input.principal.id, payload: { name } }, async (transaction) => {
       await this.ensureDefaultFolder(transaction, input.principal.id);
-      const id = `folder-${randomUUID()}`;
+      const id = await this.nextPublicId(transaction, 'favorite-folder');
       try {
         await transaction.$executeRawUnsafe('INSERT INTO `FavoriteFolder` (id, userId, name, isDefault, createdAt, updatedAt) VALUES (?, ?, ?, false, NOW(3), NOW(3))', id, input.principal.id, name);
       } catch (error) {
@@ -1610,6 +1839,178 @@ class PrismaContentRepository implements ContentRepository {
       nextRetryAt,
       id,
     );
+  }
+
+  async registerUpload(input: { principal: ContentPrincipal; requestId: string; assetType: 'ORIGINAL' | 'COVER' | 'RECORDING'; filename: string; mimeType: string; size: number; digest: string; bucket: string; objectKey: string; url: string }) {
+    return this.withReceipt({ requestId: input.requestId, operation: 'media.upload', actorId: input.principal.id, resourceId: input.objectKey, payload: { assetType: input.assetType, filename: input.filename, mimeType: input.mimeType, size: input.size, digest: input.digest } }, async (transaction) => {
+      const id = await this.nextPublicId(transaction, 'asset');
+      const kind: AssetKind = input.assetType === 'RECORDING' ? 'REPLAY' : input.assetType;
+      await transaction.$executeRawUnsafe(
+        'INSERT INTO `VideoAsset` (id, videoId, uploaderId, kind, bucket, objectKey, requestId, mimeType, originalName, url, sizeBytes, createdAt, updatedAt) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3), NOW(3))',
+        id,
+        input.principal.id,
+        kind,
+        input.bucket,
+        input.objectKey,
+        input.requestId,
+        input.mimeType,
+        input.filename,
+        input.url,
+        input.size,
+      );
+      return { id, videoId: null, uploaderId: input.principal.id, kind, objectKey: input.objectKey, requestId: input.requestId, bucket: input.bucket, mimeType: input.mimeType, originalName: input.filename, url: input.url, sizeBytes: input.size };
+    });
+  }
+
+  async createVideoDraft(input: { principal: ContentPrincipal; requestId: string; assetId: string | null; uploadToken: string | null; title: string; description: string; categories: string[]; durationSeconds: number; coverUrl: string | null; coverAssetId: string | null; coverUploadToken: string | null }) {
+    return this.withReceipt({ requestId: input.requestId, operation: 'video.create', actorId: input.principal.id, resourceId: input.assetId ?? input.uploadToken ?? '', payload: { title: input.title, description: input.description, categories: input.categories, durationSeconds: input.durationSeconds, coverUrl: input.coverUrl, coverAssetId: input.coverAssetId, coverUploadToken: input.coverUploadToken } }, async (transaction) => {
+      const assetRows = await transaction.$queryRawUnsafe<Array<{ id: string; uploaderId: string | null; objectKey: string; url: string; kind: AssetKind }>>(
+        `SELECT id, uploaderId, objectKey, url, kind FROM \`VideoAsset\`
+         WHERE videoId IS NULL AND (${input.assetId ? 'id = ?' : 'objectKey = ?'}) LIMIT 1`,
+        input.assetId ?? input.uploadToken,
+      );
+      const asset = assetRows[0];
+      if (!asset || !['ORIGINAL', 'REPLAY'].includes(asset.kind) || (asset.uploaderId && asset.uploaderId !== input.principal.id && !input.principal.isAdmin)) throw new ContentHttpError(404, 'uploaded asset not found');
+      let cover: { id: string; uploaderId: string | null; url: string } | undefined;
+      if (input.coverAssetId || input.coverUploadToken) {
+        const covers = await transaction.$queryRawUnsafe<Array<{ id: string; uploaderId: string | null; url: string; kind: AssetKind }>>(
+          `SELECT id, uploaderId, url, kind FROM \`VideoAsset\`
+           WHERE videoId IS NULL AND (${input.coverAssetId ? 'id = ?' : 'objectKey = ?'}) LIMIT 1`,
+          input.coverAssetId ?? input.coverUploadToken,
+        );
+        const candidate = covers[0];
+        if (!candidate || candidate.kind !== 'COVER' || (candidate.uploaderId && candidate.uploaderId !== input.principal.id && !input.principal.isAdmin)) throw new ContentHttpError(404, 'cover asset not found');
+        cover = candidate;
+      }
+      const category = input.categories[0];
+      for (let index = 0; index < input.categories.length; index += 1) {
+        const code = input.categories[index];
+        await transaction.$executeRawUnsafe(
+          'INSERT INTO `VideoCategory` (id, code, name, sortOrder, createdAt, updatedAt) VALUES (?, ?, ?, ?, NOW(3), NOW(3)) ON DUPLICATE KEY UPDATE name = VALUES(name), sortOrder = VALUES(sortOrder)',
+          `cat-${code}`,
+          code,
+          code,
+          (index + 1) * 10,
+        );
+      }
+      const id = await this.nextPublicId(transaction, 'video');
+      await transaction.$executeRawUnsafe(
+        `INSERT INTO \`Video\`
+          (id, creatorId, categoryId, title, description, status, coverUrl, playUrl, durationSeconds, playCount, likeCount, favoriteCount, commentCount, coinCount, legacyUploadToken, legacyCategory, tags, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, 'DRAFT', ?, ?, ?, 0, 0, 0, 0, 0, ?, ?, CAST(? AS JSON), NOW(3), NOW(3))`,
+        id,
+        input.principal.id,
+        `cat-${category}`,
+        input.title,
+        input.description,
+        cover?.url ?? input.coverUrl,
+        asset.url,
+        input.durationSeconds,
+        asset.objectKey,
+        category,
+        JSON.stringify(input.categories),
+      );
+      await transaction.$executeRawUnsafe('UPDATE `VideoAsset` SET videoId = ?, updatedAt = NOW(3) WHERE id = ? AND videoId IS NULL', id, asset.id);
+      if (cover) await transaction.$executeRawUnsafe('UPDATE `VideoAsset` SET videoId = ?, updatedAt = NOW(3) WHERE id = ? AND videoId IS NULL', id, cover.id);
+      const created = await this.findVideoRecord(transaction, id);
+      if (!created) throw new Error('created video could not be read back');
+      return created;
+    });
+  }
+
+  async updateVideoDraft(input: { principal: ContentPrincipal; requestId: string; videoId: string; title?: string; description?: string; categories?: string[]; coverUrl?: string | null }) {
+    return this.withReceipt({ requestId: input.requestId, operation: 'video.update', actorId: input.principal.id, resourceId: input.videoId, payload: { title: input.title, description: input.description, categories: input.categories, coverUrl: input.coverUrl } }, async (transaction) => {
+      const rows = await transaction.$queryRawUnsafe<Array<{ creatorId: string; status: VideoStatus }>>('SELECT creatorId, status FROM `Video` WHERE id = ? LIMIT 1', input.videoId);
+      const video = rows[0];
+      if (!video) throw new ContentHttpError(404, 'video not found');
+      if (video.creatorId !== input.principal.id && !input.principal.isAdmin) throw new ContentHttpError(403, 'cannot update others videos');
+      const sets: string[] = [];
+      const values: Array<string | number | Date | null> = [];
+      if (input.title !== undefined) { sets.push('title = ?'); values.push(input.title); }
+      if (input.description !== undefined) { sets.push('description = ?'); values.push(input.description); }
+      if (input.coverUrl !== undefined) { sets.push('coverUrl = ?'); values.push(input.coverUrl); }
+      if (input.categories) {
+        for (let index = 0; index < input.categories.length; index += 1) {
+          const code = input.categories[index];
+          await transaction.$executeRawUnsafe('INSERT INTO `VideoCategory` (id, code, name, sortOrder, createdAt, updatedAt) VALUES (?, ?, ?, ?, NOW(3), NOW(3)) ON DUPLICATE KEY UPDATE name = VALUES(name), sortOrder = VALUES(sortOrder)', `cat-${code}`, code, code, (index + 1) * 10);
+        }
+        sets.push('categoryId = ?', 'legacyCategory = ?', 'tags = CAST(? AS JSON)');
+        values.push(`cat-${input.categories[0]}`, input.categories[0], JSON.stringify(input.categories));
+      }
+      if (video.status === 'PENDING_REVIEW' || video.status === 'PUBLISHED') {
+        sets.push("status = 'DRAFT'", 'submittedAt = NULL', 'publishedAt = NULL', 'reviewSubmissionRequestId = NULL');
+      }
+      sets.push('updatedAt = NOW(3)');
+      await transaction.$executeRawUnsafe(`UPDATE \`Video\` SET ${sets.join(', ')} WHERE id = ?`, ...values, input.videoId);
+      const updated = await this.findVideoRecord(transaction, input.videoId);
+      if (!updated) throw new Error('updated video could not be read back');
+      return updated;
+    });
+  }
+
+  async deleteCreatorVideo(input: { principal: ContentPrincipal; requestId: string; videoId: string }) {
+    return this.withReceipt({ requestId: input.requestId, operation: 'video.delete', actorId: input.principal.id, resourceId: input.videoId, payload: {} }, async (transaction) => {
+      const rows = await transaction.$queryRawUnsafe<Array<{ creatorId: string }>>('SELECT creatorId FROM `Video` WHERE id = ? LIMIT 1', input.videoId);
+      const video = rows[0];
+      if (!video) throw new ContentHttpError(404, 'video not found');
+      if (video.creatorId !== input.principal.id && !input.principal.isAdmin) throw new ContentHttpError(403, 'cannot delete others videos');
+      const assets = await transaction.$queryRawUnsafe<Array<{ bucket: string; objectKey: string }>>('SELECT bucket, objectKey FROM `VideoAsset` WHERE videoId = ?', input.videoId);
+      await transaction.$executeRawUnsafe('DELETE FROM `VideoAsset` WHERE videoId = ?', input.videoId);
+      await transaction.$executeRawUnsafe('DELETE FROM `Video` WHERE id = ?', input.videoId);
+      return { deleted: true as const, videoId: input.videoId, assets };
+    });
+  }
+
+  async withdrawVideoReview(input: { principal: ContentPrincipal; requestId: string; videoId: string }) {
+    return this.withReceipt({ requestId: input.requestId, operation: 'video.withdraw-review', actorId: input.principal.id, resourceId: input.videoId, payload: {} }, async (transaction) => {
+      const rows = await transaction.$queryRawUnsafe<Array<{ creatorId: string; status: VideoStatus }>>('SELECT creatorId, status FROM `Video` WHERE id = ? LIMIT 1', input.videoId);
+      const video = rows[0];
+      if (!video) throw new ContentHttpError(404, 'video not found');
+      if (video.creatorId !== input.principal.id && !input.principal.isAdmin) throw new ContentHttpError(403, 'cannot withdraw others videos');
+      if (video.status !== 'PENDING_REVIEW') throw new ContentHttpError(409, 'only pending review videos can be withdrawn');
+      await transaction.$executeRawUnsafe("UPDATE `Video` SET status = 'DRAFT', submittedAt = NULL, reviewSubmissionRequestId = NULL, updatedAt = NOW(3) WHERE id = ?", input.videoId);
+      const updated = await this.findVideoRecord(transaction, input.videoId);
+      if (!updated) throw new Error('withdrawn video could not be read back');
+      return updated;
+    });
+  }
+
+  async listCreatorVideos(creatorId: string) {
+    const rows = await (await this.client()).$queryRawUnsafe<RawVideo[]>(`${videoSelect()} WHERE v.creatorId = ? ORDER BY v.updatedAt DESC, v.id DESC`, creatorId);
+    return rows.map(rawVideo);
+  }
+
+  async creatorDashboard(creatorId: string) {
+    const grouped = await (await this.client()).$queryRawUnsafe<Array<{ status: VideoStatus; total: bigint | number }>>('SELECT status, COUNT(*) AS total FROM `Video` WHERE creatorId = ? GROUP BY status', creatorId);
+    const totals = await (await this.client()).$queryRawUnsafe<Array<{ totalLikes: bigint | number; totalFavorites: bigint | number; totalComments: bigint | number }>>('SELECT COALESCE(SUM(likeCount), 0) AS totalLikes, COALESCE(SUM(favoriteCount), 0) AS totalFavorites, COALESCE(SUM(commentCount), 0) AS totalComments FROM `Video` WHERE creatorId = ?', creatorId);
+    const rejected = await (await this.client()).$queryRawUnsafe<Array<{ id: string; title: string; rejectReason: string | null; updatedAt: Date }>>("SELECT id, title, reviewDecisionReason AS rejectReason, updatedAt FROM `Video` WHERE creatorId = ? AND status = 'REJECTED' ORDER BY updatedAt DESC LIMIT 5", creatorId);
+    const status = new Map(grouped.map((item) => [item.status, Number(item.total)]));
+    const aggregate = totals[0] ?? { totalLikes: 0, totalFavorites: 0, totalComments: 0 };
+    return {
+      totalVideos: grouped.reduce((sum, item) => sum + Number(item.total), 0),
+      pendingReviews: status.get('PENDING_REVIEW') ?? 0,
+      publishedVideos: status.get('PUBLISHED') ?? 0,
+      rejectedVideos: status.get('REJECTED') ?? 0,
+      totalLikes: Number(aggregate.totalLikes),
+      totalFavorites: Number(aggregate.totalFavorites),
+      totalComments: Number(aggregate.totalComments),
+      recentRejectedVideos: rejected,
+    };
+  }
+
+  async creatorPlayTrend(creatorId: string, days: number) {
+    const rows = await (await this.client()).$queryRawUnsafe<Array<{ date: string; playCount: bigint | number }>>(
+      'SELECT DATE_FORMAT(date, \'%Y-%m-%d\') AS date, plays AS playCount FROM `CreatorPlayDaily` WHERE creatorId = ? AND date >= DATE_SUB(CURDATE(), INTERVAL ? DAY) ORDER BY date ASC',
+      creatorId,
+      Math.max(0, days - 1),
+    );
+    const index = new Map(rows.map((item) => [item.date, Number(item.playCount)]));
+    return Array.from({ length: days }, (_, offset) => {
+      const date = new Date();
+      date.setUTCDate(date.getUTCDate() - (days - 1 - offset));
+      const key = date.toISOString().slice(0, 10);
+      return { date: key, playCount: index.get(key) ?? 0 };
+    });
   }
 
   private async findReviewDecision(decisionId: string): Promise<ReviewDecisionRecord | null> {
@@ -1783,6 +2184,18 @@ function normalizeSortBy(value: string | null): 'best' | 'hot' | 'latest' {
   return value === 'hot' || value === 'latest' ? value : 'best';
 }
 
+function normalizeContentCategories(categories: unknown, fallback: unknown): string[] {
+  const candidates = Array.isArray(categories) ? categories : typeof fallback === 'string' ? [fallback] : [];
+  const normalized = [...new Set(candidates.map((item) => typeof item === 'string' ? item.trim().toLowerCase() : '').filter((item) => /^[a-z][a-z0-9-]{1,31}$/.test(item)))];
+  if (normalized.length < 1 || normalized.length > 5) throw new ContentHttpError(400, 'between one and five valid categories are required');
+  return normalized;
+}
+
+function normalizeUploadFilename(filename: string): string {
+  const value = filename.normalize('NFKC').replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(-120);
+  return value || 'upload.bin';
+}
+
 function canonicalValue(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalValue);
   if (value && typeof value === 'object') {
@@ -1836,8 +2249,8 @@ function statusToDecision(status: VideoStatus): ReviewDecisionRecord['decision']
 function videoSelect(): string {
   return `
     SELECT v.id, v.title, v.description, v.creatorId, v.categoryId, v.legacyCategory, v.status, v.coverUrl, v.playUrl,
-           v.durationSeconds, v.tags, v.publishedAt, v.submittedAt, v.reviewSubmissionRequestId,
-           v.reviewDecisionReason AS rejectReason, v.createdAt, c.code AS categoryCode, c.name AS categoryName,
+           v.durationSeconds, v.legacyUploadToken, v.tags, v.publishedAt, v.submittedAt, v.reviewSubmissionRequestId,
+           v.reviewDecisionReason AS rejectReason, v.createdAt, v.updatedAt, c.code AS categoryCode, c.name AS categoryName,
            v.playCount, v.likeCount, v.favoriteCount, v.commentCount, v.coinCount
     FROM Video v
     LEFT JOIN VideoCategory c ON c.id = v.categoryId
@@ -1865,6 +2278,7 @@ function rawVideo(row: RawVideo): VideoRecord {
     coverUrl: row.coverUrl,
     playUrl: row.playUrl,
     durationSeconds: row.durationSeconds,
+    uploadToken: row.legacyUploadToken ?? '',
     publishedAt: toIso(row.publishedAt),
     submittedAt: toIso(row.submittedAt),
     reviewSubmissionRequestId: row.reviewSubmissionRequestId,
@@ -1876,6 +2290,7 @@ function rawVideo(row: RawVideo): VideoRecord {
     commentCount: Number(row.commentCount ?? 0),
     coinCount: Number(row.coinCount ?? 0),
     createdAt: toIso(row.createdAt) ?? new Date(0).toISOString(),
+    updatedAt: toIso(row.updatedAt) ?? toIso(row.createdAt) ?? new Date(0).toISOString(),
     categoryCode: row.categoryCode,
     categoryName: row.categoryName,
   };
@@ -2020,10 +2435,10 @@ function publicVideoDetail(video: VideoRecord, creators: Map<string, CreatorSumm
   const creator = card.creator;
   return {
     ...card,
-    uploadToken: '',
+    uploadToken: video.uploadToken ?? '',
     rejectReason: video.rejectReason,
     submittedAt: video.submittedAt,
-    updatedAt: video.createdAt,
+    updatedAt: video.updatedAt ?? video.createdAt,
     creator: {
       id: creator.id,
       nickname: creator.nickname,
@@ -2036,6 +2451,17 @@ function publicVideoDetail(video: VideoRecord, creators: Map<string, CreatorSumm
     isFavorited: viewer.isFavorited,
     myCoinCount: 0,
     myCoinLimit: 5,
+  };
+}
+
+function publicCreatorVideo(video: VideoRecord, creators: Map<string, CreatorSummary>) {
+  return {
+    ...publicVideo(video, creators),
+    uploadToken: video.uploadToken ?? '',
+    rejectReason: video.rejectReason,
+    submittedAt: video.submittedAt,
+    publishedAt: video.publishedAt,
+    updatedAt: video.updatedAt ?? video.createdAt,
   };
 }
 
@@ -2123,6 +2549,18 @@ export function createContentService(options: ContentServiceOptions = {}): Serve
       ? new HttpIdentityNotificationClient(identityBaseUrl, internalJwtSecret, identityTimeoutMs)
       : null
     : options.notificationClient;
+  const objectStorage = options.objectStorage === undefined
+    ? process.env.MINIO_ROOT_USER?.trim() && process.env.MINIO_ROOT_PASSWORD?.trim()
+      ? new MinioContentObjectStorage()
+      : null
+    : options.objectStorage;
+  const liveBaseUrl = process.env.LIVE_SERVICE_URL?.trim();
+  const liveWalletClient = options.liveWalletClient === undefined
+    ? liveBaseUrl && internalJwtSecret
+      ? new HttpLiveWalletClient(liveBaseUrl, internalJwtSecret, identityTimeoutMs)
+      : null
+    : options.liveWalletClient;
+  const videoStreamProbe = options.videoStreamProbe ?? ffprobeVideoStreamProbe;
   const startedAt = Date.now();
   let notificationFlushRunning = false;
 
@@ -2156,13 +2594,60 @@ export function createContentService(options: ContentServiceOptions = {}): Serve
         return;
       }
       if (method === 'GET' && path === '/health/ready') {
-        const ready = await repository.ready();
-        writeJson(response, ready ? 200 : 503, ready ? ok(serviceStatus(startedAt, 'ready'), requestId) : failure('content database unavailable', requestId, 503), requestId);
+        const databaseReady = await repository.ready();
+        const storageReady = objectStorage ? await objectStorage.ready() : true;
+        const ready = databaseReady && storageReady;
+        const message = !databaseReady ? 'content database unavailable' : 'content object storage unavailable';
+        writeJson(response, ready ? 200 : 503, ready ? ok(serviceStatus(startedAt, 'ready'), requestId) : failure(message, requestId, 503), requestId);
         return;
       }
       if (method === 'GET' && path === '/version') {
         const version: ServiceVersion = { service: 'content-media', version: serviceStatus(startedAt, 'live').version, node: process.version };
         writeJson(response, 200, ok(version, requestId), requestId);
+        return;
+      }
+
+      const mediaObjectMatch = path.match(/^\/api\/v1\/media\/objects\/(.+)$/);
+      if ((method === 'GET' || method === 'HEAD') && mediaObjectMatch) {
+        if (!objectStorage) throw new ContentHttpError(503, 'content object storage is not configured');
+        const objectKey = decodeURIComponent(mediaObjectMatch[1]);
+        if (!objectKey || objectKey.includes('..')) throw new ContentHttpError(400, 'object key is invalid');
+        let stat;
+        try {
+          stat = await objectStorage.stat(objectKey);
+        } catch {
+          throw new ContentHttpError(404, 'media object not found');
+        }
+        const range = String(request.headers.range ?? '');
+        const match = /^bytes=(\d+)-(\d*)$/.exec(range);
+        const start = match ? Number(match[1]) : 0;
+        const requestedEnd = match?.[2] ? Number(match[2]) : stat.size - 1;
+        const end = Math.min(stat.size - 1, requestedEnd);
+        if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end < start || start >= stat.size) {
+          response.writeHead(416, { 'content-range': `bytes */${stat.size}`, 'x-request-id': requestId });
+          response.end();
+          return;
+        }
+        const length = end - start + 1;
+        response.writeHead(match ? 206 : 200, {
+          'accept-ranges': 'bytes',
+          'content-type': stat.mimeType,
+          'content-length': length,
+          ...(match ? { 'content-range': `bytes ${start}-${end}/${stat.size}` } : {}),
+          'x-request-id': requestId,
+          'x-service-version': serviceStatus(startedAt, 'live').version,
+        });
+        if (method === 'HEAD') {
+          response.end();
+          return;
+        }
+        const stream = await objectStorage.stream(objectKey, start, length);
+        await new Promise<void>((resolve, reject) => {
+          stream.on('error', reject);
+          response.on('error', reject);
+          response.on('finish', resolve);
+          stream.pipe(response);
+        });
         return;
       }
 
@@ -2187,6 +2672,183 @@ export function createContentService(options: ContentServiceOptions = {}): Serve
         });
         const creators = await creatorSummaries(identityClient, search.video, requestId, identityTimeoutMs);
         writeJson(response, 200, ok({ ...search, video: search.video.map((video) => publicVideo(video, creators)) }, requestId), requestId);
+        return;
+      }
+
+      if (method === 'POST' && path === '/api/v1/videos/upload') {
+        const principal = requireContentPrincipal(request, requestId, internalJwtSecret);
+        if (!objectStorage) throw new ContentHttpError(503, 'content object storage is not configured');
+        const assetType = url.searchParams.get('assetType') ?? 'ORIGINAL';
+        if (!['ORIGINAL', 'COVER', 'RECORDING'].includes(assetType)) throw new ContentHttpError(400, 'assetType is invalid');
+        const maximumBytes = Math.max(1_048_576, Number(process.env.CONTENT_UPLOAD_MAX_BYTES ?? 268_435_456) || 268_435_456);
+        let file;
+        try {
+          file = await readSingleFileMultipart(request, maximumBytes);
+        } catch (error) {
+          throw new ContentHttpError(400, error instanceof Error ? error.message : 'invalid multipart upload');
+        }
+        if (assetType === 'COVER') {
+          const extension = file.filename.toLowerCase().split('.').pop();
+          const allowed = (file.mimeType === 'image/jpeg' && ['jpg', 'jpeg'].includes(extension ?? ''))
+            || (file.mimeType === 'image/png' && extension === 'png')
+            || (file.mimeType === 'image/webp' && extension === 'webp');
+          if (!allowed) throw new ContentHttpError(400, 'cover extension and MIME type do not match');
+        } else {
+          const validation = await videoStreamProbe.probe({ filename: file.filename, mimeType: file.mimeType, bytes: file.bytes });
+          if (!validation.ok) throw new ContentHttpError(400, validation.reason);
+        }
+        const digest = createHash('sha256').update(file.bytes).digest('hex');
+        const datePrefix = new Date().toISOString().slice(0, 10).replace(/-/g, '/');
+        const folder = assetType === 'COVER' ? 'videos/covers' : assetType === 'RECORDING' ? 'videos/recordings' : 'videos/original';
+        const objectKey = `${folder}/${datePrefix}/${digest.slice(0, 24)}-${normalizeUploadFilename(file.filename)}`;
+        const stored = await objectStorage.put({ objectKey, bytes: file.bytes, mimeType: file.mimeType });
+        let asset;
+        try {
+          asset = await repository.registerUpload({ principal, requestId, assetType: assetType as 'ORIGINAL' | 'COVER' | 'RECORDING', filename: file.filename, mimeType: file.mimeType, size: file.bytes.length, digest, bucket: stored.bucket, objectKey: stored.objectKey, url: stored.url });
+        } catch (error) {
+          await objectStorage.remove(stored.bucket, stored.objectKey).catch(() => undefined);
+          throw error;
+        }
+        writeJson(response, 200, ok({ assetId: publicId(asset.id), uploadToken: asset.objectKey, url: asset.url, objectKey: asset.objectKey, assetType }, requestId), requestId);
+        return;
+      }
+
+      if (method === 'POST' && path === '/api/v1/videos') {
+        const principal = requireContentPrincipal(request, requestId, internalJwtSecret);
+        const body = (await readBody(request)) as Record<string, unknown>;
+        const title = typeof body.title === 'string' ? body.title.trim() : '';
+        const description = typeof body.description === 'string' ? body.description.trim() : '';
+        if (!title || title.length > 128 || description.length > 20_000) throw new ContentHttpError(400, 'title or description is invalid');
+        const categories = normalizeContentCategories(body.categories, body.category);
+        if (body.assetId === undefined && body.uploadToken === undefined) throw new ContentHttpError(400, 'uploaded asset reference is required');
+        const durationSeconds = body.durationSeconds === undefined ? 0 : Number(body.durationSeconds);
+        if (!Number.isInteger(durationSeconds) || durationSeconds < 0 || durationSeconds > 86_400) throw new ContentHttpError(400, 'durationSeconds is invalid');
+        const coverUrl = body.coverUrl === undefined ? null : String(body.coverUrl).trim();
+        if (coverUrl && coverUrl.length > 255) throw new ContentHttpError(400, 'coverUrl is too long');
+        const video = await repository.createVideoDraft({
+          principal,
+          requestId,
+          assetId: body.assetId === undefined ? null : String(body.assetId),
+          uploadToken: body.uploadToken === undefined ? null : String(body.uploadToken),
+          title,
+          description,
+          categories,
+          durationSeconds,
+          coverUrl: coverUrl || null,
+          coverAssetId: body.coverAssetId === undefined ? null : String(body.coverAssetId),
+          coverUploadToken: body.coverUploadToken === undefined ? null : String(body.coverUploadToken),
+        });
+        const creators = new Map([[principal.id, { id: principal.id, nickname: principal.nickname, avatarUrl: null }]]);
+        writeJson(response, 200, ok(publicCreatorVideo(video, creators), requestId), requestId);
+        return;
+      }
+
+      if (method === 'GET' && path === '/api/v1/creator/videos') {
+        const principal = requireContentPrincipal(request, requestId, internalJwtSecret);
+        const videos = await repository.listCreatorVideos(principal.id);
+        const creators = await creatorSummaries(identityClient, videos, requestId, identityTimeoutMs);
+        writeJson(response, 200, ok(videos.map((video) => publicCreatorVideo(video, creators)), requestId), requestId);
+        return;
+      }
+
+      if (method === 'GET' && path === '/api/v1/creator/videos/play-trend') {
+        const principal = requireContentPrincipal(request, requestId, internalJwtSecret);
+        writeJson(response, 200, ok(await repository.creatorPlayTrend(principal.id, 7), requestId), requestId);
+        return;
+      }
+
+      if (method === 'GET' && path === '/api/v1/creator/followers/trend') {
+        const principal = requireContentPrincipal(request, requestId, internalJwtSecret);
+        if (!identityClient.creatorStats) throw new ContentHttpError(503, 'identity creator stats are not configured');
+        try {
+          writeJson(response, 200, ok((await identityClient.creatorStats(principal.id, requestId)).followerTrend, requestId), requestId);
+        } catch (error) {
+          throw new ContentHttpError(503, error instanceof Error ? error.message : 'identity creator stats unavailable');
+        }
+        return;
+      }
+
+      if (method === 'GET' && path === '/api/v1/creator/dashboard') {
+        const principal = requireContentPrincipal(request, requestId, internalJwtSecret);
+        if (!identityClient.creatorStats || !liveWalletClient) throw new ContentHttpError(503, 'creator dashboard dependencies are not configured');
+        try {
+          const [contentStats, identityStats, wallet] = await Promise.all([
+            repository.creatorDashboard(principal.id),
+            identityClient.creatorStats(principal.id, `${requestId}:identity`.slice(0, 128)),
+            liveWalletClient.wallet(principal.id, `${requestId}:wallet`.slice(0, 128)),
+          ]);
+          writeJson(response, 200, ok({
+            ...identityStats.user,
+            ...contentStats,
+            followerCount: identityStats.followerCount,
+            followingCount: identityStats.followingCount,
+            coinBalance: wallet.balance,
+            recentRejectedVideos: contentStats.recentRejectedVideos.map((item) => ({ ...item, id: publicId(item.id), updatedAt: toIso(item.updatedAt) })),
+          }, requestId), requestId);
+        } catch (error) {
+          throw new ContentHttpError(503, error instanceof Error ? error.message : 'creator dashboard dependency unavailable');
+        }
+        return;
+      }
+
+      const reviewHistoryMatch = path.match(/^\/api\/v1\/videos\/([^/]+)\/reviews$/);
+      if (method === 'GET' && reviewHistoryMatch) {
+        const principal = requireContentPrincipal(request, requestId, internalJwtSecret);
+        const videoId = decodeURIComponent(reviewHistoryMatch[1]);
+        const video = (await repository.listCreatorVideos(principal.id)).find((item) => item.id === videoId);
+        if (!video && !principal.isAdmin) throw new ContentHttpError(403, 'cannot view others videos');
+        if (!governanceClient) throw new ContentHttpError(503, 'governance review history is not configured');
+        const history = await governanceClient.listVideoReviews(videoId, requestId);
+        writeJson(response, 200, ok(history.map((item) => ({ ...item, id: publicId(String(item.id)), videoId: publicId(String(item.videoId)), reviewer: null })), requestId), requestId);
+        return;
+      }
+
+      const withdrawReviewMatch = path.match(/^\/api\/v1\/videos\/([^/]+)\/withdraw-review$/);
+      if (method === 'POST' && withdrawReviewMatch) {
+        const principal = requireContentPrincipal(request, requestId, internalJwtSecret);
+        const videoId = decodeURIComponent(withdrawReviewMatch[1]);
+        if (!governanceClient) throw new ContentHttpError(503, 'governance review withdrawal is not configured');
+        await governanceClient.withdrawVideoReview(videoId, requestId);
+        const video = await repository.withdrawVideoReview({ principal, requestId, videoId });
+        const creators = new Map([[principal.id, { id: principal.id, nickname: principal.nickname, avatarUrl: null }]]);
+        writeJson(response, 200, ok(publicCreatorVideo(video, creators), requestId), requestId);
+        return;
+      }
+
+      const creatorVideoMutationMatch = path.match(/^\/api\/v1\/videos\/([^/]+)$/);
+      if (creatorVideoMutationMatch && (method === 'PUT' || method === 'DELETE')) {
+        const principal = requireContentPrincipal(request, requestId, internalJwtSecret);
+        const videoId = decodeURIComponent(creatorVideoMutationMatch[1]);
+        const owned = (await repository.listCreatorVideos(principal.id)).find((item) => item.id === videoId);
+        if (!owned && !principal.isAdmin) throw new ContentHttpError(403, 'cannot mutate others videos');
+        if (owned?.status === 'PENDING_REVIEW') {
+          if (!governanceClient) throw new ContentHttpError(503, 'governance review withdrawal is not configured');
+          await governanceClient.withdrawVideoReview(videoId, `${requestId}:withdraw`.slice(0, 128));
+        }
+        if (method === 'DELETE') {
+          if (!objectStorage) throw new ContentHttpError(503, 'content object storage is not configured');
+          const result = await repository.deleteCreatorVideo({ principal, requestId, videoId });
+          for (const asset of result.assets) {
+            try {
+              await objectStorage.remove(asset.bucket, asset.objectKey);
+            } catch (error) {
+              throw new ContentHttpError(503, `video deleted but storage cleanup failed: ${error instanceof Error ? error.message : String(error)}`);
+            }
+          }
+          writeJson(response, 200, ok({ deleted: true, videoId: publicId(result.videoId) }, requestId), requestId);
+          return;
+        }
+        const body = (await readBody(request)) as Record<string, unknown>;
+        const title = body.title === undefined ? undefined : String(body.title).trim();
+        const description = body.description === undefined ? undefined : String(body.description).trim();
+        if (title !== undefined && (!title || title.length > 128)) throw new ContentHttpError(400, 'title is invalid');
+        if (description !== undefined && description.length > 20_000) throw new ContentHttpError(400, 'description is invalid');
+        const categories = body.categories === undefined && body.category === undefined ? undefined : normalizeContentCategories(body.categories, body.category);
+        const coverUrl = body.coverUrl === undefined ? undefined : String(body.coverUrl).trim() || null;
+        if (coverUrl && coverUrl.length > 255) throw new ContentHttpError(400, 'coverUrl is too long');
+        const video = await repository.updateVideoDraft({ principal, requestId, videoId, title, description, categories, coverUrl });
+        const creators = new Map([[principal.id, { id: principal.id, nickname: principal.nickname, avatarUrl: null }]]);
+        writeJson(response, 200, ok(publicCreatorVideo(video, creators), requestId), requestId);
         return;
       }
 

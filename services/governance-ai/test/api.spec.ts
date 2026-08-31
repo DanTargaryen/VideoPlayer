@@ -92,6 +92,34 @@ describe('governance internal API', () => {
     expect(await latest.json()).toMatchObject({ code: 0, requestId: readRequestId, data: { targetId: '501' } });
   });
 
+  it('lists review history and withdraws the pending item idempotently', async () => {
+    const { baseUrl } = await start();
+    await submit(baseUrl, 'api-review-withdraw-seed', token('api-review-withdraw-seed', ['governance.reviews.write']));
+
+    const historyRequestId = 'api-review-history';
+    const history = await fetch(`${baseUrl}/internal/v1/reviews/VIDEO/501/history`, {
+      headers: { authorization: `Bearer ${token(historyRequestId, ['governance.reviews.read'])}`, 'x-request-id': historyRequestId },
+    });
+    expect(history.status).toBe(200);
+    expect((await history.json()).data).toHaveLength(1);
+
+    const withdrawRequestId = 'api-review-withdraw';
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const withdrawn = await fetch(`${baseUrl}/internal/v1/reviews/VIDEO/501/withdraw`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token(withdrawRequestId, ['governance.reviews.withdraw'])}`, 'x-request-id': withdrawRequestId },
+      });
+      expect(withdrawn.status).toBe(200);
+      expect((await withdrawn.json()).data.applyStatus).toBe('WITHDRAWN');
+    }
+
+    const historyAfterRequestId = 'api-review-history-after';
+    const historyAfter = await fetch(`${baseUrl}/internal/v1/reviews/VIDEO/501/history`, {
+      headers: { authorization: `Bearer ${token(historyAfterRequestId, ['governance.reviews.read'])}`, 'x-request-id': historyAfterRequestId },
+    });
+    expect((await historyAfter.json()).data).toEqual([]);
+  });
+
   it('rejects expired, wrong-audience, missing-scope and mismatched-requestId tokens', async () => {
     const { baseUrl } = await start();
     const now = Math.floor(Date.now() / 1000);
