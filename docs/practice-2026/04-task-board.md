@@ -38,16 +38,16 @@
 | CTR-01 | 完整容器化 | A + C/D | 8/26 | 前端/后端/DB 独立容器，一条命令启动 | Dockerfile、compose、health |
 | CI-01 | 单体流水线 | A + E | 8/27 | build→test→image→K8s→health；失败停止 | 成功/失败 run |
 | ARCH-01 | 服务与数据归属冻结 | A + B/C/D/E | 8/28 | 4 服务、接口、31 表归属、失败策略 | 架构图、表归属、评审 |
-| MS-01 | identity-community | B | 8/31 | 独立 build/test/deploy/schema | PR、镜像、API report |
-| MS-02 | content-media | C | 8/31 | UC02/03/04 核心流程通过 | PR、镜像、API report |
-| MS-03 | live-reward | D | 9/1 | 直播持久化、SRS/录播/礼物闭环 | PR、迁移、演示日志 |
-| MS-04 | governance-ai | E | 9/1 | 审核/举报独立且不直查 content 表 | PR、contract/API report |
-| K8S-01 | 微服务自动部署 | A + 全员 | 9/1 | 相关服务自动部署；探针/版本/回滚 | YAML/Helm、run、rollback |
-| REG-01 | 全接口与全 UC 回归 | E + owner | 9/2 | 所有公开 API 和确认 UC 自动通过 | JUnit/HTML report |
+| MS-01 | identity-community | B | 8/31 / DONE | 独立 build/test/deploy/schema；迁移/切流/回滚完成 | PR #45、#49、#51；镜像、API report |
+| MS-02 | content-media | C | 8/31 / DONE | UC02/03/04；历史迁移、上传、互动、发布与回滚完成 | PR #43、#49、#52–#54 |
+| MS-03 | live-reward | D | 9/1 / DONE | 直播持久化、SRS/录播/礼物、UC05、迁移/切流/回滚完成 | PR #46、#49、#55 |
+| MS-04 | governance-ai | E | 9/1 / DONE | 审核/举报独立、不直查 content、UC06、迁移/切流/补偿完成 | PR #47、#49、#55 |
+| K8S-01 | 微服务自动部署 | A + 全员 | 9/1 / DONE | 五服务自动部署；四 migration；探针/版本/回滚/HPA | YAML、run #33324914355、#33367170484 |
+| REG-01 | 全接口与全 UC 回归 | E + owner | 9/2 / DONE | 同一 runner 对单体和 Gateway 各跑 UC01–UC06 | PR #56；12/12 PASS |
 | EXP-01 | HPA 实验 | A + C | 9/2 / DONE | 压力升高扩容、下降缩容 | `13-resilience-performance-experiments.md`；1→3→2→1 Pod/CPU 时间线 |
 | EXP-02 | 故障处理实验 | D + A | 9/2 / DONE | 依赖故障降级，其他服务健康 | `fault-experiment-probe.mjs`；MySQL/SRS/MinIO failure+recovery |
 | PERF-01 | 单体/微服务性能对比 | A + C + E | 9/3 / DONE | 同机/同数据/同脚本，至少 3 次 | `performance-compare.mjs`；3 轮原始值与聚合分析 |
-| DEL-01 | 交付与答辩 | E + 全员 | 9/3 | 六目录齐全、README 可复现、全员确认 | 交付包、PPT、录屏、签字 |
+| DEL-01 | 交付与答辩 | E + 全员 | 9/3 / VERIFY | 六目录/PPT/脚本和首轮远端 3/3 已完成；非作者复现、全员确认、录屏和签字待真人补 | `delivery/`、PR #58/run 33371629258、录屏/签字待补 |
 
 ## 4. 第二阶段已确认分工
 
@@ -56,10 +56,10 @@
 | 角色 | 主任务 | 第一批分支 | 第一批可验证产出 | 主 Reviewer | 截止 / 状态 |
 | --- | --- | --- | --- | --- | --- |
 | 组长 / A 平台与集成 | ARCH-01、MS-00、K8S-01 | `docs/ARCH-01-service-boundary-freeze`、`build/MS-00-microservice-scaffold` | 决策/owner/contract 已冻结；四服务公共目录、health/ready/version、服务 JWT、Docker/K8s/Jenkins 矩阵已验证 | 全员核对 ARCH-01；MS-00 由 Owner 自审留痕 | ARCH 已合并；MS-00 Done（PR #41） |
-| B 身份与社区 | MS-01 | `feature/MS-01-identity-community` | 独立 identity schema、用户摘要/存在性/通知内部 API、UC01 和 UC04 用户侧测试 | C | 8/31 / Ready |
-| C 内容与媒体 | MS-02 | `feature/MS-02-content-media` | 独立 content schema、推荐/搜索/视频只读、MinIO、审核决定与录播登记 contract | B | 8/31 / Ready |
-| D 直播与礼物 | MS-03 | `feature/MS-03-live-reward` | LiveRoom/Session/Message/ViewerEvent/ReplayRegistration 持久化、SRS、账本幂等 | A | 9/1 / Ready |
-| E 治理、质量与文档 | MS-04、REG-01 | `feature/MS-04-governance-ai`、`test/REG-01-microservice-contracts` | governance schema、审核/举报补偿、contract tests、全 UC 回归入口和证据 | D | 9/1–9/2 / Ready |
+| B 身份与社区 | MS-01 | `feature/MS-01-identity-community` + cutover PR | identity schema、用户摘要/通知、UC01/04、历史迁移、写切流和回滚 | C / Owner 留痕 | DONE；技术证据 PR #45/#49/#51 |
+| C 内容与媒体 | MS-02 | `feature/MS-02-content-media` + cutover PR | content schema、发现/上传/互动/发布、MinIO、历史迁移、写切流和回滚 | B / Owner 留痕 | DONE；技术证据 PR #43/#49/#52–#54 |
+| D 直播与礼物 | MS-03 | `feature/MS-03-live-reward` + cutover PR | 房间/Session/消息/观众/录播/账本、SRS、历史迁移、UC05 和回滚 | A / Owner 留痕 | DONE；技术证据 PR #46/#49/#55 |
+| E 治理、质量与文档 | MS-04、REG-01、DEL-01 | governance/REG/DEL 任务分支 | governance 审核/举报/补偿、UC06、REG 12/12；DEL 技术包 | D / Owner 留痕 | 技术 DONE；DEL 真人证据 PENDING |
 
 ### 4.1 依赖与合并顺序
 

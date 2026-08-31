@@ -238,11 +238,21 @@
   - 结果：PASS；MS-03 foundation、可信 Gateway 身份、真实回放/账本、标准 Compose 和隔离 Kind 验证闭环。Gateway 生产切换、单体历史数据迁移和完整 UC05 微服务浏览器回归仍是后续独立 Gate，不在本 foundation 中虚报完成。
 - [x] `MS-03-CUTOVER / REG-UC05` 历史迁移、services-mode 写切流和完整微服务浏览器回归。
   - PASS：live 历史 owner 表双跑迁移全量一致；Vue 页面真实完成开播、弹幕、停播和录播转稿件，API smoke 覆盖兼容帧、观众信令、币账本和重启持久化；最终切回 `GATEWAY_ROUTE_MODE=monolith`。共享生产环境未变更。
-- [ ] `REG-01` 完成全部公开 API 和 UC01-UC06 自动回归。
+- [x] `REG-01` 完成全部公开 API 和 UC01-UC06 自动回归；最终单体 6/6、Gateway 6/6。
 - [x] `EXP-01` 完成 HPA 扩缩容实验。
 - [x] `EXP-02` 完成依赖故障降级与恢复实验。
 - [x] `PERF-01` 完成单体/微服务同条件性能对比，每组 3 次。
 - [ ] `DEL-01` 完成交付包、答辩材料、权重确认和演练。
+  - [x] 建立 `delivery/01_source`–`06_defense` 六目录、总 README 和可点击证据索引。
+  - [x] 补齐 UC01–UC05 三层 Mermaid 模型源，并与 UC06 状态模型、服务边界和 REG-01 追溯同步。
+  - [x] 生成 10 页最终答辩 PPTX、技术总结、约 7 分钟演示脚本和 5–8 分钟备用录屏拍摄清单。
+  - [x] PPTX 已重新渲染逐页检查，`slides_test.py` 无画布越界；交付结构、链接、PPTX 和待补状态由自动测试检查；最终本地 `npm run test:ci` 283/283 PASS（requirements 131、backend 16、frontend 24、shared 9、identity 5、content 34、live 18、governance 29、Gateway 13、REG harness 4）。
+  - [x] PR #58 首轮远端 run `33371629258` 3/3 jobs SUCCESS：quality 283/283；public E2E 3 passed、2 个仅在 services-mode 环境运行的测试显式 skip；Git SHA `45a952d` backend/frontend 镜像、Kind v1.36.1、2 条 migration、backend/frontend 1/1、0 restart、两个 Artifact 和 cleanup 全部实检。actions Node 20 弃用提示由 runner 强制 Node 24 执行，不是项目失败。
+  - [ ] 非作者成员在另一台或 clean-machine 环境按 README 复现并签名。
+  - [ ] 五名成员确认 A–E 实名映射、贡献内容、权重合计 100%，并签字/填写日期。
+  - [ ] 实际录制并上传 5–8 分钟备用演示，完成无痕窗口权限与敏感信息复查。
+  - [ ] 全员完成计时演练；教师确认与 ARCH-01 会议原件加入证据索引。
+  - 当前结论：`TECHNICAL PACKAGE READY / HUMAN EVIDENCE PENDING`。技术包可通过 PR 进入 `main`，但上述真人项补齐前不得把 DEL-01 标记为 `[x]`。
 
 实验统一证据（2026-08-31）：`docs/practice-2026/13-resilience-performance-experiments.md`；完整 `test:ci` 282/282，experiment scripts 4/4。EXP-01 使用 Kubernetes v1.36.1 + 官方 metrics-server v0.9.0，Gateway 在 CPU 104% 时约 21 秒由 1→3，撤压/指标回落后约 30 秒经 3→2→1；脚本清理 HPA/metrics/load。EXP-02 对 live MySQL、SRS、MinIO 分别执行 failure/recovery，受影响域返回 503/500、其他服务 ready 200，恢复后业务 200。PERF-01 同机/同脚本/等价单条响应各 3 轮共 1440 请求、0 error；单体中位 p95 9.44ms/2334.84 RPS，Gateway 15.57ms/1435.25 RPS，最大 p95 14.85/22.32ms，均小于 1000ms Gate。统一 K8s 部署修复跨架构导入、MinIO revision 和 Secret restart 后从头 5/5 Ready；实验资源与 schema/user 精确清理。
 
@@ -265,7 +275,6 @@
 | MS-01 identity-community foundation | DONE | Prisma runtime、11 个 owner model、独立 DB/账号/Secret、内部 API、requestId 幂等、Docker migration/runtime、Compose/K8s 配置 | identity 5/5 + integration 1/1；Compose/Kind migration、12 表、restart、health、权限隔离 | PASS；统一 DoD 的 Compose 与 Kind 均复验，0 restart | PR #45 + MS-DOD |
 | MS-02 content-media foundation | DONE | package-local Prisma Client、content schema/migration/fixture、兼容只读 API、JWT 内部 contract、review/replay 幂等、真实 MySQL/MinIO 媒体补偿、独立 DB 账号 | content 22/22；真实 MySQL/MinIO；Compose/Kind migration、14 表、health、权限隔离 | PASS；PR #43 已合并；统一 DoD 复验 services-mode text snapshot 与 0 restart | PR #43 + MS-DOD |
 | MS-03 live-reward foundation | DONE | Prisma 默认持久化、直播/观众/消息/回放/币账本、可信 Gateway 身份、完整 requestId 幂等、标准 Compose/K8s DB/migration | clean `npm ci`；`test:ci` 207；live 18/18；Gateway 6/6；MySQL first/repeat/reset/refuse；content/live+MinIO+SRS；Compose services/restart/schema；Kind Pod/PVC | PASS；伪造身份与 payload 冲突均拒绝；三 migrations；隔离资源清理；生产 cutover/历史迁移/UC05 浏览器仍独立 BLOCKED | PR #46 + 本提交 |
-| MS-04 governance-ai + REG-01 UC06 | DONE | 独立治理库、可信 Gateway 身份、创作者幂等提审、驳回原因/发布时间回写、待审队列、举报/审核、通知、租约补偿和 services-mode 回归 | governance 28/28、content 22/22、frontend 24/24；Compose services-mode 1/1；Kind migration/5 表/health | PASS；PR #47 已合并；统一 DoD 真实 Compose/Kind 复验，0 restart | PR #47 + MS-DOD |
 | MS-DOD foundation 统一矩阵 | DONE | 四业务服务统一 build/image/schema/account/contract/Compose/Kind Gate；有界 Prisma build；快照降级与真实 text fixture | `test:ci` 249/249、requirements 116/116；Compose 12/14/11/5 表、browser 1/1；Kind 4 migration、5/5 Ready、15 HTTP、0 restart | PASS；隔离资源与测试 schema 全部清理；不代表生产切流完成 | 本轮提交 |
 | MS-CUTOVER-READ identity/content 只读切流 | DONE | 路径能力白名单、读写 allowlist、安全默认、真实服务读、未实现路径留单体、显式 rollback | `test:ci` 252/252、Gateway 11/11；Compose UC06 1/1 + read probe + rollback | PASS；requestId/upstream 可追踪；所有写流量仍留在单体 | 本轮提交 |
 | MS-CUTOVER-IDENTITY identity 写切流 | DONE | 11 表可重复 migration、唯一键/全量比较、登录/资料/关注/社区写 allowlist 与 rollback | `test:ci` 255/255、guard 3/3；Kind migration 2 次；8/1/5 核心行；Compose identity writes | PASS；最小权限与清理通过；单体表保留 | 本轮提交 |
@@ -277,6 +286,7 @@
 | EXP-01 HPA | DONE | autoscaling/v2、官方 metrics-server checksum、registry-offline verified downloader、Pod/CPU 时间线与自动 cleanup | `test:ci` 282/282；Gateway 1→3（CPU 104%）→2→1（CPU 2%）；metrics API / kubectl top | PASS；真实 HPA controller 扩缩容，不是手工 scale | 本轮提交 |
 | EXP-02 故障恢复 | DONE | live MySQL stop/start、SRS endpoint 注入/解除、MinIO stop/start、标准错误/健康/恢复探针 | 3 类 failure + 3 类 recovery；其他服务 ready 200；Compose rollback/cleanup | PASS；受影响域 503/500，恢复后 200 | 本轮提交 |
 | PERF-01 性能对比 | DONE | 同机同路径、1 item、预热、交叉顺序、3×240×2、并发16、完整响应体 | 1440/1440 200；单体 median p95 9.44ms，Gateway 15.57ms；max p95 14.85/22.32ms | PASS；0 error，全部 p95 < 1000ms；非生产容量承诺 | 本轮提交 |
+| DEL-01 技术交付包 | VERIFY / HUMAN PENDING | 六目录、README、三层模型、证据索引、PPTX、总结、演示脚本、录屏清单和贡献模板 | PPTX 10 页 render/montage；`slides_test.py`；delivery test；本地 283/283；run `33371629258` 3/3 + 2 Artifacts | 技术包 READY；最终证据提交/自审/合并待完成；非作者复现、权重/签字、实际录屏、全员演练和外部原件仍待真人完成 | PR #58，`45a952d` |
 | GOV-GIT-01 Commit/PR 规范 | DONE | GitHub PR 模板、仓库规范、个人 Codex skill | quick_validate；模板章节/敏感信息/diff 检查 | PASS | 最终治理提交 |
 | GOV-GIT-02 分支/Commit 命名 | DONE | category 分支名、Conventional Commit 标题、Changes/Tests 正文、PR Commit 清单 | quick_validate；必填字段；diff check | PASS；应用测试 N/A（纯规范） | 最终治理提交 |
 | GOV-GIT-03 仓库内 skill | DONE | `.codex/skills/videoplayer-commit-pr` 与个人版同步 | 双 quick_validate；字节比对；TODO/diff check | PASS；应用测试 N/A（skill/docs） | 最终治理提交 |
@@ -374,6 +384,7 @@
 | 2026-08-31 | MS-CUTOVER-LIVE-GOVERNANCE 历史迁移与写切流 | 新增 live/governance 可重复迁移；补齐 UC05 前端 contract、录播 asset 原子绑定、Gateway capability/SSE 断连安全；标准 Compose 顺序推进到 all writes 后回滚 | `test:ci` 277/277；两域含 ID 10/12 的真实 MySQL migration 各 2 次并全量一致（live 6/1/1/1/3、governance 3/1/2/4）；guard 4/4；Compose browser 2/2、UC05 API、UC06、restart、rollback | PASS；修复 598MB Docker context/磁盘耗尽、SSE 断连崩溃、session nonce token 刷新和录播唯一键冲突；所有隔离资源清理，单体表保留 |
 | 2026-08-31 | REG-01 单体/微服务全量回归 | v2 runner 创建目标隔离用户/媒体，覆盖六 UC 公开 API；业务 FAIL/未完成门禁；Compose 内追加独立单体 MySQL/backend 与双目标报告 | `test:ci` 278/278；微服务独立 6/6；最终单体 6/6 + Gateway 6/6；真实 MP4/MinIO、审核、互动通知、直播录播、治理通知；rollback/cleanup | PASS；修复搜索 `video/videos` 归一化、单体/微服务重复处置 400/409 兼容和旧 CLI 不因业务失败退出 |
 | 2026-08-31 | EXP-01/02 + PERF-01 | 官方 metrics-server 离线构建、HPA 负载时间线；MySQL/SRS/MinIO 故障恢复；同机双目标三轮性能脚本；K8s 重复部署修复 | HPA 1→3→2→1；3 类依赖 failure/recovery；1440 请求 0 error，p95 max 14.85/22.32ms；K8s 5/5 Ready | PASS；原始关键值进入 `13-resilience-performance-experiments.md`；HPA/metrics/load、微服务 K8s 资源、PVC、四 schema/user 清理 |
+| 2026-08-31 | DEL-01 技术交付首轮远端复核 | 建立六目录、最终 PPTX/总结/脚本/模板、UC01–05 三层模型、证据/追溯和自动交付测试；创建 Draft PR #58 | 本地 `test:ci` 283/283；PPT 10/10 render + no overflow；run `33371629258` 3/3；两个 Artifact 下载实检 | TECHNICAL PASS；Git SHA 镜像、2 migrations、Kind workloads 0 restart、cleanup；真人复现/权重/签字/录屏/演练仍 PENDING |
 
 ## 4. 阻塞与需组长决定
 
