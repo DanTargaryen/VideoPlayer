@@ -1,6 +1,6 @@
 # 第二阶段微服务执行 TODO
 
-> 状态：`MS-00 / MS-01 / MS-02 / MS-03 / MS-04 / MS-DOD / MS-CUTOVER-READ / MS-CUTOVER-IDENTITY / MS-CUTOVER-CONTENT-DATA / MS-CUTOVER-CONTENT-INTERACTIONS / MS-CUTOVER-CONTENT-PUBLISHING / MS-CUTOVER-LIVE-GOVERNANCE / REG-01 DONE`
+> 状态：`MS-00 / MS-01 / MS-02 / MS-03 / MS-04 / MS-DOD / MS-CUTOVER-READ / MS-CUTOVER-IDENTITY / MS-CUTOVER-CONTENT-DATA / MS-CUTOVER-CONTENT-INTERACTIONS / MS-CUTOVER-CONTENT-PUBLISHING / MS-CUTOVER-LIVE-GOVERNANCE / REG-01 / EXP-01 / EXP-02 / PERF-01 / DEL-01 TECHNICAL DONE`；DEL-01 真人证据仍 `PENDING`。
 >
 > 冻结基线：`monolith-start` / `main@70d197dc1a1f6febfdc7dcb12d8661384ad5d31e`。
 >
@@ -534,14 +534,16 @@ E 验收证据（2026-08-29，基于 `origin/main@933ccac`）：完成 governanc
 
 每个 Review 必须完成：
 
-- [ ] 核对 `origin/main...HEAD` 实际 diff。
-- [ ] 核对 commit 正文中的 Tests 与真实结果一致。
-- [ ] 核对没有跨 schema 查询或复用对方 Prisma Client。
-- [ ] 核对没有 `.env`、Secret、日志、PID、dist、test-results 等产物。
-- [ ] 核对 migration 可重跑、失败停止和 rollback。
-- [ ] 核对内部写接口有 requestId/decisionId 幂等。
-- [ ] 核对依赖失败有 timeout、状态和补偿/回滚。
-- [ ] 阻塞评论解决后再批准合并。
+- [x] 核对 `origin/main...HEAD` 实际 diff。
+- [x] 核对 commit 正文中的 Tests 与真实结果一致。
+- [x] 核对没有跨 schema 查询或复用对方 Prisma Client。
+- [x] 核对没有 `.env`、Secret、日志、PID、dist、test-results 等产物。
+- [x] 核对 migration 可重跑、失败停止和 rollback。
+- [x] 核对内部写接口有 requestId/decisionId 幂等。
+- [x] 核对依赖失败有 timeout、状态和补偿/回滚。
+- [x] 阻塞评论解决后再批准合并。
+
+最终技术 Review 审计（2026-08-31）：PR #48–#59 均按仓库规范检查分支基线、commit 正文、实际 diff、Secret/Artifact、测试和风险；业务/迁移 PR 保留 fallback/rollback，纯文档 PR 明确为 N/A。PR #58/#59 在最终 head 分别通过 runs `33372482927`/`33373473438` 的 3/3 jobs、Artifact 实检和 Owner 书面自审后合并；远端 `main@b9fee2f` 与本地树一致，open PR 为 0。
 
 ## 9. 第一批 PR 统一 DoD
 
@@ -614,17 +616,19 @@ live/governance 统一复验（2026-08-31）：完整 `test:ci` 277/277；含 ID
 
 ## 11. A（组长）每日检查清单
 
-- [ ] 每个人同时最多 1–2 个 In Progress 任务。
-- [ ] 每个任务只有一个 owner 和明确 Reviewer。
-- [ ] 分支基于最新 `main`，没有直接 push `main`。
-- [ ] 没有人跨服务直接查表。
-- [ ] 没有人提前删除单体表或停止单体写入。
-- [ ] 内部 API contract、JWT scope、timeout 和幂等明确。
-- [ ] 每项运行结果有命令、数量和 PASS/FAIL/BLOCKED 证据。
-- [ ] 每个 PR 有 rollback 和单体 fallback。
-- [ ] `00-progress.md` 按真实状态更新。
+- [ ] 每个人同时最多 1–2 个 In Progress 任务（缺每日实名看板原件）。
+- [x] 每个任务有唯一 A–E 角色 owner 和明确 Reviewer；角色到真实姓名的确认仍见第 12 节。
+- [x] 分支基于最新 `main`，没有直接 push `main`。
+- [x] 没有人跨服务直接查表。
+- [x] 没有人提前删除单体表或停止单体写入。
+- [x] 内部 API contract、JWT scope、timeout 和幂等明确。
+- [x] 每项运行结果有命令、数量和 PASS/FAIL/BLOCKED 证据。
+- [x] 每个适用的业务/切流 PR 有 rollback 和单体 fallback；纯文档 PR 标记 N/A。
+- [x] `00-progress.md` 按真实状态更新。
 - [ ] 当日站会与约 200 字简报已保存。
-- [ ] 看板卡经过 Review 和 Verify 后再进入 Done。
+- [x] 技术看板卡经过 Review 和 Verify 后再进入 Done；DEL-01 总卡因真人证据保持未关闭。
+
+2026-08-31 收口结论：本节可由 Git/PR/测试/部署证据验证的技术检查均已完成；仍未勾选的并行在制品限制和站会简报属于每日实名管理证据，不能由代码历史反推。
 
 ## 12. 当前待补管理证据
 
