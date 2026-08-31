@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 
-import { RESULT_STATUSES, runRegression, targetConfigurations } from './lib.mjs';
+import { RESULT_STATUSES, UC_IDS, UC_PUBLIC_ENDPOINTS, runRegression, targetConfigurations } from './lib.mjs';
 
 test('supports monolith and microservice Gateway targets from the same suite', () => {
   assert.deepEqual(targetConfigurations({
@@ -29,10 +30,24 @@ test('reports environment, Git SHA, service version and only approved statuses',
     }), { status: 200 }),
   });
   assert.equal(report.generatedAt, '2026-08-29T00:00:00.000Z');
+  assert.equal(report.schemaVersion, 'reg-01/v2');
+  assert.deepEqual(Object.keys(report.endpointCoverage), UC_IDS);
+  assert.ok(Object.values(UC_PUBLIC_ENDPOINTS).every((items) => items.length >= 5));
   assert.equal(report.targets[0].gitSha, 'abc123');
   assert.equal(report.targets[1].serviceVersions.service, 'gateway');
   assert.ok(report.targets.every((target) => RESULT_STATUSES.includes(target.preflight.status)));
   assert.ok(report.targets.flatMap((target) => target.useCases).every((item) => item.status === 'NOT RUN'));
+});
+
+test('CLI exits non-zero when a configured target or business use case fails', () => {
+  const result = spawnSync(process.execPath, ['test/regression/run.mjs'], {
+    cwd: process.cwd(),
+    env: { ...process.env, MONOLITH_BASE_URL: 'http://127.0.0.1:1', MICROSERVICE_GATEWAY_BASE_URL: '', REG_REQUIRE_ALL_PASS: 'true' },
+    encoding: 'utf8',
+  });
+  assert.equal(result.status, 1);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.targets[0].preflight.status, 'FAIL');
 });
 
 test('marks missing targets BLOCKED and unreachable targets FAIL without claiming UC completion', async () => {

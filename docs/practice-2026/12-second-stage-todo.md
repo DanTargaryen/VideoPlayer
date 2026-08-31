@@ -1,6 +1,6 @@
 # 第二阶段微服务执行 TODO
 
-> 状态：`MS-00 / MS-01 / MS-02 / MS-03 / MS-04 / MS-DOD / MS-CUTOVER-READ / MS-CUTOVER-IDENTITY / MS-CUTOVER-CONTENT-DATA / MS-CUTOVER-CONTENT-INTERACTIONS / MS-CUTOVER-CONTENT-PUBLISHING / MS-CUTOVER-LIVE-GOVERNANCE DONE / REG-01 UC06 DONE`
+> 状态：`MS-00 / MS-01 / MS-02 / MS-03 / MS-04 / MS-DOD / MS-CUTOVER-READ / MS-CUTOVER-IDENTITY / MS-CUTOVER-CONTENT-DATA / MS-CUTOVER-CONTENT-INTERACTIONS / MS-CUTOVER-CONTENT-PUBLISHING / MS-CUTOVER-LIVE-GOVERNANCE / REG-01 DONE`
 >
 > 冻结基线：`monolith-start` / `main@70d197dc1a1f6febfdc7dcb12d8661384ad5d31e`。
 >
@@ -20,7 +20,7 @@
 - [x] identity/content 只读路由完成并保留单体 fallback。
 - [x] identity/content/live/governance 历史迁移和分阶段读写切流完成；单体表仍保留。
 - [x] identity/content/live/governance 写流量按顺序切换并保留回滚路径。
-- [ ] REG-01 在微服务 Gateway 上完成全部公开 API 和 UC01–UC06 回归。
+- [x] REG-01 在同一 runner 上完成单体与微服务 Gateway 的公开 API/UC01–UC06 双目标回归。
 
 冻结执行顺序：
 
@@ -493,7 +493,7 @@ services/<service>/
 - [x] timeout、502/503、fallback 和补偿状态。
 - [x] contract 版本和不兼容变更检测。
 
-### 7.5 REG-01 双目标与 UC06 回归
+### 7.5 REG-01 双目标 UC01–UC06 全量回归
 
 - [x] 同一套测试可配置 `MONOLITH_BASE_URL`。
 - [x] 同一套测试可配置 `MICROSERVICE_GATEWAY_BASE_URL`。
@@ -501,6 +501,16 @@ services/<service>/
 - [x] 结果只使用 PASS/FAIL/BLOCKED/NOT RUN。
 - [x] `REG_RUN_UC06=true` 时执行微服务 Gateway 的真实 UC06 举报、处置、内容状态和通知回归。
 - [x] 默认未授权业务回归时保持 `NOT RUN`，不把服务可达性冒充业务回归 PASS。
+- [x] `REG_RUN_ALL=true` 为每个目标创建隔离 creator/actor/media 数据并执行 UC01–UC06。
+- [x] UC01 验证注册、正确/错误登录、资料持久化和普通用户越权拒绝。
+- [x] UC02 验证推荐、搜索/无结果、详情、播放、观看进度和历史。
+- [x] UC03 验证伪装媒体拒绝、真实 MP4、草稿隔离、提审、队列、批准和发布。
+- [x] UC04 验证点赞/收藏往返、评论/弹幕重载、幂等关注和创作者通知。
+- [x] UC05 验证直播中心、房间/Session、兼容帧、观众/消息、账本/投币、结束和录播稿件。
+- [x] UC06 验证举报、队列、KEEP、重复处置拒绝、content 保持发布和 REPORT 通知。
+- [x] CLI 在 preflight/业务 `FAIL` 时非零退出；`REG_REQUIRE_ALL_PASS=true` 阻止已配置目标出现 `BLOCKED/NOT RUN`。
+
+全量复验（2026-08-31）：完整 `test:ci` 278/278（REG harness 4/4）。标准 Compose 启动四个 owner MySQL、MinIO、五服务和 Gateway，并额外启动独立临时单体 MySQL `video_player_regression_test`、正式 migration/seed 和 host backend `3200`。同一 `reg-01/v2` runner 对单体与微服务 Gateway 各执行 UC01–UC06，结果 12/12 PASS；报告携带两目标版本/health、Git SHA、固定状态集和 6 组公开 endpoint 清单。首轮差异为 content 搜索返回 `video`、单体/微服务重复处置分别 400/409；runner 按冻结 wire contract 归一化列表，并把两种状态都解释为“明确拒绝”，随后继续验证 target `PUBLISHED` 与 REPORT 通知。最终 monolith rollback PASS，所有 Compose volumes、临时单体容器/数据库、backend 进程和端口清理 PASS。
 
 E 验收证据（2026-08-29，基于 `origin/main@933ccac`）：完成 governance 公开举报、管理员审核、文本审核、仪表盘和本地规则预审 API；Gateway 使用 identity `/auth/me` 建立可信用户上下文并拒绝伪造管理员头；处置结果通过带 JWT、timeout、幂等和补偿状态的内部调用应用到 content，并向 identity 写入幂等 `REPORT` 通知。独立治理 schema/migration/seed、举报 pendingKey 并发幂等、审核决定与目标应用状态机、审计字段和跨服务 contract 均已落地。PR 复审后又补齐视频驳回原因与首次发布时间回写、前端到 governance 的同一 `requestId` 重试语义，以及仅返回未处理直接提审任务的审核队列。最新聚焦验证为 governance 28/28、content-media 22/22、frontend 24/24，三处 lint/build 与 content Prisma schema validate 均 PASS；更新后的 migration、Compose 和 Playwright services-mode 回归本轮未运行，PR 保持 Draft 等待非作者复审和远端 Check。
 

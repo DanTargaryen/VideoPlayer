@@ -223,6 +223,11 @@
   - 测试/验证：完整 `npm run test:ci` 277/277（requirements 126、backend 16、frontend 24、shared 9、identity 5、content 34、live 18、governance 29、Gateway 13、REG harness 3）。最终真实 MySQL 源/目标使用 ID 10/12 样本连续迁移两次，live CoinAccount/Daily/Streak/Contribution/Transaction 为 6/1/1/1/3，governance VideoReview/CommentAiTask/ReportRecord/ModerationDecision 为 3/1/2/4，全部逐行一致；guard 4/4。标准 Compose 四库 + MinIO、15 health/version、browser admin+UC05 2/2、identity/content/live/governance 分阶段写切流、live API/重启持久化、UC06 与 monolith rollback 全部 PASS。
   - 失败与修复：首次 Compose 因 `.codex-run` 未被 Docker ignore 重复发送约 598MB context 并耗尽 Docker 存储，补 ignore、只清理旧项目镜像后恢复；浏览器 SSE 关闭暴露 Gateway 已发头后再写 502 的进程崩溃，增加断连保护和回归测试；identity 重启登录探针刷新 session nonce 后旧 token 失效，改为保存新 token；已上传录播 asset 的 objectKey 唯一冲突改为事务内绑定现有 asset。
   - 结果：PASS；四服务写 allowlist、UC05/UC06 和显式 monolith rollback Gate 已关闭。共享生产环境未获授权且未变更；单体 owner 表和单体写入口继续保留，等待全量 REG-01 关闭后再讨论 DEL-01。
+- [x] `REG-01` 完成单体与微服务 Gateway 的 UC01–UC06 双目标全量回归。
+  - 完成内容：将 `reg-01/v1` 的 UC06-only runner 升级为 v2；完整模式为每个目标创建独立 creator/actor/media 数据，按依赖顺序执行账户资料、投稿审核发布、发现观看、互动通知、直播录播和举报处置，最终按 UC01–UC06 固定顺序输出 PASS/FAIL/BLOCKED/NOT RUN。报告新增每个 UC 的公开 endpoint 覆盖清单；任何业务 FAIL 非零退出，`REG_REQUIRE_ALL_PASS=true` 同时拒绝已配置目标的 BLOCKED/NOT RUN。
+  - 测试/验证：完整 `npm run test:ci` 278/278（REG harness 4/4）。标准 Compose 四库/MinIO/五服务/Gateway + 独立临时单体 MySQL/migration/seed/backend 3200；同一 runner 对 `MONOLITH_BASE_URL` 和 `MICROSERVICE_GATEWAY_BASE_URL` 各跑 6 项，最终 12/12 PASS。微服务先独立 6/6 PASS；双目标首轮单体 UC01–UC05、微服务 UC01–UC06 PASS，修正重复处置 400/409 兼容后双目标完整复跑 PASS；最终 monolith rollback 与所有资源清理 PASS。
+  - 失败与修复：content 搜索冻结 contract 使用 `video` 而非 `videos`，runner 增加响应列表归一化；单体已处理举报返回 400、governance 返回 409，两者均为基线定义的明确拒绝，兼容断言后继续检查 target 保持 PUBLISHED 和 REPORT 通知。原 runner 业务 FAIL 不影响 CLI exit，现已由测试锁定为非零。
+  - 结果：PASS；REG-01 Gate 关闭，单体 owner 表仍保留。下一步进入 HPA/依赖故障/恢复/性能实验，实验通过后再执行 DEL-01。
 - [x] `MS-03` live-reward foundation 与 UC05 直播/礼物边界实现。
   - 当前分支：`feature/MS-03-live-reward`；当前已 rebase 到 `origin/main@be7a419`。
   - 已完成源码：独立 Prisma schema/migration/fixture、Prisma 默认生产存储、房间/Session/观众/消息/回放/币账本、SRS/content timeout、回放补偿、7 天/10,000 条留存、requestId 完整 payload 幂等和 live-reward HTTP contract。缺数据库配置或数据库不可用时 readiness/业务路由返回 503；MemoryStore 仅显式注入测试。
@@ -266,6 +271,7 @@
 | MS-CUTOVER-CONTENT-INTERACTIONS 互动切流 | DONE | 评论/点赞/收藏夹/播放/观看/弹幕；receipt 幂等；通知 outbox；可信 Gateway 用户；精确 read/write allowlist 与 rollback | `test:ci` 267/267；content 30/30、Gateway 12/12；真实 MySQL 4 migrations/16 表；Compose 四库、browser 1/1、3 notifications、rollback | PASS；主体失败停止、通知失败补偿；上传/投稿/创作者管理仍待完成 | 本轮提交 |
 | MS-CUTOVER-CONTENT-PUBLISHING 全写切流 | DONE | multipart/ffprobe/MinIO/Range、投稿草稿、creator 聚合、review history/withdraw、数字兼容 ID、String 投币外部 ID | `test:ci` 272/272；content 34、governance 29、identity 5、live 18、Gateway 12；Compose 17/12/11/5 表 + MinIO + publishing | PASS；上传/投稿/互动均可 rollback；VideoAi 按冻结决策留单体 | 本轮提交 |
 | MS-CUTOVER-LIVE-GOVERNANCE 写切流 | DONE | 两域历史迁移、UC05 全公开 contract、已上传录播 asset 绑定、完整 capability map、SSE 断连安全、分阶段 allowlist/rollback | `test:ci` 277/277；live migration 6/1/1/1/3、governance 3/1/2/4，各双跑含 ID 10/12；guard 4/4；Compose browser 2/2 + UC05/UC06 | PASS；四服务写切流技术 Gate 关闭；单体表/入口保留，共享生产未变更 | 本轮提交 |
+| REG-01 双目标全量回归 | DONE | reg-01/v2、目标隔离数据、UC01–UC06 公开 endpoint manifest、业务失败退出门禁、单体 health fallback | `test:ci` 278/278；单体 6/6 + 微服务 Gateway 6/6；标准 Compose + 独立单体 MySQL/migration/seed/backend；rollback/cleanup | PASS；搜索 `video` 响应与重复处置 400/409 差异均显式兼容，未把 NOT RUN 冒充 PASS | 本轮提交 |
 | GOV-GIT-01 Commit/PR 规范 | DONE | GitHub PR 模板、仓库规范、个人 Codex skill | quick_validate；模板章节/敏感信息/diff 检查 | PASS | 最终治理提交 |
 | GOV-GIT-02 分支/Commit 命名 | DONE | category 分支名、Conventional Commit 标题、Changes/Tests 正文、PR Commit 清单 | quick_validate；必填字段；diff check | PASS；应用测试 N/A（纯规范） | 最终治理提交 |
 | GOV-GIT-03 仓库内 skill | DONE | `.codex/skills/videoplayer-commit-pr` 与个人版同步 | 双 quick_validate；字节比对；TODO/diff check | PASS；应用测试 N/A（skill/docs） | 最终治理提交 |
@@ -361,6 +367,7 @@
 | 2026-08-31 | MS-CUTOVER-CONTENT-INTERACTIONS content 互动读写 | 新增 6 组互动能力、通用 write receipt、notification outbox、真实 identity batch/notification client、Gateway 路径能力与 Compose 四阶段切流 | `test:ci` 267/267；content 30/30、Gateway 12/12；MySQL 4 migrations/16 表/diff；Prisma smoke；Compose 15 health/version、browser 1/1、3 notifications、rollback | PASS；先后修复 14→16 表断言、评论旧 fallback 预期和缺 `IDENTITY_SERVICE_URL`；完整第四轮资源/volume/network/3100–3104 清理；上传/投稿/创作者管理继续待办 |
 | 2026-08-31 | MS-CUTOVER-CONTENT-PUBLISHING 上传投稿与创作者管理 | 新增 MinIO runtime、multipart/ffprobe/Range、asset owner、数字序列、投稿 CRUD、creator 聚合、review history/withdraw；扩展 live videoId String | `test:ci` 272/272；五服务聚焦 98/98；真实 Compose 4 DB + MinIO、17/12/11/5 表、browser 1/1、publishing smoke、rollback | PASS；multipart filename 解析首次 400 后修复；有效 MP4 上传/Range/投稿/编辑/提审/撤回/删除和冲突 object 清理均通过；10 runtime、volumes/network/3100–3104/9000–9001 清理 |
 | 2026-08-31 | MS-CUTOVER-LIVE-GOVERNANCE 历史迁移与写切流 | 新增 live/governance 可重复迁移；补齐 UC05 前端 contract、录播 asset 原子绑定、Gateway capability/SSE 断连安全；标准 Compose 顺序推进到 all writes 后回滚 | `test:ci` 277/277；两域含 ID 10/12 的真实 MySQL migration 各 2 次并全量一致（live 6/1/1/1/3、governance 3/1/2/4）；guard 4/4；Compose browser 2/2、UC05 API、UC06、restart、rollback | PASS；修复 598MB Docker context/磁盘耗尽、SSE 断连崩溃、session nonce token 刷新和录播唯一键冲突；所有隔离资源清理，单体表保留 |
+| 2026-08-31 | REG-01 单体/微服务全量回归 | v2 runner 创建目标隔离用户/媒体，覆盖六 UC 公开 API；业务 FAIL/未完成门禁；Compose 内追加独立单体 MySQL/backend 与双目标报告 | `test:ci` 278/278；微服务独立 6/6；最终单体 6/6 + Gateway 6/6；真实 MP4/MinIO、审核、互动通知、直播录播、治理通知；rollback/cleanup | PASS；修复搜索 `video/videos` 归一化、单体/微服务重复处置 400/409 兼容和旧 CLI 不因业务失败退出 |
 
 ## 4. 阻塞与需组长决定
 
