@@ -64,6 +64,7 @@ test('DEL-01 package is complete, linked, renderable, and honest about human evi
     path.join(deliveryRoot, '06_defense', 'backup-recording-shot-list.md'),
     'utf8',
   );
+  const demoScript = fs.readFileSync(path.join(deliveryRoot, '06_defense', 'demo-script.md'), 'utf8');
   const progress = fs.readFileSync(path.join(root, 'docs/practice-2026/00-progress.md'), 'utf8');
 
   assert.match(packageReadme, /HUMAN EVIDENCE PENDING/);
@@ -77,6 +78,8 @@ test('DEL-01 package is complete, linked, renderable, and honest about human evi
   ]) {
     assert.match(memberMapping, new RegExp(`\\| ${role} \\| ${name} \\| ${studentId} \\|`));
     assert.match(contribution, new RegExp(`\\| ${name} \\| ${studentId} \\| ${role}：`));
+    assert.match(demoScript, new RegExp(`${role} \/ ${name}`));
+    assert.match(recording, new RegExp(`${role} \/ ${name}`));
   }
   assert.match(contribution, /PENDING HUMAN CONFIRMATION/);
   assert.match(contribution, /未签/);

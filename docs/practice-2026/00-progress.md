@@ -250,6 +250,7 @@
   - [x] PR #58 首轮远端 run `33371629258` 3/3 jobs SUCCESS：quality 283/283；public E2E 3 passed、2 个仅在 services-mode 环境运行的测试显式 skip；Git SHA `45a952d` backend/frontend 镜像、Kind v1.36.1、2 条 migration、backend/frontend 1/1、0 restart、两个 Artifact 和 cleanup 全部实检。actions Node 20 弃用提示由 runner 强制 Node 24 执行，不是项目失败。
   - [x] 最终证据提交 `9d19aca` 的 run `33372482927` 再次 3/3 SUCCESS：public E2E 1m15s、quality 2m12s、Git SHA 镜像/隔离 Kind 3m29s；两个 Artifact 下载实检，2 migrations、backend/frontend 1/1、0 restart、evidence/cleanup PASS。Owner 全 diff 自审结论 `MERGE READY`，PR #58 已合并为 `main@993d699e047f2e12963af60646de47f4da862e2f`。
   - [x] 用户于 2026-08-31 提供五名成员/学号表，并授权按表格行顺序默认映射 A/林明、B/刘钟屹、C/李晓萌、D/张壮志、E/王一涵；该映射已进入任务板、ARCH、第二阶段 TODO 和交付管理索引，不替代成员本人签字。
+  - [x] 按默认 A–E 映射补齐现场演示与备用录屏的分段负责人：A 负责架构/平台/收口，B 负责身份，C 负责内容，D 负责直播，E 负责治理/REG/证据；实际讲解人、操作者、录制人和计时人仍需在演练后填写。
   - [ ] 非作者成员在另一台或 clean-machine 环境按 README 复现并签名。
   - [ ] 五名成员核对默认角色与实际贡献，确认权重合计 100%，并签字/填写日期。
   - [ ] 实际录制并上传 5–8 分钟备用演示，完成无痕窗口权限与敏感信息复查。
