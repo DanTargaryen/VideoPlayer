@@ -1,0 +1,13 @@
+NAME                           READY   STATUS      RESTARTS   AGE   IP           NODE                                       NOMINATED NODE   READINESS GATES
+pod/backend-56bd8788cc-d6xh4   1/1     Running     0          13s   10.244.0.8   video-player-33379394312-1-control-plane   <none>           <none>
+pod/db-migrate-rmq7c           0/1     Completed   0          19s   10.244.0.7   video-player-33379394312-1-control-plane   <none>           <none>
+pod/frontend-d877c965c-mdbls   1/1     Running     0          7s    10.244.0.9   video-player-33379394312-1-control-plane   <none>           <none>
+pod/mysql-0                    1/1     Running     0          35s   10.244.0.6   video-player-33379394312-1-control-plane   <none>           <none>
+
+NAME               TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)    AGE   SELECTOR
+service/backend    ClusterIP   10.96.91.35    <none>        3000/TCP   13s   app.kubernetes.io/name=backend
+service/frontend   ClusterIP   10.96.74.191   <none>        80/TCP     7s    app.kubernetes.io/name=frontend
+service/mysql      ClusterIP   None           <none>        3306/TCP   35s   app.kubernetes.io/name=mysql
+
+NAME                                       STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE   VOLUMEMODE
+persistentvolumeclaim/mysql-data-mysql-0   Bound    pvc-51c4eefa-d455-41f7-8dd5-ffe230aabe52   2Gi        RWO            standard       <unset>                 35s   Filesystem

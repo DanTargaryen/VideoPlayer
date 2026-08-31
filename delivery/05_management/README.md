@@ -8,20 +8,24 @@
 - [第二阶段 A–E TODO、禁止事项和 Gate](../../docs/practice-2026/12-second-stage-todo.md)
 - [Commit、PR、Review、push 和 merge 规范](../../docs/practice-2026/09-commit-pr-convention.md)
 - [唯一执行进度源](../../docs/practice-2026/00-progress.md)
-- [贡献与权重确认表](contribution-weight-confirmation.md)
+- [贡献与权重确认表（可编辑源）](contribution-weight-confirmation.md)
+- [贡献与权重确认表 PDF（待五人签署）](contribution-weight-confirmation.pdf)
 - [A–E 组员默认映射与证据边界](member-role-mapping.md)
+- [项目管理平台地址与访问核验](project-management-platform.md)
 
 ## 当前缺失的真人原始证据
 
 | 证据 | 当前状态 | 必须由谁完成 |
 | --- | --- | --- |
+| 项目管理平台核心地址 | `VERIFIED` | 飞书“软工小学期进度文档”已只读访问，见 `project-management-platform.md` |
 | 教师/助教范围确认回复 | `NOT PROVIDED` | 组长提供可访问截图或链接 |
 | ARCH-01 参会/聊天/录屏 | `NOT PROVIDED` | 会议组织者导出原件 |
 | 五人 A–E 角色实名映射 | `DEFAULT MAPPING RECORDED` | 用户提供成员表并授权按行顺序映射；见 `member-role-mapping.md` |
 | 个人可用时间与备份人 | `NOT CONFIRMED` | 每名成员填写 |
 | 另一成员 README 复现 | `NOT RUN / NOT SIGNED` | 非作者成员实际执行 |
 | 贡献权重合计 100% | `NOT CONFIRMED` | 全员协商并填写 |
-| 五人签字与日期 | `NOT PROVIDED` | 五名成员本人签署 |
+| 五人签字与日期 | `UNSIGNED TEMPLATE READY` | 可编辑源和 3 页 PDF 已生成；五名成员仍须本人签署 |
+| 每日站会简报与看板/统计截图 | `PARTIAL` | 已验证日期索引、8.31 技术条目并固定平台/8.25 两张截图；8.26–8.31 每日原件仍需组长导出 |
 
 A–E 默认姓名映射来自用户明确授权，不是从 Git commit 数量推断；但实际贡献、权重、个人签字、参会和可用时间仍不能从 PR 作者或聊天摘要自动生成。若课程平台不允许把签字公开提交，应把原件上传到受限课程空间，并在本目录记录文件名、访问负责人、权限和 SHA-256；不要把不可访问的个人本机路径当作证据。
 

@@ -1,0 +1,200 @@
+
+> video-player-workspace@0.1.0 dev:backend
+> npm --workspace backend run start:dev
+
+
+> backend@0.1.0 start:dev
+> nest start --watch
+
+[2J[3J[H[[90m9:48:13 AM[0m] Starting compilation in watch mode...
+
+[[90m9:48:19 AM[0m] Found 0 errors. Watching for file changes.
+
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +22ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPrismaModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigHostModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mHealthModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAgentModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mCaptchaModule dependencies initialized[39m[38;5;3m +2ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMediaProxyModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mStorageModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAuthModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mReportModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mGiftModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAdminModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mEmailModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mCreatorModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAssistantModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mCommentAiModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mFollowModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mNotificationModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mUserModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMessageModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAiModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mSearchModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mVideoModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mCommentModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mLiveModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mFeedModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mHealthController {/api/v1/health}:[39m[38;5;3m +5ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/health, GET} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAuthController {/api/v1/auth}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/auth/register, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/auth/login, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/auth/reset-password, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/auth/me, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mUserController {/api/v1/users}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/users/avatar, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/users/profile, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/users/profile/recommendation, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/users/profile/recommendation/rebuild, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/users/me, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/users/:id/homepage, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mFollowController {/api/v1}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/users/:id/followers, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/users/:id/following, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/users/:id/follow, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/users/:id/follow, DELETE} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/feeds/following, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mVideoController {/api/v1/videos}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/videos, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/videos/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/videos/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/videos/:id/withdraw-review, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/videos/my/favorites, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/videos/my/favorite-folders, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/videos/my/favorite-folders, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/videos/my/favorite-folders/:folderId, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/videos/my/likes, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/videos/my/history, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/videos/:id/reviews, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/videos/upload, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/videos/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/videos/:id/recommendations, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/videos/:id/submit-review, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/videos/:id/like, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/videos/:id/like, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/videos/:id/favorite, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/videos/:id/coin, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/videos/:id/play, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/videos/:id/watch-progress, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/videos/:id/favorite, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/videos/:id/danmaku, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/videos/:id/danmaku, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mSearchController {/api/v1}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/feeds/recommend, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/feeds/categories/:code/videos, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/feeds/hot, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/search/all, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/search/hotwords, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/search/suggest, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mLiveController {/api/v1/lives}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/lives/center/overview, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/lives/plaza, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/lives/hot, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/lives/categories, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/lives/rooms, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/lives/rooms, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/lives/rooms/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/lives/rooms/:id/publish, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/lives/rooms/:id/play, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/lives/rooms/:id/frame, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/lives/rooms/:id/frame, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/lives/rooms/:id/start, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/lives/rooms/:id/stop, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/lives/rooms/:id/viewers, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/lives/rooms/:id/viewers/:viewerId, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/lives/rooms/:id/viewers/:viewerId/offer, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/lives/rooms/:id/publisher/pending-viewers, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/lives/rooms/:id/viewers/:viewerId/answer, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/lives/rooms/:id/viewers/:viewerId/answer, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/lives/rooms/:id/messages, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/lives/rooms/:id/messages, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/lives/rooms/:id/replay, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/lives/rooms/:id/events, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/lives/rooms/:id/publisher/events, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/lives/rooms/:id/viewers/:viewerId/events, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/lives/sessions/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mCommentController {/api/v1/videos/:id/comments}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/videos/:id/comments, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/videos/:id/comments/:rootId/thread, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/videos/:id/comments, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/videos/:id/comments/:commentId, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAiController {/api/v1/ai}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/ai/video-summary, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/ai/video-chat, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/ai/video-chat/:videoId, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mNotificationController {/api/v1/notifications}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/notifications, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/notifications/unread-count, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/notifications/read-all, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/notifications/:id/read, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mReportController {/api/v1/reports}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/reports, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mCreatorController {/api/v1/creator}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/creator/dashboard, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/creator/videos, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/creator/videos/play-trend, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/creator/followers/trend, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAdminController {/api/v1/admin}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/admin/reviews/videos, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/admin/reviews/videos/:id, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/admin/reviews/text-content, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/admin/reviews/text-content/:targetType/:id, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/admin/reports, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/admin/reports/:id, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/admin/reports/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/admin/dashboard, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mGiftController {/api/v1/gift-coins}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/gift-coins/wallet, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/gift-coins/daily-claim, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/gift-coins/streak, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/gift-coins/streak-claim, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAgentController {/api/v1/agent}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/agent/review-preview, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/agent/results, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mCaptchaController {/api/v1/captcha}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/captcha, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/captcha/verify, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mEmailController {/api/v1/email}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/email/send-code, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/email/send-reset-code, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/email/verify-code, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mMessageController {/api/v1/messages}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/messages/conversations, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/messages/conversations/:targetUserId, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/messages/conversations/:targetUserId, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/messages/unread-count, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/messages/read-all, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mFeedController {/api/v1/feed}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/feed/dynamic, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/feed/sidebar/live, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/feed/sidebar/overview, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/feed/sidebar/recent-updates, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/feed/sidebar/recommended-users, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/feed/posts, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/feed/posts, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/feed/posts/:postId/like, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/feed/posts/:postId/like, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/feed/posts/:postId/comments, GET} route[39m[38;5;3m +4ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/feed/posts/:postId/comments, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/feed/posts/upload, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAssistantController {/api/v1/assistant}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/assistant/chat, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mMediaProxyController {/api/v1/media-proxy}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/media-proxy, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[CommentAiWorkerService] [39m[32mComment AI worker started (poll interval: 5000ms)[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[GrokBotService] [39m[32mCreated bot user: grok_bot (#7)[39m
+[32m[Nest] 3453  - [39m08/31/2026, 9:48:20 AM [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +2ms[39m
+[33m[Nest] 3453  - [39m08/31/2026, 9:48:37 AM [33m   WARN[39m [38;5;3m[VideoService] [39m[33mRecommendation profile unavailable for user 8: 
+Invalid `tx.userProfileSummary.upsert()` invocation in
+/home/runner/work/VideoPlayer/VideoPlayer/backend/src/modules/user/user-profile.service.ts:331:35
+
+  328   });
+  329 }
+  330 
+→ 331 await tx.userProfileSummary.upsert(
+Unique constraint failed on the constraint: `UserProfileSummary_userId_key`[39m

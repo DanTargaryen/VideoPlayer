@@ -1,0 +1,509 @@
+Public browser smoke	UNKNOWN STEP	﻿2026-08-31T09:47:22.7902042Z Current runner version: '2.336.0'
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:22.7929172Z ##[group]Runner Image Provisioner
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:22.7930210Z Hosted Compute Agent
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:22.7930834Z Version: 20260819.586
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:22.7931656Z Commit: 3cc4a88dfa507ef76119ad1bb3eccc6378bb2b76
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:22.7932520Z Build Date: 2026-08-18T23:20:18Z
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:22.7933265Z Worker ID: {591eb81a-267d-42c1-8bbf-624582a5ac21}
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:22.7934067Z Azure Region: eastus2
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:22.7934735Z ##[endgroup]
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:22.7936144Z ##[group]Operating System
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:22.7936883Z Ubuntu
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:22.7937475Z 24.04.4
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:22.7938095Z LTS
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:22.7938655Z ##[endgroup]
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:22.7939241Z ##[group]Runner Image
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:22.7939914Z Image: ubuntu-24.04
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:22.7940515Z Version: 20260823.283.1
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:22.7942391Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260823.283/images/ubuntu/Ubuntu2404-Readme.md
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:22.7944001Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260823.283
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:22.7945051Z ##[endgroup]
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:22.7946262Z ##[group]GITHUB_TOKEN Permissions
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:22.7948568Z Contents: read
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:22.7949246Z Metadata: read
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:22.7949893Z ##[endgroup]
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:22.7952514Z Secret source: Actions
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:22.7954326Z Prepare workflow directory
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:22.8534088Z Prepare all required actions
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:22.8584206Z Getting action download info
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:23.0584673Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:23.2056301Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:23.3525328Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:23.6355893Z Complete job name: Public browser smoke
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:23.6852260Z ##[group]Checking docker version
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:23.6866006Z ##[command]/usr/bin/docker version --format '{{.Server.APIVersion}}'
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:23.7462867Z '1.48'
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:23.7478898Z Docker daemon API version: '1.48'
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:23.7480025Z ##[command]/usr/bin/docker version --format '{{.Client.APIVersion}}'
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:23.7664349Z '1.48'
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:23.7684348Z Docker client API version: '1.48'
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:23.7690122Z ##[endgroup]
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:23.7694461Z ##[group]Clean up resources from previous jobs
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:23.7700972Z ##[command]/usr/bin/docker ps --all --quiet --no-trunc --filter "label=9d7581"
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:23.7848932Z ##[command]/usr/bin/docker network prune --force --filter "label=9d7581"
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:23.7987382Z ##[endgroup]
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:23.7988063Z ##[group]Create local container network
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:23.7999856Z ##[command]/usr/bin/docker network create --label 9d7581 github_network_b7b5050706744948b9a33de1a58757c5
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:23.8573370Z 7e0ed74bde782926b9bd9f70a0bca4621ef588f761f6d63ea783e7111e622a81
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:23.8611913Z ##[endgroup]
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:23.8635418Z ##[group]Starting mysql service container
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:23.8658386Z ##[command]/usr/bin/docker pull mysql:8.0
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.1693678Z 8.0: Pulling from library/mysql
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.2482069Z edf85873f64e: Pulling fs layer
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.2483361Z 6ef6c7b50a93: Pulling fs layer
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.2484469Z e3e5d1ac74c1: Pulling fs layer
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.2485468Z 0d74d296605b: Pulling fs layer
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.2486568Z 297d04cfe470: Pulling fs layer
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.2487568Z 4c8a3e0d4e4b: Pulling fs layer
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.2488558Z a63160a5eda1: Pulling fs layer
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.2489562Z 7534d1db9f8d: Pulling fs layer
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.2490526Z 49ec2dab01d9: Pulling fs layer
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.2491845Z ab24264a27e9: Pulling fs layer
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.2493667Z 96d30d9fbee8: Pulling fs layer
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.2495393Z a63160a5eda1: Waiting
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.2496744Z 7534d1db9f8d: Waiting
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.2498064Z 49ec2dab01d9: Waiting
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.2499389Z ab24264a27e9: Waiting
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.2500719Z 96d30d9fbee8: Waiting
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.2502256Z 297d04cfe470: Waiting
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.2503565Z 4c8a3e0d4e4b: Waiting
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.2504867Z 0d74d296605b: Waiting
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.3298431Z 6ef6c7b50a93: Verifying Checksum
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.3305388Z 6ef6c7b50a93: Download complete
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.3665561Z e3e5d1ac74c1: Verifying Checksum
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.3666918Z e3e5d1ac74c1: Download complete
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.4151715Z 297d04cfe470: Download complete
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.4419587Z 0d74d296605b: Verifying Checksum
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.4424954Z 0d74d296605b: Download complete
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.4657767Z 4c8a3e0d4e4b: Download complete
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.5134355Z edf85873f64e: Verifying Checksum
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.5136392Z edf85873f64e: Download complete
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.5149238Z 7534d1db9f8d: Verifying Checksum
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.5151508Z 7534d1db9f8d: Download complete
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.5709133Z ab24264a27e9: Verifying Checksum
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.5713803Z ab24264a27e9: Download complete
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.6199876Z 96d30d9fbee8: Verifying Checksum
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.6203042Z 96d30d9fbee8: Download complete
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.7143220Z a63160a5eda1: Verifying Checksum
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:24.7153058Z a63160a5eda1: Download complete
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:25.0436939Z 49ec2dab01d9: Verifying Checksum
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:25.0447988Z 49ec2dab01d9: Download complete
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:25.9392432Z edf85873f64e: Pull complete
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:26.4562644Z 6ef6c7b50a93: Pull complete
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:26.4770043Z e3e5d1ac74c1: Pull complete
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:26.6777424Z 0d74d296605b: Pull complete
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:26.6860245Z 297d04cfe470: Pull complete
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:26.6930761Z 4c8a3e0d4e4b: Pull complete
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:27.5120085Z a63160a5eda1: Pull complete
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:27.5214823Z 7534d1db9f8d: Pull complete
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.2580006Z 49ec2dab01d9: Pull complete
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.2666720Z ab24264a27e9: Pull complete
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.2743502Z 96d30d9fbee8: Pull complete
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.2779496Z Digest: sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.2791663Z Status: Downloaded newer image for mysql:8.0
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.2798043Z docker.io/library/mysql:8.0
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.2866164Z ##[command]/usr/bin/docker create --name dadf77b987b14602aeb01aaf5d1cb6f8_mysql80_a019b9 --label 9d7581 --network github_network_b7b5050706744948b9a33de1a58757c5 --network-alias mysql -p 3306:3306  -e "MYSQL_ALLOW_EMPTY_PASSWORD=yes" -e "MYSQL_DATABASE=video_player_test" -e GITHUB_ACTIONS=true -e CI=true mysql:8.0
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.3120113Z 5e80717fa7ca4a3fa343ed2f652b16345f956ff6a7f511717e460da926732496
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.3142229Z ##[command]/usr/bin/docker start 5e80717fa7ca4a3fa343ed2f652b16345f956ff6a7f511717e460da926732496
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.4953364Z 5e80717fa7ca4a3fa343ed2f652b16345f956ff6a7f511717e460da926732496
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.4980747Z ##[command]/usr/bin/docker ps --all --filter id=5e80717fa7ca4a3fa343ed2f652b16345f956ff6a7f511717e460da926732496 --filter status=running --no-trunc --format "{{.ID}} {{.Status}}"
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5124758Z 5e80717fa7ca4a3fa343ed2f652b16345f956ff6a7f511717e460da926732496 Up Less than a second
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5150262Z ##[command]/usr/bin/docker port 5e80717fa7ca4a3fa343ed2f652b16345f956ff6a7f511717e460da926732496
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5286031Z 3306/tcp -> 0.0.0.0:3306
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5291603Z 3306/tcp -> [::]:3306
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5333116Z ##[endgroup]
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5342903Z ##[group]Waiting for all services to be ready
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5356420Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 5e80717fa7ca4a3fa343ed2f652b16345f956ff6a7f511717e460da926732496
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5524532Z mysql service is healthy.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5525515Z ##[endgroup]
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5883310Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5893296Z ##[group]Run actions/checkout@v4
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5893940Z with:
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5894288Z   repository: DanTargaryen/VideoPlayer
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5896965Z   token: ***
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5897198Z   ssh-strict: true
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5897433Z   ssh-user: git
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5897660Z   persist-credentials: true
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5897903Z   clean: true
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5898128Z   sparse-checkout-cone-mode: true
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5898386Z   fetch-depth: 1
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5898587Z   fetch-tags: false
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5898806Z   show-progress: true
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5899035Z   lfs: false
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5899296Z   submodules: false
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5899521Z   set-safe-directory: true
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5899778Z   allow-unsafe-pr-checkout: false
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5900259Z env:
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5900542Z   DATABASE_URL: mysql://root@127.0.0.1:3306/video_player_test
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5900886Z   STORAGE_BACKEND: local
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5901444Z   LOCAL_STORAGE_DIR: /home/runner/work/VideoPlayer/VideoPlayer/.runtime-storage
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5901945Z   VITE_API_PROXY_TARGET: http://127.0.0.1:3000
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.5902237Z ##[endgroup]
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7059232Z Syncing repository: DanTargaryen/VideoPlayer
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7061165Z ##[group]Getting Git version info
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7062008Z Working directory is '/home/runner/work/VideoPlayer/VideoPlayer'
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7063049Z [command]/usr/bin/git version
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7102297Z git version 2.55.0
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7145441Z ##[endgroup]
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7160320Z Temporarily overriding HOME='/home/runner/work/_temp/9dde6a85-8049-4349-b6ee-047dbf6ed321' before making global git config changes
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7162435Z Adding repository directory to the temporary git global config as a safe directory
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7163636Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/VideoPlayer/VideoPlayer
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7216603Z Deleting the contents of '/home/runner/work/VideoPlayer/VideoPlayer'
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7221650Z ##[group]Initializing the repository
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7240660Z [command]/usr/bin/git init /home/runner/work/VideoPlayer/VideoPlayer
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7322143Z hint: Using 'master' as the name for the initial branch. This default branch name
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7332828Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7333897Z hint: to use in all of your new repositories, which will suppress this warning,
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7335005Z hint: call:
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7335500Z hint:
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7336157Z hint: 	git config --global init.defaultBranch <name>
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7336860Z hint:
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7337515Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7338717Z hint: 'development'. The just-created branch can be renamed via this command:
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7339400Z hint:
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7339744Z hint: 	git branch -m <name>
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7340113Z hint:
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7340636Z hint: Disable this message with "git config set advice.defaultBranchName false"
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7342173Z Initialized empty Git repository in /home/runner/work/VideoPlayer/VideoPlayer/.git/
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7343801Z [command]/usr/bin/git remote add origin https://github.com/DanTargaryen/VideoPlayer
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7403530Z ##[endgroup]
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7422591Z ##[group]Disabling automatic garbage collection
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7423415Z [command]/usr/bin/git config --local gc.auto 0
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7434558Z ##[endgroup]
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7435723Z ##[group]Setting up auth
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7442361Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7525232Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.7977260Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.8027957Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.8342111Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.8387233Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.8672635Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.8707687Z ##[endgroup]
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.8708370Z ##[group]Fetching the repository
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:35.8744198Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +c909875671a0f065df18183305bca6162211a660:refs/remotes/origin/docs/DEL-01-defense-role-alignment
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.4289805Z From https://github.com/DanTargaryen/VideoPlayer
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.4310393Z  * [new ref]         c909875671a0f065df18183305bca6162211a660 -> origin/docs/DEL-01-defense-role-alignment
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.4327861Z ##[endgroup]
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.4328719Z ##[group]Determining the checkout info
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.4329571Z ##[endgroup]
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.4330158Z [command]/usr/bin/git sparse-checkout disable
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.4408020Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.4453419Z ##[group]Checking out the ref
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.4456719Z [command]/usr/bin/git checkout --progress --force -B docs/DEL-01-defense-role-alignment refs/remotes/origin/docs/DEL-01-defense-role-alignment
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.5257763Z Switched to a new branch 'docs/DEL-01-defense-role-alignment'
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.5284025Z branch 'docs/DEL-01-defense-role-alignment' set up to track 'origin/docs/DEL-01-defense-role-alignment'.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.5286154Z ##[endgroup]
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.5354416Z [command]/usr/bin/git log -1 --format=%H
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.5420800Z c909875671a0f065df18183305bca6162211a660
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.5713499Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.5716179Z ##[group]Run actions/setup-node@v4
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.5716532Z with:
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.5716782Z   node-version: 22
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.5717085Z   cache: npm
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.5717328Z   always-auth: false
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.5717668Z   check-latest: false
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.5720448Z   token: ***
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.5720693Z env:
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.5721069Z   DATABASE_URL: mysql://root@127.0.0.1:3306/video_player_test
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.5721690Z   STORAGE_BACKEND: local
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.5722223Z   LOCAL_STORAGE_DIR: /home/runner/work/VideoPlayer/VideoPlayer/.runtime-storage
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.5722845Z   VITE_API_PROXY_TARGET: http://127.0.0.1:3000
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.5723227Z ##[endgroup]
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.7998483Z Found in cache @ /opt/hostedtoolcache/node/22.23.2/x64
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.8010929Z (node:2653) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.8012371Z ##[group]Environment details
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:36.8028062Z (Use `node --trace-deprecation ...` to show where the warning was created)
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:39.5887982Z node: v22.23.2
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:39.5888553Z npm: 10.9.8
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:39.5891160Z yarn: 1.22.22
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:39.5892898Z ##[endgroup]
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:39.5925451Z [command]/opt/hostedtoolcache/node/22.23.2/x64/bin/npm config get cache
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:39.9168785Z /home/runner/.npm
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:40.0181550Z npm cache is not found
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:40.0361194Z ##[group]Run npm ci
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:40.0361794Z ^[[36;1mnpm ci^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:40.0460553Z shell: /usr/bin/bash -e {0}
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:40.0460821Z env:
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:40.0461118Z   DATABASE_URL: mysql://root@127.0.0.1:3306/video_player_test
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:40.0461792Z   STORAGE_BACKEND: local
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:40.0462171Z   LOCAL_STORAGE_DIR: /home/runner/work/VideoPlayer/VideoPlayer/.runtime-storage
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:40.0462613Z   VITE_API_PROXY_TARGET: http://127.0.0.1:3000
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:40.0462898Z ##[endgroup]
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:44.0789196Z npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:46.5764175Z npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:49.0102526Z npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:49.0204846Z npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:47:49.0587671Z npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.2330353Z 
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.2331149Z added 900 packages, and audited 909 packages in 28s
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.2331708Z 
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.2331890Z 175 packages are looking for funding
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.2332217Z   run `npm fund` for details
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.3284491Z 
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.3284944Z 19 vulnerabilities (1 low, 3 moderate, 15 high)
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.3285199Z 
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.3285339Z To address all issues, run:
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.3285755Z   npm audit fix
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.3285943Z 
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.3286128Z Run `npm audit` for details.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.4117787Z ##[group]Run npm --workspace backend run prisma:generate
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.4118372Z ^[[36;1mnpm --workspace backend run prisma:generate^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.4118712Z ^[[36;1mfor attempt in $(seq 1 30); do^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.4119039Z ^[[36;1m  if npm --workspace backend run db:migrate; then^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.4119399Z ^[[36;1m    seed_confirmation="$(openssl rand -hex 18)"^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.4119741Z ^[[36;1m    SEED_GUARD_PASSWORD="$seed_confirmation" \^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.4120082Z ^[[36;1m      SEED_GUARD_CONFIRM="$seed_confirmation" \^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.4120402Z ^[[36;1m      npm --workspace backend run db:seed^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.4120694Z ^[[36;1m    exit 0^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.4120901Z ^[[36;1m  fi^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.4121103Z ^[[36;1m  sleep 2^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.4121612Z ^[[36;1mdone^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.4121830Z ^[[36;1mecho "MySQL did not become ready"^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.4122095Z ^[[36;1mexit 1^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.4163793Z shell: /usr/bin/bash -e {0}
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.4164231Z env:
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.4164517Z   DATABASE_URL: mysql://root@127.0.0.1:3306/video_player_test
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.4164861Z   STORAGE_BACKEND: local
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.4165232Z   LOCAL_STORAGE_DIR: /home/runner/work/VideoPlayer/VideoPlayer/.runtime-storage
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.4165660Z   VITE_API_PROXY_TARGET: http://127.0.0.1:3000
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.4165947Z ##[endgroup]
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.5410595Z 
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.5411145Z > backend@0.1.0 prisma:generate
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.5411861Z > prisma generate
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:08.5412078Z 
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:09.1915315Z Prisma schema loaded from prisma/schema.prisma
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:09.7136037Z 
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:09.7137187Z ✔ Generated Prisma Client (v6.9.0) to ./node_modules/@prisma/client in 221ms
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:09.7137555Z 
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:09.7137922Z Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:09.7138267Z 
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:09.7138829Z Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:09.7139408Z 
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:09.8780873Z 
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:09.8781492Z > backend@0.1.0 db:migrate
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:09.8782109Z > node scripts/db-target-safety.js db:migrate migrate-deploy && prisma migrate deploy
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:09.8782462Z 
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:09.9088322Z [db-target-safety] db:migrate allowed for 127.0.0.1:3306/video_player_test.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:10.5346320Z Prisma schema loaded from prisma/schema.prisma
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:10.5405602Z Datasource "db": MySQL database "video_player_test" at "127.0.0.1:3306"
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:10.5604477Z 
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:10.5605023Z 2 migrations found in prisma/migrations
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:10.5605316Z 
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:10.5937421Z Applying migration `20260826000000_init`
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:11.9459236Z Applying migration `20260827_pending_report_idempotency`
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:11.9714978Z 
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:11.9720384Z The following migration(s) have been applied:
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:11.9720941Z 
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:11.9721677Z migrations/
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:11.9722691Z   └─ 20260826000000_init/
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:11.9723688Z     └─ migration.sql
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:11.9724633Z   └─ 20260827_pending_report_idempotency/
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:11.9725444Z     └─ migration.sql
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:11.9734370Z       
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:11.9735059Z All migrations have been successfully applied.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:11.9982808Z ┌─────────────────────────────────────────────────────────┐
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:11.9983695Z │  Update available 6.9.0 -> 8.0.0-rc.12                  │
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:11.9984444Z │                                                         │
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:11.9985196Z │  This is a major update - please follow the guide at    │
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:11.9986013Z │  https://pris.ly/d/major-version-upgrade                │
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:11.9986757Z │                                                         │
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:11.9987862Z │  Run the following to update                            │
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:11.9988672Z │    npm i --save-dev prisma@latest                       │
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:11.9989474Z │    npm i @prisma/client@latest                          │
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:11.9990297Z └─────────────────────────────────────────────────────────┘
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.1425558Z 
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.1426153Z > backend@0.1.0 db:seed
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.1426847Z > node prisma/seed.js
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.1427093Z 
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.2013825Z [seed-guard] Password accepted. Continuing destructive db:seed for 127.0.0.1:3306/video_player_test.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3022067Z Seed completed: {
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3022504Z   users: 6,
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3025930Z   videos: 14,
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3026253Z   publishedVideos: 11,
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3026517Z   accounts: {
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3026831Z     admin: 'demo_admin / Admin123456!',
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3027327Z     user: 'demo_user / User123456!'
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3027713Z   }
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3027987Z }
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3258407Z ##[group]Run export JWT_SECRET="$(openssl rand -hex 32)"
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3259041Z ^[[36;1mexport JWT_SECRET="$(openssl rand -hex 32)"^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3259390Z ^[[36;1mexport ADMIN_SECRET="$(openssl rand -hex 16)"^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3259738Z ^[[36;1mnpm run dev:backend > backend-e2e.log 2>&1 &^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3260046Z ^[[36;1mecho $! > backend-e2e.pid^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3260350Z ^[[36;1mnpm run dev:frontend > frontend-e2e.log 2>&1 &^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3260661Z ^[[36;1mecho $! > frontend-e2e.pid^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3260926Z ^[[36;1mfor attempt in $(seq 1 60); do^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3262309Z ^[[36;1m  if curl -fsS http://127.0.0.1:5173/api/v1/health > /dev/null; then^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3262690Z ^[[36;1m    exit 0^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3262893Z ^[[36;1m  fi^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3263087Z ^[[36;1m  sleep 1^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3263291Z ^[[36;1mdone^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3263529Z ^[[36;1mecho "Application did not become ready"^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3263855Z ^[[36;1mexit 1^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3304047Z shell: /usr/bin/bash -e {0}
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3304295Z env:
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3304571Z   DATABASE_URL: mysql://root@127.0.0.1:3306/video_player_test
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3304901Z   STORAGE_BACKEND: local
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3305264Z   LOCAL_STORAGE_DIR: /home/runner/work/VideoPlayer/VideoPlayer/.runtime-storage
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3305687Z   VITE_API_PROXY_TARGET: http://127.0.0.1:3000
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3305978Z ##[endgroup]
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:12.3534500Z curl: (7) Failed to connect to 127.0.0.1 port 5173 after 0 ms: Couldn't connect to server
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:13.4152060Z curl: (22) The requested URL returned error: 500
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:14.4260020Z curl: (22) The requested URL returned error: 500
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:15.4368259Z curl: (22) The requested URL returned error: 500
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:16.4467851Z curl: (22) The requested URL returned error: 500
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:17.4578422Z curl: (22) The requested URL returned error: 500
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:18.4697278Z curl: (22) The requested URL returned error: 500
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:19.4789866Z curl: (22) The requested URL returned error: 500
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:20.5007161Z ##[group]Run npm run test:e2e
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:20.5007464Z ^[[36;1mnpm run test:e2e^[[0m
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:20.5050043Z shell: /usr/bin/bash -e {0}
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:20.5050305Z env:
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:20.5050590Z   DATABASE_URL: mysql://root@127.0.0.1:3306/video_player_test
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:20.5050928Z   STORAGE_BACKEND: local
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:20.5051526Z   LOCAL_STORAGE_DIR: /home/runner/work/VideoPlayer/VideoPlayer/.runtime-storage
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:20.5051969Z   VITE_API_PROXY_TARGET: http://127.0.0.1:3000
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:20.5052253Z ##[endgroup]
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:20.6096753Z 
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:20.6097191Z > video-player-workspace@0.1.0 test:e2e
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:20.6097580Z > playwright test
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:20.6097728Z 
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:21.3869500Z 
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:21.3870196Z Running 5 tests using 2 workers
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:21.3871108Z 
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:21.3890439Z   -  1 [desktop-chrome] › tests/e2e/admin-services-mode.spec.ts:19:7 › admin dashboard through the services-mode gateway › renders service-owned metrics and snapshots, then moderates the real text target
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:21.3893489Z   -  2 [desktop-chrome] › tests/e2e/live-services-mode.spec.ts:48:7 › UC05 through the services-mode gateway › starts a room, sends a persisted message, stops, and saves the recording as a draft
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:34.5064544Z   ✓  3 [desktop-chrome] › tests/e2e/public-smoke.spec.ts:3:5 › public homepage renders the VideoPlayer application shell (5.8s)
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:34.5655447Z   ✓  4 [desktop-chrome] › tests/e2e/public-smoke.spec.ts:10:5 › frontend proxy exposes the backend health contract (30ms)
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:37.9852833Z   ✓  5 [desktop-chrome] › tests/e2e/public-smoke.spec.ts:24:5 › newly registered user lands on a populated homepage feed (3.4s)
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.1127885Z 
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.1132710Z   2 skipped
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.1133687Z   3 passed (16.9s)
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.1548297Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.1549493Z ##[group]Run actions/upload-artifact@v4
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.1549765Z with:
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.1549972Z   name: public-e2e-evidence
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.1550332Z   path: backend-e2e.log
+Public browser smoke	UNKNOWN STEP	frontend-e2e.log
+Public browser smoke	UNKNOWN STEP	playwright-report
+Public browser smoke	UNKNOWN STEP	test-results
+Public browser smoke	UNKNOWN STEP	
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.1550717Z   if-no-files-found: warn
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.1550952Z   compression-level: 6
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.1551171Z   overwrite: false
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.1551641Z   include-hidden-files: false
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.1551875Z env:
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.1552127Z   DATABASE_URL: mysql://root@127.0.0.1:3306/video_player_test
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.1552460Z   STORAGE_BACKEND: local
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.1552865Z   LOCAL_STORAGE_DIR: /home/runner/work/VideoPlayer/VideoPlayer/.runtime-storage
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.1553304Z   VITE_API_PROXY_TARGET: http://127.0.0.1:3000
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.1553590Z ##[endgroup]
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.3228316Z (node:3727) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.3229103Z (Use `node --trace-deprecation ...` to show where the warning was created)
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.3313363Z Multiple search paths detected. Calculating the least common ancestor of all paths
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.3315918Z The least common ancestor is /home/runner/work/VideoPlayer/VideoPlayer. This will be the root directory of the artifact
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.3316989Z With the provided path, there will be 3 files uploaded
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.3322043Z Artifact name is valid!
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.3322658Z Root directory input is valid!
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.5631048Z Beginning upload of artifact content to blob storage
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.6025786Z (node:3727) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.6272420Z Uploaded bytes 200408
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.6391894Z Finished uploading artifact content to blob storage!
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.6393119Z SHA256 digest of uploaded artifact zip is a4c17e480556b874ab9e2099afba6162652147e27c8f5d7ac1b1bb25d6a02a35
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.6394807Z Finalizing artifact upload
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.8609379Z Artifact public-e2e-evidence.zip successfully finalized. Artifact ID 9753161825
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.8610701Z Artifact public-e2e-evidence has been successfully uploaded! Final size is 200408 bytes. Artifact ID is 9753161825
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.8616864Z Artifact download URL: https://github.com/DanTargaryen/VideoPlayer/actions/runs/33379394312/artifacts/9753161825
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.8793461Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.8794620Z Post job cleanup.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.9988862Z (node:3741) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:38.9989683Z (Use `node --trace-deprecation ...` to show where the warning was created)
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:39.0193151Z [command]/usr/bin/tar --posix -cf cache.tzst --exclude cache.tzst -P -C /home/runner/work/VideoPlayer/VideoPlayer --files-from manifest.txt --use-compress-program zstdmt
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:39.6483387Z (node:3741) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:40.6287618Z Sent 0 of 256791025 (0.0%), 0.0 MBs/sec
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:40.9930678Z Sent 256791025 of 256791025 (100.0%), 179.5 MBs/sec
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.1422902Z Cache saved with the key: node-cache-Linux-x64-npm-eeeac3e208b71b7288ea55671a7ac6eb33d44cd2fbdaad0008de4b7b586cde68
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.1577592Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.1578754Z Post job cleanup.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.2441629Z [command]/usr/bin/git version
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.2483280Z git version 2.55.0
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.2522443Z Temporarily overriding HOME='/home/runner/work/_temp/a08732e9-a87f-4bb6-88d2-d6a1bd73543f' before making global git config changes
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.2524108Z Adding repository directory to the temporary git global config as a safe directory
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.2543534Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/VideoPlayer/VideoPlayer
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.2575494Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.2638175Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.2909536Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.2939028Z http.https://github.com/.extraheader
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.2959081Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.2995752Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3259075Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3299827Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3684649Z Print service container logs: dadf77b987b14602aeb01aaf5d1cb6f8_mysql80_a019b9
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3689306Z ##[command]/usr/bin/docker logs --details 5e80717fa7ca4a3fa343ed2f652b16345f956ff6a7f511717e460da926732496
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3818049Z  2026-08-31T09:47:35.826095Z 0 [Warning] [MY-011068] [Server] The syntax '--skip-host-cache' is deprecated and will be removed in a future release. Please use SET GLOBAL host_cache_size=0 instead.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3819082Z  2026-08-31 09:47:35+00:00 [Note] [Entrypoint]: Entrypoint script for MySQL Server 8.0.46-1.el9 started.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3831796Z  2026-08-31T09:47:35.826220Z 0 [System] [MY-013169] [Server] /usr/sbin/mysqld (mysqld 8.0.46) initializing of server in progress as process 80
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3832796Z  2026-08-31 09:47:35+00:00 [Note] [Entrypoint]: Switching to dedicated user 'mysql'
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3833619Z  2026-08-31T09:47:35.831411Z 1 [System] [MY-013576] [InnoDB] InnoDB initialization has started.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3834537Z  2026-08-31T09:47:35.958918Z 1 [System] [MY-013577] [InnoDB] InnoDB initialization has ended.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3835817Z  2026-08-31T09:47:36.519699Z 6 [Warning] [MY-010453] [Server] root@localhost is created with an empty password ! Please consider switching off the --initialize-insecure option.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3837571Z  2026-08-31T09:47:38.888028Z 0 [Warning] [MY-011068] [Server] The syntax '--skip-host-cache' is deprecated and will be removed in a future release. Please use SET GLOBAL host_cache_size=0 instead.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3838509Z  2026-08-31T09:47:38.889554Z 0 [System] [MY-010116] [Server] /usr/sbin/mysqld (mysqld 8.0.46) starting as process 124
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3839131Z  2026-08-31T09:47:38.899912Z 1 [System] [MY-013576] [InnoDB] InnoDB initialization has started.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3839914Z  2026-08-31T09:47:38.981105Z 1 [System] [MY-013577] [InnoDB] InnoDB initialization has ended.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3840473Z  2026-08-31T09:47:39.110722Z 0 [Warning] [MY-010068] [Server] CA certificate ca.pem is self signed.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3841493Z  2026-08-31T09:47:39.110836Z 0 [System] [MY-013602] [Server] Channel mysql_main configured to support TLS. Encrypted connections are now supported for this channel.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3843297Z  2026-08-31T09:47:39.113431Z 0 [Warning] [MY-011810] [Server] Insecure configuration for --pid-file: Location '/var/run/mysqld' in the path is accessible to all OS users. Consider choosing a different directory.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3844292Z  2026-08-31T09:47:39.133881Z 0 [System] [MY-011323] [Server] X Plugin ready for connections. Socket: /var/run/mysqld/mysqlx.sock
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3845250Z  2026-08-31T09:47:39.134118Z 0 [System] [MY-010931] [Server] /usr/sbin/mysqld: ready for connections. Version: '8.0.46'  socket: '/var/run/mysqld/mysqld.sock'  port: 0  MySQL Community Server - GPL.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3846103Z  Warning: Unable to load '/usr/share/zoneinfo/iso3166.tab' as time zone. Skipping it.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3846671Z  Warning: Unable to load '/usr/share/zoneinfo/leap-seconds.list' as time zone. Skipping it.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3847215Z  Warning: Unable to load '/usr/share/zoneinfo/leapseconds' as time zone. Skipping it.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3847724Z  Warning: Unable to load '/usr/share/zoneinfo/tzdata.zi' as time zone. Skipping it.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3848224Z  Warning: Unable to load '/usr/share/zoneinfo/zone.tab' as time zone. Skipping it.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3848730Z  Warning: Unable to load '/usr/share/zoneinfo/zone1970.tab' as time zone. Skipping it.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3849384Z  2026-08-31T09:47:40.947333Z 11 [System] [MY-013172] [Server] Received SHUTDOWN from user root. Shutting down mysqld (Version: 8.0.46).
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3850190Z  2026-08-31T09:47:41.601607Z 0 [System] [MY-010910] [Server] /usr/sbin/mysqld: Shutdown complete (mysqld 8.0.46)  MySQL Community Server - GPL.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3851549Z  2026-08-31T09:47:42.142003Z 0 [Warning] [MY-011068] [Server] The syntax '--skip-host-cache' is deprecated and will be removed in a future release. Please use SET GLOBAL host_cache_size=0 instead.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3852449Z  2026-08-31T09:47:42.143642Z 0 [System] [MY-010116] [Server] /usr/sbin/mysqld (mysqld 8.0.46) starting as process 1
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3853045Z  2026-08-31T09:47:42.150047Z 1 [System] [MY-013576] [InnoDB] InnoDB initialization has started.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3853581Z  2026-08-31T09:47:42.233335Z 1 [System] [MY-013577] [InnoDB] InnoDB initialization has ended.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3854127Z  2026-08-31T09:47:42.364676Z 0 [Warning] [MY-010068] [Server] CA certificate ca.pem is self signed.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3854897Z  2026-08-31T09:47:42.364750Z 0 [System] [MY-013602] [Server] Channel mysql_main configured to support TLS. Encrypted connections are now supported for this channel.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3855995Z  2026-08-31T09:47:42.367156Z 0 [Warning] [MY-011810] [Server] Insecure configuration for --pid-file: Location '/var/run/mysqld' in the path is accessible to all OS users. Consider choosing a different directory.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3857059Z  2026-08-31T09:47:42.387977Z 0 [System] [MY-011323] [Server] X Plugin ready for connections. Bind-address: '::' port: 33060, socket: /var/run/mysqld/mysqlx.sock
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3858097Z  2026-08-31T09:47:42.388074Z 0 [System] [MY-010931] [Server] /usr/sbin/mysqld: ready for connections. Version: '8.0.46'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306  MySQL Community Server - GPL.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3858987Z  2026-08-31 09:47:35+00:00 [Note] [Entrypoint]: Entrypoint script for MySQL Server 8.0.46-1.el9 started.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3859510Z  2026-08-31 09:47:35+00:00 [Note] [Entrypoint]: Initializing database files
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3859940Z  2026-08-31 09:47:38+00:00 [Note] [Entrypoint]: Database files initialized
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3860493Z  2026-08-31 09:47:38+00:00 [Note] [Entrypoint]: Starting temporary server
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3860905Z  2026-08-31 09:47:39+00:00 [Note] [Entrypoint]: Temporary server started.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3861531Z  '/var/lib/mysql/mysql.sock' -> '/var/run/mysqld/mysqld.sock'
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3861996Z  2026-08-31 09:47:40+00:00 [Note] [Entrypoint]: Creating database video_player_test
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3862362Z  
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3862634Z  2026-08-31 09:47:40+00:00 [Note] [Entrypoint]: Stopping temporary server
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3863040Z  2026-08-31 09:47:41+00:00 [Note] [Entrypoint]: Temporary server stopped
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3863368Z  
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3863683Z  2026-08-31 09:47:41+00:00 [Note] [Entrypoint]: MySQL init process done. Ready for start up.
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3864092Z  
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3869787Z Stop and remove container: dadf77b987b14602aeb01aaf5d1cb6f8_mysql80_a019b9
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.3874560Z ##[command]/usr/bin/docker rm --force 5e80717fa7ca4a3fa343ed2f652b16345f956ff6a7f511717e460da926732496
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.6283261Z 5e80717fa7ca4a3fa343ed2f652b16345f956ff6a7f511717e460da926732496
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.6311206Z Remove container network: github_network_b7b5050706744948b9a33de1a58757c5
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.6316048Z ##[command]/usr/bin/docker network rm github_network_b7b5050706744948b9a33de1a58757c5
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.7405681Z github_network_b7b5050706744948b9a33de1a58757c5
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.7480241Z Cleaning up orphan processes
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.7844961Z Terminate orphan process: pid (3352) (npm run dev:backend)
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.7877365Z Terminate orphan process: pid (3353) (npm run dev:frontend)
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.7913902Z Terminate orphan process: pid (3379) (sh)
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.7944379Z Terminate orphan process: pid (3380) (npm run start:dev)
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.8007977Z Terminate orphan process: pid (3381) (sh)
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.8034727Z Terminate orphan process: pid (3382) (npm run dev)
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.8063551Z Terminate orphan process: pid (3403) (sh)
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.8090999Z Terminate orphan process: pid (3404) (sh)
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.8122374Z Terminate orphan process: pid (3405) (node)
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.8149855Z Terminate orphan process: pid (3406) (node)
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.8202879Z Terminate orphan process: pid (3421) (esbuild)
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.8261211Z Terminate orphan process: pid (3451) (sh)
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.8302091Z Terminate orphan process: pid (3453) (node)
+Public browser smoke	UNKNOWN STEP	2026-08-31T09:48:41.8365343Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

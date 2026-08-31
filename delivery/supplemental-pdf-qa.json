@@ -1,0 +1,25 @@
+{
+  "status": "PASS",
+  "files": [
+    {
+      "file": "contribution-weight-confirmation.pdf",
+      "pages": 3,
+      "bytes": 115510,
+      "minimum_text_characters": 158,
+      "blank_pages": [],
+      "out_of_bounds_words": [],
+      "rendered_pages": 3,
+      "visual_review": "PASS (all pages rendered and inspected)"
+    },
+    {
+      "file": "VideoPlayer-技术总结报告.pdf",
+      "pages": 3,
+      "bytes": 197921,
+      "minimum_text_characters": 150,
+      "blank_pages": [],
+      "out_of_bounds_words": [],
+      "rendered_pages": 3,
+      "visual_review": "PASS (all pages rendered and inspected)"
+    }
+  ]
+}

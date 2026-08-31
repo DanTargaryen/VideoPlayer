@@ -1,0 +1,111 @@
+{
+  "status": "PASS",
+  "generator": "scripts/generate-delivery-pdfs.py",
+  "validator": "scripts/verify-delivery-pdfs.py",
+  "renderer": "pdftoppm 110 DPI",
+  "pdf_count": 7,
+  "total_pages": 99,
+  "checks": {
+    "all_pages_have_extractable_text": true,
+    "all_words_inside_page_bounds": true,
+    "rendered_page_count_matches_pdf": true,
+    "supplemental_pdfs_pass": true,
+    "visual_review": "7 all-page montages and 7 representative original-size pages inspected; no clipping, overlap, black glyph blocks, or unreadable tables observed"
+  },
+  "files": [
+    {
+      "file": "01-软件需求规格说明书.pdf",
+      "pages": 14,
+      "bytes": 277284,
+      "minimum_text_characters": 144,
+      "blank_pages": [],
+      "out_of_bounds_words": [],
+      "rendered_pages": 14,
+      "visual_review": "PASS (all-page montage plus representative full-size page inspected)"
+    },
+    {
+      "file": "02-软件概要设计说明书.pdf",
+      "pages": 15,
+      "bytes": 282356,
+      "minimum_text_characters": 144,
+      "blank_pages": [],
+      "out_of_bounds_words": [],
+      "rendered_pages": 15,
+      "visual_review": "PASS (all-page montage plus representative full-size page inspected)"
+    },
+    {
+      "file": "03-软件详细设计说明书.pdf",
+      "pages": 14,
+      "bytes": 277899,
+      "minimum_text_characters": 144,
+      "blank_pages": [],
+      "out_of_bounds_words": [],
+      "rendered_pages": 14,
+      "visual_review": "PASS (all-page montage plus representative full-size page inspected)"
+    },
+    {
+      "file": "04-数据库设计.pdf",
+      "pages": 12,
+      "bytes": 188312,
+      "minimum_text_characters": 136,
+      "blank_pages": [],
+      "out_of_bounds_words": [],
+      "rendered_pages": 12,
+      "visual_review": "PASS (all-page montage plus representative full-size page inspected)"
+    },
+    {
+      "file": "05-API文档.pdf",
+      "pages": 14,
+      "bytes": 193462,
+      "minimum_text_characters": 138,
+      "blank_pages": [],
+      "out_of_bounds_words": [],
+      "rendered_pages": 14,
+      "visual_review": "PASS (all-page montage plus representative full-size page inspected)"
+    },
+    {
+      "file": "06-测试计划报告与追溯.pdf",
+      "pages": 20,
+      "bytes": 374025,
+      "minimum_text_characters": 150,
+      "blank_pages": [],
+      "out_of_bounds_words": [],
+      "rendered_pages": 20,
+      "visual_review": "PASS (all-page montage plus representative full-size page inspected)"
+    },
+    {
+      "file": "07-三层模型源.pdf",
+      "pages": 10,
+      "bytes": 197222,
+      "minimum_text_characters": 156,
+      "blank_pages": [],
+      "out_of_bounds_words": [],
+      "rendered_pages": 10,
+      "visual_review": "PASS (all-page montage plus representative full-size page inspected)"
+    }
+  ],
+  "supplemental_pdf_count": 2,
+  "supplemental_total_pages": 6,
+  "supplemental_files": [
+    {
+      "file": "contribution-weight-confirmation.pdf",
+      "pages": 3,
+      "bytes": 115510,
+      "minimum_text_characters": 158,
+      "blank_pages": [],
+      "out_of_bounds_words": [],
+      "rendered_pages": 3,
+      "visual_review": "PASS (all pages rendered and inspected)"
+    },
+    {
+      "file": "VideoPlayer-技术总结报告.pdf",
+      "pages": 3,
+      "bytes": 197921,
+      "minimum_text_characters": 150,
+      "blank_pages": [],
+      "out_of_bounds_words": [],
+      "rendered_pages": 3,
+      "visual_review": "PASS (all pages rendered and inspected)"
+    }
+  ]
+}

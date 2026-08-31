@@ -1,0 +1,32 @@
+
+> backend@0.1.0 db:migrate
+> node scripts/db-target-safety.js db:migrate migrate-deploy && prisma migrate deploy
+
+[db-target-safety] db:migrate allowed for mysql:3306/video_player.
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": MySQL database "video_player" at "mysql:3306"
+
+2 migrations found in prisma/migrations
+
+Applying migration `20260826000000_init`
+Applying migration `20260827_pending_report_idempotency`
+
+The following migration(s) have been applied:
+
+migrations/
+  └─ 20260826000000_init/
+    └─ migration.sql
+  └─ 20260827_pending_report_idempotency/
+    └─ migration.sql
+      
+All migrations have been successfully applied.
+┌─────────────────────────────────────────────────────────┐
+│  Update available 6.9.0 -> 8.0.0-rc.12                  │
+│                                                         │
+│  This is a major update - please follow the guide at    │
+│  https://pris.ly/d/major-version-upgrade                │
+│                                                         │
+│  Run the following to update                            │
+│    npm i --save-dev prisma@latest                       │
+│    npm i @prisma/client@latest                          │
+└─────────────────────────────────────────────────────────┘

@@ -59,6 +59,73 @@ Gateway 支持 `monolith` 与 `services` 两种路由模式，并用 `GATEWAY_RE
 
 Windows 建议使用 Git Bash，并在检出前执行 `git config --global core.autocrlf false`，避免 shell 脚本被 CRLF 破坏。
 
+## 验收版本、端口和健康地址
+
+### 环境与镜像版本
+
+| 组件 | 验收版本/规则 | 来源 |
+| --- | --- | --- |
+| Node.js | 22；GitHub Actions 与全部应用镜像均以 Node 22 验收 | CI workflow、Dockerfile |
+| npm | 与 Node 配套；依赖以 `package-lock.json` 为准 | lockfile |
+| MySQL | 8.0 | Compose / Kubernetes manifest |
+| Redis | 7-alpine（单体实践环境） | `deploy/docker-compose.practice.yml` |
+| MinIO | 微服务验收环境固定 digest；单体 dev/example 配置仍为未固定 tag，不可直接作生产版本 | Compose / Kubernetes manifest |
+| SRS | 5.x | `ossrs/srs:5` |
+| Kind / Kubernetes | 最终实测 Kubernetes v1.36.1 | CI/实验 Artifact |
+| 应用镜像 | 必须使用完整 Git SHA tag，不只使用 `latest` | CI/CD Gate |
+
+### 本地/Compose 端口
+
+| 服务 | 地址/端口 | 健康或版本检查 |
+| --- | --- | --- |
+| Vue 前端 | `http://127.0.0.1:5173` | `GET /`，应包含 `<div id="app"></div>` |
+| NestJS 单体后端 | `http://127.0.0.1:3000` | `GET /api/v1/health` |
+| 微服务 Gateway | `http://127.0.0.1:3100` | `GET /health/live`、`/health/ready`、`/version` |
+| identity-community | `http://127.0.0.1:3101` | `GET /health/live`、`/health/ready`、`/version` |
+| content-media | `http://127.0.0.1:3102` | `GET /health/live`、`/health/ready`、`/version` |
+| live-reward | `http://127.0.0.1:3103` | `GET /health/live`、`/health/ready`、`/version` |
+| governance-ai | `http://127.0.0.1:3104` | `GET /health/live`、`/health/ready`、`/version` |
+| MySQL | `127.0.0.1:3306` | `mysqladmin ping` / migration Job |
+| Redis | `127.0.0.1:6379` | TCP / `redis-cli ping` |
+| MinIO API | `http://127.0.0.1:9000` | `GET /minio/health/live` |
+| MinIO Console | `http://127.0.0.1:9001` | 浏览器访问 |
+| SRS HTTP/播放 | `http://127.0.0.1:8080` | HTTP/FLV 入口 |
+| SRS API | `http://127.0.0.1:1985` | `GET /api/v1/versions` |
+
+批量检查五个微服务：
+
+```bash
+for port in 3100 3101 3102 3103 3104; do
+  curl -fsS "http://127.0.0.1:$port/health/live"
+  curl -fsS "http://127.0.0.1:$port/health/ready"
+  curl -fsS "http://127.0.0.1:$port/version"
+done
+```
+
+## 课程测试账号和初始数据
+
+以下账号由 `backend/prisma/seed.js` 写入**隔离课程/演示数据库**，不是生产凭据：
+
+| 用途 | 账号 | 密码/密钥 |
+| --- | --- | --- |
+| 普通用户 | `demo_user` | `User123456!` |
+| 管理员账号 | `demo_admin` | `Admin123456!` |
+| 管理入口密钥 | N/A | `123456` |
+| 直播测试用户 1 | `live_user_1` | `Live123456!` |
+| 直播测试用户 2 | `live_user_2` | `Live123456!` |
+
+Seed 完成后的确定性基线：
+
+| 数据 | 数量 |
+| --- | ---: |
+| 用户 | 6 |
+| 视频 | 14 |
+| 已发布视频 | 11 |
+| 单体业务表 | 31 |
+| Prisma migration 表 | 1 |
+
+Seed 会清空目标库，必须只对隔离数据库执行，并同时提供一次性 `SEED_GUARD_PASSWORD` 与 `SEED_GUARD_CONFIRM`。共享或生产环境不得使用上述账号、密码或管理密钥；部署前必须替换并通过 Secret 注入。
+
 ## 最短验证路径
 
 从全新依赖开始验证代码、构建、六个 workspace 和 REG harness：

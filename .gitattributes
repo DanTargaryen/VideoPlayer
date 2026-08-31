@@ -1,2 +1,7 @@
 # The repository lockfile is intentionally CRLF; treat CR as part of the line ending.
 package-lock.json whitespace=cr-at-eol
+
+# Course delivery exports and upstream raw reports must not be parsed as source text.
+*.pdf binary
+delivery/04_tests/raw/**/*.log binary
+delivery/04_tests/raw/**/playwright-report/*.html binary

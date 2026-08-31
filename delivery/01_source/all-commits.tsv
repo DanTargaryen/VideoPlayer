@@ -1,0 +1,73 @@
+commit	author_date	author	subject
+c0259d9d4b52f82e12fa99d29d76226c2e1d39ee	2026-08-27T17:56:47+08:00	Arya	docs(practice): freeze service boundaries and assignments (#40)
+9181e2c9655b3f0b751a0544e95b8ec77dfd5737	2026-08-27T19:22:10+08:00	Arya	build(devops): add MS-00 microservice scaffold (#41)
+b166de4b6a2c58263be628788eb9801dfacf3c4f	2026-08-27T19:26:18+08:00	Arya	docs(progress): record MS-00 merge (#42)
+a9429671ebf956ac862e1f5123291a3712bb48ef	2026-08-28T00:48:22+08:00	linming	ci(devops): publish standard JUnit reports
+04785d4b55582f7e420007b250f1cfb2dab9a45c	2026-08-28T01:11:37+08:00	linming	docs(practice): complete Jenkins JUnit evidence
+2fa106f28d2a0e1fcc42af338a05f0bddf5514fe	2026-08-28T10:21:12+08:00	Arya	Merge pull request #44 from DanTargaryen/ci/CI-02-junit-reports
+7e223461c41ac64ffd97feb8321cd7a87d7e6ce9	2026-08-28T09:32:34+08:00	GloamingL	feat(ms-01): bootstrap identity-community foundation
+6f54ff566e966b9d8e413f0cc79d97f2750cc482	2026-08-28T11:18:59+08:00	GloamingL	fix(identity): align review follow-up contracts
+92b8817082e8b21c8116e414efb32b83fa0c5e2a	2026-08-28T17:15:37+08:00	linming	feat(identity): persist MS-01 foundation state
+80868e917200396340e54424573498a2a4ff9d7f	2026-08-28T17:20:39+08:00	Arya	Merge pull request #45 from DanTargaryen/feature/MS-01-identity-community
+be7a4199bf8d051ffbf7db772330b5c97d1fc6de	2026-08-28T18:51:41+08:00	mmdw-11	feat(content): complete MS-02 content-media foundation
+a0c3d986ff51619b7b33e9c6bc0131c7bd495b81	2026-08-27T21:47:10+08:00	wyh	feat(live): add persistent live reward foundation
+90bb79fc5374b68d10e5d5a81636d0068225fb95	2026-08-27T21:52:58+08:00	wyh	feat(gateway): route video coins to live ledger
+5a6fb6be118f5aef7815d23c38ed3fc5a34eb96a	2026-08-27T21:56:17+08:00	wyh	fix(live): preserve gateway user identity boundary
+c954c9bff0c88b76cb0c805596fab5276d9cd9b0	2026-08-27T21:58:45+08:00	wyh	fix(live): restore viewer state from persistence
+fe8041d13353071a38cdf709ff3d801935889d51	2026-08-27T22:32:45+08:00	wyh	fix(live): harden runtime failure boundaries
+d1ad53806e61fd93b05b4d7c0d0bfbc7c41c595a	2026-08-27T22:58:47+08:00	wyh	feat(live): add isolated cutover and k8s verification
+af47e3b60d7b562fee66003bf7cfda04cc578fec	2026-08-28T20:19:58+08:00	wyh	feat(live): align replay registration contract
+118ee512a11dc235b3d86a7fb3ef7fcec9ccf650	2026-08-29T00:43:11+08:00	linming	fix(live): close MS-03 merge gates
+933ccacdb6e4814e451119824576946bcfbb70cf	2026-08-29T00:46:09+08:00	Arya	Merge pull request #46 from DanTargaryen/feature/MS-03-live-reward
+f04540a640b8cfe2a6fdb4066d6cf2dcf6cc0650	2026-08-29T10:50:53+08:00	zhuangzhi zhang	feat(governance): complete MS-04 moderation workflow
+deb7f444c1c247c9860387f82e815e18fe68b6c7	2026-08-29T10:52:21+08:00	zhuangzhi zhang	fix(build): restore complete workspace lockfile
+45def22e4da0293ad198989d13f2690374ff9a7f	2026-08-29T14:48:53+08:00	zhuangzhi zhang	fix(governance): close PR 47 moderation gates
+d7954457cebbe01a351adbbac6e8b52ffab0b04b	2026-08-29T15:12:39+08:00	zhuangzhi zhang	fix(governance): complete creator review submission
+17cf379b65143be6afeb916895b3ca495cb4941b	2026-08-29T17:00:44+08:00	zhuangzhi zhang	fix(governance): close remaining review workflow gaps
+864460660ae4f8296f0d816da1a259f5e9b2b496	2026-08-29T23:05:33+08:00	mmdw-11	Merge pull request #47 from DanTargaryen/feature/MS-04-governance-ai
+7707916832a49ab836ec407117fbe6b12c568310	2026-08-31T01:18:34+08:00	linming	ci(devops): add hosted Kind deployment gate
+0a1418c336ccc1fdf4cad7374a93cd7c61d71f7b	2026-08-31T01:33:16+08:00	Arya	Merge pull request #48 from DanTargaryen/ci/CI-01-remote-stability
+95b58477795ad88a6fb40c392b1593971efeeb08	2026-08-31T02:30:20+08:00	linming	fix(devops): bound Prisma service image builds
+39834880d1f9cacf36e4ac3b933a14b902b3f1c3	2026-08-31T02:30:30+08:00	linming	fix(governance): preserve admin review rendering
+a34b0cfe7f307df1333f9eb11537a8641a2e4eb0	2026-08-31T02:30:41+08:00	linming	docs(practice): close microservice foundation gate
+f15a9519e3dc1615049a9a3ce89c342f374bb191	2026-08-31T02:42:11+08:00	Arya	Merge pull request #49 from DanTargaryen/test/MS-DOD-foundation-matrix
+4f08519c7191916e23f5fdb1b64b1f8822f024b9	2026-08-31T03:00:35+08:00	linming	feat(gateway): stage identity content read cutover
+1c88efeaf54a82dd0962186f6917f81a416a9c1f	2026-08-31T03:00:48+08:00	linming	test(gateway): verify read cutover rollback
+8283a796e0d840861afc217101a79424a82d79eb	2026-08-31T03:01:00+08:00	linming	docs(practice): close read cutover gate
+006f50a05b429e77afcc82a07242f7992153451c	2026-08-31T03:10:01+08:00	Arya	Merge pull request #50 from DanTargaryen/feature/MS-CUTOVER-read-routes
+7a2e3d65b21821b3e2d8409cbdf95036a7ea8618	2026-08-31T03:20:46+08:00	linming	feat(identity): migrate monolith identity data
+c1b4cc4d93bc05f228b51020291725bb94185987	2026-08-31T03:20:59+08:00	linming	test(identity): verify write cutover rollback
+7f962cde31fdacbf1603940ec5c25fe48b3ae84d	2026-08-31T03:21:10+08:00	linming	docs(practice): close identity write cutover
+237486759e111456b10662af9e31514ab327926e	2026-08-31T03:32:34+08:00	Arya	Merge pull request #51 from DanTargaryen/feature/MS-CUTOVER-identity-writes
+71553d7559f4f7c20b957e45ca9ef48cbe5c22a3	2026-08-31T04:01:32+08:00	linming	feat(content): preserve monolith content history
+081dde8233326b75bf03b35eb5afdef9d46fa95c	2026-08-31T04:01:42+08:00	linming	test(content): guard cutover migration targets
+ff9436fecc7f9ad7ec3591d61047bb482e48a195	2026-08-31T04:01:42+08:00	linming	docs(practice): record content data cutover
+ab04ca505053dd2691f90a63f7cac5eb1a305472	2026-08-31T04:24:00+08:00	Arya	Merge pull request #52 from DanTargaryen/feature/MS-CUTOVER-content-data
+3775fdc3b4c138dd33bc76c88b2a540d395dd0a5	2026-08-31T05:55:26+08:00	linming	feat(content): add idempotent interaction writes
+96bef61fdc1fd45907c5782bbf33954bf0744155	2026-08-31T05:55:36+08:00	linming	feat(gateway): route content interaction writes
+6615eaa0f2cf5eab6c414d7969e28a5d285ff5f0	2026-08-31T05:55:51+08:00	linming	test(content): verify interaction cutover
+65d479ba58d31d3b2efdf819c28188fd24a44d5b	2026-08-31T05:56:08+08:00	linming	docs(practice): record content interaction cutover
+2a50b23fa2118b58aa8013bb608cba89c56304eb	2026-08-31T06:08:40+08:00	Arya	Merge pull request #53 from DanTargaryen/feature/MS-CUTOVER-content-writes
+d00c32cee5eefb4ea33f7a5959bb534a5d2f598d	2026-08-31T08:24:38+08:00	linming	feat(content): add MinIO publishing workflow
+0ba27e62d032714e67dcd52dd5def882070b3a2e	2026-08-31T08:24:57+08:00	linming	feat(services): add creator publishing contracts
+2f3ffd72d79c5b84559a6acff134228c9eeaeaa4	2026-08-31T08:25:22+08:00	linming	feat(devops): deploy content publishing dependencies
+520846639ec66092eae6cccb4cd014f3d4da5181	2026-08-31T08:25:55+08:00	linming	test(content): verify publishing cutover
+61066ba60e4cd99272f9e64839326d38ca02a3b1	2026-08-31T08:26:43+08:00	linming	docs(practice): close content publishing cutover
+41fc8a11d2bb8b69cb9aa2a2bbb1f47d4b165c36	2026-08-31T08:43:06+08:00	Arya	Merge pull request #54 from DanTargaryen/feature/MS-CUTOVER-content-publishing
+e10db434f63ab4aafefda560d045e8e94202faaa	2026-08-31T11:03:32+08:00	linming	feat(live): complete live and governance cutover
+d3ecda44f1214026bfd3915ff26d0f3956d90486	2026-08-31T11:24:03+08:00	Arya	Merge pull request #55 from DanTargaryen/feature/MS-CUTOVER-live-governance
+810ad5145a2bcca81895017c424b74916b144065	2026-08-31T13:11:32+08:00	linming	test(regression): run full dual-target use cases
+33573594695f5150b8ade8db45b599b775e3dff9	2026-08-31T13:24:56+08:00	Arya	Merge pull request #56 from DanTargaryen/test/REG-01-full-regression
+3f5dea1197451bbc6d0d5bcb3f2cad14f6d6d9cc	2026-08-31T15:07:57+08:00	linming	test(experiments): verify scaling resilience and performance
+bee00550a48e3e5e41641833a7d15dab592aefc1	2026-08-31T15:18:55+08:00	Arya	Merge pull request #57 from DanTargaryen/test/EXP-01-resilience-performance
+45a952da2219099736cfd63a4c7d2984a339e7f9	2026-08-31T16:07:17+08:00	linming	docs(practice): assemble final delivery package
+9d19aca32ac44c85e08e321576df9c61f635f674	2026-08-31T16:19:44+08:00	linming	docs(practice): record DEL-01 remote evidence
+993d699e047f2e12963af60646de47f4da862e2f	2026-08-31T16:29:04+08:00	Arya	Merge pull request #58 from DanTargaryen/docs/DEL-01-final-delivery
+bf4367097940e9a8c62ec17a3183fb5b51f8938e	2026-08-31T16:31:33+08:00	linming	docs(practice): close DEL-01 technical gate
+b9fee2fdfdaf5bda72a19b890beeb93d5e70e3bf	2026-08-31T16:42:01+08:00	Arya	Merge pull request #59 from DanTargaryen/docs/DEL-01-technical-closeout
+49f9cf52531cdba8e761dcad7a59303b46fa95f6	2026-08-31T16:53:57+08:00	linming	docs(practice): reconcile final TODO audit
+a5b15627615e943fc2521df8b15a79d0c9f07c12	2026-08-31T17:04:17+08:00	Arya	Merge pull request #60 from DanTargaryen/docs/DEL-01-todo-audit
+67a7aa7572366ff9da863bc314c8d601cb346ace	2026-08-31T17:22:57+08:00	linming	docs(practice): map members to A-E roles
+1050f9234d109e5ee4e1bab4bb7ca6482a905522	2026-08-31T17:33:45+08:00	Arya	Merge pull request #61 from DanTargaryen/docs/DEL-01-member-role-mapping
+c909875671a0f065df18183305bca6162211a660	2026-08-31T17:45:37+08:00	linming	docs(defense): align demo owners with A-E
+bbe10fb935bfa3ce96051e2262168143dcbf5187	2026-08-31T17:54:48+08:00	Arya	Merge pull request #62 from DanTargaryen/docs/DEL-01-defense-role-alignment

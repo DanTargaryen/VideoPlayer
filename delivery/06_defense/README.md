@@ -6,6 +6,7 @@
 | --- | --- | --- |
 | [`VideoPlayer-最终答辩.pptx`](VideoPlayer-最终答辩.pptx) | READY | 10 页最终答辩；每页含来源 Speaker Notes |
 | [`technical-summary.md`](technical-summary.md) | READY | 范围、架构、证据、风险与结论 |
+| [`VideoPlayer-技术总结报告.pdf`](VideoPlayer-技术总结报告.pdf) | READY | 3 页可提交技术总结 PDF；可编辑源为 `technical-summary.md` |
 | [`demo-script.md`](demo-script.md) | READY | 约 7 分钟现场演示路线与 fallback |
 | [`backup-recording-shot-list.md`](backup-recording-shot-list.md) | PLAN READY | 5–8 分钟录屏拍摄、检查与上传清单 |
 | 备用录屏文件/链接 | `NOT RECORDED / NOT PROVIDED` | 必须由团队真人录制与上传 |
@@ -41,4 +42,4 @@
 
 ## DEL-01 状态
 
-PPT、总结、脚本和录屏计划已完成，但没有实际 5–8 分钟录屏文件/链接，也没有全员计时演练记录。因此 `06_defense` 技术材料可合并，DEL-01 仍保持 `HUMAN EVIDENCE PENDING`。
+PPT、技术总结的可编辑源与 PDF、演示脚本和录屏计划已完成，但没有实际 5–8 分钟录屏文件/链接，也没有全员计时演练记录。因此 `06_defense` 技术材料可合并，DEL-01 仍保持 `HUMAN EVIDENCE PENDING`。
