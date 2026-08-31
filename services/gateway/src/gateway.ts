@@ -99,7 +99,8 @@ function capabilityOwner(pathname: string, method: string): GatewayServiceName |
       || /^media\/objects\/.+$/.test(apiPath)
     ) return 'content-media';
     if (
-      /^lives\/rooms(?:\/\d+(?:\/(?:messages|events))?)?$/.test(apiPath)
+      /^lives\/(?:center\/overview|plaza|hot|categories)$/.test(apiPath)
+      || /^lives\/rooms(?:\/\d+(?:\/(?:messages|events|frame|publisher\/pending-viewers|viewers\/[^/]+\/(?:answer|events)))?)?$/.test(apiPath)
       || /^lives\/sessions\/\d+$/.test(apiPath)
       || /^gift-coins\/(?:wallet|streak)$/.test(apiPath)
     ) return 'live-reward';
@@ -120,8 +121,8 @@ function capabilityOwner(pathname: string, method: string): GatewayServiceName |
     || /^videos(?:\/upload|\/[^/]+(?:\/withdraw-review)?)?$/.test(apiPath)
   ) return 'content-media';
   if (
-    /^lives\/rooms(?:\/\d+\/(?:start|stop|viewers|messages|publish|play|replay))?$/.test(apiPath)
-    || /^lives\/rooms\/\d+\/viewers\/[^/]+$/.test(apiPath)
+    /^lives\/rooms(?:\/\d+\/(?:start|stop|viewers|messages|publish|play|replay|frame))?$/.test(apiPath)
+    || /^lives\/rooms\/\d+\/viewers\/[^/]+(?:\/(?:offer|answer))?$/.test(apiPath)
     || /^gift-coins\/(?:daily-claim|streak-claim|gift|video(?:\/\d+)?)$/.test(apiPath)
     || /^videos\/[^/]+\/coin$/.test(apiPath)
   ) return 'live-reward';
@@ -340,6 +341,10 @@ export function createGatewayServer(config: GatewayConfig = loadGatewayConfig())
       }
       await forwardResponse(upstream, response, traceId, upstreamName);
     } catch (error) {
+      if (response.headersSent || response.destroyed) {
+        if (!response.destroyed) response.destroy();
+        return;
+      }
       if (error instanceof GatewayHttpError) {
         writeJson(response, error.status, failure(error.message, traceId, error.status), traceId);
         return;

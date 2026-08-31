@@ -51,6 +51,11 @@ compose() {
 }
 
 cleanup() {
+  cleanup_status=$?
+  if [[ "$cleanup_status" -ne 0 ]]; then
+    compose ps -a >&2 || true
+    compose logs --no-color --tail=160 >&2 || true
+  fi
   if [[ -n "${monolith_mock_pid:-}" ]]; then
     kill "$monolith_mock_pid" >/dev/null 2>&1 || true
     wait "$monolith_mock_pid" >/dev/null 2>&1 || true
@@ -66,6 +71,7 @@ cleanup() {
     rm -f "$frontend_log"
   fi
   compose down -v >/dev/null 2>&1 || true
+  return "$cleanup_status"
 }
 trap cleanup EXIT
 
@@ -142,7 +148,7 @@ if ! curl -fsS 'http://127.0.0.1:5175/' >/dev/null 2>&1; then
   exit 1
 fi
 PLAYWRIGHT_BASE_URL='http://127.0.0.1:5175' SERVICES_MODE_ADMIN_TOKEN="$admin_token" SERVICES_MODE_CREATOR_TOKEN="$identity_token" \
-  npm exec playwright test tests/e2e/admin-services-mode.spec.ts
+  npm exec playwright test tests/e2e/admin-services-mode.spec.ts tests/e2e/live-services-mode.spec.ts
 
 report_response=$(curl -sS -X POST 'http://127.0.0.1:3100/api/v1/reports' \
   -H 'content-type: application/json' \
@@ -231,10 +237,10 @@ for _attempt in $(seq 1 60); do
   fi
   sleep 1
 done
-curl -fsS -X POST 'http://127.0.0.1:3101/api/v1/auth/login' \
+identity_login=$(curl -fsS -X POST 'http://127.0.0.1:3101/api/v1/auth/login' \
   -H 'content-type: application/json' \
-  --data '{"account":"compose_identity_user","password":"ComposeIdentity123!"}' \
-  >/dev/null
+  --data '{"account":"compose_identity_user","password":"ComposeIdentity123!"}')
+identity_token=$(node -e "const payload=JSON.parse(process.argv[1]); if(!payload.data?.token)process.exit(1); process.stdout.write(payload.data.token)" "$identity_login")
 
 identity_database_list=$(compose exec -T identity-mysql \
   mysql -N -u"$IDENTITY_DATABASE_USER" -p"$IDENTITY_DATABASE_PASSWORD" -e 'SHOW DATABASES')
@@ -366,8 +372,49 @@ CONTENT_PUBLISHING_RUN_ID='compose-content-publishing' \
 SERVICE_JWT_SECRET="$SERVICE_JWT_SECRET" \
   node "$ROOT_DIR/scripts/content-publishing-smoke.mjs"
 
+GATEWAY_ROUTE_MODE=services \
+GATEWAY_READ_CUTOVER=identity-community,content-media,live-reward \
+GATEWAY_WRITE_CUTOVER=identity-community,content-media,live-reward \
+  compose up -d --force-recreate --no-deps gateway
+for _attempt in $(seq 1 30); do
+  if curl -fsS 'http://127.0.0.1:3100/health/ready' >/dev/null 2>&1; then break; fi
+  sleep 1
+done
+LIVE_CUTOVER_BASE_URL='http://127.0.0.1:3100' \
+LIVE_CUTOVER_USER_TOKEN="$identity_token" \
+LIVE_CUTOVER_RUN_ID='compose-live-write' \
+  node "$ROOT_DIR/scripts/live-cutover-smoke.mjs"
+
+latest_live_room_id=$(compose exec -T live-mysql \
+  mysql -N -u"$LIVE_REWARD_DATABASE_USER" -p"$LIVE_REWARD_DATABASE_PASSWORD" "$LIVE_REWARD_DATABASE_NAME" \
+  -e 'SELECT MAX(id) FROM LiveRoom')
+compose restart live-reward >/dev/null
+for _attempt in $(seq 1 60); do
+  if curl -fsS 'http://127.0.0.1:3103/health/ready' >/dev/null 2>&1; then break; fi
+  sleep 1
+done
+curl -fsS "http://127.0.0.1:3100/api/v1/lives/rooms/$latest_live_room_id" \
+  | node -e "let text='';process.stdin.on('data',chunk=>text+=chunk);process.stdin.on('end',()=>{const payload=JSON.parse(text);if(payload.data?.status!=='ENDED'||payload.data?.title!=='UC05 cutover compose-live-write')process.exit(1)})"
+
+GATEWAY_ROUTE_MODE=services \
+GATEWAY_READ_CUTOVER=all \
+GATEWAY_WRITE_CUTOVER=all \
+  compose up -d --force-recreate --no-deps gateway
+for _attempt in $(seq 1 30); do
+  if curl -fsS 'http://127.0.0.1:3100/health/ready' >/dev/null 2>&1; then break; fi
+  sleep 1
+done
+regression_output=$(MICROSERVICE_GATEWAY_BASE_URL='http://127.0.0.1:3100' \
+  REG_RUN_UC06='true' \
+  REG_REPORTER_ACCOUNT='compose_identity_user' \
+  REG_REPORTER_PASSWORD='ComposeIdentity123!' \
+  REG_ADMIN_SECRET="$IDENTITY_ADMIN_SECRET" \
+  REG_UC06_TARGET_ID='2' \
+  node "$ROOT_DIR/test/regression/run.mjs")
+node -e "const report=JSON.parse(process.argv[1]);const target=report.targets.find(item=>item.name==='microservice-gateway');const uc06=target?.useCases.find(item=>item.id==='UC06');if(target?.preflight.status!=='PASS'||uc06?.status!=='PASS'){console.error(JSON.stringify(target));process.exit(1)}" "$regression_output"
+
 GATEWAY_ROUTE_MODE=monolith \
-GATEWAY_READ_CUTOVER=identity-community,content-media \
+GATEWAY_READ_CUTOVER=all \
 GATEWAY_WRITE_CUTOVER=none \
   compose up -d --force-recreate --no-deps gateway
 for _attempt in $(seq 1 30); do
@@ -377,4 +424,4 @@ done
 node "$ROOT_DIR/scripts/read-cutover-probe.mjs" rollback http://127.0.0.1:3100
 
 compose ps
-echo "Microservice Compose, UC06 governance, read/identity/content interaction+publishing write cutover, and rollback smoke passed."
+echo "Microservice Compose, staged identity/content/live/governance cutover, UC05/UC06, persistence, and rollback smoke passed."
