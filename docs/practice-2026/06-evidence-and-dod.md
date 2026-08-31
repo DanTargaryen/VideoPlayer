@@ -39,7 +39,7 @@ YYYYMMDD-任务ID-证据类型-简短说明.ext
 | DoD 条件 | 技术任务状态 | 证据 | DEL-01 备注 |
 | --- | --- | --- | --- |
 | 需求/UC 编号和验收条件明确 | PASS | [`01-use-case-scope.md`](01-use-case-scope.md) | 教师原始回复仍待补 |
-| 代码、配置和文档在规范分支/PR | PASS | PR #48–#57；DEL-01 PR 合并后追加 | 当前分支不得直接写 main |
+| 代码、配置和文档在规范分支/PR | PASS | PR #48–#58，DEL 技术包 `main@993d699` | 当前分支不得直接写 main |
 | Review 有书面记录 | PASS（技术 PR） | PR Owner 自审按治理例外留痕 | DEL-01 仍需非作者复现/全员确认 |
 | 单元测试覆盖关键和异常分支 | PASS | `npm run test:ci`；各 workspace tests | DEL 包结构测试已纳入 requirements |
 | 集成/API 覆盖数据库与外部依赖 | PASS | Compose、MySQL、MinIO、SRS、migration smoke | 外部付费 AI 不作为自动 Gate |
@@ -71,7 +71,7 @@ YYYYMMDD-任务ID-证据类型-简短说明.ext
 | 2026-08-31 | MS-CUTOVER-LIVE-GOVERNANCE | [#55](https://github.com/DanTargaryen/VideoPlayer/pull/55) | [33352991611](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33352991611) | 双迁移、UC05/06、SSE 安全、rollback |
 | 2026-08-31 | REG-01 | [#56](https://github.com/DanTargaryen/VideoPlayer/pull/56) | [33359785882](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33359785882) | 单体 6/6 + Gateway 6/6 |
 | 2026-08-31 | EXP-01/02 + PERF-01 | [#57](https://github.com/DanTargaryen/VideoPlayer/pull/57) | [33367170484](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33367170484) | HPA、三故障恢复、1440 请求 0 error |
-| 2026-08-31 | DEL-01 技术交付 | [#58](https://github.com/DanTargaryen/VideoPlayer/pull/58) | [33371629258](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33371629258) | 首轮 3/3 jobs；283/283、E2E 3/3 + 2 显式 skip、SHA 镜像、Kind、2 Artifacts、cleanup |
+| 2026-08-31 | DEL-01 技术交付 | [#58](https://github.com/DanTargaryen/VideoPlayer/pull/58) | [33372482927](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33372482927) | 最终 head 3/3；283/283、E2E 3/3 + 2 显式 skip、SHA 镜像、Kind、2 Artifacts、cleanup；merged `993d699` |
 
 详细本地失败、修复、测试计数、环境和 cleanup 见 [`00-progress.md`](00-progress.md)。
 
@@ -105,7 +105,7 @@ UC01–UC05 模型源见 [`14-uc01-05-three-layer-models.md`](14-uc01-05-three-l
 - [x] 技术 PR、workflow、测试、迁移、回滚和实验有版本化索引。
 - [x] 生成产物进入 ignored 目录或 CI Artifact，不污染源码历史。
 - [x] 当前交付文档没有写入真实 Secret、Token 或数据库口令。
-- [x] DEL-01 PR #58 首轮远端 3/3 jobs 和两个 Artifact 已实检；最终证据提交仍需再次远端复跑后合并。
+- [x] DEL-01 PR #58 首轮与最终 head 均远端 3/3；两个 Artifact 实检、Owner 自审和 merge `993d699` 完成。
 - [ ] 教师确认回复截图/链接已加入受限或公开索引。
 - [ ] ARCH-01 参会/聊天/录屏原件和实名角色映射已加入索引。
 - [ ] 非作者 clean-machine 复现已签名。

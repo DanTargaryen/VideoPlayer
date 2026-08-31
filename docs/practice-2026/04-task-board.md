@@ -47,7 +47,7 @@
 | EXP-01 | HPA 实验 | A + C | 9/2 / DONE | 压力升高扩容、下降缩容 | `13-resilience-performance-experiments.md`；1→3→2→1 Pod/CPU 时间线 |
 | EXP-02 | 故障处理实验 | D + A | 9/2 / DONE | 依赖故障降级，其他服务健康 | `fault-experiment-probe.mjs`；MySQL/SRS/MinIO failure+recovery |
 | PERF-01 | 单体/微服务性能对比 | A + C + E | 9/3 / DONE | 同机/同数据/同脚本，至少 3 次 | `performance-compare.mjs`；3 轮原始值与聚合分析 |
-| DEL-01 | 交付与答辩 | E + 全员 | 9/3 / VERIFY | 六目录/PPT/脚本和首轮远端 3/3 已完成；非作者复现、全员确认、录屏和签字待真人补 | `delivery/`、PR #58/run 33371629258、录屏/签字待补 |
+| DEL-01 | 交付与答辩 | E + 全员 | 9/3 / TECHNICAL DONE · HUMAN PENDING | 六目录/PPT/脚本、两轮远端 3/3 与 merge 已完成；非作者复现、全员确认、录屏和签字待真人补 | `delivery/`、PR #58/run 33372482927/main@993d699、录屏/签字待补 |
 
 ## 4. 第二阶段已确认分工
 

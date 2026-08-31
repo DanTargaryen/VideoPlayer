@@ -57,7 +57,7 @@ Compose Smoke：PASS / FAIL / NOT RUN
 - Gateway 的读写切流以能力白名单控制；全部服务写路径验证后仍可显式回滚单体。
 - REG-01 同一 runner 对单体和 Gateway 各跑 UC01–UC06，12/12 PASS。
 - HPA、三类依赖故障恢复和性能三轮对比已有实测值和清理记录。
-- PR #48–#57 均已在远端 3/3 jobs 成功后合并。
+- PR #48–#58 均已在远端 3/3 jobs 成功后合并；DEL-01 技术包 merge commit 为 `993d699e047f2e12963af60646de47f4da862e2f`。
 
 ## 尚未证明、不能代填的结论
 
