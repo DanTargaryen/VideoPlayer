@@ -249,8 +249,9 @@
   - [x] PPTX 已重新渲染逐页检查，`slides_test.py` 无画布越界；交付结构、链接、PPTX 和待补状态由自动测试检查；最终本地 `npm run test:ci` 283/283 PASS（requirements 131、backend 16、frontend 24、shared 9、identity 5、content 34、live 18、governance 29、Gateway 13、REG harness 4）。
   - [x] PR #58 首轮远端 run `33371629258` 3/3 jobs SUCCESS：quality 283/283；public E2E 3 passed、2 个仅在 services-mode 环境运行的测试显式 skip；Git SHA `45a952d` backend/frontend 镜像、Kind v1.36.1、2 条 migration、backend/frontend 1/1、0 restart、两个 Artifact 和 cleanup 全部实检。actions Node 20 弃用提示由 runner 强制 Node 24 执行，不是项目失败。
   - [x] 最终证据提交 `9d19aca` 的 run `33372482927` 再次 3/3 SUCCESS：public E2E 1m15s、quality 2m12s、Git SHA 镜像/隔离 Kind 3m29s；两个 Artifact 下载实检，2 migrations、backend/frontend 1/1、0 restart、evidence/cleanup PASS。Owner 全 diff 自审结论 `MERGE READY`，PR #58 已合并为 `main@993d699e047f2e12963af60646de47f4da862e2f`。
+  - [x] 用户于 2026-08-31 提供五名成员/学号表，并授权按表格行顺序默认映射 A/林明、B/刘钟屹、C/李晓萌、D/张壮志、E/王一涵；该映射已进入任务板、ARCH、第二阶段 TODO 和交付管理索引，不替代成员本人签字。
   - [ ] 非作者成员在另一台或 clean-machine 环境按 README 复现并签名。
-  - [ ] 五名成员确认 A–E 实名映射、贡献内容、权重合计 100%，并签字/填写日期。
+  - [ ] 五名成员核对默认角色与实际贡献，确认权重合计 100%，并签字/填写日期。
   - [ ] 实际录制并上传 5–8 分钟备用演示，完成无痕窗口权限与敏感信息复查。
   - [ ] 全员完成计时演练；教师确认与 ARCH-01 会议原件加入证据索引。
   - 当前结论：`TECHNICAL PACKAGE MERGED / HUMAN EVIDENCE PENDING`。技术 Gate 已关闭并进入 `main`，但上述真人项补齐前不得把 DEL-01 标记为 `[x]`。
@@ -271,7 +272,7 @@
 | CI-01 流水线配置 | DONE | quality、public-e2e、Git SHA 镜像和隔离 Kind 自动部署/健康/证据/清理 | `npm run test:ci` 248/248；GitHub-hosted run `33324914355` | REMOTE CI/CD PASS；3/3 Jobs、两个 Artifact、隔离 Kind 清理；非持久生产 | PR #48，`7707916` / `main@0a1418c` |
 | CI-02 Jenkins Pipeline | DONE | 可移植 Jenkinsfile、隔离 DB 正式 migration、API/E2E、SHA 镜像、Kind、Health、Artifact、清理和本地等价入口 | Build #2 SUCCESS；#4 故意 FAILURE；#5 SCM 自动触发 SUCCESS；#7 migration SUCCESS | PASS；失败阻断、Artifact、cleanup、Poll SCM 与 `prisma migrate deploy` 均验证 | 本提交 |
 | CI-02-JUNIT 标准测试报告 | DONE | requirements/Jest/Vitest/API/Playwright 生成 11 份 JUnit XML；Jenkins `junit` 发布；reporter 单测 | Build #9 SUCCESS：186 passed/11 XML；#10 EXPECTED FAILURE：167 passed/9 XML、后续 7 阶段 skipped | PASS；Test Result、Artifact、完整流水线和失败阻断均验证 | 本轮提交 |
-| ARCH-01 服务/数据冻结 | DONE | 4 服务、31 表唯一 owner、接口、失败策略、七项默认决策、迁移/回滚、A-E 分工与 Review | Prisma Model 自动比对；唯一 owner；决策/分工/分支/Reviewer 文档一致性 | PASS；TEAM APPROVED；真实姓名/外部会议截图待补证据索引 | 本提交 |
+| ARCH-01 服务/数据冻结 | DONE | 4 服务、31 表唯一 owner、接口、失败策略、七项默认决策、迁移/回滚、A-E 分工与 Review | Prisma Model 自动比对；唯一 owner；决策/分工/分支/Reviewer 文档一致性 | PASS；TEAM APPROVED；A–E 默认姓名映射已于 8/31 记录，实际参会/会议原件仍待补 | 本提交 |
 | MS-00 微服务公共脚手架 | DONE | shared contracts/JWT、四服务 health/version、Gateway fallback、workspace、Docker/Compose、K8s/Jenkins/Kind | `npm run test:ci`；MS-00 14/14；Compose 5 healthy；Kind 重复部署 5/5 Ready、0 restart；Owner 自审记录 | PASS；PR #41 squash merged，`main@9181e2c` | PR #41 + 本提交 |
 | MS-01 identity-community foundation | DONE | Prisma runtime、11 个 owner model、独立 DB/账号/Secret、内部 API、requestId 幂等、Docker migration/runtime、Compose/K8s 配置 | identity 5/5 + integration 1/1；Compose/Kind migration、12 表、restart、health、权限隔离 | PASS；统一 DoD 的 Compose 与 Kind 均复验，0 restart | PR #45 + MS-DOD |
 | MS-02 content-media foundation | DONE | package-local Prisma Client、content schema/migration/fixture、兼容只读 API、JWT 内部 contract、review/replay 幂等、真实 MySQL/MinIO 媒体补偿、独立 DB 账号 | content 22/22；真实 MySQL/MinIO；Compose/Kind migration、14 表、health、权限隔离 | PASS；PR #43 已合并；统一 DoD 复验 services-mode text snapshot 与 0 restart | PR #43 + MS-DOD |
@@ -356,7 +357,7 @@
 | 2026-08-27 | BUG-BASE01-UC02-02 媒体失败可解释状态 | 为详情页媒体元素接入失败、恢复与重试状态；显示可访问的播放失败覆盖层并保留其余详情内容；补状态转换单测 | 干净 `npm ci`；Prisma Client generate；`npm run test:ci`；独立 MySQL/Redis/MinIO/SRS；Playwright CLI headed Chrome；媒体请求 503 路由；重试请求计数；截图视觉检查；环境清理 | PASS；requirements 113/113、backend 16/16、frontend 22/22；lint/build PASS；首次媒体请求 503 后 `role=alert` 可见；点击重试后媒体请求数 1→2 且 503 状态再次可解释；标题、简介、评论和相关推荐可用；首次 Vitest 命令误带 Jest 的 `--runInBand`，首次全量门禁又缺 Prisma Client，纠正前置步骤后标准命令复跑 PASS |
 | 2026-08-27 | BASE-01 最终统一复测 | fast-forward 到 `main@9a6f4d8`；在同一全新 Compose 隔离环境连续重跑 UC01–UC06；核对 migration、API、浏览器、数据库、MinIO、SRS、转码与回放；完成后销毁环境 | 干净 `npm ci`；Prisma generate；`npm run test:ci`；`npm run test:api`；`npm run test:e2e`；真实 API 并发/上传；Playwright CLI headed HLS 503 与 Canvas+WebAudio MediaRecorder；MinIO HEAD；Chrome metadata | PASS；requirements 113/113、backend 16/16、frontend 22/22、API 16/16、E2E 3/3；UC01–UC06 全绿；WebM 2.97MB、MP4 1.22MB、两资源 readyState=4；首次全量门禁的 FFprobe 用例冷启动超时，定点 9/9 与完整门禁复跑 PASS；API 验证先误用重新登录前 token 导致预期 401，又遗漏脚本 DATABASE_URL，修正后全量复跑 PASS；浏览器/进程/容器/volumes/端口清理 PASS |
 | 2026-08-27 | ARCH-01 评审冻结与第二阶段分工 | 依据组长确认记录全员评审通过；将边界草案更新为冻结版；固化七项默认决策、A-E 主责、分支、Reviewer、依赖和合并顺序 | 31 Model 唯一 owner；七项决策完整性；五条执行线和 Review 映射；Markdown/diff/Secret/Artifact 检查；应用测试 NOT RUN（纯文档） | PASS；ARCH-01 `DONE / FROZEN`；A→MS-00、B→MS-01、C→MS-02、D→MS-03、E→MS-04/REG-01；实名、个人备份人和会议原始截图待组长补录 |
-| 2026-08-27 | 第二阶段 TODO 与 A 角色确认 | 新增 A-E 分支领取、foundation、禁止事项、Review、统一 DoD、只读/写流量切换和管理证据清单；同步记录组长本人承担 A | TODO 章节/角色/分支/owner/Reviewer/依赖/未完成状态一致性；Markdown/diff/Secret/Artifact 检查；应用测试 NOT RUN（纯文档） | READY；组长/A 先完成 MS-00，B/C/D/E 在 MS-00 合并后创建各自 foundation；所有实现复选框保持未完成，实名和个人备份人仍待补录 |
+| 2026-08-27 | 第二阶段 TODO 与 A 角色确认 | 新增 A-E 分支领取、foundation、禁止事项、Review、统一 DoD、只读/写流量切换和管理证据清单；同步记录组长本人承担 A | TODO 章节/角色/分支/owner/Reviewer/依赖/未完成状态一致性；Markdown/diff/Secret/Artifact 检查；应用测试 NOT RUN（纯文档） | 当时 READY；后续技术项全部关闭，8/31 用户授权 A–E 默认姓名映射；个人备份人和会议原件仍待补录 |
 | 2026-08-27 | MS-00 公共微服务脚手架 | 新增 shared runtime/contracts/JWT Guard、四业务空服务、monolith-first Gateway、workspace gate、五镜像 Compose、K8s 资源、Jenkins 构建/部署/health 接入和执行文档 | `npm run test:services:ci`；完整 `npm run test:ci`；Compose build/up/HTTP；隔离 Kind create/deploy/redeploy/health；shell/compose/kustomize；cleanup；Owner 自审 | PASS；requirements 113/113、backend 16/16、frontend 22/22、MS-00 14/14；Compose 5 healthy；Kind 5 Deployment 1/1、0 restart；首次 Docker `ECONNRESET` 和 K8s env apply 冲突均修复并复跑；PR #41 squash merged，`main@9181e2c` |
 | 2026-08-27 | MS-02 content-media foundation | 在 `feature/MS-02-content-media` 建立独立 schema/fixture、Prisma repository、兼容只读 API、JWT 内部 contract、identity mock/fallback、review/replay 幂等和媒体边界；不切写流量、不迁移 VideoAi、不删除单体表 | content lint/build/test 17/17；独立 MySQL migration/fixture/restart；Docker image/health/version/ffprobe；临时 MinIO 对象补偿 | PASS；API/幂等/分类 FK/持久化/容器与 MinIO 验证通过；Owner 复审后仍需补默认 Client、Compose/K8s DB 接线和最终证据 |
 | 2026-08-28 | CI-02-JUNIT 标准报告闭环 | 为 requirements、Jest、Vitest、六微服务、API 和 Playwright 生成标准 JUnit XML；Jenkins `post` 发布；补 reporter 单测；执行成功/失败 Build | 本地 Build 9402/9305；Jenkins #9/#10；11/9 XML；Test Result API；`xmllint`；Stage/Artifact/cleanup | PASS；#9 186 passed、12/12、39 Artifacts、完整 Kind/health；#10 exit 42、167 passed、5 markers、后续 7 阶段 skipped；npm `ECONNRESET` 经重试恢复；无资源残留 |
@@ -386,11 +387,12 @@
 | 2026-08-31 | REG-01 单体/微服务全量回归 | v2 runner 创建目标隔离用户/媒体，覆盖六 UC 公开 API；业务 FAIL/未完成门禁；Compose 内追加独立单体 MySQL/backend 与双目标报告 | `test:ci` 278/278；微服务独立 6/6；最终单体 6/6 + Gateway 6/6；真实 MP4/MinIO、审核、互动通知、直播录播、治理通知；rollback/cleanup | PASS；修复搜索 `video/videos` 归一化、单体/微服务重复处置 400/409 兼容和旧 CLI 不因业务失败退出 |
 | 2026-08-31 | EXP-01/02 + PERF-01 | 官方 metrics-server 离线构建、HPA 负载时间线；MySQL/SRS/MinIO 故障恢复；同机双目标三轮性能脚本；K8s 重复部署修复 | HPA 1→3→2→1；3 类依赖 failure/recovery；1440 请求 0 error，p95 max 14.85/22.32ms；K8s 5/5 Ready | PASS；原始关键值进入 `13-resilience-performance-experiments.md`；HPA/metrics/load、微服务 K8s 资源、PVC、四 schema/user 清理 |
 | 2026-08-31 | DEL-01 技术交付与合并 | 建立六目录、最终 PPTX/总结/脚本/模板、UC01–05 三层模型、证据/追溯和自动交付测试；PR #58 两轮远端复核、Owner 自审后合并 | 本地 `test:ci` 283/283；PPT 10/10 + no overflow；runs `33371629258`/`33372482927` 3/3；每轮两个 Artifact 实检 | TECHNICAL DONE；`main@993d699`，SHA 镜像、2 migrations、Kind 0 restart、cleanup；真人复现/权重/签字/录屏/演练仍 PENDING |
+| 2026-08-31 | DEL-01 A–E 默认成员映射 | 用户提供五名成员/学号表并授权按行顺序对齐 A–E；同步 README、任务板、ARCH、启动会、TODO、交付管理/贡献模板和最终清单；新增映射证据边界 | `npm run test:ci` 283/283；delivery package mapping/link test 1/1；stale phrase、unchecked item 和 diff audit | PASS；A/林明、B/刘钟屹、C/李晓萌、D/张壮志、E/王一涵；个人贡献/权重/签字、实际参会、可用时间和备份人仍 PENDING |
 
 ## 4. 阻塞与需组长决定
 
 - [ ] 提供或指定教师确认回复的截图/链接，补入证据索引。
-- [ ] 补录 ARCH-01 参会者真实姓名、个人备份人和会议签到/聊天/录屏等原始证据；当前技术冻结依据为组长书面确认全员同意默认方案。
+- [ ] 补录 ARCH-01 实际参会者名册、个人备份人和会议签到/聊天/录屏等原始证据；A–E 默认姓名映射已记录，但不能证明实际参会。
 - [x] 最终 UC smoke 使用全新隔离 MySQL/MinIO volumes 完成，不需要也未获得共享远端写入权限。
 - [x] 当前 Mac 已配置 Colima、Docker CLI、Kind 和 kubectl，并完成 Compose/Kubernetes 本地验收。
 - [x] PR #24 已合并到 `main`；远端功能分支已清理。

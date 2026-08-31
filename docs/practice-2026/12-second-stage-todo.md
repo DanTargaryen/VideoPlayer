@@ -4,7 +4,7 @@
 >
 > 冻结基线：`monolith-start` / `main@70d197dc1a1f6febfdc7dcb12d8661384ad5d31e`。
 >
-> 角色确认：组长在 2026-08-27 确认本人承担 A（平台与集成）；B/C/D/E 分别承担 MS-01/MS-02/MS-03/MS-04，真实姓名和个人备份人仍待组长补录。
+> 角色确认：组长在 2026-08-27 确认本人承担 A（平台与集成）；2026-08-31 用户提供成员/学号表并授权按行顺序默认映射为 A/林明、B/刘钟屹、C/李晓萌、D/张壮志、E/王一涵。个人可用时间、备份人和成员签字仍待补录。
 >
 > 使用方法：每个 owner 只勾选自己实际完成并验证的事项。设计、配置或代码未运行时必须写 `NOT RUN`/`BLOCKED`，不得把计划项提前标记为完成。
 
@@ -97,7 +97,7 @@ git diff origin/main...HEAD
 
 Reviewer 默认不直接在作者分支提交。确需协作修改时，由作者明确同意提交方式；禁止未经授权的 force-push、合并、远端分支删除或标签操作。组长已确认 Owner 可以亲自审核并直接通过；采用 Owner 自审时，必须在 PR 留下范围、测试、风险、基线和结论的书面记录。
 
-## 3. A（组长 / 平台与集成）TODO
+## 3. A / 林明（组长 / 平台与集成）TODO
 
 ### 3.1 主任务
 
@@ -207,13 +207,13 @@ services/<service>/
 - [x] Kind 可以部署四个空服务。
 - [x] PR #41 完成 Owner 自审书面记录并 squash 合并；该记录按已确认规则替代 E 的非作者 Review。
 
-## 4. B（身份与社区）TODO
+## 4. B / 刘钟屹（身份与社区）TODO
 
 ### 4.1 主任务
 
 - 任务：MS-01 `identity-community`。
 - 分支：`feature/MS-01-identity-community`。
-- Reviewer：C。
+- Reviewer：C / 李晓萌。
 - 对应用例：UC01、UC04 用户/关注/通知部分。
 
 ### 4.2 数据 owner
@@ -278,13 +278,13 @@ services/<service>/
 - [x] Gateway 保持 monolith/fallback；没有停止单体写入或删除单体表。
 - [x] Kind 实际 rollout：2026-08-31 统一 DoD 在隔离测试 schema 上完成 identity migration、12 表、专属账号隔离、Deployment 1/1、health/live/ready/version 200 与 0 restart；测试资源已清理。
 
-## 5. C（内容与媒体）TODO
+## 5. C / 李晓萌（内容与媒体）TODO
 
 ### 5.1 主任务
 
 - 任务：MS-02 `content-media`。
 - 分支：`feature/MS-02-content-media`。
-- Reviewer：B。
+- Reviewer：B / 刘钟屹。
 - 对应用例：UC02、UC03、UC04 内容互动部分。
 
 ### 5.2 数据 owner
@@ -369,13 +369,13 @@ services/<service>/
 - [x] 未删除单体 Video/Asset/Comment 等表。
 - [x] 未自定义与 B 不兼容的用户摘要结构。
 
-## 6. D（直播与礼物）TODO
+## 6. D / 张壮志（直播与礼物）TODO
 
 ### 6.1 主任务
 
 - 任务：MS-03 `live-reward`。
 - 分支：`feature/MS-03-live-reward`。
-- Reviewer：A。
+- Reviewer：A / 林明。
 - 对应用例：UC05。
 
 ### 6.2 现有数据 owner
@@ -452,14 +452,14 @@ services/<service>/
 
 标准 Compose 在四个独立 MySQL、MinIO 和真实 Gateway 上完成 services-mode 浏览器 2/2（admin + UC05）、live 房间/Session/兼容帧/观众信令/弹幕/账本/录播转稿件、live 重启持久化、governance UC06，以及 identity → content → live → governance 分阶段写 allowlist 和最终 `GATEWAY_ROUTE_MODE=monolith` rollback。期间修复了已上传 REPLAY asset 再登记时的唯一键冲突、Gateway SSE 客户端断连后重复写响应头导致进程退出、identity 重启登录探针使旧 token 失效，以及 Docker context 未排除 `.codex-run` 的问题。单体 owner 表未删除、单体写入口未停止。
 
-## 7. E（治理、质量与文档）TODO
+## 7. E / 王一涵（治理、质量与文档）TODO
 
 ### 7.1 主任务
 
 - 任务：MS-04 `governance-ai`、REG-01。
 - 业务分支：`feature/MS-04-governance-ai`。
 - 测试分支：`test/REG-01-microservice-contracts`。
-- Reviewer：D。
+- Reviewer：D / 张壮志。
 - 对应用例：UC06，并协调全部 UC 回归证据。
 
 ### 7.2 数据 owner
@@ -525,11 +525,11 @@ E 验收证据（2026-08-29，基于 `origin/main@933ccac`）：完成 governanc
 
 | 作者 | Reviewer | 必查事项 |
 | --- | --- | --- |
-| A | E（默认）/ Owner（经确认可自审） | contract、CI、Secret、Artifact、证据和回滚；Owner 自审必须书面留痕 |
-| B | C | 用户摘要、identity owner、content 依赖 |
-| C | B | 禁止直查 User、通知调用、MinIO/媒体边界 |
-| D | A | SRS、K8s、持久化、回放、账本和故障恢复 |
-| E | D | 举报幂等、审核补偿、目标状态应用和审计 |
+| A / 林明 | E / 王一涵（默认）/ Owner（经确认可自审） | contract、CI、Secret、Artifact、证据和回滚；Owner 自审必须书面留痕 |
+| B / 刘钟屹 | C / 李晓萌 | 用户摘要、identity owner、content 依赖 |
+| C / 李晓萌 | B / 刘钟屹 | 禁止直查 User、通知调用、MinIO/媒体边界 |
+| D / 张壮志 | A / 林明 | SRS、K8s、持久化、回放、账本和故障恢复 |
+| E / 王一涵 | D / 张壮志 | 举报幂等、审核补偿、目标状态应用和审计 |
 | Gateway | A + 两侧 owner | 路由、timeout、fallback、兼容和回滚 |
 
 每个 Review 必须完成：
@@ -617,7 +617,7 @@ live/governance 统一复验（2026-08-31）：完整 `test:ci` 277/277；含 ID
 ## 11. A（组长）每日检查清单
 
 - [ ] 每个人同时最多 1–2 个 In Progress 任务（缺每日实名看板原件）。
-- [x] 每个任务有唯一 A–E 角色 owner 和明确 Reviewer；角色到真实姓名的确认仍见第 12 节。
+- [x] 每个任务有唯一 A–E 角色 owner、默认姓名映射和明确 Reviewer；个人签字另见第 12 节。
 - [x] 分支基于最新 `main`，没有直接 push `main`。
 - [x] 没有人跨服务直接查表。
 - [x] 没有人提前删除单体表或停止单体写入。
@@ -632,8 +632,8 @@ live/governance 统一复验（2026-08-31）：完整 `test:ci` 277/277；含 ID
 
 ## 12. 当前待补管理证据
 
-- [ ] 补录 A（组长）的真实姓名。
-- [ ] 补录 B/C/D/E 的真实姓名。
+- [x] A 默认映射为林明（23375181）。
+- [x] B/C/D/E 默认映射为刘钟屹（23375291）、李晓萌（24371422）、张壮志（24371350）、王一涵（24371063）。
 - [ ] 补录每个人 8/25–9/4 的可用时间。
 - [ ] 补录每个人的真实备份人。
 - [ ] 补录 ARCH-01 签到、聊天截图、录屏或会议纪要原件。

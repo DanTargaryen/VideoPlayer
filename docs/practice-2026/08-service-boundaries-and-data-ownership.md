@@ -6,7 +6,7 @@
 >
 > 冻结架构：`identity-community`、`content-media`、`live-reward`、`governance-ai`。API Gateway/Ingress、前端、MySQL、Redis、MinIO、SRS 不计入业务服务数量。
 >
-> 评审依据：组长于 2026-08-27 确认评审会已完成，全体同意本文默认方案，并明确本人承担 A（平台与集成）。当前仓库记录角色 A-E 及职责；真实姓名、签到或会议截图由组长后续补入管理证据索引，不在本文虚构。
+> 评审依据：组长于 2026-08-27 确认评审会已完成，全体同意本文默认方案，并明确本人承担 A（平台与集成）。2026-08-31 用户提供五名成员/学号表并授权按行顺序默认对齐 A–E；实际参会、个人签字、签到或会议截图仍由组长后续补入管理证据索引。
 
 ## 0. 评审结论与执行分工
 
@@ -20,17 +20,17 @@
 | 内部 API 鉴权 | 服务账号 JWT + Kubernetes Secret | JWT 包含调用方、受众、scope 和过期时间；Secret 不入库、日志不打印完整 Token |
 | 数据迁移 | 短暂停写窗口 + 可重复执行脚本，不采用复杂双写 | 校验行数、唯一约束和抽样结果；失败停止；保留网关切回单体和数据库恢复路径 |
 | 直播消息留存 | 普通消息保留 7 天，每个 Session 最多 10,000 条 | 超限按最早消息清理；房间、Session、回放登记与审计事实不随聊天清理 |
-| 平台与备份责任 | A 负责平台/K8s/Jenkins；组长负责授权和最终 Gate；E 负责合同测试与证据；各服务 owner 负责本域 migration/rollback | 真实姓名、可用时间和个人备份人仍需组长补入 `05-kickoff-and-standup.md` |
+| 平台与备份责任 | A/林明负责平台/K8s/Jenkins；组长负责授权和最终 Gate；E/王一涵负责合同测试与证据；各服务 owner 负责本域 migration/rollback | 姓名映射已记录；可用时间、个人备份人和本人签字仍需补入 `05-kickoff-and-standup.md` |
 
 ### 0.2 第二阶段分工与 Review
 
 | 角色 | 任务 | 主要范围 | 建议分支 | 主 Reviewer | 计划 Gate |
 | --- | --- | --- | --- | --- | --- |
-| 组长 / A 平台与集成 | ARCH-01 / MS-00 / K8S-01 | 决策冻结、依赖解除、合并顺序、公共脚手架、Gateway、服务 JWT、Docker/K8s/Jenkins 和最终验收 | `docs/ARCH-01-service-boundary-freeze`、`build/MS-00-microservice-scaffold` | 全员核对 ARCH-01；E review MS-00 | ARCH-01 文档先合并；8/31 骨架可独立构建/部署 |
-| B 身份与社区 | MS-01 | 账号、资料、关注、私信、通知、动态社区和用户摘要 API | `feature/MS-01-identity-community` | C | 8/31 UC01 与 UC04 用户侧通过 |
-| C 内容与媒体 | MS-02 | 视频、资产、MinIO、推荐搜索、投稿、评论弹幕、观看和创作者统计 | `feature/MS-02-content-media` | B | 8/31 UC02/03/04 内容侧通过 |
-| D 直播与礼物 | MS-03 | 直播持久化、SRS、观众/消息、录播重试、币与奖励账本 | `feature/MS-03-live-reward` | A | 9/1 UC05 与依赖故障路径通过 |
-| E 治理、质量与文档 | MS-04 / REG-01 | 审核、举报、处置审计、AI 辅助、contract tests、全 UC 回归和证据 | `feature/MS-04-governance-ai`、`test/REG-01-microservice-contracts` | D | 9/1 UC06；9/2 全量回归 |
+| 林明 / A 平台与集成 | ARCH-01 / MS-00 / K8S-01 | 决策冻结、依赖解除、合并顺序、公共脚手架、Gateway、服务 JWT、Docker/K8s/Jenkins 和最终验收 | `docs/ARCH-01-service-boundary-freeze`、`build/MS-00-microservice-scaffold` | 全员核对 ARCH-01；E/王一涵 review MS-00 | ARCH-01 文档先合并；8/31 骨架可独立构建/部署 |
+| 刘钟屹 / B 身份与社区 | MS-01 | 账号、资料、关注、私信、通知、动态社区和用户摘要 API | `feature/MS-01-identity-community` | C/李晓萌 | 8/31 UC01 与 UC04 用户侧通过 |
+| 李晓萌 / C 内容与媒体 | MS-02 | 视频、资产、MinIO、推荐搜索、投稿、评论弹幕、观看和创作者统计 | `feature/MS-02-content-media` | B/刘钟屹 | 8/31 UC02/03/04 内容侧通过 |
+| 张壮志 / D 直播与礼物 | MS-03 | 直播持久化、SRS、观众/消息、录播重试、币与奖励账本 | `feature/MS-03-live-reward` | A/林明 | 9/1 UC05 与依赖故障路径通过 |
+| 王一涵 / E 治理、质量与文档 | MS-04 / REG-01 | 审核、举报、处置审计、AI 辅助、contract tests、全 UC 回归和证据 | `feature/MS-04-governance-ai`、`test/REG-01-microservice-contracts` | D/张壮志 | 9/1 UC06；9/2 全量回归 |
 
 执行顺序冻结为：ARCH-01 文档 → MS-00 公共骨架 → 四服务 foundation 并行 → 只读路由 → 写流量切换 → REG-01。第一批 foundation 只建立独立启动、schema、migration、health/version、测试和镜像，不删除单体表、不提前切写流量。
 
@@ -230,7 +230,7 @@
 - [x] 内部 API 鉴权采用服务账号 JWT + K8s Secret。
 - [x] 数据迁移采用停写窗口 + 可重复执行脚本，不做复杂双写。
 - [x] 普通直播消息保留 7 天，每个 Session 最多 10,000 条；业务事实和审计记录不随聊天清理。
-- [x] A 负责平台/K8s/Jenkins，组长负责最终授权，E 负责合同测试与证据，各服务 owner 负责本域 migration/rollback；实名与个人备份人待组长补录。
+- [x] A/林明负责平台/K8s/Jenkins，组长负责最终授权，E/王一涵负责合同测试与证据，各服务 owner 负责本域 migration/rollback；姓名已映射，个人备份人仍待补录。
 
 ## 9. ARCH-01 完成 Gate
 
