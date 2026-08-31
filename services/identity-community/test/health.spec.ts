@@ -329,6 +329,24 @@ describe('identity-community service', () => {
     });
     expect((exists.json?.data as { exists: boolean }).exists).toBe(true);
 
+    const creatorStatsToken = issueServiceToken({
+      caller: 'content-media',
+      audience: 'identity-community',
+      scopes: ['internal:user-summary'],
+      secret,
+      requestId: 'creator-stats-request',
+    });
+    const creatorStats = await requestJson(baseUrl, '/internal/v1/users/2/creator-stats', {
+      headers: { authorization: `Bearer ${creatorStatsToken}` },
+    });
+    expect(creatorStats.response.status).toBe(200);
+    expect(creatorStats.json?.data).toEqual(expect.objectContaining({
+      user: expect.objectContaining({ id: 2, username: expect.any(String), nickname: expect.any(String) }),
+      followerCount: expect.any(Number),
+      followingCount: expect.any(Number),
+      followerTrend: expect.any(Array),
+    }));
+
     const notificationToken = issueServiceToken({
       caller: 'governance-ai',
       audience: 'identity-community',

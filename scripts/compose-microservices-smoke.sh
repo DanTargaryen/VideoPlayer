@@ -8,6 +8,9 @@ IMAGE_TAG=${IMAGE_TAG:-$(git -C "$ROOT_DIR" rev-parse --short=12 HEAD)}
 GIT_SHA=${GIT_SHA:-$(git -C "$ROOT_DIR" rev-parse HEAD)}
 CONTENT_DB_PASSWORD=${CONTENT_DB_PASSWORD:-$(node -e 'process.stdout.write(require("node:crypto").randomBytes(18).toString("hex"))')}
 CONTENT_DB_ROOT_PASSWORD=${CONTENT_DB_ROOT_PASSWORD:-$(node -e 'process.stdout.write(require("node:crypto").randomBytes(18).toString("hex"))')}
+CONTENT_MINIO_ACCESS_KEY=${CONTENT_MINIO_ACCESS_KEY:-contentmedia}
+CONTENT_MINIO_SECRET_KEY=${CONTENT_MINIO_SECRET_KEY:-$(node -e 'process.stdout.write(require("node:crypto").randomBytes(24).toString("hex"))')}
+CONTENT_MINIO_BUCKET=${CONTENT_MINIO_BUCKET:-videoplayer-content}
 LIVE_REWARD_DATABASE_NAME=${LIVE_REWARD_DATABASE_NAME:-video_player_live_reward_test}
 LIVE_REWARD_DATABASE_USER=${LIVE_REWARD_DATABASE_USER:-live_reward}
 LIVE_REWARD_DATABASE_PASSWORD=${LIVE_REWARD_DATABASE_PASSWORD:-$(node -e 'process.stdout.write(require("node:crypto").randomBytes(24).toString("hex"))')}
@@ -69,6 +72,7 @@ trap cleanup EXIT
 export IMAGE_TAG GIT_SHA IDENTITY_DATABASE_NAME IDENTITY_DATABASE_USER IDENTITY_DATABASE_PASSWORD
 export IDENTITY_MYSQL_ROOT_PASSWORD IDENTITY_ADMIN_SECRET SERVICE_JWT_SECRET
 export IMAGE_TAG GIT_SHA CONTENT_DB_PASSWORD CONTENT_DB_ROOT_PASSWORD
+export CONTENT_MINIO_ACCESS_KEY CONTENT_MINIO_SECRET_KEY CONTENT_MINIO_BUCKET
 export LIVE_REWARD_DATABASE_NAME LIVE_REWARD_DATABASE_USER LIVE_REWARD_DATABASE_PASSWORD LIVE_REWARD_MYSQL_ROOT_PASSWORD
 export GOVERNANCE_DATABASE_NAME GOVERNANCE_DATABASE_USER GOVERNANCE_DATABASE_PASSWORD GOVERNANCE_MYSQL_ROOT_PASSWORD
 export GATEWAY_ROUTE_MODE GATEWAY_READ_CUTOVER GATEWAY_WRITE_CUTOVER
@@ -254,7 +258,7 @@ fi
 compose exec -T content-mysql \
   mysql -N -ucontent_media -p"$CONTENT_DB_PASSWORD" content_media \
   -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'content_media'" \
-  | grep -Fx '16' >/dev/null
+  | grep -Fx '17' >/dev/null
 
 live_database_list=$(compose exec -T live-mysql \
   mysql -N -u"$LIVE_REWARD_DATABASE_USER" -p"$LIVE_REWARD_DATABASE_PASSWORD" -e 'SHOW DATABASES')
@@ -356,6 +360,12 @@ done
 test "$notification_count" = "3"
 test "$delivered_count" = "3"
 
+CONTENT_BASE_URL='http://127.0.0.1:3100' \
+CONTENT_USER_TOKEN="$admin_token" \
+CONTENT_PUBLISHING_RUN_ID='compose-content-publishing' \
+SERVICE_JWT_SECRET="$SERVICE_JWT_SECRET" \
+  node "$ROOT_DIR/scripts/content-publishing-smoke.mjs"
+
 GATEWAY_ROUTE_MODE=monolith \
 GATEWAY_READ_CUTOVER=identity-community,content-media \
 GATEWAY_WRITE_CUTOVER=none \
@@ -367,4 +377,4 @@ done
 node "$ROOT_DIR/scripts/read-cutover-probe.mjs" rollback http://127.0.0.1:3100
 
 compose ps
-echo "Microservice Compose, UC06 governance, read/identity/content-interaction write cutover, and rollback smoke passed."
+echo "Microservice Compose, UC06 governance, read/identity/content interaction+publishing write cutover, and rollback smoke passed."

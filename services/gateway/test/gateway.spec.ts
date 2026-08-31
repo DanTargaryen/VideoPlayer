@@ -56,6 +56,10 @@ describe('gateway scaffold', () => {
     expect(resolveUpstream('/api/v1/search/suggest', value)).toBe(value.monolithBaseUrl);
     expect(resolveUpstream('/api/v1/videos/1/comments', value)).toBe('http://content:3000');
     expect(resolveUpstream('/api/v1/videos/1/like', value, 'POST')).toBe('http://content:3000');
+    expect(resolveUpstream('/api/v1/videos/upload', value, 'POST')).toBe('http://content:3000');
+    expect(resolveUpstream('/api/v1/videos', value, 'POST')).toBe('http://content:3000');
+    expect(resolveUpstream('/api/v1/creator/dashboard', value)).toBe('http://content:3000');
+    expect(resolveUpstream('/api/v1/media/objects/videos%2Foriginal%2Fsample.mp4', value)).toBe('http://content:3000');
     expect(resolveUpstream('/api/v1/auth/login', { ...value, routeMode: 'monolith' }, 'POST')).toBe(value.monolithBaseUrl);
   });
 
@@ -171,6 +175,9 @@ describe('gateway scaffold', () => {
       '/api/v1/videos/1/watch-progress',
       '/api/v1/videos/1/danmaku',
       '/api/v1/videos/my/favorite-folders',
+      '/api/v1/videos/upload',
+      '/api/v1/videos',
+      '/api/v1/videos/1/withdraw-review',
     ]) {
       const response = await fetch(`${gateway}${path}`, {
         method: 'POST',
