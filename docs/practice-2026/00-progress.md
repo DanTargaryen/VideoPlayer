@@ -239,10 +239,12 @@
 - [x] `MS-03-CUTOVER / REG-UC05` 历史迁移、services-mode 写切流和完整微服务浏览器回归。
   - PASS：live 历史 owner 表双跑迁移全量一致；Vue 页面真实完成开播、弹幕、停播和录播转稿件，API smoke 覆盖兼容帧、观众信令、币账本和重启持久化；最终切回 `GATEWAY_ROUTE_MODE=monolith`。共享生产环境未变更。
 - [ ] `REG-01` 完成全部公开 API 和 UC01-UC06 自动回归。
-- [ ] `EXP-01` 完成 HPA 扩缩容实验。
-- [ ] `EXP-02` 完成依赖故障降级实验。
-- [ ] `PERF-01` 完成单体/微服务同条件性能对比，每组至少 3 次。
+- [x] `EXP-01` 完成 HPA 扩缩容实验。
+- [x] `EXP-02` 完成依赖故障降级与恢复实验。
+- [x] `PERF-01` 完成单体/微服务同条件性能对比，每组 3 次。
 - [ ] `DEL-01` 完成交付包、答辩材料、权重确认和演练。
+
+实验统一证据（2026-08-31）：`docs/practice-2026/13-resilience-performance-experiments.md`；完整 `test:ci` 282/282，experiment scripts 4/4。EXP-01 使用 Kubernetes v1.36.1 + 官方 metrics-server v0.9.0，Gateway 在 CPU 104% 时约 21 秒由 1→3，撤压/指标回落后约 30 秒经 3→2→1；脚本清理 HPA/metrics/load。EXP-02 对 live MySQL、SRS、MinIO 分别执行 failure/recovery，受影响域返回 503/500、其他服务 ready 200，恢复后业务 200。PERF-01 同机/同脚本/等价单条响应各 3 轮共 1440 请求、0 error；单体中位 p95 9.44ms/2334.84 RPS，Gateway 15.57ms/1435.25 RPS，最大 p95 14.85/22.32ms，均小于 1000ms Gate。统一 K8s 部署修复跨架构导入、MinIO revision 和 Secret restart 后从头 5/5 Ready；实验资源与 schema/user 精确清理。
 
 ## 2. 当前批次：工程化基础
 
@@ -272,6 +274,9 @@
 | MS-CUTOVER-CONTENT-PUBLISHING 全写切流 | DONE | multipart/ffprobe/MinIO/Range、投稿草稿、creator 聚合、review history/withdraw、数字兼容 ID、String 投币外部 ID | `test:ci` 272/272；content 34、governance 29、identity 5、live 18、Gateway 12；Compose 17/12/11/5 表 + MinIO + publishing | PASS；上传/投稿/互动均可 rollback；VideoAi 按冻结决策留单体 | 本轮提交 |
 | MS-CUTOVER-LIVE-GOVERNANCE 写切流 | DONE | 两域历史迁移、UC05 全公开 contract、已上传录播 asset 绑定、完整 capability map、SSE 断连安全、分阶段 allowlist/rollback | `test:ci` 277/277；live migration 6/1/1/1/3、governance 3/1/2/4，各双跑含 ID 10/12；guard 4/4；Compose browser 2/2 + UC05/UC06 | PASS；四服务写切流技术 Gate 关闭；单体表/入口保留，共享生产未变更 | 本轮提交 |
 | REG-01 双目标全量回归 | DONE | reg-01/v2、目标隔离数据、UC01–UC06 公开 endpoint manifest、业务失败退出门禁、单体 health fallback | `test:ci` 278/278；单体 6/6 + 微服务 Gateway 6/6；标准 Compose + 独立单体 MySQL/migration/seed/backend；rollback/cleanup | PASS；搜索 `video` 响应与重复处置 400/409 差异均显式兼容，未把 NOT RUN 冒充 PASS | 本轮提交 |
+| EXP-01 HPA | DONE | autoscaling/v2、官方 metrics-server checksum、registry-offline verified downloader、Pod/CPU 时间线与自动 cleanup | `test:ci` 282/282；Gateway 1→3（CPU 104%）→2→1（CPU 2%）；metrics API / kubectl top | PASS；真实 HPA controller 扩缩容，不是手工 scale | 本轮提交 |
+| EXP-02 故障恢复 | DONE | live MySQL stop/start、SRS endpoint 注入/解除、MinIO stop/start、标准错误/健康/恢复探针 | 3 类 failure + 3 类 recovery；其他服务 ready 200；Compose rollback/cleanup | PASS；受影响域 503/500，恢复后 200 | 本轮提交 |
+| PERF-01 性能对比 | DONE | 同机同路径、1 item、预热、交叉顺序、3×240×2、并发16、完整响应体 | 1440/1440 200；单体 median p95 9.44ms，Gateway 15.57ms；max p95 14.85/22.32ms | PASS；0 error，全部 p95 < 1000ms；非生产容量承诺 | 本轮提交 |
 | GOV-GIT-01 Commit/PR 规范 | DONE | GitHub PR 模板、仓库规范、个人 Codex skill | quick_validate；模板章节/敏感信息/diff 检查 | PASS | 最终治理提交 |
 | GOV-GIT-02 分支/Commit 命名 | DONE | category 分支名、Conventional Commit 标题、Changes/Tests 正文、PR Commit 清单 | quick_validate；必填字段；diff check | PASS；应用测试 N/A（纯规范） | 最终治理提交 |
 | GOV-GIT-03 仓库内 skill | DONE | `.codex/skills/videoplayer-commit-pr` 与个人版同步 | 双 quick_validate；字节比对；TODO/diff check | PASS；应用测试 N/A（skill/docs） | 最终治理提交 |
@@ -368,6 +373,7 @@
 | 2026-08-31 | MS-CUTOVER-CONTENT-PUBLISHING 上传投稿与创作者管理 | 新增 MinIO runtime、multipart/ffprobe/Range、asset owner、数字序列、投稿 CRUD、creator 聚合、review history/withdraw；扩展 live videoId String | `test:ci` 272/272；五服务聚焦 98/98；真实 Compose 4 DB + MinIO、17/12/11/5 表、browser 1/1、publishing smoke、rollback | PASS；multipart filename 解析首次 400 后修复；有效 MP4 上传/Range/投稿/编辑/提审/撤回/删除和冲突 object 清理均通过；10 runtime、volumes/network/3100–3104/9000–9001 清理 |
 | 2026-08-31 | MS-CUTOVER-LIVE-GOVERNANCE 历史迁移与写切流 | 新增 live/governance 可重复迁移；补齐 UC05 前端 contract、录播 asset 原子绑定、Gateway capability/SSE 断连安全；标准 Compose 顺序推进到 all writes 后回滚 | `test:ci` 277/277；两域含 ID 10/12 的真实 MySQL migration 各 2 次并全量一致（live 6/1/1/1/3、governance 3/1/2/4）；guard 4/4；Compose browser 2/2、UC05 API、UC06、restart、rollback | PASS；修复 598MB Docker context/磁盘耗尽、SSE 断连崩溃、session nonce token 刷新和录播唯一键冲突；所有隔离资源清理，单体表保留 |
 | 2026-08-31 | REG-01 单体/微服务全量回归 | v2 runner 创建目标隔离用户/媒体，覆盖六 UC 公开 API；业务 FAIL/未完成门禁；Compose 内追加独立单体 MySQL/backend 与双目标报告 | `test:ci` 278/278；微服务独立 6/6；最终单体 6/6 + Gateway 6/6；真实 MP4/MinIO、审核、互动通知、直播录播、治理通知；rollback/cleanup | PASS；修复搜索 `video/videos` 归一化、单体/微服务重复处置 400/409 兼容和旧 CLI 不因业务失败退出 |
+| 2026-08-31 | EXP-01/02 + PERF-01 | 官方 metrics-server 离线构建、HPA 负载时间线；MySQL/SRS/MinIO 故障恢复；同机双目标三轮性能脚本；K8s 重复部署修复 | HPA 1→3→2→1；3 类依赖 failure/recovery；1440 请求 0 error，p95 max 14.85/22.32ms；K8s 5/5 Ready | PASS；原始关键值进入 `13-resilience-performance-experiments.md`；HPA/metrics/load、微服务 K8s 资源、PVC、四 schema/user 清理 |
 
 ## 4. 阻塞与需组长决定
 

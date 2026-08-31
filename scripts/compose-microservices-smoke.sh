@@ -476,6 +476,52 @@ printf '%s\n' "$regression_output"
 test "$regression_status" -eq 0
 node -e "const report=JSON.parse(process.argv[1]);if(report.targets.filter(item=>item.baseUrl).length!==2||report.targets.some(target=>target.preflight.status!=='PASS'||target.useCases.length!==6||target.useCases.some(item=>item.status!=='PASS'))){console.error(JSON.stringify(report.targets));process.exit(1)}" "$regression_output"
 
+compose stop live-mysql >/dev/null
+for _attempt in $(seq 1 30); do
+  live_ready_status=$(curl -sS -o /dev/null -w '%{http_code}' 'http://127.0.0.1:3103/health/ready' || true)
+  if [[ "$live_ready_status" == '503' ]]; then break; fi
+  sleep 1
+done
+FAULT_MODE='database-failure' node "$ROOT_DIR/scripts/fault-experiment-probe.mjs"
+compose start live-mysql >/dev/null
+for _attempt in $(seq 1 60); do
+  if curl -fsS 'http://127.0.0.1:3103/health/ready' >/dev/null 2>&1; then break; fi
+  sleep 1
+done
+FAULT_MODE='database-recovery' node "$ROOT_DIR/scripts/fault-experiment-probe.mjs"
+
+SRS_API_BASE='http://127.0.0.1:1' compose up -d --force-recreate --no-deps live-reward
+for _attempt in $(seq 1 30); do
+  if curl -fsS 'http://127.0.0.1:3103/health/ready' >/dev/null 2>&1; then break; fi
+  sleep 1
+done
+srs_failure=$(FAULT_MODE='srs-failure' FAULT_USER_TOKEN="$identity_token" node "$ROOT_DIR/scripts/fault-experiment-probe.mjs")
+printf '%s\n' "$srs_failure"
+srs_room_id=$(node -e "const result=JSON.parse(process.argv[1]);if(!result.roomId)process.exit(1);process.stdout.write(String(result.roomId))" "$srs_failure")
+SRS_API_BASE='' compose up -d --force-recreate --no-deps live-reward
+for _attempt in $(seq 1 30); do
+  if curl -fsS 'http://127.0.0.1:3103/health/ready' >/dev/null 2>&1; then break; fi
+  sleep 1
+done
+FAULT_MODE='srs-recovery' FAULT_USER_TOKEN="$identity_token" FAULT_ROOM_ID="$srs_room_id" node "$ROOT_DIR/scripts/fault-experiment-probe.mjs"
+
+compose stop content-minio >/dev/null
+FAULT_MODE='minio-failure' FAULT_USER_TOKEN="$identity_token" node "$ROOT_DIR/scripts/fault-experiment-probe.mjs"
+compose start content-minio >/dev/null
+for _attempt in $(seq 1 60); do
+  if curl -fsS 'http://127.0.0.1:9000/minio/health/ready' >/dev/null 2>&1; then break; fi
+  sleep 1
+done
+FAULT_MODE='minio-recovery' FAULT_USER_TOKEN="$identity_token" node "$ROOT_DIR/scripts/fault-experiment-probe.mjs"
+
+PERF_MONOLITH_BASE_URL='http://127.0.0.1:3200' \
+PERF_MICROSERVICE_BASE_URL='http://127.0.0.1:3100' \
+PERF_ROUNDS='3' \
+PERF_REQUESTS='240' \
+PERF_CONCURRENCY='16' \
+PERF_MAX_P95_MS='1000' \
+  node "$ROOT_DIR/scripts/performance-compare.mjs"
+
 GATEWAY_ROUTE_MODE=monolith \
 GATEWAY_READ_CUTOVER=all \
 GATEWAY_WRITE_CUTOVER=none \
@@ -487,4 +533,4 @@ done
 node "$ROOT_DIR/scripts/read-cutover-probe.mjs" rollback http://127.0.0.1:3100
 
 compose ps
-echo "Microservice Compose, staged identity/content/live/governance cutover, full REG-01 UC01-UC06, persistence, and rollback smoke passed."
+echo "Microservice Compose, staged cutover, full dual-target REG-01, dependency fault/recovery, three-round performance comparison, persistence, and rollback smoke passed."

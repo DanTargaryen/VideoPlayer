@@ -197,6 +197,7 @@ services:
       LIVE_REWARD_DATABASE_URL: mysql://${LIVE_REWARD_DATABASE_USER:-live_reward}:${LIVE_REWARD_DATABASE_PASSWORD:?LIVE_REWARD_DATABASE_PASSWORD is required}@live-mysql:3306/${LIVE_REWARD_DATABASE_NAME:-video_player_live_reward_test}
       CONTENT_SERVICE_URL: http://content-media:3000
       IDENTITY_SERVICE_URL: http://identity-community:3000
+      SRS_API_BASE: ${SRS_API_BASE:-}
       SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET:?SERVICE_JWT_SECRET is required}
     depends_on:
       live-migrate:
