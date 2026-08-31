@@ -8,4 +8,7 @@ if (process.env.REG_REPORT_PATH?.trim()) {
   await writeFile(process.env.REG_REPORT_PATH, serialized, 'utf8');
 }
 process.stdout.write(serialized);
-if (report.targets.some((target) => target.preflight.status === 'FAIL')) process.exitCode = 1;
+const hasFailure = report.targets.some((target) => target.preflight.status === 'FAIL' || target.useCases.some((item) => item.status === 'FAIL'));
+const requireAllPass = process.env.REG_REQUIRE_ALL_PASS === 'true';
+const hasIncompleteConfiguredTarget = requireAllPass && report.targets.some((target) => target.baseUrl && (target.preflight.status !== 'PASS' || target.useCases.some((item) => item.status !== 'PASS')));
+if (hasFailure || hasIncompleteConfiguredTarget) process.exitCode = 1;

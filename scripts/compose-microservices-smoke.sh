@@ -36,6 +36,8 @@ IDENTITY_DATABASE_PASSWORD=${IDENTITY_DATABASE_PASSWORD:-$(node -e "process.stdo
 IDENTITY_MYSQL_ROOT_PASSWORD=${IDENTITY_MYSQL_ROOT_PASSWORD:-$(node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('hex'))")}
 IDENTITY_ADMIN_SECRET=${IDENTITY_ADMIN_SECRET:-$(node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('hex'))")}
 SERVICE_JWT_SECRET=${SERVICE_JWT_SECRET:-$(node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('hex'))")}
+MONOLITH_REG_MYSQL_ROOT_PASSWORD=${MONOLITH_REG_MYSQL_ROOT_PASSWORD:-$(node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('hex'))")}
+MONOLITH_REG_DATABASE_NAME=${MONOLITH_REG_DATABASE_NAME:-video_player_regression_test}
 
 if [[ ! "$PROJECT_NAME" =~ ^video-player-ms00-[a-z0-9-]+$ ]]; then
   echo "MICROSERVICE_COMPOSE_PROJECT_NAME must start with video-player-ms00-." >&2
@@ -55,6 +57,19 @@ cleanup() {
   if [[ "$cleanup_status" -ne 0 ]]; then
     compose ps -a >&2 || true
     compose logs --no-color --tail=160 >&2 || true
+    if [[ -n "${monolith_reg_log:-}" && -f "$monolith_reg_log" ]]; then
+      tail -160 "$monolith_reg_log" >&2 || true
+    fi
+  fi
+  if [[ -n "${monolith_reg_pid:-}" ]]; then
+    kill "$monolith_reg_pid" >/dev/null 2>&1 || true
+    wait "$monolith_reg_pid" >/dev/null 2>&1 || true
+  fi
+  if [[ -n "${monolith_reg_log:-}" ]]; then
+    rm -f "$monolith_reg_log"
+  fi
+  if [[ -n "${monolith_reg_container:-}" ]]; then
+    docker rm -f "$monolith_reg_container" >/dev/null 2>&1 || true
   fi
   if [[ -n "${monolith_mock_pid:-}" ]]; then
     kill "$monolith_mock_pid" >/dev/null 2>&1 || true
@@ -404,14 +419,62 @@ for _attempt in $(seq 1 30); do
   if curl -fsS 'http://127.0.0.1:3100/health/ready' >/dev/null 2>&1; then break; fi
   sleep 1
 done
-regression_output=$(MICROSERVICE_GATEWAY_BASE_URL='http://127.0.0.1:3100' \
-  REG_RUN_UC06='true' \
-  REG_REPORTER_ACCOUNT='compose_identity_user' \
-  REG_REPORTER_PASSWORD='ComposeIdentity123!' \
-  REG_ADMIN_SECRET="$IDENTITY_ADMIN_SECRET" \
-  REG_UC06_TARGET_ID='2' \
+
+monolith_reg_container="${PROJECT_NAME}-regression-mysql"
+docker rm -f "$monolith_reg_container" >/dev/null 2>&1 || true
+docker run -d --name "$monolith_reg_container" \
+  -e MYSQL_ROOT_PASSWORD="$MONOLITH_REG_MYSQL_ROOT_PASSWORD" \
+  -e MYSQL_DATABASE="$MONOLITH_REG_DATABASE_NAME" \
+  -p 127.0.0.1:33313:3306 \
+  mysql:8.0 >/dev/null
+for _attempt in $(seq 1 60); do
+  if docker exec "$monolith_reg_container" mysqladmin ping -h 127.0.0.1 -uroot -p"$MONOLITH_REG_MYSQL_ROOT_PASSWORD" --silent >/dev/null 2>&1; then break; fi
+  sleep 1
+done
+docker exec "$monolith_reg_container" mysqladmin ping -h 127.0.0.1 -uroot -p"$MONOLITH_REG_MYSQL_ROOT_PASSWORD" --silent >/dev/null
+monolith_reg_database_url="mysql://root:${MONOLITH_REG_MYSQL_ROOT_PASSWORD}@127.0.0.1:33313/${MONOLITH_REG_DATABASE_NAME}"
+DATABASE_URL="$monolith_reg_database_url" npm exec prisma migrate deploy -- --schema "$ROOT_DIR/backend/prisma/schema.prisma"
+SEED_GUARD_PASSWORD='regression-seed' SEED_GUARD_CONFIRM='regression-seed' DATABASE_URL="$monolith_reg_database_url" \
+  npm --workspace backend run db:seed
+npm --workspace backend run build
+monolith_reg_log=$(mktemp -t videoplayer-reg-monolith.XXXXXX.log)
+PORT=3200 \
+DATABASE_URL="$monolith_reg_database_url" \
+GIT_SHA="$GIT_SHA" \
+STORAGE_BACKEND='minio' \
+MINIO_ENDPOINT='127.0.0.1' \
+MINIO_PORT='9000' \
+MINIO_USE_SSL='false' \
+MINIO_ROOT_USER="$CONTENT_MINIO_ACCESS_KEY" \
+MINIO_ROOT_PASSWORD="$CONTENT_MINIO_SECRET_KEY" \
+MINIO_BUCKET='videoplayer-monolith-regression' \
+MINIO_PUBLIC_BASE_URL='http://127.0.0.1:9000' \
+  node "$ROOT_DIR/backend/dist/main.js" >"$monolith_reg_log" 2>&1 &
+monolith_reg_pid=$!
+for _attempt in $(seq 1 60); do
+  if curl -fsS 'http://127.0.0.1:3200/api/v1/health' >/dev/null 2>&1; then break; fi
+  sleep 1
+done
+if ! curl -fsS 'http://127.0.0.1:3200/api/v1/health' >/dev/null 2>&1; then
+  cat "$monolith_reg_log" >&2
+  exit 1
+fi
+
+set +e
+regression_output=$(MONOLITH_BASE_URL='http://127.0.0.1:3200' \
+  MICROSERVICE_GATEWAY_BASE_URL='http://127.0.0.1:3100' \
+  GIT_SHA="$GIT_SHA" \
+  REG_RUN_ALL='true' \
+  REG_REQUIRE_ALL_PASS='true' \
+  REG_RUN_ID='compose-full' \
+  REG_MONOLITH_ADMIN_SECRET='123456' \
+  REG_MICROSERVICE_ADMIN_SECRET="$IDENTITY_ADMIN_SECRET" \
   node "$ROOT_DIR/test/regression/run.mjs")
-node -e "const report=JSON.parse(process.argv[1]);const target=report.targets.find(item=>item.name==='microservice-gateway');const uc06=target?.useCases.find(item=>item.id==='UC06');if(target?.preflight.status!=='PASS'||uc06?.status!=='PASS'){console.error(JSON.stringify(target));process.exit(1)}" "$regression_output"
+regression_status=$?
+set -e
+printf '%s\n' "$regression_output"
+test "$regression_status" -eq 0
+node -e "const report=JSON.parse(process.argv[1]);if(report.targets.filter(item=>item.baseUrl).length!==2||report.targets.some(target=>target.preflight.status!=='PASS'||target.useCases.length!==6||target.useCases.some(item=>item.status!=='PASS'))){console.error(JSON.stringify(report.targets));process.exit(1)}" "$regression_output"
 
 GATEWAY_ROUTE_MODE=monolith \
 GATEWAY_READ_CUTOVER=all \
@@ -424,4 +487,4 @@ done
 node "$ROOT_DIR/scripts/read-cutover-probe.mjs" rollback http://127.0.0.1:3100
 
 compose ps
-echo "Microservice Compose, staged identity/content/live/governance cutover, UC05/UC06, persistence, and rollback smoke passed."
+echo "Microservice Compose, staged identity/content/live/governance cutover, full REG-01 UC01-UC06, persistence, and rollback smoke passed."
