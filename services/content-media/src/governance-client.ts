@@ -9,6 +9,8 @@ export interface SubmittedReview {
 
 export interface GovernanceReviewClient {
   submitVideoReview(videoId: string, requestId: string): Promise<SubmittedReview>;
+  listVideoReviews(videoId: string, requestId: string): Promise<Array<Record<string, unknown>>>;
+  withdrawVideoReview(videoId: string, requestId: string): Promise<void>;
 }
 
 export class GovernanceReviewError extends Error {
@@ -74,5 +76,30 @@ export class HttpGovernanceReviewClient implements GovernanceReviewClient {
       throw new GovernanceReviewError('governance review submission returned an invalid response', false, true);
     }
     return review as SubmittedReview;
+  }
+
+  async listVideoReviews(videoId: string, requestId: string) {
+    const token = issueServiceToken({ caller: 'content-media', audience: 'governance-ai', scopes: ['governance.reviews.read'], secret: this.options.jwtSecret, requestId });
+    const response = await fetch(`${this.baseUrl}/internal/v1/reviews/VIDEO/${encodeURIComponent(videoId)}/history`, {
+      headers: { authorization: `Bearer ${token}`, 'x-request-id': requestId },
+      signal: AbortSignal.timeout(this.timeoutMs),
+    });
+    if (!response.ok) throw new GovernanceReviewError(`governance review history returned ${response.status}`, response.status >= 500 || response.status === 429, false);
+    const payload = await response.json() as { data?: unknown };
+    if (!Array.isArray(payload.data)) throw new GovernanceReviewError('governance review history returned an invalid response', false, false);
+    return payload.data as Array<Record<string, unknown>>;
+  }
+
+  async withdrawVideoReview(videoId: string, requestId: string) {
+    const token = issueServiceToken({ caller: 'content-media', audience: 'governance-ai', scopes: ['governance.reviews.withdraw'], secret: this.options.jwtSecret, requestId });
+    const response = await fetch(`${this.baseUrl}/internal/v1/reviews/VIDEO/${encodeURIComponent(videoId)}/withdraw`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'x-request-id': requestId },
+      signal: AbortSignal.timeout(this.timeoutMs),
+    });
+    if (!response.ok) {
+      const unavailable = response.status >= 500 || response.status === 429;
+      throw new GovernanceReviewError(`governance review withdrawal returned ${response.status}`, unavailable, unavailable);
+    }
   }
 }

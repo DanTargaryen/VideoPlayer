@@ -19,12 +19,12 @@
   },
   "dependencies": {
     "@prisma/client": "^6.9.0",
-    "@videoplayer/shared-contracts": "0.1.0"
+    "@videoplayer/shared-contracts": "0.1.0",
+    "minio": "^8.0.7"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
     "eslint": "^9.23.0",
-    "minio": "^8.0.7",
     "prisma": "^6.9.0",
     "typescript": "^5.8.2",
     "vitest": "^4.1.11"
