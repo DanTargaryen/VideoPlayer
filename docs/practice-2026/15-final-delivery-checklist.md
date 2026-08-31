@@ -7,7 +7,7 @@
 ## 1. 仓库可自主完成项
 
 - [x] 建立 `delivery/01_source`–`delivery/06_defense` 六目录和总 README。
-- [x] `01_source` 索引单体 tag、四微服务版本、PR #48–#57 和远端 workflow。
+- [x] `01_source` 索引单体 tag、四微服务版本、PR #48–#58 和远端 workflow。
 - [x] `02_docs` 索引需求、UC01–UC06、三层模型、服务边界、测试计划和追溯。
 - [x] `03_devops` 索引 Compose、Kubernetes、migration、CI/CD、回滚和 Secret 约束。
 - [x] `04_tests` 索引单元/API/E2E、REG-01、HPA、故障与性能证据。
@@ -18,9 +18,9 @@
 - [x] README 与六目录链接由自动测试检查；PPTX 具有有效 ZIP/PPT 结构。
 - [x] 技术变更完成本地 `npm run test:ci`：283/283 PASS。
 - [x] DEL-01 PR #58 首轮远端 run `33371629258` 3/3 jobs，并实检 public E2E/Kind 两个 Artifact。
-- [ ] PR #58 最终证据提交通过当前 head 的远端 3/3 jobs、Owner 书面自审和合并复核。
+- [x] PR #58 最终 head 通过 run `33372482927` 的远端 3/3 jobs、Owner 书面自审，并合并为 `main@993d699`。
 
-最后一项只能在 PR #58 最终 head 的远端 run 成功并合并后改为 `[x]`；合并前若引用本文件，应以 PR 最新状态为准。
+PR #58 的仓库技术 Gate 已关闭；以下真人或外部系统证据仍是 DEL-01 总 Gate 的必要条件。
 
 ## 2. 必须由真人或外部系统补交
 
