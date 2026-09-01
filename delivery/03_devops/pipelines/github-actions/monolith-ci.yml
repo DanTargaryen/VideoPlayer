@@ -41,6 +41,60 @@ jobs:
       - name: Run local CI gate
         run: npm run test:ci
 
+  api-integration:
+    name: All public Controller API routes
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+          MYSQL_DATABASE: video_player_api_test
+        ports:
+          - 3306:3306
+    env:
+      DATABASE_URL: mysql://root@127.0.0.1:3306/video_player_api_test
+      INTEGRATION_DATABASE_URL: mysql://root@127.0.0.1:3306/video_player_api_test
+      STORAGE_BACKEND: local
+      LOCAL_STORAGE_DIR: ${{ github.workspace }}/.runtime-api-storage
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare isolated API database
+        run: |
+          npm --workspace backend run prisma:generate
+          for attempt in $(seq 1 30); do
+            if npm --workspace backend run db:migrate; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "MySQL did not become ready"
+          exit 1
+
+      - name: Exercise every public Controller route
+        run: npm run test:api
+
+      - name: Upload API route evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-api-route-evidence
+          path: |
+            test-results/integration-api-latest.json
+            test-results/public-api-route-coverage.json
+          if-no-files-found: error
+
   public-e2e:
     name: Public browser smoke
     runs-on: ubuntu-latest
@@ -104,7 +158,7 @@ jobs:
           exit 1
 
       - name: Run Playwright public smoke
-        run: npm run test:e2e
+        run: npm run test:e2e:public
 
       - name: Upload E2E evidence
         if: always()
@@ -119,27 +173,37 @@ jobs:
           if-no-files-found: warn
 
   deploy-kind:
-    name: Build images and deploy to isolated Kind
-    if: ${{ github.event_name != 'pull_request' }}
+    name: Build all Git SHA images and deploy monolith plus microservices to isolated Kind
     runs-on: ubuntu-latest
     needs:
       - quality
+      - api-integration
       - public-e2e
     env:
       IMAGE_TAG: ${{ github.sha }}
+      BUILD_NUMBER: ${{ github.run_id }}
       KIND_CLUSTER_NAME: video-player-${{ github.run_id }}-${{ github.run_attempt }}
       K8S_NAMESPACE: video-player
-      PRACTICE_ENV_FILE: ${{ github.workspace }}/.runtime-ci/videoplayer-practice.env
+      CI_RUN_SUBDIR: actions-${{ github.run_id }}-${{ github.run_attempt }}
+      CI_EVIDENCE_SUBDIR: actions-${{ github.run_id }}-${{ github.run_attempt }}
+      CI_RUN_DIR: ${{ github.workspace }}/.codex-run/actions-${{ github.run_id }}-${{ github.run_attempt }}
+      CI_EVIDENCE_DIR: ${{ github.workspace }}/ci-evidence/actions-${{ github.run_id }}-${{ github.run_attempt }}
+      CI_RUNTIME_ENV_FILE: ${{ github.workspace }}/.codex-run/actions-${{ github.run_id }}-${{ github.run_attempt }}/runtime.env
+      PRACTICE_ENV_FILE: ${{ github.workspace }}/.codex-run/actions-${{ github.run_id }}-${{ github.run_attempt }}/practice.env
       DEPLOYMENT_EVIDENCE_DIR: ${{ github.workspace }}/.runtime-ci/deployment-evidence
+      KIND_RELEASE_LOCAL_IMAGES_AFTER_IMPORT: "true"
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Build backend image
-        run: docker build --file backend/Dockerfile --tag video-player/backend:$IMAGE_TAG .
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
 
-      - name: Build frontend image
-        run: docker build --file frontend/Dockerfile --tag video-player/frontend:$IMAGE_TAG .
+      - name: Install dependencies
+        run: npm ci
 
       - name: Install Kind
         run: |
@@ -152,25 +216,32 @@ jobs:
           kind version
           kubectl version --client
 
-      - name: Prepare isolated deployment inputs
+      - name: Prepare isolated full-stack inputs
         run: |
           docker pull mysql:8.0
-          mkdir -p "$(dirname "$PRACTICE_ENV_FILE")"
-          mysql_root_password="$(openssl rand -hex 18)"
-          jwt_secret="$(openssl rand -hex 24)"
-          admin_secret="$(openssl rand -hex 18)"
-          {
-            printf 'MYSQL_ROOT_PASSWORD=%s\n' "$mysql_root_password"
-            printf 'JWT_SECRET=%s\n' "$jwt_secret"
-            printf 'ADMIN_SECRET=%s\n' "$admin_secret"
-          } > "$PRACTICE_ENV_FILE"
-          chmod 600 "$PRACTICE_ENV_FILE"
+          bash scripts/ci-bootstrap.sh
 
-      - name: Deploy Git SHA images to isolated Kind
-        run: bash scripts/k8s-deploy.sh "$IMAGE_TAG"
+      - name: Build monolith, service, Gateway, and migration Git SHA images
+        run: bash scripts/ci-build-images.sh
 
-      - name: Verify Kubernetes deployment
-        run: bash scripts/k8s-health-check.sh
+      - name: Run services-mode UC01-UC06 browser regression
+        env:
+          MICROSERVICE_COMPOSE_PROJECT_NAME: video-player-ms00-actions-${{ github.run_id }}-${{ github.run_attempt }}
+          MICROSERVICE_COMPOSE_SKIP_BUILD: "true"
+          MICROSERVICE_COMPOSE_SCOPE: browser
+          GIT_SHA: ${{ github.sha }}
+        run: |
+          export FFMPEG_PATH="$(node -e "process.stdout.write(require('ffmpeg-static'))")"
+          test -f "$FFMPEG_PATH"
+          chmod +x "$FFMPEG_PATH"
+          "$FFMPEG_PATH" -version > /dev/null
+          bash scripts/compose-microservices-smoke.sh
+
+      - name: Deploy all Git SHA images to isolated Kind
+        run: bash scripts/ci-k8s-deploy.sh
+
+      - name: Verify monolith and microservice Kubernetes deployments
+        run: bash scripts/ci-k8s-health-check.sh
 
       - name: Collect deployment evidence
         if: always()
@@ -186,6 +257,15 @@ jobs:
               > "$DEPLOYMENT_EVIDENCE_DIR/images.txt" || true
             kubectl -n "$K8S_NAMESPACE" logs job/db-migrate --all-containers=true --tail=200 \
               > "$DEPLOYMENT_EVIDENCE_DIR/migration.log" 2>&1 || true
+            for job_name in identity-migrate content-migrate live-reward-migrate governance-migrate; do
+              if kubectl -n "$K8S_NAMESPACE" get "job/$job_name" >/dev/null 2>&1; then
+                kubectl -n "$K8S_NAMESPACE" logs "job/$job_name" --all-containers=true --tail=200 \
+                  > "$DEPLOYMENT_EVIDENCE_DIR/$job_name.log" 2>&1 || true
+              elif [[ -f "$CI_EVIDENCE_DIR/k8s-migrations/$job_name.log" ]]; then
+                cp "$CI_EVIDENCE_DIR/k8s-migrations/$job_name.log" \
+                  "$DEPLOYMENT_EVIDENCE_DIR/$job_name.log"
+              fi
+            done
             kubectl -n "$K8S_NAMESPACE" get events --sort-by=.lastTimestamp \
               > "$DEPLOYMENT_EVIDENCE_DIR/events.txt" || true
             printf 'evidence=collected\ncluster=%s\nnamespace=%s\nimage_tag=%s\n' \
@@ -200,8 +280,12 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: kind-deployment-evidence
-          path: ${{ github.workspace }}/.runtime-ci/deployment-evidence
+          name: full-stack-kind-deployment-evidence
+          path: |
+            ${{ github.workspace }}/.runtime-ci/deployment-evidence
+            ${{ github.workspace }}/ci-evidence/actions-${{ github.run_id }}-${{ github.run_attempt }}
+            playwright-report
+            test-results
           if-no-files-found: error
 
       - name: Clean up isolated deployment

@@ -2,6 +2,7 @@ FROM node:22-bookworm-slim AS build
 
 WORKDIR /app
 
+ARG NPM_INSTALL_ATTEMPT_TIMEOUT=300s
 ENV NPM_CONFIG_FETCH_RETRIES=8
 ENV NPM_CONFIG_FETCH_RETRY_MINTIMEOUT=20000
 ENV NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT=120000
@@ -14,8 +15,10 @@ RUN apt-get update \
 COPY package.json package-lock.json ./
 COPY backend/package.json backend/package.json
 RUN for attempt in 1 2 3 4 5; do \
-      npm ci --workspace backend --include-workspace-root && exit 0; \
-      echo "npm ci failed on attempt ${attempt}; retrying..."; \
+      timeout --signal=TERM --kill-after=30s "$NPM_INSTALL_ATTEMPT_TIMEOUT" \
+        npm ci --workspace backend --include-workspace-root && exit 0; \
+      status=$?; \
+      echo "npm ci attempt ${attempt} failed or timed out with exit ${status}; retrying..."; \
       sleep $((attempt * 10)); \
     done; \
     exit 1
@@ -28,6 +31,7 @@ FROM node:22-bookworm-slim AS runtime
 
 WORKDIR /app
 
+ARG NPM_INSTALL_ATTEMPT_TIMEOUT=300s
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV NPM_CONFIG_FETCH_RETRIES=8
@@ -44,9 +48,11 @@ COPY backend/package.json backend/package.json
 COPY backend/prisma backend/prisma
 COPY backend/scripts backend/scripts
 RUN for attempt in 1 2 3 4 5; do \
-      npm ci --omit=dev --workspace backend --include-workspace-root && break; \
-      if [ "$attempt" -eq 5 ]; then exit 1; fi; \
-      echo "npm ci failed on attempt ${attempt}; retrying..."; \
+      timeout --signal=TERM --kill-after=30s "$NPM_INSTALL_ATTEMPT_TIMEOUT" \
+        npm ci --omit=dev --workspace backend --include-workspace-root && break; \
+      status=$?; \
+      if [ "$attempt" -eq 5 ]; then exit "$status"; fi; \
+      echo "npm ci attempt ${attempt} failed or timed out with exit ${status}; retrying..."; \
       sleep $((attempt * 10)); \
     done \
   && npm --workspace backend run prisma:generate \

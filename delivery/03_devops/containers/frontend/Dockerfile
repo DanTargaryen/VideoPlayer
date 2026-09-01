@@ -2,6 +2,7 @@ FROM node:22-bookworm-slim AS build
 
 WORKDIR /app
 
+ARG NPM_INSTALL_ATTEMPT_TIMEOUT=300s
 ENV NPM_CONFIG_FETCH_RETRIES=8
 ENV NPM_CONFIG_FETCH_RETRY_MINTIMEOUT=20000
 ENV NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT=120000
@@ -10,8 +11,10 @@ ENV NPM_CONFIG_FETCH_TIMEOUT=300000
 COPY package.json package-lock.json ./
 COPY frontend/package.json frontend/package.json
 RUN for attempt in 1 2 3 4 5; do \
-      npm ci --workspace frontend --include-workspace-root && exit 0; \
-      echo "npm ci failed on attempt ${attempt}; retrying..."; \
+      timeout --signal=TERM --kill-after=30s "$NPM_INSTALL_ATTEMPT_TIMEOUT" \
+        npm ci --workspace frontend --include-workspace-root && exit 0; \
+      status=$?; \
+      echo "npm ci attempt ${attempt} failed or timed out with exit ${status}; retrying..."; \
       sleep $((attempt * 10)); \
     done; \
     exit 1

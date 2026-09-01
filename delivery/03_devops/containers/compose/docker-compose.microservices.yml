@@ -71,8 +71,8 @@ services:
       MINIO_ROOT_USER: ${CONTENT_MINIO_ACCESS_KEY:?CONTENT_MINIO_ACCESS_KEY is required}
       MINIO_ROOT_PASSWORD: ${CONTENT_MINIO_SECRET_KEY:?CONTENT_MINIO_SECRET_KEY is required}
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "${CONTENT_MINIO_HOST_PORT:-9000}:9000"
+      - "${CONTENT_MINIO_CONSOLE_HOST_PORT:-9001}:9001"
     volumes:
       - content-minio-data:/data
 

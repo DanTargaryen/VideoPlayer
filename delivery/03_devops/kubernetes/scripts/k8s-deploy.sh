@@ -6,6 +6,7 @@ NAMESPACE=${K8S_NAMESPACE:-video-player}
 CLUSTER_NAME=${KIND_CLUSTER_NAME:-video-player}
 ENV_FILE=${PRACTICE_ENV_FILE:-"$ROOT_DIR/.env.practice"}
 IMAGE_TAG=${1:-$(git -C "$ROOT_DIR" rev-parse --short=12 HEAD)}
+RELEASE_LOCAL_IMAGES=${KIND_RELEASE_LOCAL_IMAGES_AFTER_IMPORT:-false}
 
 if [[ ! "$IMAGE_TAG" =~ ^[A-Za-z0-9._-]+$ ]]; then
   echo "Invalid image tag: $IMAGE_TAG" >&2
@@ -50,6 +51,9 @@ fi
 
 kubectl config use-context "kind-$CLUSTER_NAME" >/dev/null
 kind load docker-image "$BACKEND_IMAGE" "$FRONTEND_IMAGE" --name "$CLUSTER_NAME"
+if [[ "$RELEASE_LOCAL_IMAGES" == "true" ]]; then
+  docker image rm "$BACKEND_IMAGE" "$FRONTEND_IMAGE" >/dev/null
+fi
 
 # `kind load` can fail for the Docker Engine multi-platform metadata attached to
 # the official MySQL image. Importing the single local platform archive avoids
