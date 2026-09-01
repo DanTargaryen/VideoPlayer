@@ -362,6 +362,22 @@ test('DEL-01 package is complete, linked, renderable, and honest about human evi
   assert.equal(supplementalPdfQa.status, 'PASS');
   assert.equal(supplementalPdfQa.files.length, 2);
   assert.equal(supplementalPdfQa.files.reduce((total, item) => total + item.pages, 0), 18);
+  assert.equal(pdfQa.supplemental_pdf_count, supplementalPdfQa.files.length);
+  assert.equal(
+    pdfQa.supplemental_total_pages,
+    supplementalPdfQa.files.reduce((total, item) => total + item.pages, 0),
+  );
+  for (const expected of supplementalPdfQa.files) {
+    const fromFullQa = pdfQa.supplemental_files.find((item) => item.file === expected.file);
+    assert.ok(fromFullQa, `full PDF QA must include ${expected.file}`);
+    assert.equal(fromFullQa.pages, expected.pages, `${expected.file} page count must agree across QA reports`);
+    assert.equal(fromFullQa.rendered_pages, expected.rendered_pages, `${expected.file} rendered page count must agree across QA reports`);
+    assert.equal(fromFullQa.bytes, expected.bytes, `${expected.file} byte size must agree across QA reports`);
+    const relativePdf = expected.file === 'contribution-weight-confirmation.pdf'
+      ? path.join('05_management', expected.file)
+      : path.join('06_defense', expected.file);
+    assert.equal(fs.statSync(path.join(deliveryRoot, relativePdf)).size, expected.bytes, `${expected.file} QA byte size must match the PDF`);
+  }
   for (const line of fs
     .readFileSync(path.join(deliveryRoot, 'supplemental-pdf-checksums.sha256'), 'utf8')
     .trim()

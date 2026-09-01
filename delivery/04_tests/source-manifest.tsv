@@ -66,7 +66,7 @@ automated-tests	test/unit/common.utilities.test.js	automation/test/unit/common.u
 automated-tests	test/unit/content-cutover-migration.test.js	automation/test/unit/content-cutover-migration.test.js	7fa95b12e788601b5648f24f92c410a189cb4d080815f676231a29410575edc0
 automated-tests	test/unit/db-baseline-existing.test.js	automation/test/unit/db-baseline-existing.test.js	2583f348971d792d5b9d6194ae073e2e13363af046e1c4c437630dde8f7a60cd
 automated-tests	test/unit/db-target-safety.test.js	automation/test/unit/db-target-safety.test.js	014b95d8517258f85da3a05138a11429e7956a17e6a41219d84b4e82832a919e
-automated-tests	test/unit/delivery-package.test.js	automation/test/unit/delivery-package.test.js	5402e36a6c2fea27ee29f01afc8f4c2cab56e61f9f670c624d2c644fcccc79f8
+automated-tests	test/unit/delivery-package.test.js	automation/test/unit/delivery-package.test.js	a7e6128753b32e35f7bbfeaad054020088bb04362e74c85ce4d4e6a0c7938c02
 automated-tests	test/unit/email.service.test.js	automation/test/unit/email.service.test.js	d2f35acaf036a9f09b45617d0ebf0d3d6a260dbea9ad0f4cfa3efe6d665bffd0
 automated-tests	test/unit/experiment-scripts.test.js	automation/test/unit/experiment-scripts.test.js	27e8ac2a9ae2ce37f4db5137a518413d1ba308c4537772c9135f8f4b1135b661
 automated-tests	test/unit/feed.service.test.js	automation/test/unit/feed.service.test.js	b40ecf1ad195dd2cf99ff7ab7d124461f29929dbebf9d14588d2df086d4b9e75
