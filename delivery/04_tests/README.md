@@ -2,7 +2,7 @@
 
 > 本目录不再只是测试入口索引。自动化测试源码、测试运行配置、压力/韧性脚本、原始流水线报告和实验 CSV 均作为普通文件直接保存在本目录内；单独复制或压缩整个 `delivery/` 后仍可离线审阅。
 >
-> 自动化源码冻结来源：`main@481d683de584aeb9abaf6bb2df38f025bb514c30`。远端原始报告明确保留其自身 run/head SHA，不把历史 run 冒充当前提交的 CI 结果。
+> 自动化源码由当前 PR checkout 中的真实仓库源路径确定性生成；生成器不会把已生成的 `delivery` 副本重新当成输入。远端原始报告明确保留其自身 run/head SHA，不把历史 run 冒充当前提交的 CI 结果。
 
 ## 目录内容
 
@@ -35,7 +35,7 @@
 - HPA 扩缩容：[`load/hpa-experiment.sh`](load/hpa-experiment.sh)
 - MySQL/SRS/MinIO 故障恢复：[`load/fault-experiment-probe.mjs`](load/fault-experiment-probe.mjs)
 
-这些脚本是实际执行脚本的字节级副本，不是只写命令名称的说明文档。原始结果见 [`experiments/`](experiments/) 和 [`raw/github-run-33379394312/experiments/`](raw/github-run-33379394312/experiments/)。
+这些脚本是实际执行脚本的完整内容副本，不是只写命令名称的说明文档。文本副本统一规范化为 LF；冻结的 raw evidence 保持逐字节不变。原始结果见 [`experiments/`](experiments/) 和 [`raw/github-run-33379394312/experiments/`](raw/github-run-33379394312/experiments/)。
 
 ## 原始报告身份
 
@@ -49,7 +49,7 @@
 shasum -a 256 -c checksums.sha256
 ```
 
-该清单同时覆盖自动化源码、压力脚本、实验数据和原始报告。`raw/github-run-33379394312/checksums.sha256` 仍保留，用于单独验证原始报告子包。
+该清单同时覆盖自动化源码、压力脚本、实验数据和原始报告。普通文本使用规范化 LF 哈希，`.gitattributes` 同时固定交付文本为 LF；`raw/github-run-33379394312/checksums.sha256` 仍按原始字节验证冻结证据子包。
 
 ## 执行边界
 

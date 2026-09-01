@@ -11,6 +11,23 @@ const repositoryRoot = path.resolve(scriptDirectory, '..');
 const deliveryRoot = path.join(repositoryRoot, 'delivery');
 const devopsRoot = path.join(deliveryRoot, '03_devops');
 const testsRoot = path.join(deliveryRoot, '04_tests');
+const rawEvidencePrefix = 'delivery/04_tests/raw/';
+const rawExperimentPrefix = `${rawEvidencePrefix}github-run-33379394312/experiments/`;
+const binaryExtensions = new Set([
+  '.gif',
+  '.gz',
+  '.jpeg',
+  '.jpg',
+  '.mp3',
+  '.mp4',
+  '.pdf',
+  '.png',
+  '.pptx',
+  '.tar',
+  '.webm',
+  '.webp',
+  '.zip',
+]);
 
 const generatedDirectories = [
   path.join(devopsRoot, 'containers'),
@@ -31,8 +48,34 @@ function assertInsideDelivery(target) {
   }
 }
 
-function sha256(file) {
-  return createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+function toPosix(value) {
+  return value.split(path.sep).join('/');
+}
+
+function isGeneratedDeliveryPath(file) {
+  return file.startsWith('delivery/03_devops/') ||
+    (file.startsWith('delivery/04_tests/') && !file.startsWith(rawEvidencePrefix));
+}
+
+function isBinaryRepositoryPath(file) {
+  return file.startsWith(rawEvidencePrefix) || binaryExtensions.has(path.extname(file).toLowerCase());
+}
+
+function canonicalTextBytes(bytes) {
+  return Buffer.from(bytes.toString('utf8').replace(/\r\n?/g, '\n'), 'utf8');
+}
+
+function deliveryBytes(file, repositoryRelative = toPosix(path.relative(repositoryRoot, file))) {
+  const bytes = fs.readFileSync(file);
+  return isBinaryRepositoryPath(repositoryRelative) ? bytes : canonicalTextBytes(bytes);
+}
+
+function sha256Bytes(bytes) {
+  return createHash('sha256').update(bytes).digest('hex');
+}
+
+function sha256(file, repositoryRelative) {
+  return sha256Bytes(deliveryBytes(file, repositoryRelative));
 }
 
 function trackedFiles() {
@@ -40,10 +83,10 @@ function trackedFiles() {
     cwd: repositoryRoot,
     encoding: 'utf8',
   });
-  return output.split('\0').filter(Boolean).sort();
+  return output.split('\0').filter(Boolean).filter((file) => !isGeneratedDeliveryPath(file)).sort();
 }
 
-function copyFile(sourceRelative, destinationRoot, destinationRelative, category, manifest, modifiedSources) {
+function copyFile(sourceRelative, destinationRoot, destinationRelative, category, manifest) {
   const source = path.join(repositoryRoot, sourceRelative);
   const destination = path.join(destinationRoot, destinationRelative);
   assertInsideDelivery(destination);
@@ -53,11 +96,12 @@ function copyFile(sourceRelative, destinationRoot, destinationRelative, category
     throw new Error(`delivery source must be a regular file: ${sourceRelative}`);
   }
 
+  const sourceBytes = deliveryBytes(source, sourceRelative);
   fs.mkdirSync(path.dirname(destination), { recursive: true });
-  fs.copyFileSync(source, destination);
+  fs.writeFileSync(destination, sourceBytes);
   fs.chmodSync(destination, sourceStat.mode & 0o777);
 
-  const sourceHash = sha256(source);
+  const sourceHash = sha256Bytes(sourceBytes);
   const destinationHash = sha256(destination);
   if (sourceHash !== destinationHash) {
     throw new Error(`copied file hash mismatch: ${sourceRelative}`);
@@ -66,7 +110,6 @@ function copyFile(sourceRelative, destinationRoot, destinationRelative, category
   manifest.push({
     category,
     source: sourceRelative,
-    sourceState: modifiedSources.has(sourceRelative) ? 'WORKTREE' : 'HEAD',
     packaged: path
       .relative(destination.startsWith(`${devopsRoot}${path.sep}`) ? devopsRoot : testsRoot, destination)
       .split(path.sep)
@@ -75,17 +118,14 @@ function copyFile(sourceRelative, destinationRoot, destinationRelative, category
   });
 }
 
-function writeManifest(packageRoot, sourceCommit, entries) {
+function writeManifest(packageRoot, entries) {
   const lines = [
-    `# repository_base_commit\t${sourceCommit}`,
-    '# source_state\tHEAD means byte-identical to the base commit; WORKTREE means this delivery change updates the source file',
-    'category\tsource_path\tsource_state\tpackaged_path\tsha256',
+    '# generated_by\tscripts/generate-delivery-standalone.mjs',
+    '# hash_policy\ttext uses canonical LF bytes; binary and delivery/04_tests/raw use original bytes',
+    'category\tsource_path\tpackaged_path\tsha256',
     ...entries
       .sort((left, right) => left.packaged.localeCompare(right.packaged))
-      .map(
-        (entry) =>
-          `${entry.category}\t${entry.source}\t${entry.sourceState}\t${entry.packaged}\t${entry.sha256}`,
-      ),
+      .map((entry) => `${entry.category}\t${entry.source}\t${entry.packaged}\t${entry.sha256}`),
   ];
   fs.writeFileSync(path.join(packageRoot, 'source-manifest.tsv'), `${lines.join('\n')}\n`, 'utf8');
 }
@@ -121,18 +161,6 @@ for (const directory of generatedDirectories) {
 }
 
 const files = trackedFiles();
-const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], {
-  cwd: repositoryRoot,
-  encoding: 'utf8',
-}).trim();
-const modifiedSources = new Set(
-  execFileSync('git', ['diff', '--name-only', '-z', 'HEAD'], {
-    cwd: repositoryRoot,
-    encoding: 'utf8',
-  })
-    .split('\0')
-    .filter(Boolean),
-);
 const devopsManifest = [];
 const testsManifest = [];
 
@@ -159,7 +187,6 @@ for (const source of files.filter(
     destination,
     'containers',
     devopsManifest,
-    modifiedSources,
   );
 }
 
@@ -180,7 +207,6 @@ for (const source of files.filter(
     destination,
     'pipelines',
     devopsManifest,
-    modifiedSources,
   );
 }
 
@@ -196,7 +222,6 @@ for (const source of files.filter(
     destination,
     'kubernetes',
     devopsManifest,
-    modifiedSources,
   );
 }
 
@@ -225,7 +250,6 @@ for (const source of files.filter(
     destination,
     'database',
     devopsManifest,
-    modifiedSources,
   );
 }
 
@@ -247,7 +271,6 @@ for (const source of files.filter(
     `scripts/${path.basename(source)}`,
     'deployment',
     devopsManifest,
-    modifiedSources,
   );
 }
 
@@ -262,7 +285,6 @@ for (const source of files.filter(
     source,
     'automated-tests',
     testsManifest,
-    modifiedSources,
   );
 }
 
@@ -279,7 +301,6 @@ for (const source of files.filter(
     destination,
     'test-config',
     testsManifest,
-    modifiedSources,
   );
 }
 
@@ -289,7 +310,6 @@ copyFile(
   'scripts/compose-microservices-smoke.sh',
   'test-harness',
   testsManifest,
-  modifiedSources,
 );
 
 for (const source of [
@@ -303,19 +323,16 @@ for (const source of [
     path.basename(source),
     'load-and-resilience',
     testsManifest,
-    modifiedSources,
   );
 }
 
-const rawExperimentRoot = 'delivery/04_tests/raw/github-run-33379394312/experiments/';
-for (const source of files.filter((file) => file.startsWith(rawExperimentRoot))) {
+for (const source of files.filter((file) => file.startsWith(rawExperimentPrefix))) {
   copyFile(
     source,
     path.join(testsRoot, 'experiments'),
     path.basename(source),
     'experiment-data',
     testsManifest,
-    modifiedSources,
   );
 }
 
@@ -325,14 +342,12 @@ copyFile(
   'collect-delivery-raw-evidence.mjs',
   'evidence-tool',
   testsManifest,
-  modifiedSources,
 );
 
-writeManifest(devopsRoot, sourceCommit, devopsManifest);
-writeManifest(testsRoot, sourceCommit, testsManifest);
+writeManifest(devopsRoot, devopsManifest);
+writeManifest(testsRoot, testsManifest);
 writeChecksums(devopsRoot);
 writeChecksums(testsRoot);
 
 console.log(`03_devops copied files: ${devopsManifest.length}`);
 console.log(`04_tests copied files: ${testsManifest.length}`);
-console.log(`source commit: ${sourceCommit}`);

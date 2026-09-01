@@ -1,95 +1,95 @@
-# repository_base_commit	481d683de584aeb9abaf6bb2df38f025bb514c30
-# source_state	HEAD means byte-identical to the base commit; WORKTREE means this delivery change updates the source file
-category	source_path	source_state	packaged_path	sha256
-test-config	backend/jest.config.cjs	HEAD	automation/backend/jest.config.cjs	764cb96186c9598168546ccaee54b4dbed55b5f99851dbc4cde91b83d44e6837
-test-config	backend/package.json	HEAD	automation/backend/package.json	1b3fb962865b3fb2e0c84f337034368d6a7a8e12e9fdc38123ba557bcac74ea6
-automated-tests	backend/test/agent-ai.e2e-spec.ts	HEAD	automation/backend/test/agent-ai.e2e-spec.ts	a5c600e9d8ef3b6114227f373b3839796e6ec47539acd9aad9d17e2c9b6cd138
-automated-tests	backend/test/health.e2e-spec.ts	HEAD	automation/backend/test/health.e2e-spec.ts	df59acadf8667dff274439cb5f72c0b434dcd4615c252e057dd47f1477e0dc4f
-automated-tests	backend/test/integration-api.e2e-spec.ts	HEAD	automation/backend/test/integration-api.e2e-spec.ts	f72554b4d275e96e464c6d1c21679a5035782a59a4f620d0b46ec3e5e6165d7c
-automated-tests	backend/test/video-upload-validation.spec.ts	HEAD	automation/backend/test/video-upload-validation.spec.ts	939473d1aa4713690030c55136a00a5caef1a6545dd50408a5a82927ac914ee1
-test-config	frontend/package.json	HEAD	automation/frontend/package.json	5a31e2a36f6c98065f40c45b9d96e30cfdf2d03cf72711a300fbb85aa512bd5c
-automated-tests	frontend/src/api/platform.spec.ts	HEAD	automation/frontend/src/api/platform.spec.ts	7ef79ed1e6ca70a768a0f08515dff13438a6af554ce61aa1c9f866312c46275a
-automated-tests	frontend/src/utils/mediaFileValidation.spec.ts	HEAD	automation/frontend/src/utils/mediaFileValidation.spec.ts	1b3dca59fab1f8fb98ef7041fe4581318da47766bfa0d1180fd71dc7f5adc0a2
-automated-tests	frontend/src/utils/mediaPlaybackRecovery.spec.ts	HEAD	automation/frontend/src/utils/mediaPlaybackRecovery.spec.ts	78d3c597f3232b0192b3fe7f393325c807c915df4edf5d7c3ed2bf10110240eb
-automated-tests	frontend/src/utils/randomVideos.spec.ts	HEAD	automation/frontend/src/utils/randomVideos.spec.ts	d68598e33ff229ba6d0c465cbc2903756bfdc77228a4cffc74dedc07d3bc02e5
-automated-tests	frontend/src/utils/replayMedia.spec.ts	HEAD	automation/frontend/src/utils/replayMedia.spec.ts	e6910e0e87de40ef98045134743a1d777fed7dfa8a8797c86fac12d398f07f69
-test-config	frontend/vitest.config.ts	HEAD	automation/frontend/vitest.config.ts	2622a9aac0ff9ddfd318891e8e718e24eccf3e5412e58ffd06349b79ed017327
-test-config	package.json	WORKTREE	automation/package.json	723df08c0715d049ec026617c2abca759a4be4f87744ca84851e2030da96d4df
-test-config	playwright.config.ts	HEAD	automation/playwright.config.ts	c2a490f22e2d26ec51b346509ea0d181f3b0adc839dfcfa306157e8f8c1460b3
-test-harness	scripts/compose-microservices-smoke.sh	HEAD	automation/scripts/compose-microservices-smoke.sh	d1754b91f6169fec4dcaf9e9738766c9bb707001ae2a2208388957dbd65a15dd
-test-config	scripts/jest-junit-reporter.cjs	HEAD	automation/scripts/jest-junit-reporter.cjs	8ff8995f6db040ea4075b4761e846be5526d1908d03f1c9da09bc28b9aa30e98
-test-config	services/content-media/package.json	HEAD	automation/services/content-media/package.json	64b0ff7dbfdf2f3e723f01434c0f40de9dff5439f839bdf5e690d57fb12b2cf9
-automated-tests	services/content-media/test/content-foundation.spec.ts	HEAD	automation/services/content-media/test/content-foundation.spec.ts	ff6c56e12102d7fa998eaa9b6ae7343ee037ac4ca0653c4e5fcc80c89c1e3856
-automated-tests	services/content-media/test/identity-batch-client.spec.ts	HEAD	automation/services/content-media/test/identity-batch-client.spec.ts	38d187b1c9879cdf712d358d9d405571f5f008e3bf35c7bdb6a26e50ae2b900b
-automated-tests	services/content-media/test/live-client.spec.ts	HEAD	automation/services/content-media/test/live-client.spec.ts	2497af4e17076f06c3a3a66338451a51e6d37d6b7f5e30ddc25b0ea16d43d29c
-automated-tests	services/content-media/test/notification-client.spec.ts	HEAD	automation/services/content-media/test/notification-client.spec.ts	cec87fc6e937526e7c2ddd799bbf874279d806e1759413f4ba32dc89d80e965b
-automated-tests	services/content-media/test/publishing.spec.ts	HEAD	automation/services/content-media/test/publishing.spec.ts	5d5af17319665fa3809c1cc774a75473d130d5ea3090869dcbae5fda380207bc
-test-config	services/content-media/vitest.config.ts	HEAD	automation/services/content-media/vitest.config.ts	671623ce63c2e7cd4cf9613f17e32645184ac841ff47c4dadcd716357d56f446
-test-config	services/gateway/package.json	HEAD	automation/services/gateway/package.json	a8e554a1a5ea3cd89d63b90978342bb068e62d3643b3e0731f82afb743c97d8f
-automated-tests	services/gateway/test/gateway.spec.ts	HEAD	automation/services/gateway/test/gateway.spec.ts	6006fabec85286d7ce7c678954c6a69ec930e2960a04c6aaafac9186427e4ae0
-test-config	services/gateway/vitest.config.ts	HEAD	automation/services/gateway/vitest.config.ts	671623ce63c2e7cd4cf9613f17e32645184ac841ff47c4dadcd716357d56f446
-test-config	services/governance-ai/package.json	HEAD	automation/services/governance-ai/package.json	fd33b4ecc6fdedcbaa90aca377e41bfa5eb44ee5274ec4b54a5bd063ba1b3225
-automated-tests	services/governance-ai/test/api.spec.ts	HEAD	automation/services/governance-ai/test/api.spec.ts	599f35de2348a0a2ff1e8e4a885d091970425d23ec81163d187f9a25e940af96
-automated-tests	services/governance-ai/test/application.spec.ts	HEAD	automation/services/governance-ai/test/application.spec.ts	076eb100c9003b5c12cf32d915adcf785213e4cb4f3fc4ba012053a2ddaf712c
-automated-tests	services/governance-ai/test/compensation.spec.ts	HEAD	automation/services/governance-ai/test/compensation.spec.ts	2f74d97c9fb007f38caa58a4d310646f42147c3ac4328a73688d39094147234b
-automated-tests	services/governance-ai/test/content-client.spec.ts	HEAD	automation/services/governance-ai/test/content-client.spec.ts	d05afef98f4916453c130f7dd5d223ad112113242f9ca87e757dc55cbfea3574
-automated-tests	services/governance-ai/test/cross-service-contracts.spec.ts	HEAD	automation/services/governance-ai/test/cross-service-contracts.spec.ts	5cb2229a0f86898bd0b7b6b9d473406c2dd9a85f603c81e700afb0b52a1eb028
-automated-tests	services/governance-ai/test/identity-client.spec.ts	HEAD	automation/services/governance-ai/test/identity-client.spec.ts	89059f8465a875a42eb79d3e6cd6e57a92b893cb06afc9393308f2eb1344a5f4
-automated-tests	services/governance-ai/test/persistence.integration.spec.ts	HEAD	automation/services/governance-ai/test/persistence.integration.spec.ts	5609160203d880a231692a5f2cec330bc986fe34e63c9a666cef452d499ea2f8
-automated-tests	services/governance-ai/test/test-store.ts	HEAD	automation/services/governance-ai/test/test-store.ts	b3a3939ba07d3dff0cd64162e4944e75b9e2583edf3f6f65b2b698b23f3a81f1
-test-config	services/governance-ai/vitest.config.ts	HEAD	automation/services/governance-ai/vitest.config.ts	882dc8ace01d75729bab8dd1f71c79e5f07674911277b81557683821e4dfd20b
-test-config	services/governance-ai/vitest.integration.config.ts	HEAD	automation/services/governance-ai/vitest.integration.config.ts	a8f1d4cb9cca1d80bf61206d349cae0251ff392241e5f377d8d9dc2e729ef011
-test-config	services/identity-community/package.json	HEAD	automation/services/identity-community/package.json	6f73e5639c05f46275225ce0b95e6fd83cf6c4717ccf72b6307b04b11a5bfa30
-automated-tests	services/identity-community/test/health.spec.ts	HEAD	automation/services/identity-community/test/health.spec.ts	079251df7cd2f231bf6d55030432526aeabd012d03c3b868df2e38b752c92084
-automated-tests	services/identity-community/test/persistence.integration.spec.ts	HEAD	automation/services/identity-community/test/persistence.integration.spec.ts	038c477a30592890516d5fd873385c5ae01116bce8c605fea4dae74c698721d8
-test-config	services/identity-community/vitest.config.ts	HEAD	automation/services/identity-community/vitest.config.ts	882dc8ace01d75729bab8dd1f71c79e5f07674911277b81557683821e4dfd20b
-test-config	services/identity-community/vitest.integration.config.ts	HEAD	automation/services/identity-community/vitest.integration.config.ts	3822e0b1f01cf11af84cca0d46bd6f8ae39e9876a38f9138985e1f8a583ae8b1
-test-config	services/live-reward/package.json	HEAD	automation/services/live-reward/package.json	805d59c46ba13f11a7341c10421d4031654448790dd6ee97d72a7f7b3da55444
-automated-tests	services/live-reward/test/health.spec.ts	HEAD	automation/services/live-reward/test/health.spec.ts	87970d467951bdfb98b6f6b083c58a188613df60bf6e65af50c74bad91415c4f
-automated-tests	services/live-reward/test/live-app.spec.ts	HEAD	automation/services/live-reward/test/live-app.spec.ts	d46eb62f785c163a3057afed1a86a2bf359cc56d6583bd889ab8cbd1457e95ef
-test-config	services/live-reward/vitest.config.ts	HEAD	automation/services/live-reward/vitest.config.ts	671623ce63c2e7cd4cf9613f17e32645184ac841ff47c4dadcd716357d56f446
-test-config	services/shared-contracts/package.json	HEAD	automation/services/shared-contracts/package.json	b3fb93fd09dcab96bb992c1d26b0a28e871dac5cf5bb77c082ea224b7e81000c
-automated-tests	services/shared-contracts/test/http-runtime.spec.ts	HEAD	automation/services/shared-contracts/test/http-runtime.spec.ts	88cdad76d483aa2d35828e0b122ad0c00474e1e0fc9d62fc074806f96c8acae8
-automated-tests	services/shared-contracts/test/internal-contracts.spec.ts	HEAD	automation/services/shared-contracts/test/internal-contracts.spec.ts	80d434f529fa8436debf0beb70fe295019cef7e4c506abd37d5e2585e5f9010c
-automated-tests	services/shared-contracts/test/service-auth.spec.ts	HEAD	automation/services/shared-contracts/test/service-auth.spec.ts	4d2381e6aca04c55df5cf198d7b5c5890a050d10058f9a901264f898a655d2db
-test-config	services/shared-contracts/vitest.config.ts	HEAD	automation/services/shared-contracts/vitest.config.ts	810f39fb3b0541483bc7c399e62fdf29a82431e589bce360681b592f1091bc81
-test-config	services/tsconfig.base.json	HEAD	automation/services/tsconfig.base.json	941e879d6a4de5df190afaa9b514e1213456e0654c0e5830cb813c4cc7b0c79f
-automated-tests	test/regression/lib.mjs	HEAD	automation/test/regression/lib.mjs	801ca250081a17adaf4c6600967c24f515261d0d6ad29ef635fa78d79c63b5a8
-automated-tests	test/regression/README.md	HEAD	automation/test/regression/README.md	32d564e22542695d3c5c4fd730b0e91bff5313e2c2506f5119b3ef630bc69787
-automated-tests	test/regression/regression.test.mjs	HEAD	automation/test/regression/regression.test.mjs	315de27851d29194f07b1933eb9cbff68d1976113d9a19454dbcbc3008dc183e
-automated-tests	test/regression/run.mjs	HEAD	automation/test/regression/run.mjs	83b30b8d1c8ea3b2d6acd34e693da109fb3a9e67412ff400cf9bddd1befb673d
-automated-tests	test/unit/admin.controller.test.js	HEAD	automation/test/unit/admin.controller.test.js	a0c8bcb202998cd6b4e3c0ab464445b53f1b5357a70a1909387b05bf32d84bfd
-automated-tests	test/unit/auth.service.test.js	HEAD	automation/test/unit/auth.service.test.js	1c638dca1ad2eb7ec396c55c356277752904999042fc1d2656763a32dd6c2d39
-automated-tests	test/unit/captcha.service.test.js	HEAD	automation/test/unit/captcha.service.test.js	422351a7190b9fb7cc3420b3566297616047dff603f3f846b5b1509ffeba7d55
-automated-tests	test/unit/common.utilities.test.js	HEAD	automation/test/unit/common.utilities.test.js	87358b9c1fc9f7953a1cc32bf0d64cfc67c62ac81925d752b4f1dbefc395f147
-automated-tests	test/unit/content-cutover-migration.test.js	HEAD	automation/test/unit/content-cutover-migration.test.js	7fa95b12e788601b5648f24f92c410a189cb4d080815f676231a29410575edc0
-automated-tests	test/unit/db-baseline-existing.test.js	HEAD	automation/test/unit/db-baseline-existing.test.js	2583f348971d792d5b9d6194ae073e2e13363af046e1c4c437630dde8f7a60cd
-automated-tests	test/unit/db-target-safety.test.js	HEAD	automation/test/unit/db-target-safety.test.js	014b95d8517258f85da3a05138a11429e7956a17e6a41219d84b4e82832a919e
-automated-tests	test/unit/delivery-package.test.js	WORKTREE	automation/test/unit/delivery-package.test.js	2db117e275af2a905a8efed3368ffaf067431c5988fd6ff9e1911e195760a4a7
-automated-tests	test/unit/email.service.test.js	HEAD	automation/test/unit/email.service.test.js	d2f35acaf036a9f09b45617d0ebf0d3d6a260dbea9ad0f4cfa3efe6d665bffd0
-automated-tests	test/unit/experiment-scripts.test.js	HEAD	automation/test/unit/experiment-scripts.test.js	602e21a520f663cb90aa18a897418e5fed7e648a84ec8cd73b69a85f307d3d69
-automated-tests	test/unit/feed.service.test.js	HEAD	automation/test/unit/feed.service.test.js	b40ecf1ad195dd2cf99ff7ab7d124461f29929dbebf9d14588d2df086d4b9e75
-automated-tests	test/unit/follow.service.test.js	HEAD	automation/test/unit/follow.service.test.js	4e2e518c2a529b53616cdff439af5a3c3ced5a1b4adc1cb6b58deab2e460d9f5
-automated-tests	test/unit/gift.service.test.js	HEAD	automation/test/unit/gift.service.test.js	d609889e7ced4a91d1a3a5e005dc5d666c48575d438bda480f1e48b4d5b239c3
-automated-tests	test/unit/identity-cutover-migration.test.js	HEAD	automation/test/unit/identity-cutover-migration.test.js	654d967f7d017836a019a7d6ce06149b387341aa16e92597d779510bff95f05e
-automated-tests	test/unit/jest-junit-reporter.test.js	HEAD	automation/test/unit/jest-junit-reporter.test.js	adb58a6387b02eb670e38147fe2ae5f9edcbab816a5a11c7efa20f1e42c5725c
-automated-tests	test/unit/live-governance-cutover-migration.test.js	HEAD	automation/test/unit/live-governance-cutover-migration.test.js	f3fbf986f5630dea035b25db6e945533f9ab9ff12c8ffb4c9eb70d42fa2a9912
-automated-tests	test/unit/live.service.test.js	HEAD	automation/test/unit/live.service.test.js	331dace0d8346109ef3da13f8df344e6503abb82edf364066c858389a011109e
-automated-tests	test/unit/media-proxy.controller.test.js	HEAD	automation/test/unit/media-proxy.controller.test.js	95f7375caeb8bb0ade066d37151ff574af8daa03171ff34f9a13f21f4d59d46d
-automated-tests	test/unit/message.service.test.js	HEAD	automation/test/unit/message.service.test.js	247b9fe0b098bbb1c5f70b1124af1df465531a4771729cf42bbafa79c67904f9
-automated-tests	test/unit/minio.service.test.js	HEAD	automation/test/unit/minio.service.test.js	94c084ac8a86c1178d3f738533e3873097824775ed933d0702760845f87663c0
-automated-tests	test/unit/report.service.test.js	HEAD	automation/test/unit/report.service.test.js	b25c0a550f6c9ca8578346e0571e8c3efc7cf19697548d78afd1edb4bd7d26b0
-automated-tests	test/unit/search.service.test.js	HEAD	automation/test/unit/search.service.test.js	259b057e8bd479b174cbdeb625c89bb3c4470d04ccc2bbc7de50f6fde21313b8
-automated-tests	test/unit/service-docker-build-safety.test.js	HEAD	automation/test/unit/service-docker-build-safety.test.js	1e5e1b906ece75e67b4fb5fede60dd188ea27734b0b4d7a4ce88b2ead578fc62
-automated-tests	test/unit/user.service.test.js	HEAD	automation/test/unit/user.service.test.js	e2caca710108f0a2ba65a8b3e417ab428de7f8b843b490438194ff1f001dbcec
-automated-tests	test/unit/video.service.test.js	HEAD	automation/test/unit/video.service.test.js	6a24a463db6835b993346fc9605407d8c382de4bbe9ecba97511b06524e72e22
-automated-tests	tests/e2e/admin-services-mode.spec.ts	HEAD	automation/tests/e2e/admin-services-mode.spec.ts	62f8487f86c739fd23a532f0be1e513bae299342fc8ed7d955f11ffc96c5dddc
-automated-tests	tests/e2e/live-services-mode.spec.ts	HEAD	automation/tests/e2e/live-services-mode.spec.ts	52d829ff04b01c700192627de99ef7a8bfbc368d95e69375690ae92f266a330d
-automated-tests	tests/e2e/public-smoke.spec.ts	HEAD	automation/tests/e2e/public-smoke.spec.ts	cd01d6fb5e1fea83c831d27143d73e412e34b15ad7e11cfe759d1be93cf41b93
-experiment-data	delivery/04_tests/raw/github-run-33379394312/experiments/fault-recovery.csv	HEAD	experiments/fault-recovery.csv	8a266dc9954511bca5ad7eac63c7e1a10c926760c755e4f35b50f0d67e193af2
-experiment-data	delivery/04_tests/raw/github-run-33379394312/experiments/hpa-timeline.csv	HEAD	experiments/hpa-timeline.csv	14347352041303d456bb47a52689e051a9b0771e1825051eee37614fc802075f
-experiment-data	delivery/04_tests/raw/github-run-33379394312/experiments/performance-runs.csv	HEAD	experiments/performance-runs.csv	79cd5fc59eb2e2962e68bf36632a62bbf4b366d2005c3997f82d3bb674ae25cf
-load-and-resilience	scripts/fault-experiment-probe.mjs	HEAD	load/fault-experiment-probe.mjs	b42a71b5cd1a79268ef4b4841b93478163d8f01b3f210b92c0d77beaa558c2da
-load-and-resilience	scripts/hpa-experiment.sh	HEAD	load/hpa-experiment.sh	322d34151da1543942cd8ab64bb50338cd77b082c93dac10ca9665135efc9f61
-load-and-resilience	scripts/performance-compare.mjs	HEAD	load/performance-compare.mjs	86f690d2a8a1f41ec92c7ce99ac41b795765a898e80a58d86c03e21a98c5a7c5
-evidence-tool	scripts/collect-delivery-raw-evidence.mjs	HEAD	tools/collect-delivery-raw-evidence.mjs	791dbf91d4ffa0f612233d945469db8d7e91f47bf4ae78af0c74200d903d36a2
+# generated_by	scripts/generate-delivery-standalone.mjs
+# hash_policy	text uses canonical LF bytes; binary and delivery/04_tests/raw use original bytes
+category	source_path	packaged_path	sha256
+test-config	backend/jest.config.cjs	automation/backend/jest.config.cjs	764cb96186c9598168546ccaee54b4dbed55b5f99851dbc4cde91b83d44e6837
+test-config	backend/package.json	automation/backend/package.json	7b4524f9420e48dd5d291ebfa2288c32b0d47952d4526e6a354e4f21dc0f7989
+automated-tests	backend/test/agent-ai.e2e-spec.ts	automation/backend/test/agent-ai.e2e-spec.ts	a5c600e9d8ef3b6114227f373b3839796e6ec47539acd9aad9d17e2c9b6cd138
+automated-tests	backend/test/health.e2e-spec.ts	automation/backend/test/health.e2e-spec.ts	df59acadf8667dff274439cb5f72c0b434dcd4615c252e057dd47f1477e0dc4f
+automated-tests	backend/test/integration-api.e2e-spec.ts	automation/backend/test/integration-api.e2e-spec.ts	f72554b4d275e96e464c6d1c21679a5035782a59a4f620d0b46ec3e5e6165d7c
+automated-tests	backend/test/video-upload-validation.spec.ts	automation/backend/test/video-upload-validation.spec.ts	939473d1aa4713690030c55136a00a5caef1a6545dd50408a5a82927ac914ee1
+test-config	frontend/package.json	automation/frontend/package.json	61e50be420d56bf8ac534ea125876468d999c8a62cbfa583a35412ad9138070a
+automated-tests	frontend/src/api/platform.spec.ts	automation/frontend/src/api/platform.spec.ts	7ef79ed1e6ca70a768a0f08515dff13438a6af554ce61aa1c9f866312c46275a
+automated-tests	frontend/src/utils/mediaFileValidation.spec.ts	automation/frontend/src/utils/mediaFileValidation.spec.ts	1b3dca59fab1f8fb98ef7041fe4581318da47766bfa0d1180fd71dc7f5adc0a2
+automated-tests	frontend/src/utils/mediaPlaybackRecovery.spec.ts	automation/frontend/src/utils/mediaPlaybackRecovery.spec.ts	78d3c597f3232b0192b3fe7f393325c807c915df4edf5d7c3ed2bf10110240eb
+automated-tests	frontend/src/utils/randomVideos.spec.ts	automation/frontend/src/utils/randomVideos.spec.ts	d68598e33ff229ba6d0c465cbc2903756bfdc77228a4cffc74dedc07d3bc02e5
+automated-tests	frontend/src/utils/replayMedia.spec.ts	automation/frontend/src/utils/replayMedia.spec.ts	e6910e0e87de40ef98045134743a1d777fed7dfa8a8797c86fac12d398f07f69
+test-config	frontend/vitest.config.ts	automation/frontend/vitest.config.ts	2622a9aac0ff9ddfd318891e8e718e24eccf3e5412e58ffd06349b79ed017327
+test-config	package.json	automation/package.json	2fe9f31c91f6c1fba0e657cd7f48a67041ebc50b4a8fc15b76f6b3118cb342dd
+test-config	playwright.config.ts	automation/playwright.config.ts	c2a490f22e2d26ec51b346509ea0d181f3b0adc839dfcfa306157e8f8c1460b3
+test-harness	scripts/compose-microservices-smoke.sh	automation/scripts/compose-microservices-smoke.sh	d1754b91f6169fec4dcaf9e9738766c9bb707001ae2a2208388957dbd65a15dd
+test-config	scripts/jest-junit-reporter.cjs	automation/scripts/jest-junit-reporter.cjs	8ff8995f6db040ea4075b4761e846be5526d1908d03f1c9da09bc28b9aa30e98
+test-config	services/content-media/package.json	automation/services/content-media/package.json	64b0ff7dbfdf2f3e723f01434c0f40de9dff5439f839bdf5e690d57fb12b2cf9
+automated-tests	services/content-media/test/content-foundation.spec.ts	automation/services/content-media/test/content-foundation.spec.ts	ff6c56e12102d7fa998eaa9b6ae7343ee037ac4ca0653c4e5fcc80c89c1e3856
+automated-tests	services/content-media/test/identity-batch-client.spec.ts	automation/services/content-media/test/identity-batch-client.spec.ts	38d187b1c9879cdf712d358d9d405571f5f008e3bf35c7bdb6a26e50ae2b900b
+automated-tests	services/content-media/test/live-client.spec.ts	automation/services/content-media/test/live-client.spec.ts	2497af4e17076f06c3a3a66338451a51e6d37d6b7f5e30ddc25b0ea16d43d29c
+automated-tests	services/content-media/test/notification-client.spec.ts	automation/services/content-media/test/notification-client.spec.ts	cec87fc6e937526e7c2ddd799bbf874279d806e1759413f4ba32dc89d80e965b
+automated-tests	services/content-media/test/publishing.spec.ts	automation/services/content-media/test/publishing.spec.ts	5d5af17319665fa3809c1cc774a75473d130d5ea3090869dcbae5fda380207bc
+test-config	services/content-media/vitest.config.ts	automation/services/content-media/vitest.config.ts	671623ce63c2e7cd4cf9613f17e32645184ac841ff47c4dadcd716357d56f446
+test-config	services/gateway/package.json	automation/services/gateway/package.json	a8e554a1a5ea3cd89d63b90978342bb068e62d3643b3e0731f82afb743c97d8f
+automated-tests	services/gateway/test/gateway.spec.ts	automation/services/gateway/test/gateway.spec.ts	6006fabec85286d7ce7c678954c6a69ec930e2960a04c6aaafac9186427e4ae0
+test-config	services/gateway/vitest.config.ts	automation/services/gateway/vitest.config.ts	671623ce63c2e7cd4cf9613f17e32645184ac841ff47c4dadcd716357d56f446
+test-config	services/governance-ai/package.json	automation/services/governance-ai/package.json	fd33b4ecc6fdedcbaa90aca377e41bfa5eb44ee5274ec4b54a5bd063ba1b3225
+automated-tests	services/governance-ai/test/api.spec.ts	automation/services/governance-ai/test/api.spec.ts	599f35de2348a0a2ff1e8e4a885d091970425d23ec81163d187f9a25e940af96
+automated-tests	services/governance-ai/test/application.spec.ts	automation/services/governance-ai/test/application.spec.ts	076eb100c9003b5c12cf32d915adcf785213e4cb4f3fc4ba012053a2ddaf712c
+automated-tests	services/governance-ai/test/compensation.spec.ts	automation/services/governance-ai/test/compensation.spec.ts	2f74d97c9fb007f38caa58a4d310646f42147c3ac4328a73688d39094147234b
+automated-tests	services/governance-ai/test/content-client.spec.ts	automation/services/governance-ai/test/content-client.spec.ts	d05afef98f4916453c130f7dd5d223ad112113242f9ca87e757dc55cbfea3574
+automated-tests	services/governance-ai/test/cross-service-contracts.spec.ts	automation/services/governance-ai/test/cross-service-contracts.spec.ts	5cb2229a0f86898bd0b7b6b9d473406c2dd9a85f603c81e700afb0b52a1eb028
+automated-tests	services/governance-ai/test/identity-client.spec.ts	automation/services/governance-ai/test/identity-client.spec.ts	89059f8465a875a42eb79d3e6cd6e57a92b893cb06afc9393308f2eb1344a5f4
+automated-tests	services/governance-ai/test/persistence.integration.spec.ts	automation/services/governance-ai/test/persistence.integration.spec.ts	5609160203d880a231692a5f2cec330bc986fe34e63c9a666cef452d499ea2f8
+automated-tests	services/governance-ai/test/test-store.ts	automation/services/governance-ai/test/test-store.ts	b3a3939ba07d3dff0cd64162e4944e75b9e2583edf3f6f65b2b698b23f3a81f1
+test-config	services/governance-ai/vitest.config.ts	automation/services/governance-ai/vitest.config.ts	882dc8ace01d75729bab8dd1f71c79e5f07674911277b81557683821e4dfd20b
+test-config	services/governance-ai/vitest.integration.config.ts	automation/services/governance-ai/vitest.integration.config.ts	a8f1d4cb9cca1d80bf61206d349cae0251ff392241e5f377d8d9dc2e729ef011
+test-config	services/identity-community/package.json	automation/services/identity-community/package.json	6f73e5639c05f46275225ce0b95e6fd83cf6c4717ccf72b6307b04b11a5bfa30
+automated-tests	services/identity-community/test/health.spec.ts	automation/services/identity-community/test/health.spec.ts	079251df7cd2f231bf6d55030432526aeabd012d03c3b868df2e38b752c92084
+automated-tests	services/identity-community/test/persistence.integration.spec.ts	automation/services/identity-community/test/persistence.integration.spec.ts	038c477a30592890516d5fd873385c5ae01116bce8c605fea4dae74c698721d8
+test-config	services/identity-community/vitest.config.ts	automation/services/identity-community/vitest.config.ts	882dc8ace01d75729bab8dd1f71c79e5f07674911277b81557683821e4dfd20b
+test-config	services/identity-community/vitest.integration.config.ts	automation/services/identity-community/vitest.integration.config.ts	3822e0b1f01cf11af84cca0d46bd6f8ae39e9876a38f9138985e1f8a583ae8b1
+test-config	services/live-reward/package.json	automation/services/live-reward/package.json	805d59c46ba13f11a7341c10421d4031654448790dd6ee97d72a7f7b3da55444
+automated-tests	services/live-reward/test/health.spec.ts	automation/services/live-reward/test/health.spec.ts	87970d467951bdfb98b6f6b083c58a188613df60bf6e65af50c74bad91415c4f
+automated-tests	services/live-reward/test/live-app.spec.ts	automation/services/live-reward/test/live-app.spec.ts	d46eb62f785c163a3057afed1a86a2bf359cc56d6583bd889ab8cbd1457e95ef
+test-config	services/live-reward/vitest.config.ts	automation/services/live-reward/vitest.config.ts	671623ce63c2e7cd4cf9613f17e32645184ac841ff47c4dadcd716357d56f446
+test-config	services/shared-contracts/package.json	automation/services/shared-contracts/package.json	b3fb93fd09dcab96bb992c1d26b0a28e871dac5cf5bb77c082ea224b7e81000c
+automated-tests	services/shared-contracts/test/http-runtime.spec.ts	automation/services/shared-contracts/test/http-runtime.spec.ts	88cdad76d483aa2d35828e0b122ad0c00474e1e0fc9d62fc074806f96c8acae8
+automated-tests	services/shared-contracts/test/internal-contracts.spec.ts	automation/services/shared-contracts/test/internal-contracts.spec.ts	80d434f529fa8436debf0beb70fe295019cef7e4c506abd37d5e2585e5f9010c
+automated-tests	services/shared-contracts/test/service-auth.spec.ts	automation/services/shared-contracts/test/service-auth.spec.ts	4d2381e6aca04c55df5cf198d7b5c5890a050d10058f9a901264f898a655d2db
+test-config	services/shared-contracts/vitest.config.ts	automation/services/shared-contracts/vitest.config.ts	810f39fb3b0541483bc7c399e62fdf29a82431e589bce360681b592f1091bc81
+test-config	services/tsconfig.base.json	automation/services/tsconfig.base.json	941e879d6a4de5df190afaa9b514e1213456e0654c0e5830cb813c4cc7b0c79f
+automated-tests	test/regression/lib.mjs	automation/test/regression/lib.mjs	801ca250081a17adaf4c6600967c24f515261d0d6ad29ef635fa78d79c63b5a8
+automated-tests	test/regression/README.md	automation/test/regression/README.md	32d564e22542695d3c5c4fd730b0e91bff5313e2c2506f5119b3ef630bc69787
+automated-tests	test/regression/regression.test.mjs	automation/test/regression/regression.test.mjs	315de27851d29194f07b1933eb9cbff68d1976113d9a19454dbcbc3008dc183e
+automated-tests	test/regression/run.mjs	automation/test/regression/run.mjs	83b30b8d1c8ea3b2d6acd34e693da109fb3a9e67412ff400cf9bddd1befb673d
+automated-tests	test/unit/admin.controller.test.js	automation/test/unit/admin.controller.test.js	a0c8bcb202998cd6b4e3c0ab464445b53f1b5357a70a1909387b05bf32d84bfd
+automated-tests	test/unit/auth.service.test.js	automation/test/unit/auth.service.test.js	1c638dca1ad2eb7ec396c55c356277752904999042fc1d2656763a32dd6c2d39
+automated-tests	test/unit/captcha.service.test.js	automation/test/unit/captcha.service.test.js	422351a7190b9fb7cc3420b3566297616047dff603f3f846b5b1509ffeba7d55
+automated-tests	test/unit/common.utilities.test.js	automation/test/unit/common.utilities.test.js	87358b9c1fc9f7953a1cc32bf0d64cfc67c62ac81925d752b4f1dbefc395f147
+automated-tests	test/unit/content-cutover-migration.test.js	automation/test/unit/content-cutover-migration.test.js	7fa95b12e788601b5648f24f92c410a189cb4d080815f676231a29410575edc0
+automated-tests	test/unit/db-baseline-existing.test.js	automation/test/unit/db-baseline-existing.test.js	2583f348971d792d5b9d6194ae073e2e13363af046e1c4c437630dde8f7a60cd
+automated-tests	test/unit/db-target-safety.test.js	automation/test/unit/db-target-safety.test.js	014b95d8517258f85da3a05138a11429e7956a17e6a41219d84b4e82832a919e
+automated-tests	test/unit/delivery-package.test.js	automation/test/unit/delivery-package.test.js	9f33ab0c4487ce60052708d0cc44c764e3533e3fa5c748d1b8ae1c0b4a636c3e
+automated-tests	test/unit/email.service.test.js	automation/test/unit/email.service.test.js	d2f35acaf036a9f09b45617d0ebf0d3d6a260dbea9ad0f4cfa3efe6d665bffd0
+automated-tests	test/unit/experiment-scripts.test.js	automation/test/unit/experiment-scripts.test.js	602e21a520f663cb90aa18a897418e5fed7e648a84ec8cd73b69a85f307d3d69
+automated-tests	test/unit/feed.service.test.js	automation/test/unit/feed.service.test.js	b40ecf1ad195dd2cf99ff7ab7d124461f29929dbebf9d14588d2df086d4b9e75
+automated-tests	test/unit/follow.service.test.js	automation/test/unit/follow.service.test.js	4e2e518c2a529b53616cdff439af5a3c3ced5a1b4adc1cb6b58deab2e460d9f5
+automated-tests	test/unit/gift.service.test.js	automation/test/unit/gift.service.test.js	d609889e7ced4a91d1a3a5e005dc5d666c48575d438bda480f1e48b4d5b239c3
+automated-tests	test/unit/identity-cutover-migration.test.js	automation/test/unit/identity-cutover-migration.test.js	654d967f7d017836a019a7d6ce06149b387341aa16e92597d779510bff95f05e
+automated-tests	test/unit/jest-junit-reporter.test.js	automation/test/unit/jest-junit-reporter.test.js	adb58a6387b02eb670e38147fe2ae5f9edcbab816a5a11c7efa20f1e42c5725c
+automated-tests	test/unit/live-governance-cutover-migration.test.js	automation/test/unit/live-governance-cutover-migration.test.js	f3fbf986f5630dea035b25db6e945533f9ab9ff12c8ffb4c9eb70d42fa2a9912
+automated-tests	test/unit/live.service.test.js	automation/test/unit/live.service.test.js	331dace0d8346109ef3da13f8df344e6503abb82edf364066c858389a011109e
+automated-tests	test/unit/media-proxy.controller.test.js	automation/test/unit/media-proxy.controller.test.js	95f7375caeb8bb0ade066d37151ff574af8daa03171ff34f9a13f21f4d59d46d
+automated-tests	test/unit/message.service.test.js	automation/test/unit/message.service.test.js	247b9fe0b098bbb1c5f70b1124af1df465531a4771729cf42bbafa79c67904f9
+automated-tests	test/unit/minio.service.test.js	automation/test/unit/minio.service.test.js	94c084ac8a86c1178d3f738533e3873097824775ed933d0702760845f87663c0
+automated-tests	test/unit/report.service.test.js	automation/test/unit/report.service.test.js	b25c0a550f6c9ca8578346e0571e8c3efc7cf19697548d78afd1edb4bd7d26b0
+automated-tests	test/unit/search.service.test.js	automation/test/unit/search.service.test.js	259b057e8bd479b174cbdeb625c89bb3c4470d04ccc2bbc7de50f6fde21313b8
+automated-tests	test/unit/service-docker-build-safety.test.js	automation/test/unit/service-docker-build-safety.test.js	1e5e1b906ece75e67b4fb5fede60dd188ea27734b0b4d7a4ce88b2ead578fc62
+automated-tests	test/unit/user.service.test.js	automation/test/unit/user.service.test.js	e2caca710108f0a2ba65a8b3e417ab428de7f8b843b490438194ff1f001dbcec
+automated-tests	test/unit/video.service.test.js	automation/test/unit/video.service.test.js	6a24a463db6835b993346fc9605407d8c382de4bbe9ecba97511b06524e72e22
+automated-tests	tests/e2e/admin-services-mode.spec.ts	automation/tests/e2e/admin-services-mode.spec.ts	62f8487f86c739fd23a532f0be1e513bae299342fc8ed7d955f11ffc96c5dddc
+automated-tests	tests/e2e/live-services-mode.spec.ts	automation/tests/e2e/live-services-mode.spec.ts	52d829ff04b01c700192627de99ef7a8bfbc368d95e69375690ae92f266a330d
+automated-tests	tests/e2e/public-smoke.spec.ts	automation/tests/e2e/public-smoke.spec.ts	cd01d6fb5e1fea83c831d27143d73e412e34b15ad7e11cfe759d1be93cf41b93
+experiment-data	delivery/04_tests/raw/github-run-33379394312/experiments/fault-recovery.csv	experiments/fault-recovery.csv	8a266dc9954511bca5ad7eac63c7e1a10c926760c755e4f35b50f0d67e193af2
+experiment-data	delivery/04_tests/raw/github-run-33379394312/experiments/hpa-timeline.csv	experiments/hpa-timeline.csv	14347352041303d456bb47a52689e051a9b0771e1825051eee37614fc802075f
+experiment-data	delivery/04_tests/raw/github-run-33379394312/experiments/performance-runs.csv	experiments/performance-runs.csv	79cd5fc59eb2e2962e68bf36632a62bbf4b366d2005c3997f82d3bb674ae25cf
+load-and-resilience	scripts/fault-experiment-probe.mjs	load/fault-experiment-probe.mjs	b42a71b5cd1a79268ef4b4841b93478163d8f01b3f210b92c0d77beaa558c2da
+load-and-resilience	scripts/hpa-experiment.sh	load/hpa-experiment.sh	322d34151da1543942cd8ab64bb50338cd77b082c93dac10ca9665135efc9f61
+load-and-resilience	scripts/performance-compare.mjs	load/performance-compare.mjs	86f690d2a8a1f41ec92c7ce99ac41b795765a898e80a58d86c03e21a98c5a7c5
+evidence-tool	scripts/collect-delivery-raw-evidence.mjs	tools/collect-delivery-raw-evidence.mjs	791dbf91d4ffa0f612233d945469db8d7e91f47bf4ae78af0c74200d903d36a2

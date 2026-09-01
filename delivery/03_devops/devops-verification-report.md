@@ -4,12 +4,14 @@
 
 本报告验证课程交付目录中的 Docker、流水线、Kubernetes/Helm 和数据库脚本是否以实体文件进入 `03_devops`，而不是只通过 `../../` 链接指向仓库其他目录。
 
-## 冻结基线
+## 冻结策略
 
 ```text
 repository: DanTargaryen/VideoPlayer
-source commit: 481d683de584aeb9abaf6bb2df38f025bb514c30
+source selection: current checkout repository sources; generated delivery copies excluded
 package mode: regular-file copies; no symlinks
+text policy: canonical LF for copies and hashes
+binary/raw policy: original bytes
 ```
 
 每个实体副本与原路径的对应关系记录在 [`source-manifest.tsv`](source-manifest.tsv)，整个目录的离线校验记录在 [`checksums.sha256`](checksums.sha256)。
@@ -41,12 +43,14 @@ package mode: regular-file copies; no symlinks
 3. Compose 配置和两套 Kustomize 配置可解析；
 4. 交付包单元测试确认数量、非软链接和本地路径边界；
 5. 项目全量 `npm run test:ci` 通过。
+6. 已提交后的 clean checkout 连续生成两次且 `git diff --exit-code` 通过。
+7. Windows `core.autocrlf=true` clean checkout 的生成器和交付包测试通过。
 
 最终命令与结果应以本次变更的实际自检输出为准，不能用旧流水线状态代替当前工作树验证。
 
 ## 本轮实际自检结果
 
-验证日期：2026-09-01；工作树基线：`main@481d683` + 本轮交付目录变更。
+验证日期：2026-09-01；验证对象：PR #70 的 review 修复提交树。
 
 | 检查 | 结果 | 说明 |
 | --- | --- | --- |
@@ -56,5 +60,7 @@ package mode: regular-file copies; no symlinks
 | Kustomize render | PASS | 单体与微服务 2/2 `kubectl kustomize` 通过 |
 | 交付包单测 | PASS | `node --test test/unit/delivery-package.test.js`：2/2 |
 | 全量质量门禁 | PASS | `npm run test:ci`：284/284，退出码 0 |
+| 普通 clean checkout | PASS | 连续生成 2 次、`git diff --exit-code`、package 2/2，工作树干净 |
+| Windows CRLF 模拟 | PASS | `core.autocrlf=true` clean checkout；连续生成 2 次、diff 0、package 2/2 |
 
 本轮没有构建 Docker 镜像、创建 Kind 集群、执行数据库 migration 或连接共享环境；这些运行级行为对“复制交付材料”变更不必要，状态为 `NOT RUN`。历史远端运行证据保存在 `04_tests/raw/`，不能替代当前工作树的本轮静态/测试门禁。

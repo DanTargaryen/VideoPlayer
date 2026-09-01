@@ -33,6 +33,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Verify standalone delivery regeneration
+        run: |
+          npm run delivery:standalone
+          git diff --exit-code -- delivery/03_devops delivery/04_tests
+
       - name: Run local CI gate
         run: npm run test:ci
 

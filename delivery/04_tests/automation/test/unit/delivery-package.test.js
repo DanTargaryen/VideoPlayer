@@ -6,6 +6,22 @@ const test = require('node:test');
 
 const root = path.resolve(__dirname, '../..');
 const deliveryRoot = path.join(root, 'delivery');
+const rawEvidenceRoot = path.join(deliveryRoot, '04_tests', 'raw');
+const binaryExtensions = new Set([
+  '.gif',
+  '.gz',
+  '.jpeg',
+  '.jpg',
+  '.mp3',
+  '.mp4',
+  '.pdf',
+  '.png',
+  '.pptx',
+  '.tar',
+  '.webm',
+  '.webp',
+  '.zip',
+]);
 
 function markdownFiles(directory) {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -25,8 +41,26 @@ function standaloneFiles(directory) {
   });
 }
 
+function canonicalTextBytes(bytes) {
+  return Buffer.from(bytes.toString('utf8').replace(/\r\n?/g, '\n'), 'utf8');
+}
+
+function sha256Bytes(bytes) {
+  return createHash('sha256').update(bytes).digest('hex');
+}
+
+function isBinaryDeliveryFile(file) {
+  const absolute = path.resolve(file);
+  const rawRelative = path.relative(rawEvidenceRoot, absolute);
+  return (
+    (!rawRelative.startsWith('..') && !path.isAbsolute(rawRelative)) ||
+    binaryExtensions.has(path.extname(absolute).toLowerCase())
+  );
+}
+
 function sha256(file) {
-  return createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+  const bytes = fs.readFileSync(file);
+  return sha256Bytes(isBinaryDeliveryFile(file) ? bytes : canonicalTextBytes(bytes));
 }
 
 function verifyStandalonePackage(packageName, expectedManifestEntries) {
@@ -35,17 +69,23 @@ function verifyStandalonePackage(packageName, expectedManifestEntries) {
     .readFileSync(path.join(packageRoot, 'source-manifest.tsv'), 'utf8')
     .trim()
     .split(/\r?\n/);
-  assert.match(manifestLines[0], /^# repository_base_commit\t[a-f0-9]{40}$/);
-  assert.match(manifestLines[1], /^# source_state\t/);
-  assert.equal(manifestLines[2], 'category\tsource_path\tsource_state\tpackaged_path\tsha256');
+  assert.equal(manifestLines[0], '# generated_by\tscripts/generate-delivery-standalone.mjs');
+  assert.match(manifestLines[1], /^# hash_policy\ttext uses canonical LF bytes/);
+  assert.equal(manifestLines[2], 'category\tsource_path\tpackaged_path\tsha256');
 
   const manifestEntries = manifestLines.slice(3).map((line) => {
-    const [category, sourcePath, sourceState, packagedPath, expectedHash] = line.split('\t');
+    const [category, sourcePath, packagedPath, expectedHash] = line.split('\t');
     assert.ok(category, `invalid ${packageName} manifest category: ${line}`);
     assert.ok(sourcePath, `invalid ${packageName} source path: ${line}`);
-    assert.match(sourceState, /^(?:HEAD|WORKTREE)$/);
     assert.ok(packagedPath, `invalid ${packageName} packaged path: ${line}`);
     assert.match(expectedHash, /^[a-f0-9]{64}$/);
+    assert.equal(
+      sourcePath.startsWith('delivery/03_devops/') ||
+        (sourcePath.startsWith('delivery/04_tests/') &&
+          !sourcePath.startsWith('delivery/04_tests/raw/github-run-33379394312/experiments/')),
+      false,
+      `${packageName} manifest must not use a generated delivery copy as a source: ${sourcePath}`,
+    );
 
     const source = path.resolve(root, sourcePath);
     const packaged = path.resolve(packageRoot, packagedPath);
@@ -60,7 +100,7 @@ function verifyStandalonePackage(packageName, expectedManifestEntries) {
     assert.equal(fs.statSync(packaged).isFile(), true, `packaged file missing: ${packagedPath}`);
     assert.equal(sha256(source), expectedHash, `source hash mismatch: ${sourcePath}`);
     assert.equal(sha256(packaged), expectedHash, `packaged hash mismatch: ${packagedPath}`);
-    return { category, sourcePath, sourceState, packagedPath, expectedHash };
+    return { category, sourcePath, packagedPath, expectedHash };
   });
   assert.equal(manifestEntries.length, expectedManifestEntries);
 
@@ -108,6 +148,11 @@ function verifyStandalonePackage(packageName, expectedManifestEntries) {
 }
 
 test('DEL-03-04 packages contain standalone DevOps, tests, load scripts, reports, and data', () => {
+  assert.equal(
+    sha256Bytes(canonicalTextBytes(Buffer.from('alpha\r\nbeta\r\n'))),
+    sha256Bytes(canonicalTextBytes(Buffer.from('alpha\nbeta\n'))),
+    'text hashes must be stable across CRLF and LF checkouts',
+  );
   const devopsEntries = verifyStandalonePackage('03_devops', 119);
   const testEntries = verifyStandalonePackage('04_tests', 92);
 
@@ -280,7 +325,7 @@ test('DEL-01 package is complete, linked, renderable, and honest about human evi
     const match = line.match(/^([a-f0-9]{64})  (.+)$/);
     assert.ok(match, `invalid source checksum line: ${line}`);
     const file = path.join(deliveryRoot, '01_source', match[2]);
-    assert.equal(createHash('sha256').update(fs.readFileSync(file)).digest('hex'), match[1]);
+    assert.equal(sha256(file), match[1]);
   }
 
   for (const port of ['3100', '3101', '3102', '3103', '3104', '9000', '9001', '8080', '1985']) {
@@ -308,7 +353,7 @@ test('DEL-01 package is complete, linked, renderable, and honest about human evi
     const match = line.match(/^([a-f0-9]{64})  (.+)$/);
     assert.ok(match, `invalid PDF checksum line: ${line}`);
     const file = path.join(pdfDirectory, match[2]);
-    assert.equal(createHash('sha256').update(fs.readFileSync(file)).digest('hex'), match[1]);
+    assert.equal(sha256(file), match[1]);
   }
   const supplementalPdfQa = JSON.parse(
     fs.readFileSync(path.join(deliveryRoot, 'supplemental-pdf-qa.json'), 'utf8'),
@@ -326,7 +371,7 @@ test('DEL-01 package is complete, linked, renderable, and honest about human evi
     const bytes = fs.readFileSync(file);
     assert.ok(bytes.length > 100_000, `${match[2]} must be a non-trivial PDF`);
     assert.equal(bytes.subarray(0, 4).toString(), '%PDF', `${match[2]} must have a PDF header`);
-    assert.equal(createHash('sha256').update(bytes).digest('hex'), match[1]);
+    assert.equal(sha256(file), match[1]);
   }
 
   const rawDirectory = path.join(deliveryRoot, '04_tests', 'raw', 'github-run-33379394312');
@@ -340,16 +385,17 @@ test('DEL-01 package is complete, linked, renderable, and honest about human evi
     assert.ok(match, `invalid checksum line: ${line}`);
     const file = path.join(rawDirectory, match[2]);
     assert.equal(fs.existsSync(file), true, `raw evidence file missing: ${match[2]}`);
-    assert.equal(createHash('sha256').update(fs.readFileSync(file)).digest('hex'), match[1]);
+    assert.equal(sha256(file), match[1]);
   }
   assert.match(managementPlatform, /软工小学期进度文档/);
   assert.match(managementPlatform, /ECtAw1oO9ifu2MkC673ctMk4nif/);
   assert.match(managementPlatform, /8\.25.*8\.31/s);
   for (const screenshot of ['20260831-management-platform.png', '2026-8-25-progress.png']) {
-    const bytes = fs.readFileSync(path.join(deliveryRoot, '05_management', screenshot));
+    const screenshotPath = path.join(deliveryRoot, '05_management', screenshot);
+    const bytes = fs.readFileSync(screenshotPath);
     assert.ok(bytes.length > 10_000, `${screenshot} must be a non-trivial screenshot`);
     assert.equal(bytes.subarray(0, 8).toString('hex'), '89504e470d0a1a0a', `${screenshot} must be PNG`);
     assert.match(managementPlatform, new RegExp(screenshot.replace('.', '\\.')));
-    assert.match(managementPlatform, new RegExp(createHash('sha256').update(bytes).digest('hex')));
+    assert.match(managementPlatform, new RegExp(sha256(screenshotPath)));
   }
 });

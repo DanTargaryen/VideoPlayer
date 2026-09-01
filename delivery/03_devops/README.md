@@ -2,7 +2,7 @@
 
 > 本目录不再只是仓库索引。Docker、流水线、Kubernetes/Kustomize、数据库和部署/回滚相关文件均以普通文件复制在本目录内；单独复制或压缩整个 `delivery/` 后仍可离线审阅。
 >
-> 实体文件冻结来源：`main@481d683de584aeb9abaf6bb2df38f025bb514c30`。本目录不使用软链接，也不包含真实 Secret。
+> 实体文件由当前 PR checkout 中的仓库源路径确定性生成；生成器明确排除已生成的 `delivery/03_devops/**` 和非 raw 的 `delivery/04_tests/**`，不会递归复制自身。本目录不使用软链接，也不包含真实 Secret。
 
 ## 目录内容
 
@@ -40,7 +40,7 @@
 shasum -a 256 -c checksums.sha256
 ```
 
-校验通过表示实体文件与本次交付冻结版本一致。`source-manifest.tsv` 用于在完整仓库中核对“原路径 → 交付路径”；不需要访问仓库即可阅读本目录中的实体副本。
+校验通过表示实体文件与本次交付冻结版本一致。文本副本和文本哈希统一使用 LF，Windows `core.autocrlf=true` checkout 也能稳定复核；二进制与 raw evidence 仍按原始字节校验。`source-manifest.tsv` 用于在完整仓库中核对“原路径 → 交付路径”；不需要访问仓库即可阅读本目录中的实体副本。
 
 ## 执行边界
 
