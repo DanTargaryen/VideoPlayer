@@ -231,8 +231,10 @@ jobs:
           MICROSERVICE_COMPOSE_SCOPE: browser
           GIT_SHA: ${{ github.sha }}
         run: |
-          command -v ffmpeg
-          export FFMPEG_PATH=ffmpeg
+          export FFMPEG_PATH="$(node -e "process.stdout.write(require('ffmpeg-static'))")"
+          test -f "$FFMPEG_PATH"
+          chmod +x "$FFMPEG_PATH"
+          "$FFMPEG_PATH" -version > /dev/null
           bash scripts/compose-microservices-smoke.sh
 
       - name: Deploy all Git SHA images to isolated Kind
