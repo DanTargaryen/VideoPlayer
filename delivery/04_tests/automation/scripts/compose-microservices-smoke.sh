@@ -25,6 +25,7 @@ GATEWAY_ROUTE_MODE=${GATEWAY_ROUTE_MODE:-services}
 GATEWAY_READ_CUTOVER=${GATEWAY_READ_CUTOVER:-all}
 GATEWAY_WRITE_CUTOVER=${GATEWAY_WRITE_CUTOVER:-all}
 MICROSERVICE_COMPOSE_SCOPE=${MICROSERVICE_COMPOSE_SCOPE:-full}
+MONOLITH_UPSTREAM_HOST_PORT=${MONOLITH_UPSTREAM_HOST_PORT:-3000}
 
 if [[ "$MICROSERVICE_COMPOSE_SCOPE" != "full" && "$MICROSERVICE_COMPOSE_SCOPE" != "browser" ]]; then
   echo "MICROSERVICE_COMPOSE_SCOPE must be full or browser." >&2
@@ -106,6 +107,7 @@ export CONTENT_MINIO_HOST_PORT CONTENT_MINIO_CONSOLE_HOST_PORT
 export LIVE_REWARD_DATABASE_NAME LIVE_REWARD_DATABASE_USER LIVE_REWARD_DATABASE_PASSWORD LIVE_REWARD_MYSQL_ROOT_PASSWORD
 export GOVERNANCE_DATABASE_NAME GOVERNANCE_DATABASE_USER GOVERNANCE_DATABASE_PASSWORD GOVERNANCE_MYSQL_ROOT_PASSWORD
 export GATEWAY_ROUTE_MODE GATEWAY_READ_CUTOVER GATEWAY_WRITE_CUTOVER
+export MONOLITH_UPSTREAM_HOST_PORT
 compose config --quiet
 if [[ "${MICROSERVICE_COMPOSE_SKIP_BUILD:-false}" == "true" ]]; then
   compose up -d
@@ -337,13 +339,13 @@ compose exec -T content-mysql \
   mysql -ucontent_media -p"$CONTENT_DB_PASSWORD" content_media \
   -e "UPDATE Video SET status = 'PUBLISHED' WHERE id = '1'"
 monolith_mock_log=$(mktemp -t videoplayer-cutover-monolith.XXXXXX.log)
-node "$ROOT_DIR/scripts/read-cutover-monolith.mjs" >"$monolith_mock_log" 2>&1 &
+PORT="$MONOLITH_UPSTREAM_HOST_PORT" node "$ROOT_DIR/scripts/read-cutover-monolith.mjs" >"$monolith_mock_log" 2>&1 &
 monolith_mock_pid=$!
 for _attempt in $(seq 1 30); do
-  if curl -fsS 'http://127.0.0.1:3000/health' >/dev/null 2>&1; then break; fi
+  if curl -fsS "http://127.0.0.1:$MONOLITH_UPSTREAM_HOST_PORT/health" >/dev/null 2>&1; then break; fi
   sleep 1
 done
-if ! curl -fsS 'http://127.0.0.1:3000/health' >/dev/null 2>&1; then
+if ! curl -fsS "http://127.0.0.1:$MONOLITH_UPSTREAM_HOST_PORT/health" >/dev/null 2>&1; then
   cat "$monolith_mock_log" >&2
   exit 1
 fi
@@ -528,8 +530,24 @@ for _attempt in $(seq 1 60); do
 done
 FAULT_MODE='minio-recovery' FAULT_USER_TOKEN="$identity_token" node "$ROOT_DIR/scripts/fault-experiment-probe.mjs"
 
+# PERF-01 compares equivalent data, not merely responses with the same
+# cardinality. Normalize both isolated targets to one shared published fixture
+# after REG/fault probes have completed and before any warmup request.
+perf_fixture_title='PERF01 shared published fixture'
+docker exec "$monolith_reg_container" \
+  mysql -uroot -p"$MONOLITH_REG_MYSQL_ROOT_PASSWORD" "$MONOLITH_REG_DATABASE_NAME" \
+  -e "UPDATE Video SET status = CASE WHEN id = 1 THEN 'PUBLISHED' ELSE 'DRAFT' END; UPDATE Video SET title = '$perf_fixture_title', description = 'Equivalent three-endpoint performance fixture' WHERE id = 1"
+compose exec -T content-mysql \
+  mysql -ucontent_media -p"$CONTENT_DB_PASSWORD" content_media \
+  -e "UPDATE Video SET status = CASE WHEN id = '1' THEN 'PUBLISHED' ELSE 'DRAFT' END; UPDATE Video SET title = '$perf_fixture_title', description = 'Equivalent three-endpoint performance fixture' WHERE id = '1'"
+test "$(docker exec "$monolith_reg_container" mysql -N -uroot -p"$MONOLITH_REG_MYSQL_ROOT_PASSWORD" "$MONOLITH_REG_DATABASE_NAME" -e "SELECT COUNT(*) FROM Video WHERE status = 'PUBLISHED'")" = '1'
+test "$(compose exec -T content-mysql mysql -N -ucontent_media -p"$CONTENT_DB_PASSWORD" content_media -e "SELECT COUNT(*) FROM Video WHERE status = 'PUBLISHED'")" = '1'
+
 PERF_MONOLITH_BASE_URL='http://127.0.0.1:3200' \
 PERF_MICROSERVICE_BASE_URL='http://127.0.0.1:3100' \
+PERF_ENDPOINTS='recommend,search,video-detail' \
+PERF_SEARCH_KEYWORD="$perf_fixture_title" \
+PERF_VIDEO_ID='1' \
 PERF_ROUNDS='3' \
 PERF_REQUESTS='240' \
 PERF_CONCURRENCY='16' \

@@ -22,7 +22,7 @@
 
 | 实验 | 实体脚本 | 原始数据 |
 | --- | --- | --- |
-| 性能三轮对比 | [`load/performance-compare.mjs`](load/performance-compare.mjs) | [`experiments/performance-runs.csv`](experiments/performance-runs.csv) |
+| 推荐/搜索/详情三业务性能对比 | [`load/performance-compare.mjs`](load/performance-compare.mjs) | 最新：[`experiments/performance-three-endpoint-runs.csv`](experiments/performance-three-endpoint-runs.csv)；历史单接口：[`experiments/performance-runs.csv`](experiments/performance-runs.csv) |
 | HPA 扩缩容 | [`load/hpa-experiment.sh`](load/hpa-experiment.sh) | [`experiments/hpa-timeline.csv`](experiments/hpa-timeline.csv) |
 | MySQL/SRS/MinIO 故障恢复 | [`load/fault-experiment-probe.mjs`](load/fault-experiment-probe.mjs) | [`experiments/fault-recovery.csv`](experiments/fault-recovery.csv) |
 
@@ -70,3 +70,20 @@ shasum -a 256 -c checksums.sha256
 | `core.autocrlf=true` clean checkout | PASS；连续生成 2 次、diff 0、package 2/2 |
 
 本轮全量统计包括 requirements 132、Backend 16、Frontend 24、shared-contracts 9、identity 5、content 34、live 18、governance 29、Gateway 13、regression 4，合计 284。API 集成、浏览器 E2E、镜像构建和真实 Kind 部署本轮没有重跑，状态为 `NOT RUN`；相应历史原始运行结果只按其 `run 33379394312 / head c909875` 身份陈述。
+
+## PERF-01 三业务最终复测
+
+验证日期：2026-09-01；验证基线：`main@27f9425c1abc421ec1ed994ae5e077e1ab5957b5` + `perf/PERF-01-three-endpoint-matrix`。
+
+| 检查 | 结果 |
+| --- | --- |
+| 三业务矩阵 | 推荐、搜索、视频详情；单体/Gateway 各 3 轮，每轮 240 请求，并发 16 |
+| 业务等价 Gate | 三接口两目标均返回同一 `id:title` 签名；PASS |
+| 正式计时请求 | 4320/4320 HTTP 200；0 error；全部单轮 p95 < 1000ms |
+| 完整 Compose | services-mode browser 7/7；双目标 REG 12/12；MySQL/SRS/MinIO failure+recovery；rollback；cleanup；PASS |
+| 版本化镜像 | 最新完整 SHA 的 backend/frontend、五服务和四 migration 镜像共 11 个，逐个 build/inspect PASS |
+| 独立交付 | 119/95 来源副本；两次生成整体 hash 一致；主证据与交付 CSV 一致；03/04 checksum PASS |
+| 定点测试 | 交付包 + 性能矩阵 7/7 PASS |
+| `npm run test:ci` | 286/286 PASS，退出码 0 |
+
+最终全量统计包括 Node/规则 134、Backend 16、Frontend 24、shared-contracts 9、identity 5、content 34、live 18、governance 29、Gateway 13、regression 4，合计 286。本轮没有新建 Kind 集群；Kind/全路由远端闭环由已合并 PR #73 保持独立证据，本轮不冒充重复执行。

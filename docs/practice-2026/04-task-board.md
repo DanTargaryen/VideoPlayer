@@ -46,7 +46,7 @@
 | REG-01 | 全接口与全 UC 回归 | E + owner | 9/2 / DONE | 同一 runner 对单体和 Gateway 各跑 UC01–UC06 | PR #56；12/12 PASS |
 | EXP-01 | HPA 实验 | A + C | 9/2 / DONE | 压力升高扩容、下降缩容 | `13-resilience-performance-experiments.md`；1→3→2→1 Pod/CPU 时间线 |
 | EXP-02 | 故障处理实验 | D + A | 9/2 / DONE | 依赖故障降级，其他服务健康 | `fault-experiment-probe.mjs`；MySQL/SRS/MinIO failure+recovery |
-| PERF-01 | 单体/微服务性能对比 | A + C + E | 9/3 / DONE | 同机/同数据/同脚本，至少 3 次 | `performance-compare.mjs`；3 轮原始值与聚合分析 |
+| PERF-01 | 单体/微服务性能对比 | A + C + E | 9/3 / DONE | 推荐/搜索/详情每接口同机/同逻辑数据/同脚本，单体与 Gateway 各至少 3 轮 | `performance-compare.mjs`；18 行原始值、4320 请求与逐接口聚合分析 |
 | DEL-01 | 交付与答辩 | E + 全员 | 9/3 / REPOSITORY COMPLETE · HUMAN PENDING | 六目录、Manifest、README、PDF、原始报告、PPT/脚本和管理平台地址完成；非作者复现、全员确认、每日截图、录屏和签字待真人补 | `delivery/`、7 PDFs/99 页、run 33379394312 原始包、飞书平台、录屏/签字待补 |
 
 ## 4. 第二阶段已确认分工

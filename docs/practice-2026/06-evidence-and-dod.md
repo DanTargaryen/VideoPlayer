@@ -70,7 +70,7 @@ YYYYMMDD-任务ID-证据类型-简短说明.ext
 | 2026-08-31 | MS-CUTOVER-CONTENT-PUBLISHING | [#54](https://github.com/DanTargaryen/VideoPlayer/pull/54) | [33344821161](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33344821161) | MinIO 上传、投稿、审核历史、全写切流 |
 | 2026-08-31 | MS-CUTOVER-LIVE-GOVERNANCE | [#55](https://github.com/DanTargaryen/VideoPlayer/pull/55) | [33352991611](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33352991611) | 双迁移、UC05/06、SSE 安全、rollback |
 | 2026-08-31 | REG-01 | [#56](https://github.com/DanTargaryen/VideoPlayer/pull/56) | [33359785882](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33359785882) | 单体 6/6 + Gateway 6/6 |
-| 2026-08-31 | EXP-01/02 + PERF-01 | [#57](https://github.com/DanTargaryen/VideoPlayer/pull/57) | [33367170484](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33367170484) | HPA、三故障恢复、1440 请求 0 error |
+| 2026-08-31 / 2026-09-01 | EXP-01/02 + PERF-01 | [#57](https://github.com/DanTargaryen/VideoPlayer/pull/57) + 三接口本地复测 | [33367170484](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33367170484) + `performance-three-endpoint-runs.csv` | HPA、三故障恢复；推荐/搜索/详情 4320 请求 0 error |
 | 2026-08-31 | DEL-01 技术交付 | [#58](https://github.com/DanTargaryen/VideoPlayer/pull/58) | [33372482927](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33372482927) | 最终 head 3/3；283/283、E2E 3/3 + 2 显式 skip、SHA 镜像、Kind、2 Artifacts、cleanup；merged `993d699` |
 
 详细本地失败、修复、测试计数、环境和 cleanup 见 [`00-progress.md`](00-progress.md)。
@@ -96,7 +96,7 @@ UC01–UC05 模型源见 [`14-uc01-05-three-layer-models.md`](14-uc01-05-three-l
 | EXP-02 / MySQL | live DB 依赖停止/恢复 | `scripts/fault-experiment-probe.mjs` | readiness `503→200` | PASS |
 | EXP-02 / SRS | 开播依赖停止/恢复 | 同上 | start `503→200`，Session ENDED | PASS |
 | EXP-02 / MinIO | 上传依赖停止/恢复 | 同上 | upload `500→200` | PASS |
-| PERF-01 | 同机/同数据/并发 16/各三轮 | `scripts/performance-compare.mjs` | p95 中位 `9.44/15.57 ms`；1440/1440 200 | PASS |
+| PERF-01 | 推荐/搜索/详情；同机/同逻辑数据/并发 16/每接口两目标各三轮 | `scripts/performance-compare.mjs`；`docs/practice-2026/evidence/performance-three-endpoint-runs.csv` | 4320/4320 200；推荐 p95 `+132.0%`，搜索 `-21.0%`，详情 `+146.3%` | PASS；2 下降 / 1 提升，整体 mixed 偏下降 |
 
 完整时间、官方校验和、每轮结果、失败过程和清理记录见 [`13-resilience-performance-experiments.md`](13-resilience-performance-experiments.md)。
 
