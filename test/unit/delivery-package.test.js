@@ -125,7 +125,7 @@ test('DEL-01 package is complete, linked, renderable, and honest about human evi
   const pdfQa = JSON.parse(fs.readFileSync(path.join(pdfDirectory, 'qa.json'), 'utf8'));
   assert.equal(pdfQa.status, 'PASS');
   assert.equal(pdfQa.total_pages, 99);
-  for (const line of fs.readFileSync(path.join(pdfDirectory, 'checksums.sha256'), 'utf8').trim().split('\n')) {
+  for (const line of fs.readFileSync(path.join(pdfDirectory, 'checksums.sha256'), 'utf8').trim().split(/\r?\n/)) {
     const match = line.match(/^([a-f0-9]{64})  (.+)$/);
     assert.ok(match, `invalid PDF checksum line: ${line}`);
     const file = path.join(pdfDirectory, match[2]);
@@ -140,7 +140,7 @@ test('DEL-01 package is complete, linked, renderable, and honest about human evi
   for (const line of fs
     .readFileSync(path.join(deliveryRoot, 'supplemental-pdf-checksums.sha256'), 'utf8')
     .trim()
-    .split('\n')) {
+    .split(/\r?\n/)) {
     const match = line.match(/^([a-f0-9]{64})  (.+)$/);
     assert.ok(match, `invalid supplemental PDF checksum line: ${line}`);
     const file = path.join(deliveryRoot, match[2]);
@@ -151,7 +151,7 @@ test('DEL-01 package is complete, linked, renderable, and honest about human evi
   }
 
   const rawDirectory = path.join(deliveryRoot, '04_tests', 'raw', 'github-run-33379394312');
-  const checksumLines = fs.readFileSync(path.join(rawDirectory, 'checksums.sha256'), 'utf8').trim().split('\n');
+  const checksumLines = fs.readFileSync(path.join(rawDirectory, 'checksums.sha256'), 'utf8').trim().split(/\r?\n/);
   assert.ok(checksumLines.length >= 18, 'raw evidence package must checksum every delivered report');
   for (const line of checksumLines) {
     const match = line.match(/^([a-f0-9]{64})  (.+)$/);
