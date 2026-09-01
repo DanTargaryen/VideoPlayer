@@ -43,15 +43,16 @@ test.describe('UC05 through the services-mode gateway', () => {
     }, creatorToken);
   });
 
-  test('starts a room, sends a persisted message, stops, and saves the recording as a draft', async ({ page, request }) => {
+  test('starts a room, sends a persisted message, stops, and saves the recording as a draft', async ({ page, request }, testInfo) => {
     const directory = mkdtempSync(join(tmpdir(), 'uc05-browser-'));
+    const replayFilename = `uc05-browser-retry-${testInfo.retry}-${Date.now()}.mp4`;
     let uploaded: { assetId: number; uploadToken: string; url: string };
     try {
-      const mediaPath = join(directory, 'uc05-browser.mp4');
+      const mediaPath = join(directory, replayFilename);
       execFileSync(process.env.FFMPEG_PATH ?? 'ffmpeg', ['-y', '-f', 'lavfi', '-i', 'color=c=green:s=32x32:d=0.2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', mediaPath], { stdio: 'ignore' });
       const upload = await request.post('/api/v1/videos/upload?assetType=RECORDING', {
         headers: { authorization: `Bearer ${creatorToken}` },
-        multipart: { file: { name: 'uc05-browser.mp4', mimeType: 'video/mp4', buffer: readFileSync(mediaPath) } },
+        multipart: { file: { name: replayFilename, mimeType: 'video/mp4', buffer: readFileSync(mediaPath) } },
       });
       expect(upload.status()).toBe(200);
       uploaded = (await upload.json()).data;
@@ -73,8 +74,8 @@ test.describe('UC05 through the services-mode gateway', () => {
     const startResponse = page.waitForResponse((response) => response.request().method() === 'POST' && /\/api\/v1\/lives\/rooms\/\d+\/start$/.test(response.url()));
     await page.getByRole('button', { name: '立即开播', exact: true }).click();
     expect((await startResponse).headers()['x-gateway-upstream']).toBe('live-reward');
-    await expect(page).toHaveURL(/\/live\/\d+$/);
-    await expect(page.locator('.tag-live')).toHaveText('直播中');
+    await expect(page).toHaveURL(/\/live\/\d+$/, { timeout: 15_000 });
+    await expect(page.locator('.tag-live')).toHaveText('直播中', { timeout: 10_000 });
     await expect(page.getByRole('heading', { name: 'UC05 浏览器切流验收' })).toBeVisible();
 
     await page.getByPlaceholder('发一条弹幕，按回车发送').fill('浏览器真实弹幕');

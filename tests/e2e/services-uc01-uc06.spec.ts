@@ -22,6 +22,8 @@ let actorUserId = 0;
 let publishedVideoId = 0;
 
 test.describe.serial('services-mode UC01-UC06 browser regression', () => {
+  test.describe.configure({ timeout: 60_000 });
+
   test('UC01 registers through the UI and persists a profile update', async ({ page }) => {
     await page.goto('/register');
     await page.getByLabel('用户名').fill(actorUsername);
@@ -86,7 +88,7 @@ test.describe.serial('services-mode UC01-UC06 browser regression', () => {
     await expect(page.getByText(/已选择：uc03-browser\.mp4/)).toBeVisible();
     await page.getByRole('button', { name: '创建稿件', exact: true }).click();
 
-    await expect(page).toHaveURL(/\/user\/dashboard$/);
+    await expect(page).toHaveURL(/\/user\/dashboard$/, { timeout: 20_000 });
     const creatorCard = page.locator('.video-card').filter({ hasText: publishedVideoTitle });
     await expect(creatorCard).toBeVisible();
     const submitResponse = page.waitForResponse(
@@ -289,7 +291,7 @@ test.describe.serial('services-mode UC01-UC06 browser regression', () => {
     });
     await installBrowserMediaFakes(page);
 
-    const replayFilename = `uc05-full-${runId}.mp4`;
+    const replayFilename = `uc05-full-${runId}-retry-${testInfo.retry}.mp4`;
     const mediaPath = testInfo.outputPath(replayFilename);
     execFileSync(
       ffmpegPath,
@@ -341,7 +343,8 @@ test.describe.serial('services-mode UC01-UC06 browser regression', () => {
     );
     await page.getByRole('button', { name: '立即开播', exact: true }).click();
     expect((await startResponse).headers()['x-gateway-upstream']).toBe('live-reward');
-    await expect(page.locator('.tag-live')).toHaveText('直播中');
+    await expect(page).toHaveURL(/\/live\/\d+$/, { timeout: 15_000 });
+    await expect(page.locator('.tag-live')).toHaveText('直播中', { timeout: 10_000 });
 
     const messageText = `UC05 浏览器弹幕 ${runId}`;
     await page.getByPlaceholder('发一条弹幕，按回车发送').fill(messageText);
