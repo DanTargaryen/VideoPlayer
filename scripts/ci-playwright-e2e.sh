@@ -38,7 +38,7 @@ wait_for_http "http://127.0.0.1:$BACKEND_PORT/api/v1/health" 90
 wait_for_http "http://127.0.0.1:$FRONTEND_PORT/api/v1/health" 90
 
 PLAYWRIGHT_JUNIT_OUTPUT_FILE="$playwright_junit_report" \
-  npm run test:e2e -- --reporter=line,junit
+  npm run test:e2e:public -- --reporter=line,junit
 
 if [[ ! -s "$playwright_junit_report" ]] || ! grep -q '<testsuite' "$playwright_junit_report"; then
   echo "Missing or invalid Playwright JUnit report: $playwright_junit_report" >&2
