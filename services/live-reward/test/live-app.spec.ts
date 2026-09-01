@@ -31,7 +31,10 @@ function trustedUserHeaders(id = 7, nickname = 'anchor', requestId = `trusted-${
 }
 
 afterEach(async () => {
-  await Promise.all(servers.splice(0).map((server) => new Promise<void>((resolve) => server.close(() => resolve()))));
+  await Promise.all(servers.splice(0).map((server) => new Promise<void>((resolve) => {
+    server.closeAllConnections();
+    server.close(() => resolve());
+  })));
   delete process.env.SERVICE_JWT_SECRET;
 });
 
