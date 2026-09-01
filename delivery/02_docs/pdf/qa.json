@@ -10,6 +10,7 @@
     "all_words_inside_page_bounds": true,
     "rendered_page_count_matches_pdf": true,
     "supplemental_pdfs_pass": true,
+    "course_selected_pdfs_pass": true,
     "visual_review": "7 all-page montages and 7 representative original-size pages inspected; no clipping, overlap, black glyph blocks, or unreadable tables observed"
   },
   "files": [
@@ -107,5 +108,7 @@
       "rendered_pages": 14,
       "visual_review": "PASS (all pages rendered and inspected)"
     }
-  ]
+  ],
+  "course_selected_pdf_count": 5,
+  "course_selected_total_pages": 212
 }

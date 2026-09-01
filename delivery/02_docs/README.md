@@ -22,7 +22,24 @@
 - [单体 Smoke 清单](../../docs/practice-2026/03-smoke-checklist.md)
 - [证据索引、统一 DoD 与 UC 追溯](../../docs/practice-2026/06-evidence-and-dod.md)
 
-## PDF 交付件
+## 课程指定 5 份 PDF
+
+以下根目录 PDF 是课程指定提交集，共 5 份、212 页；它们作为已跟踪提交件保留，不替换下方由仓库脚本生成的 7-PDF 技术包。
+
+| PDF | 页数 | 对应可编辑/证据源 |
+| --- | ---: | --- |
+| [`需求说明书.pdf`](需求说明书.pdf) | 68 | [`docs/软件需求规格说明书-V1.md`](../../docs/软件需求规格说明书-V1.md) |
+| [`软件概要设计说明书.pdf`](软件概要设计说明书.pdf) | 39 | [`docs/软件概要设计说明书-V1.md`](../../docs/软件概要设计说明书-V1.md) |
+| [`详细设计说明书.pdf`](详细设计说明书.pdf) | 71 | [`docs/软件详细设计说明书-V1.md`](../../docs/软件详细设计说明书-V1.md) |
+| [`测试报告.pdf`](测试报告.pdf) | 32 | [`06-evidence-and-dod.md`](../../docs/practice-2026/06-evidence-and-dod.md)、[`10-e2e-test-spec.md`](../../docs/practice-2026/10-e2e-test-spec.md)、[`16-cloud-native-experiment-report.md`](../../docs/practice-2026/16-cloud-native-experiment-report.md) |
+| [`追溯表.pdf`](追溯表.pdf) | 2 | [`06-evidence-and-dod.md`](../../docs/practice-2026/06-evidence-and-dod.md) |
+
+- 程序/视觉 QA：[`course-selected-qa.json`](course-selected-qa.json)
+- SHA-256：[`course-selected-checksums.sha256`](course-selected-checksums.sha256)
+- 验证入口：`python3 scripts/verify-delivery-pdfs.py`
+- 这 5 份 PDF 是课程选定导出件；仓库 verifier 验证其内容可提取、无空白页/越界字、页数、渲染与 checksum，但不宣称可从单一 Markdown 字节级重建。
+
+## 仓库生成的 7-PDF 技术包
 
 - [PDF 总索引与页数/源文件映射](pdf/README.md)
 - 需求、概要设计、详细设计、数据库、API、测试/追溯和三层模型共 7 份 PDF、99 页。
@@ -40,6 +57,8 @@
 ```bash
 node test/run-unit-tests.js
 npm run test:regression
+python3 scripts/verify-delivery-pdfs.py
+(cd delivery/02_docs && shasum -a 256 -c course-selected-checksums.sha256)
 rg -n 'NOT RUN|BLOCKED|待补|待确认' docs/practice-2026 delivery
 ```
 

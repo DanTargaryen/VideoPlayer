@@ -255,6 +255,7 @@ test('DEL-01 package is complete, linked, renderable, and honest about human evi
   assert.ok(pptx.includes(Buffer.from('ppt/slides/slide10.xml')), 'final PPTX must contain ten slides');
 
   const packageReadme = fs.readFileSync(path.join(deliveryRoot, 'README.md'), 'utf8');
+  const pdfDocsReadme = fs.readFileSync(path.join(deliveryRoot, '02_docs', 'README.md'), 'utf8');
   const requirementsAudit = fs.readFileSync(path.join(deliveryRoot, 'requirements-audit.md'), 'utf8');
   const contribution = fs.readFileSync(
     path.join(deliveryRoot, '05_management', 'contribution-weight-confirmation.md'),
@@ -403,6 +404,48 @@ test('DEL-01 package is complete, linked, renderable, and honest about human evi
     assert.equal(bytes.subarray(0, 4).toString(), '%PDF', `${match[2]} must have a PDF header`);
     assert.equal(sha256(file), match[1]);
   }
+
+  const courseSelectedDirectory = path.join(deliveryRoot, '02_docs');
+  const courseSelectedFiles = fs
+    .readdirSync(courseSelectedDirectory)
+    .filter((file) => file.endsWith('.pdf'))
+    .sort();
+  assert.deepEqual(courseSelectedFiles, [
+    '测试报告.pdf',
+    '详细设计说明书.pdf',
+    '软件概要设计说明书.pdf',
+    '追溯表.pdf',
+    '需求说明书.pdf',
+  ].sort());
+  const courseSelectedQa = JSON.parse(
+    fs.readFileSync(path.join(courseSelectedDirectory, 'course-selected-qa.json'), 'utf8'),
+  );
+  assert.equal(courseSelectedQa.status, 'PASS');
+  assert.equal(courseSelectedQa.pdf_count, 5);
+  assert.equal(courseSelectedQa.total_pages, 212);
+  assert.equal(courseSelectedQa.files.length, 5);
+  for (const expected of courseSelectedQa.files) {
+    const file = path.join(courseSelectedDirectory, expected.file);
+    const bytes = fs.readFileSync(file);
+    assert.ok(bytes.length > 100_000, `${expected.file} must be a non-trivial course PDF`);
+    assert.equal(bytes.subarray(0, 4).toString(), '%PDF', `${expected.file} must have a PDF header`);
+    assert.equal(bytes.length, expected.bytes, `${expected.file} QA byte size must match the PDF`);
+    assert.equal(expected.pages, expected.rendered_pages, `${expected.file} must render every page`);
+    assert.deepEqual(expected.blank_pages, [], `${expected.file} must not contain blank pages`);
+    assert.deepEqual(expected.out_of_bounds_words, [], `${expected.file} must not contain out-of-bounds words`);
+  }
+  const courseSelectedChecksumLines = fs
+    .readFileSync(path.join(courseSelectedDirectory, 'course-selected-checksums.sha256'), 'utf8')
+    .trim()
+    .split(/\r?\n/);
+  assert.equal(courseSelectedChecksumLines.length, 5);
+  for (const line of courseSelectedChecksumLines) {
+    const match = line.match(/^([a-f0-9]{64})  (.+)$/);
+    assert.ok(match, `invalid course-selected checksum line: ${line}`);
+    assert.equal(sha256(path.join(courseSelectedDirectory, match[2])), match[1]);
+  }
+  assert.match(pdfDocsReadme, /课程指定 5 份 PDF/);
+  assert.match(pdfDocsReadme, /course-selected-qa\.json/);
 
   const rawDirectory = path.join(deliveryRoot, '04_tests', 'raw', 'github-run-33379394312');
   const checksumLines = fs
