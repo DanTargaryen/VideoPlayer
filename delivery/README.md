@@ -11,7 +11,7 @@
 | 目录 | 内容 | 仓库状态 |
 | --- | --- | --- |
 | [`01_source`](01_source/README.md) | 公开仓库清单、改造前后 ref、服务版本、PR/commit 与校验和 | 技术索引完成 |
-| [`02_docs`](02_docs/README.md) | 需求、用例、三层模型、设计、追溯与 PDF | 7 份 PDF / 99 页 + 可编辑源 |
+| [`02_docs`](02_docs/README.md) | 需求、用例、三层模型、设计、追溯与 PDF | 课程指定 5 份 / 212 页 + 仓库生成 7 份 / 99 页 + 可编辑源 |
 | [`03_devops`](03_devops/README.md) | Docker、CI/CD、K8s、migration、部署与回滚 | 119 份实体副本 + 来源 Manifest + SHA-256 |
 | [`04_tests`](04_tests/README.md) | Unit/API/E2E/REG、HPA、故障、性能与原始报告 | 95 份测试/实验副本 + 19 份 raw evidence + SHA-256 |
 | [`05_management`](05_management/README.md) | 飞书管理平台、任务板、站会、贡献和权重确认 | 平台地址已验证；每日截图/签字待补 |
