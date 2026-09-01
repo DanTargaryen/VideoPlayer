@@ -256,7 +256,7 @@
   - [x] 用户于 2026-08-31 提供五名成员/学号表，并授权按表格行顺序默认映射 A/林明、B/刘钟屹、C/李晓萌、D/张壮志、E/王一涵；该映射已进入任务板、ARCH、第二阶段 TODO 和交付管理索引，不替代成员本人签字。
   - [x] 按默认 A–E 映射补齐现场演示与备用录屏的分段负责人：A 负责架构/平台/收口，B 负责身份，C 负责内容，D 负责直播，E 负责治理/REG/证据；实际讲解人、操作者、录制人和计时人仍需在演练后填写。
   - [x] 用户提供飞书项目管理平台核心地址；只读验证页面标题“软工小学期进度文档”、8.25–8.31 日期索引、8.31 技术进度、Git 仓库及项目文档/图表/用例/追溯/微服务/最终材料入口。每日站会全文和看板/统计截图原件仍待导出，未提前标记完成。
-  - [x] 补齐任务书可自动交付缺口：完整版本/PR/72 commit Manifest；README 环境/端口/health/测试账号/Seed；最终 run 三个完整 job log、Playwright/Kind 原始文件和实验 CSV；7 份主文档 PDF/99 页、技术总结/待签权重 2 份补充 PDF/6 页及可编辑源；飞书平台与 8.25 两张 PNG 截图及 SHA-256。生成器、Poppler 全页渲染、pdfplumber 边界/文本、视觉复核和三组 SHA-256 均 PASS。
+  - [x] 补齐任务书可自动交付缺口：公开仓库清单、已合并 PR #40–#65/#67 / 80 commit Manifest、未合并 #66 排除说明与 SHA-256；README 环境/端口/health/测试账号/Seed；最终 run 三个完整 job log、Playwright/Kind 原始文件和实验 CSV；7 份主文档 PDF/99 页、技术总结/待签权重 2 份补充 PDF/6 页及可编辑源；飞书平台与 8.25 两张 PNG 截图及 SHA-256。生成器、Poppler 全页渲染、pdfplumber 边界/文本、视觉复核和三组 SHA-256 均 PASS。
   - [ ] 非作者成员在另一台或 clean-machine 环境按 README 复现并签名。
   - [ ] 五名成员核对默认角色与实际贡献，确认权重合计 100%，并签字/填写日期。
   - [ ] 实际录制并上传 5–8 分钟备用演示，完成无痕窗口权限与敏感信息复查。
@@ -398,6 +398,7 @@
 | 2026-08-31 | DEL-01 九项交付补齐 | 生成 PR #40–#62 / 72 commit manifest；补 README；固定最终 CI/Playwright/Kind/实验原始包；从可编辑源生成 7 份主 PDF/99 页和 2 份补充 PDF/6 页；登记并验证飞书平台、固定平台/8.25 PNG | `npm run test:ci` 283/283；manifest/raw/PDF generator；19 个原始证据文件与全部 SHA-256；PDF 105 页程序+视觉 QA；delivery package test；Notebook HTTP/渲染/控制台复验 | 自动交付项 PASS，严格统计 7 完整/2 部分/0 完全缺失。8.26–8.31 每日原件、权重签字、真实录屏/演练和教师/会议原件仍 PENDING |
 | 2026-09-01 | CI-AUTO-01 恢复自动触发 | 为 main PR 与 main push 恢复自动 GitHub Actions；手动入口保留；PR 不执行重量级 Kind，main push/手动触发执行完整三 Job | YAML 语法；触发矩阵 4/4；`test:ci` 283/283；manual run `33462577980` 3/3；auto PR run `33463103266` 2 PASS + Kind skipped；auto main push run `33463319512` 3/3 + 两 Artifact 实检 | PASS；PR #64 merge `7fa3ed7`；最终 SHA 镜像、2 migrations、1/1、0 restart、PVC、evidence、cleanup 全绿 |
 | 2026-09-01 | DEL-03-04 DevOps 与 Tests 目录整理 | 按课程最终目录 03/04 在 `docs/文档/devops` 和 `docs/文档/tests` 新增中文交付入口与验证报告；同步交付包 checksum，并修复 Windows CRLF 下 checksum 自检解析 | `npm run test:ci` EXITCODE=0；API 集成 16/16；Playwright 公开 E2E 3/3、services-mode 专项 2 skipped；Compose 注入测试变量后 2/2 config PASS；K8s Kustomize 2/2 render PASS；delivery package test 1/1；Markdown link/diff/resource cleanup 检查 PASS | PASS；只在本机隔离 `video_player_delivery_test` 执行 migration/seed/API/E2E，未对共享远端数据库执行 reset、baseline 或 destructive seed |
+| 2026-09-01 | DEL-01 `01_source` final-main 刷新 | 将交付清单固定到 `main@6d1ad50`；候选 PR #40–#67 全量查询，只收录已合并 #40–#65/#67，显式排除仍 OPEN 的 #66；更新 80 commit TSV、仓库清单、Manifest 和 SHA-256；生成器强制 final run head/3 successful jobs 与每个 merge SHA 祖先关系 | `node --check scripts/generate-delivery-source-manifest.mjs`；生成器双跑 SHA 幂等；`delivery/01_source` checksum 3/3；delivery package 1/1；`npm run test:ci` 283/283；CRLF-aware diff check | PASS；final main run `33467743557` 3/3，head=`6d1ad50`；首次在仓库根执行 checksum 因相对路径失败，切到 `delivery/01_source` 后 3/3 PASS；DEL-01 仍 `HUMAN EVIDENCE PENDING` |
 
 ## 4. 阻塞与需组长决定
 

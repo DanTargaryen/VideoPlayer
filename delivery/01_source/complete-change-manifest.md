@@ -2,7 +2,7 @@
 
 > 生成命令：`node scripts/generate-delivery-source-manifest.mjs`
 >
-> 范围：改造前单体标签 `monolith-start` 到生成时受保护主干 `main@bbe10fb935bfa3ce96051e2262168143dcbf5187`。
+> 范围：改造前单体标签 `monolith-start` 到生成时受保护主干 `main@6d1ad504db90abf93a408a660e4ffabcc6ddd088`。
 >
 > 该 Manifest 故意固定结束 SHA；后续交付修订若需要纳入，重新运行生成器并复核差异。
 
@@ -28,11 +28,13 @@ git show -s --format='%H %ad %s' --date=iso-strict monolith-start^{}
 | 字段 | 值 |
 | --- | --- |
 | 受保护主干 | `main` |
-| 最终 commit | `bbe10fb935bfa3ce96051e2262168143dcbf5187` |
-| 最终 tree | `508e6c3ed896d1963074e448c68d791aa4d5c84c` |
-| 提交总数 | `72`（不含起点 commit，含 merge commit） |
-| PR 范围 | `#40–#62` |
+| 最终 commit | `6d1ad504db90abf93a408a660e4ffabcc6ddd088` |
+| 最终 tree | `8e8f34728d73fcb3820d1bf01d9d71c0083adb31` |
+| 提交总数 | `80`（不含起点 commit，含 merge commit） |
+| 已合并 PR 范围 | `#40–#65、#67` |
+| 候选 PR 审计范围 | `#40–#67`；未合并 PR 单列，不冒充 final main 变更 |
 | 镜像版本规则 | Git SHA；验收不得只使用 `latest` |
+| 最终主干 CI | [33467743557](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33467743557)（3/3 jobs success，head `6d1ad504db90abf93a408a660e4ffabcc6ddd088`） |
 
 ### 微服务与公共 workspace 版本
 
@@ -45,7 +47,11 @@ git show -s --format='%H %ad %s' --date=iso-strict monolith-start^{}
 | `@videoplayer/live-reward` | `0.1.0` | `services/live-reward/package.json` |
 | `@videoplayer/governance-ai` | `0.1.0` | `services/governance-ai/package.json` |
 
-## 3. 完整 PR / merge / workflow 清单
+## 3. 仓库清单
+
+机器可读仓库定位信息位于 [repository-list.tsv](repository-list.tsv)，包含公开仓库 URL、默认分支、改造前 tag/commit 与最终 ref/commit。
+
+## 4. 完整 merged PR / merge / workflow 清单
 
 | PR | 标题 | 最终 head SHA | merge SHA | mergedAt (UTC) | 最终远端 run |
 | --- | --- | --- | --- | --- | --- |
@@ -72,8 +78,18 @@ git show -s --format='%H %ad %s' --date=iso-strict monolith-start^{}
 | [#60](https://github.com/DanTargaryen/VideoPlayer/pull/60) | docs(practice): reconcile final TODO audit | `49f9cf52531cdba8e761dcad7a59303b46fa95f6` | `a5b15627615e943fc2521df8b15a79d0c9f07c12` | 2026-08-31T09:04:18Z | [33375231784](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33375231784) |
 | [#61](https://github.com/DanTargaryen/VideoPlayer/pull/61) | docs(practice): map members to A-E roles | `67a7aa7572366ff9da863bc314c8d601cb346ace` | `1050f9234d109e5ee4e1bab4bb7ca6482a905522` | 2026-08-31T09:33:46Z | [33377576089](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33377576089) |
 | [#62](https://github.com/DanTargaryen/VideoPlayer/pull/62) | docs(defense): align demo owners with A-E | `c909875671a0f065df18183305bca6162211a660` | `bbe10fb935bfa3ce96051e2262168143dcbf5187` | 2026-08-31T09:54:49Z | [33379394312](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33379394312) |
+| [#63](https://github.com/DanTargaryen/VideoPlayer/pull/63) | docs(delivery): complete course evidence package | `6de4fdf3b902aab95661621c0236d2d8eba64fcd` | `198015f56f2f5d45b46a904110807658b174b7a7` | 2026-08-31T13:22:01Z | [33395434940](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33395434940) |
+| [#64](https://github.com/DanTargaryen/VideoPlayer/pull/64) | ci(actions): restore automatic main validation | `b7115b60bda02d82e28f194f34cf533ebc9b9bfa` | `7fa3ed713a7422089b33564f645a631f92a4411c` | 2026-09-01T02:38:51Z | [33463103266](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33463103266) |
+| [#65](https://github.com/DanTargaryen/VideoPlayer/pull/65) | docs(practice): close automatic CI trigger evidence | `11d9c87177cfed92f5414248d6ef6f6a4e91edc1` | `4069c8c03c4514c0de0c62e25bab6712e482b538` | 2026-09-01T02:50:14Z | [33463843587](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33463843587) |
+| [#67](https://github.com/DanTargaryen/VideoPlayer/pull/67) | test(frontend): cover search and video detail smoke | `abe3cf1f87c0012ebec886e6e23e6067c5cf1d56` | `6d1ad504db90abf93a408a660e4ffabcc6ddd088` | 2026-09-01T03:51:48Z | [33466825816](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33466825816) |
 
-## 4. 全部 72 个 Git commit
+### 未纳入 final main 的候选 PR
+
+| PR | 标题 | 状态 | head SHA | 排除原因 |
+| --- | --- | --- | --- | --- |
+| [#66](https://github.com/DanTargaryen/VideoPlayer/pull/66) | 技术总结报告 | OPEN | `01eff94d86aa6961a1a94fd2cefb2df532d5b5b7` | 未合并，不属于 `main@6d1ad504db90abf93a408a660e4ffabcc6ddd088` |
+
+## 5. 全部 80 个 Git commit
 
 逐 commit 的完整、机器可读记录位于 [all-commits.tsv](all-commits.tsv)，字段为：
 
@@ -88,10 +104,13 @@ git log --reverse --format='%H%x09%ad%x09%an%x09%s' --date=iso-strict monolith-s
 wc -l delivery/01_source/all-commits.tsv
 ```
 
-## 5. 完整性判定
+## 6. 完整性判定
 
 - [x] 改造前 annotated tag、tag object 和 peeled commit 均记录。
 - [x] 六个改造后 workspace 版本均来自实际 package 文件。
-- [x] PR #40–#62 的 head SHA、merge SHA、合并时间和最终远端 run（适用时）均记录。
-- [x] 从 `monolith-start` 到 `main@bbe10fb935bfa3ce96051e2262168143dcbf5187` 的全部 72 个 commit 均进入 TSV。
+- [x] 仓库 URL、可见性、默认分支、改造前与改造后 ref/commit 已写入 TSV。
+- [x] 候选 PR #40–#67 已全量查询；已合并 #40–#65、#67 的 head/merge SHA、合并时间和远端 run（适用时）均记录。
+- [x] 未合并候选 #66 已显式单列，没有冒充 final main 交付。
+- [x] 从 `monolith-start` 到 `main@6d1ad504db90abf93a408a660e4ffabcc6ddd088` 的全部 80 个 commit 均进入 TSV。
+- [x] 最终主干 SHA 已由 GitHub Actions run 33467743557 完成 3/3 jobs 验证，且 run head 与 final commit 一致。
 - [x] Manifest 可由仓库脚本重新生成，不依赖手工复制 GitHub 页面。

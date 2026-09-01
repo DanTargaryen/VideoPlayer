@@ -74,6 +74,10 @@ test('DEL-01 package is complete, linked, renderable, and honest about human evi
     'utf8',
   );
   const commitManifest = fs.readFileSync(path.join(deliveryRoot, '01_source', 'all-commits.tsv'), 'utf8');
+  const repositoryList = fs.readFileSync(
+    path.join(deliveryRoot, '01_source', 'repository-list.tsv'),
+    'utf8',
+  );
   const managementPlatform = fs.readFileSync(
     path.join(deliveryRoot, '05_management', 'project-management-platform.md'),
     'utf8',
@@ -101,11 +105,27 @@ test('DEL-01 package is complete, linked, renderable, and honest about human evi
   assert.match(recording, /RECORDING NOT PROVIDED/);
   assert.match(progress, /- \[ \] `DEL-01`/);
 
-  assert.match(sourceManifest, /PR #40–#62/);
-  assert.match(sourceManifest, /全部 72 个 Git commit/);
-  assert.equal(commitManifest.trim().split('\n').length, 73, 'commit TSV must contain one header and 72 commits');
+  assert.match(sourceManifest, /已合并 PR 范围 \| `#40–#65、#67`/);
+  assert.match(sourceManifest, /全部 80 个 Git commit/);
+  assert.match(sourceManifest, /33467743557/);
+  assert.match(sourceManifest, /\[#66\].*\| OPEN \|/);
+  assert.match(sourceManifest, /#66 已显式单列，没有冒充 final main 交付/);
+  assert.equal(commitManifest.trim().split('\n').length, 81, 'commit TSV must contain one header and 80 commits');
   assert.match(sourceManifest, /70d197d/, 'manifest must retain the monolith baseline reference');
-  assert.match(commitManifest, /Merge pull request #62/);
+  assert.match(commitManifest, /Merge pull request #67/);
+  assert.match(repositoryList, /DanTargaryen\/VideoPlayer/);
+  assert.match(repositoryList, /PUBLIC/);
+  assert.match(repositoryList, /monolith-start/);
+  assert.match(repositoryList, /6d1ad504db90abf93a408a660e4ffabcc6ddd088/);
+  for (const line of fs
+    .readFileSync(path.join(deliveryRoot, '01_source', 'checksums.sha256'), 'utf8')
+    .trim()
+    .split(/\r?\n/)) {
+    const match = line.match(/^([a-f0-9]{64})  (.+)$/);
+    assert.ok(match, `invalid source checksum line: ${line}`);
+    const file = path.join(deliveryRoot, '01_source', match[2]);
+    assert.equal(createHash('sha256').update(fs.readFileSync(file)).digest('hex'), match[1]);
+  }
 
   for (const port of ['3100', '3101', '3102', '3103', '3104', '9000', '9001', '8080', '1985']) {
     assert.match(projectReadme, new RegExp(port));

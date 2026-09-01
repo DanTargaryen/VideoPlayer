@@ -7,8 +7,8 @@
 ## 1. 仓库可自主完成项
 
 - [x] 建立 `delivery/01_source`–`delivery/06_defense` 六目录和总 README。
-- [x] `01_source` 索引单体 tag、四微服务版本、PR #40–#62 和远端 workflow。
-- [x] `01_source` 另有完整 Manifest：PR #40–#62、23 个 head/merge SHA、最终 run，以及 `monolith-start` 到 `main@bbe10fb` 的 72 个 commit TSV。
+- [x] `01_source` 索引公开仓库、单体 tag、四微服务版本、已合并 PR #40–#65/#67 和远端 workflow；未合并 #66 显式排除。
+- [x] `01_source` 另有机器可读仓库清单和完整 Manifest：27 个 merged PR 的 head/merge SHA、最终主干 run，以及 `monolith-start` 到 `main@6d1ad50` 的 80 个 commit TSV 和 SHA-256。
 - [x] `02_docs` 索引需求、UC01–UC06、三层模型、服务边界、测试计划和追溯。
 - [x] `02_docs` 提供 7 份 PDF / 99 页，并同时保留可编辑 Markdown/Mermaid 源；Poppler 全页渲染、边界和视觉 QA PASS。
 - [x] `03_devops` 索引 Compose、Kubernetes、migration、CI/CD、回滚和 Secret 约束。
