@@ -11,8 +11,10 @@ COPY backend/scripts backend/scripts
 COPY frontend/package.json frontend/package.json
 COPY services services
 RUN for attempt in 1 2 3 4 5; do \
-      npm ci --ignore-scripts --workspace @videoplayer/shared-contracts --workspace @videoplayer/identity-community --include-workspace-root && exit 0; \
-      echo "npm ci failed on attempt ${attempt}; retrying..."; \
+      timeout --signal=TERM --kill-after=30s "$SERVICE_BUILD_ATTEMPT_TIMEOUT" \
+        npm ci --ignore-scripts --workspace @videoplayer/shared-contracts --workspace @videoplayer/identity-community --include-workspace-root && exit 0; \
+      status=$?; \
+      echo "npm ci attempt ${attempt} failed or timed out with exit ${status}; retrying..."; \
       sleep $((attempt * 10)); \
     done; \
     exit 1
@@ -26,6 +28,8 @@ RUN for attempt in 1 2 3 4 5; do \
     exit 1
 
 FROM build AS migration
+RUN npm prune --omit=dev --workspace @videoplayer/identity-community --include-workspace-root \
+    && npm cache clean --force
 CMD ["npm", "--workspace", "@videoplayer/identity-community", "run", "db:migrate"]
 
 FROM node:22-bookworm-slim AS runtime

@@ -5,6 +5,7 @@ ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 NAMESPACE=${K8S_NAMESPACE:-video-player}
 CLUSTER_NAME=${KIND_CLUSTER_NAME:-video-player}
 IMAGE_TAG=${1:-$(git -C "$ROOT_DIR" rev-parse --short=12 HEAD)}
+RELEASE_LOCAL_IMAGES=${KIND_RELEASE_LOCAL_IMAGES_AFTER_IMPORT:-false}
 SERVICE_JWT_SECRET=${SERVICE_JWT_SECRET:-}
 IDENTITY_DATABASE_NAME=${IDENTITY_DATABASE_NAME:-}
 IDENTITY_DATABASE_USER=${IDENTITY_DATABASE_USER:-}
@@ -89,11 +90,11 @@ if [[ -z "$GOVERNANCE_DATABASE_URL" ]]; then
 fi
 
 services=(identity-community content-media live-reward governance-ai gateway)
-images=()
+runtime_images=()
 for service in "${services[@]}"; do
   image="video-player/$service:$IMAGE_TAG"
   docker image inspect "$image" >/dev/null
-  images+=("$image")
+  runtime_images+=("$image")
 done
 identity_migration_image="video-player/identity-community-migration:$IMAGE_TAG"
 content_migration_image="video-player/content-media-migrate:$IMAGE_TAG"
@@ -103,12 +104,11 @@ docker image inspect "$identity_migration_image" >/dev/null
 docker image inspect "$content_migration_image" >/dev/null
 docker image inspect "$live_migration_image" >/dev/null
 docker image inspect "$governance_migration_image" >/dev/null
-images+=("$identity_migration_image" "$content_migration_image" "$live_migration_image" "$governance_migration_image")
 content_minio_image="minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e"
 docker image inspect "$content_minio_image" >/dev/null || docker pull "$content_minio_image"
 content_minio_local_image="video-player/content-minio:$IMAGE_TAG"
 docker tag "$content_minio_image" "$content_minio_local_image"
-images+=("$content_minio_local_image")
+runtime_images+=("$content_minio_local_image")
 
 if ! kind get clusters | grep -Fxq "$CLUSTER_NAME"; then
   echo "Kind cluster $CLUSTER_NAME does not exist; deploy the monolith baseline first." >&2
@@ -116,15 +116,36 @@ if ! kind get clusters | grep -Fxq "$CLUSTER_NAME"; then
 fi
 
 kubectl config use-context "kind-$CLUSTER_NAME" >/dev/null
-image_archive=$(mktemp "${TMPDIR:-/tmp}/videoplayer-microservice-images.XXXXXX.tar")
-trap 'rm -f "$image_archive"' EXIT
-for image in "${images[@]}"; do
+kind_node="$CLUSTER_NAME-control-plane"
+migration_evidence_dir="${CI_EVIDENCE_DIR:-$ROOT_DIR/.codex-run/k8s-migration-evidence}/k8s-migrations"
+mkdir -p "$migration_evidence_dir"
+
+load_kind_image() {
+  local image=$1
+  local image_archive
+  image_archive=$(mktemp "${TMPDIR:-/tmp}/videoplayer-microservice-image.XXXXXX.tar")
   docker save -o "$image_archive" "$image"
-  docker exec --privileged -i "$CLUSTER_NAME-control-plane" \
+  docker exec --privileged -i "$kind_node" \
     ctr --namespace=k8s.io images import --snapshotter=overlayfs - < "$image_archive"
-done
-rm -f "$image_archive"
-trap - EXIT
+  rm -f "$image_archive"
+  if [[ "$RELEASE_LOCAL_IMAGES" == "true" ]]; then
+    docker image rm "$image" >/dev/null
+  fi
+}
+
+archive_and_release_migration() {
+  local job_name=$1
+  local image=$2
+  kubectl -n "$NAMESPACE" logs "job/$job_name" --all-containers=true \
+    > "$migration_evidence_dir/$job_name.log"
+  kubectl -n "$NAMESPACE" get job "$job_name" -o yaml \
+    > "$migration_evidence_dir/$job_name.yaml"
+  kubectl -n "$NAMESPACE" delete job "$job_name" --wait=true
+  docker exec --privileged "$kind_node" crictl rmi "$image" >/dev/null 2>&1 \
+    || docker exec --privileged "$kind_node" ctr --namespace=k8s.io images rm "$image" >/dev/null 2>&1 \
+    || true
+  docker exec --privileged "$kind_node" ctr --namespace=k8s.io content prune references >/dev/null 2>&1 || true
+}
 
 kubectl apply -f "$ROOT_DIR/deploy/k8s/microservices/namespace.yaml"
 kubectl -n "$NAMESPACE" rollout status statefulset/mysql --timeout=240s
@@ -150,6 +171,7 @@ kubectl -n "$NAMESPACE" create secret generic videoplayer-microservice-secrets \
   --from-literal=minio-access-key="$CONTENT_MINIO_ACCESS_KEY" \
   --from-literal=minio-secret-key="$CONTENT_MINIO_SECRET_KEY" \
   --dry-run=client -o yaml | kubectl apply -f -
+load_kind_image "$identity_migration_image"
 kubectl -n "$NAMESPACE" delete job identity-migrate --ignore-not-found
 sed "s|video-player/identity-community-migration:local|$identity_migration_image|g" \
   "$ROOT_DIR/deploy/k8s/microservices/identity-migrate-job.yaml" | kubectl apply -f -
@@ -164,7 +186,9 @@ if grep -Fx 'video_player' <<<"$identity_database_list" >/dev/null; then
   echo "identity database account can access the monolith schema" >&2
   exit 1
 fi
+archive_and_release_migration identity-migrate "$identity_migration_image"
 
+load_kind_image "$content_migration_image"
 kubectl -n "$NAMESPACE" delete job content-migrate --ignore-not-found
 sed "s|video-player/content-media-migrate:local|$content_migration_image|g" \
   "$ROOT_DIR/deploy/k8s/microservices/content-migrate-job.yaml" | kubectl apply -f -
@@ -179,7 +203,9 @@ if grep -Fx 'video_player' <<<"$content_database_list" >/dev/null || grep -Fx "$
   echo "content database account can access another service schema" >&2
   exit 1
 fi
+archive_and_release_migration content-migrate "$content_migration_image"
 
+load_kind_image "$live_migration_image"
 kubectl -n "$NAMESPACE" delete job live-reward-migrate --ignore-not-found
 sed "s|video-player/live-reward-migration:local|$live_migration_image|g; s|mysql:3306/video_player_live_reward_ci_test|mysql:3306/$LIVE_REWARD_DATABASE_NAME|g" \
   "$ROOT_DIR/deploy/k8s/microservices/live-reward-migrate-job.yaml" | kubectl apply -f -
@@ -194,7 +220,9 @@ if grep -Fx 'video_player' <<<"$live_database_list" >/dev/null || grep -Fx "$IDE
   echo "live-reward database account can access another service schema" >&2
   exit 1
 fi
+archive_and_release_migration live-reward-migrate "$live_migration_image"
 
+load_kind_image "$governance_migration_image"
 kubectl -n "$NAMESPACE" delete job governance-migrate --ignore-not-found
 sed "s|video-player/governance-ai-migration:local|$governance_migration_image|g" \
   "$ROOT_DIR/deploy/k8s/microservices/governance-migrate-job.yaml" | kubectl apply -f -
@@ -209,6 +237,11 @@ if grep -Fx 'video_player' <<<"$governance_database_list" >/dev/null || grep -Fx
   echo "governance database account can access another service schema" >&2
   exit 1
 fi
+archive_and_release_migration governance-migrate "$governance_migration_image"
+
+for image in "${runtime_images[@]}"; do
+  load_kind_image "$image"
+done
 
 kubectl apply -k "$ROOT_DIR/deploy/k8s/microservices"
 kubectl -n "$NAMESPACE" patch configmap videoplayer-microservice-config \

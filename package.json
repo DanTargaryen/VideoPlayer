@@ -43,6 +43,8 @@
     "reg:01": "node test/regression/run.mjs",
     "delivery:standalone": "node scripts/generate-delivery-standalone.mjs",
     "test:e2e": "playwright test",
+    "test:e2e:public": "playwright test tests/e2e/public-smoke.spec.ts",
+    "test:e2e:services": "playwright test tests/e2e/services-uc01-uc06.spec.ts tests/e2e/admin-services-mode.spec.ts tests/e2e/live-services-mode.spec.ts --workers=1",
     "test:ci": "npm --workspace backend run prisma:generate && npm run lint:backend && npm run lint:frontend && npm run lint:services && npm run build:backend && npm run build:frontend && npm run build:services && npm run test:requirements && npm test && npm run test:services && npm run test:regression"
   },
   "devDependencies": {

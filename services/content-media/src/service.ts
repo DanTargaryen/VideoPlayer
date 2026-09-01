@@ -174,11 +174,12 @@ export interface ContentState {
 
 export interface IdentityBatchClient {
   batchSummary(userIds: string[], requestId: string): Promise<Map<string, CreatorSummary>>;
-  creatorStats?(userId: string, requestId: string): Promise<{
+  creatorStats?(userId: string, requestId: string, viewerId?: string): Promise<{
     user: { id: number; username: string; nickname: string; avatarUrl: string | null; bio: string | null; email: string; messagePrivacy: string; role: string; createdAt: string | Date };
     followerCount: number;
     followingCount: number;
     followerTrend: Array<{ date: string; followerCount: number }>;
+    isFollowing: boolean;
   }>;
 }
 
@@ -435,7 +436,7 @@ export class MockIdentityBatchClient implements IdentityBatchClient {
 
   async creatorStats(userId = '1') {
     const summary = this.summaries.get(userId) ?? fallbackCreatorSummary(userId);
-    return { user: { id: Number(userId), username: `user-${userId}`, nickname: summary.nickname, avatarUrl: summary.avatarUrl, bio: null, email: `user-${userId}@example.test`, messagePrivacy: 'ALLOW_ALL', role: 'USER', createdAt: new Date(0).toISOString() }, followerCount: 0, followingCount: 0, followerTrend: [] };
+    return { user: { id: Number(userId), username: `user-${userId}`, nickname: summary.nickname, avatarUrl: summary.avatarUrl, bio: null, email: `user-${userId}@example.test`, messagePrivacy: 'ALLOW_ALL', role: 'USER', createdAt: new Date(0).toISOString() }, followerCount: 0, followingCount: 0, followerTrend: [], isFollowing: false };
   }
 }
 
@@ -470,14 +471,16 @@ export class HttpIdentityBatchClient implements IdentityBatchClient {
     }));
   }
 
-  async creatorStats(userId: string, requestId: string) {
+  async creatorStats(userId: string, requestId: string, viewerId?: string) {
     const token = issueServiceToken({ caller: 'content-media', audience: 'identity-community', scopes: ['internal:user-summary'], secret: this.jwtSecret, requestId });
-    const response = await fetch(`${this.baseUrl}/internal/v1/users/${encodeURIComponent(userId)}/creator-stats`, {
+    const url = new URL(`${this.baseUrl}/internal/v1/users/${encodeURIComponent(userId)}/creator-stats`);
+    if (viewerId) url.searchParams.set('viewerId', viewerId);
+    const response = await fetch(url, {
       headers: { authorization: `Bearer ${token}`, 'x-request-id': requestId },
       signal: AbortSignal.timeout(this.timeoutMs),
     });
     if (!response.ok) throw new Error(`identity creator stats returned ${response.status}`);
-    const payload = await response.json() as { data?: { user?: Record<string, unknown>; followerCount?: unknown; followingCount?: unknown; followerTrend?: unknown } };
+    const payload = await response.json() as { data?: { user?: Record<string, unknown>; followerCount?: unknown; followingCount?: unknown; followerTrend?: unknown; isFollowing?: unknown } };
     const followerCount = Number(payload.data?.followerCount);
     const followingCount = Number(payload.data?.followingCount);
     const followerTrend = Array.isArray(payload.data?.followerTrend) ? payload.data.followerTrend : [];
@@ -496,6 +499,7 @@ export class HttpIdentityBatchClient implements IdentityBatchClient {
       followerCount,
       followingCount,
       followerTrend: followerTrend as Array<{ date: string; followerCount: number }>,
+      isFollowing: payload.data?.isFollowing === true,
     };
   }
 }
@@ -2450,7 +2454,12 @@ function publicVideo(video: VideoRecord, creators: Map<string, CreatorSummary>) 
   };
 }
 
-function publicVideoDetail(video: VideoRecord, creators: Map<string, CreatorSummary>, viewer = { isLiked: false, isFavorited: false }) {
+function publicVideoDetail(
+  video: VideoRecord,
+  creators: Map<string, CreatorSummary>,
+  viewer = { isLiked: false, isFavorited: false },
+  creatorState = { followerCount: 0, isFollowing: false },
+) {
   const card = publicVideo(video, creators);
   const creator = card.creator;
   return {
@@ -2464,9 +2473,9 @@ function publicVideoDetail(video: VideoRecord, creators: Map<string, CreatorSumm
       nickname: creator.nickname,
       avatarUrl: creator.avatarUrl,
       role: 'USER',
-      followerCount: 0,
+      followerCount: creatorState.followerCount,
     },
-    isFollowingCreator: false,
+    isFollowingCreator: creatorState.isFollowing,
     isLiked: viewer.isLiked,
     isFavorited: viewer.isFavorited,
     myCoinCount: 0,
@@ -3081,7 +3090,26 @@ export function createContentService(options: ContentServiceOptions = {}): Serve
         const creators = await creatorSummaries(identityClient, [video], requestId, identityTimeoutMs);
         const principal = optionalTrustedContentPrincipal(request, requestId, internalJwtSecret);
         const viewer = principal ? await repository.viewerState(video.id, principal.id) : undefined;
-        writeJson(response, 200, ok(publicVideoDetail(video, creators, viewer), requestId), requestId);
+        let creatorState = { followerCount: 0, isFollowing: false };
+        if (identityClient.creatorStats) {
+          try {
+            const stats = await withTimeout(
+              identityClient.creatorStats(
+                video.creatorId,
+                `${requestId}:creator-state`.slice(0, 128),
+                principal?.id,
+              ),
+              identityTimeoutMs,
+            );
+            creatorState = {
+              followerCount: stats.followerCount,
+              isFollowing: stats.isFollowing,
+            };
+          } catch {
+            // The video remains readable when identity relationship enrichment is unavailable.
+          }
+        }
+        writeJson(response, 200, ok(publicVideoDetail(video, creators, viewer, creatorState), requestId), requestId);
         return;
       }
 

@@ -5,11 +5,9 @@ import { join } from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
-const creatorToken = process.env.SERVICES_MODE_CREATOR_TOKEN;
+const creatorToken = requiredEnvironment('SERVICES_MODE_CREATOR_TOKEN');
 
 test.describe('UC05 through the services-mode gateway', () => {
-  test.skip(!creatorToken, 'services-mode creator token is provided by the isolated Compose smoke');
-
   test.beforeEach(async ({ page }) => {
     await page.addInitScript((token) => {
       localStorage.setItem('vp_token', token);
@@ -42,7 +40,7 @@ test.describe('UC05 through the services-mode gateway', () => {
         }
       }
       Object.defineProperty(window, 'MediaRecorder', { configurable: true, value: FakeMediaRecorder });
-    }, creatorToken ?? '');
+    }, creatorToken);
   });
 
   test('starts a room, sends a persisted message, stops, and saves the recording as a draft', async ({ page, request }) => {
@@ -100,3 +98,11 @@ test.describe('UC05 through the services-mode gateway', () => {
     await expect(page.getByRole('dialog', { name: '保存直播内容' })).toBeHidden();
   });
 });
+
+function requiredEnvironment(name: string): string {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(`${name} is required for services-mode browser tests; the suite must not skip`);
+  }
+  return value;
+}

@@ -33,10 +33,16 @@ identity_database_password=$(node -e "process.stdout.write(require('node:crypto'
 identity_admin_secret=$(node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('hex'))")
 identity_database_url="mysql://${identity_database_user}:${identity_database_password}@mysql:3306/${identity_database_name}"
 content_db_password=$(node -e "process.stdout.write(require('node:crypto').randomBytes(18).toString('hex'))")
+content_minio_access_key=videoplayerci
+content_minio_secret_key=$(node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('hex'))")
 live_reward_database_name=video_player_live_reward_ci_test
 live_reward_database_user=live_reward
 live_reward_database_password=$(node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('hex'))")
 live_reward_database_url="mysql://${live_reward_database_user}:${live_reward_database_password}@mysql:3306/${live_reward_database_name}"
+governance_database_name=video_player_governance_ci_test
+governance_database_user=governance_app
+governance_database_password=$(node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('hex'))")
+governance_database_url="mysql://${governance_database_user}:${governance_database_password}@mysql:3306/${governance_database_name}"
 seed_confirmation=$(node -e "process.stdout.write(require('node:crypto').randomBytes(18).toString('hex'))")
 local_storage_dir="$CI_RUN_DIR/storage"
 practice_env_file="$CI_RUN_DIR/practice.env"
@@ -61,10 +67,16 @@ mkdir -p "$local_storage_dir"
   printf 'IDENTITY_DATABASE_URL=%q\n' "$identity_database_url"
   printf 'IDENTITY_ADMIN_SECRET=%q\n' "$identity_admin_secret"
   printf 'CONTENT_DB_PASSWORD=%q\n' "$content_db_password"
+  printf 'CONTENT_MINIO_ACCESS_KEY=%q\n' "$content_minio_access_key"
+  printf 'CONTENT_MINIO_SECRET_KEY=%q\n' "$content_minio_secret_key"
   printf 'LIVE_REWARD_DATABASE_NAME=%q\n' "$live_reward_database_name"
   printf 'LIVE_REWARD_DATABASE_USER=%q\n' "$live_reward_database_user"
   printf 'LIVE_REWARD_DATABASE_PASSWORD=%q\n' "$live_reward_database_password"
   printf 'LIVE_REWARD_DATABASE_URL=%q\n' "$live_reward_database_url"
+  printf 'GOVERNANCE_DATABASE_NAME=%q\n' "$governance_database_name"
+  printf 'GOVERNANCE_DATABASE_USER=%q\n' "$governance_database_user"
+  printf 'GOVERNANCE_DATABASE_PASSWORD=%q\n' "$governance_database_password"
+  printf 'GOVERNANCE_DATABASE_URL=%q\n' "$governance_database_url"
   printf 'SEED_CONFIRMATION=%q\n' "$seed_confirmation"
   printf 'STORAGE_BACKEND=%q\n' local
   printf 'LOCAL_STORAGE_DIR=%q\n' "$local_storage_dir"
@@ -79,15 +91,21 @@ mkdir -p "$local_storage_dir"
 
 {
   printf 'MYSQL_ROOT_PASSWORD=%s\n' "$mysql_root_password"
-  printf 'MINIO_ROOT_USER=%s\n' videoplayer-ci
-  printf 'MINIO_ROOT_PASSWORD=%s\n' "$(node -e "process.stdout.write(require('node:crypto').randomBytes(18).toString('hex'))")"
+  printf 'MINIO_ROOT_USER=%s\n' "$content_minio_access_key"
+  printf 'MINIO_ROOT_PASSWORD=%s\n' "$content_minio_secret_key"
   printf 'JWT_SECRET=%s\n' "$jwt_secret"
   printf 'ADMIN_SECRET=%s\n' "$admin_secret"
   printf 'SERVICE_JWT_SECRET=%s\n' "$service_jwt_secret"
   printf 'IDENTITY_DATABASE_URL=%s\n' "$identity_database_url"
   printf 'IDENTITY_ADMIN_SECRET=%s\n' "$identity_admin_secret"
   printf 'CONTENT_DB_PASSWORD=%s\n' "$content_db_password"
+  printf 'CONTENT_MINIO_ACCESS_KEY=%s\n' "$content_minio_access_key"
+  printf 'CONTENT_MINIO_SECRET_KEY=%s\n' "$content_minio_secret_key"
   printf 'LIVE_REWARD_DATABASE_URL=%s\n' "$live_reward_database_url"
+  printf 'GOVERNANCE_DATABASE_NAME=%s\n' "$governance_database_name"
+  printf 'GOVERNANCE_DATABASE_USER=%s\n' "$governance_database_user"
+  printf 'GOVERNANCE_DATABASE_PASSWORD=%s\n' "$governance_database_password"
+  printf 'GOVERNANCE_DATABASE_URL=%s\n' "$governance_database_url"
 } > "$practice_env_file"
 chmod 600 "$CI_RUNTIME_ENV_FILE" "$practice_env_file"
 

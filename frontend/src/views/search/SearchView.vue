@@ -159,7 +159,7 @@ async function loadSearch() {
       keyword: keyword.value.trim(),
       tab: activeTab.value,
       sortBy: sortBy.value,
-      category: category.value,
+      category: category.value === 'recommend' ? undefined : category.value,
       pageSize: activeTab.value === 'video' ? SEARCH_VIDEO_CANDIDATE_SIZE : SEARCH_VIDEO_DISPLAY_SIZE,
     });
     if (activeTab.value === 'video') {

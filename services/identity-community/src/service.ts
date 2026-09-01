@@ -528,7 +528,26 @@ async function handleInternalRoute(options: {
   const creatorStatsMatch = /^\/internal\/v1\/users\/(\d+)\/creator-stats$/.exec(pathname);
   if (method === 'GET' && creatorStatsMatch) {
     const claims = authorizeInternalRequest(request.headers.authorization, serviceJwtSecret, ['internal:user-summary']);
-    writeJson(response, 200, ok(await store.getCreatorStats(Number(creatorStatsMatch[1]), 7), claims.requestId), claims.requestId);
+    const creatorId = Number(creatorStatsMatch[1]);
+    const viewerId = parseNumber(
+      new URL(request.url ?? pathname, 'http://identity-community.local').searchParams.get('viewerId')
+        ?? undefined,
+    );
+    const stats = await store.getCreatorStats(creatorId, 7);
+    writeJson(
+      response,
+      200,
+      ok(
+        {
+          ...stats,
+          isFollowing: viewerId && viewerId > 0
+            ? await store.isFollowing(creatorId, viewerId)
+            : false,
+        },
+        claims.requestId,
+      ),
+      claims.requestId,
+    );
     return;
   }
 
