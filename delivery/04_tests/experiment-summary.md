@@ -1,15 +1,16 @@
 # 压力、HPA 与故障恢复实验数据摘要
 
-## 性能三轮对比
+## 三业务性能三轮对比
 
-原始逐轮数据：[`experiments/performance-runs.csv`](experiments/performance-runs.csv)。
+最新主干原始逐轮数据：[`experiments/performance-three-endpoint-runs.csv`](experiments/performance-three-endpoint-runs.csv)。历史单接口数据保留在 [`experiments/performance-runs.csv`](experiments/performance-runs.csv)。
 
-| 目标 | 轮数 | 中位 p95 | 最大 p95 | 中位吞吐 | 总错误 |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| 单体 | 3 | 9.44 ms | 14.85 ms | 2334.84 RPS | 0 |
-| 微服务 Gateway | 3 | 15.57 ms | 22.32 ms | 1435.25 RPS | 0 |
+| 业务 | 单体中位 p95 | Gateway 中位 p95 | 单体中位吞吐 | Gateway 中位吞吐 | 结论 |
+| --- | ---: | ---: | ---: | ---: | --- |
+| 推荐流 | 6.75 ms | 15.66 ms | 3009.32 RPS | 1505.41 RPS | 下降 |
+| 搜索 | 24.29 ms | 19.20 ms | 935.16 RPS | 1301.26 RPS | 提升 |
+| 视频详情 | 9.55 ms | 23.52 ms | 2320.96 RPS | 961.41 RPS | 下降 |
 
-两类目标各 3 轮，每轮 240 请求，共 1440 请求，原始 CSV 中 `errors` 均为 0。
+三个业务在单体和 Gateway 各 3 轮，每轮 240 请求，共 4320 请求；两端业务签名一致，原始 CSV 中 `errors` 均为 0。
 
 ## HPA 扩缩容
 
@@ -25,4 +26,4 @@
 
 ## 数据身份
 
-三个 CSV 同时保留在原始流水线证据包的 [`raw/github-run-33379394312/experiments/`](raw/github-run-33379394312/experiments/) 中。本目录顶层 `experiments/` 是字节级便捷副本；`source-manifest.tsv` 和 `checksums.sha256` 可证明两处内容一致。
+旧三份 CSV 同时保留在原始流水线证据包的 [`raw/github-run-33379394312/experiments/`](raw/github-run-33379394312/experiments/) 中；最新三业务 CSV 来自 `docs/practice-2026/evidence/performance-three-endpoint-runs.csv`。本目录顶层 `experiments/` 是确定性便捷副本；`source-manifest.tsv` 和 `checksums.sha256` 可证明来源与副本一致。

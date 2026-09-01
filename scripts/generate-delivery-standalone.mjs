@@ -13,6 +13,7 @@ const devopsRoot = path.join(deliveryRoot, '03_devops');
 const testsRoot = path.join(deliveryRoot, '04_tests');
 const rawEvidencePrefix = 'delivery/04_tests/raw/';
 const rawExperimentPrefix = `${rawEvidencePrefix}github-run-33379394312/experiments/`;
+const currentPerformanceEvidence = 'docs/practice-2026/evidence/performance-three-endpoint-runs.csv';
 const binaryExtensions = new Set([
   '.gif',
   '.gz',
@@ -335,6 +336,14 @@ for (const source of files.filter((file) => file.startsWith(rawExperimentPrefix)
     testsManifest,
   );
 }
+
+copyFile(
+  currentPerformanceEvidence,
+  path.join(testsRoot, 'experiments'),
+  path.basename(currentPerformanceEvidence),
+  'experiment-data',
+  testsManifest,
+);
 
 copyFile(
   'scripts/collect-delivery-raw-evidence.mjs',

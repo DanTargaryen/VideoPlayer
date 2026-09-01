@@ -17,7 +17,7 @@ automated-tests	frontend/src/utils/replayMedia.spec.ts	automation/frontend/src/u
 test-config	frontend/vitest.config.ts	automation/frontend/vitest.config.ts	2622a9aac0ff9ddfd318891e8e718e24eccf3e5412e58ffd06349b79ed017327
 test-config	package.json	automation/package.json	323a3fee6c6eff17833e38872d8439cb5d19439f3db6cc39c75061ea37b2d3e9
 test-config	playwright.config.ts	automation/playwright.config.ts	c2a490f22e2d26ec51b346509ea0d181f3b0adc839dfcfa306157e8f8c1460b3
-test-harness	scripts/compose-microservices-smoke.sh	automation/scripts/compose-microservices-smoke.sh	afe99cd445ba73246a387e4146574976c03be8a3e4a4a516093bdd5fa7d3f8c1
+test-harness	scripts/compose-microservices-smoke.sh	automation/scripts/compose-microservices-smoke.sh	38f89d64649fc77a180f5fee0ba19eb5169f22f10f90c1d077c65513dca7361c
 test-config	scripts/jest-junit-reporter.cjs	automation/scripts/jest-junit-reporter.cjs	8ff8995f6db040ea4075b4761e846be5526d1908d03f1c9da09bc28b9aa30e98
 test-config	services/content-media/package.json	automation/services/content-media/package.json	254f84e1b8e505123363ed3fd2ce8d3896709334c668cde6064168267066dc9f
 automated-tests	services/content-media/test/content-foundation.spec.ts	automation/services/content-media/test/content-foundation.spec.ts	ff6c56e12102d7fa998eaa9b6ae7343ee037ac4ca0653c4e5fcc80c89c1e3856
@@ -66,9 +66,9 @@ automated-tests	test/unit/common.utilities.test.js	automation/test/unit/common.u
 automated-tests	test/unit/content-cutover-migration.test.js	automation/test/unit/content-cutover-migration.test.js	7fa95b12e788601b5648f24f92c410a189cb4d080815f676231a29410575edc0
 automated-tests	test/unit/db-baseline-existing.test.js	automation/test/unit/db-baseline-existing.test.js	2583f348971d792d5b9d6194ae073e2e13363af046e1c4c437630dde8f7a60cd
 automated-tests	test/unit/db-target-safety.test.js	automation/test/unit/db-target-safety.test.js	014b95d8517258f85da3a05138a11429e7956a17e6a41219d84b4e82832a919e
-automated-tests	test/unit/delivery-package.test.js	automation/test/unit/delivery-package.test.js	dc0a906d323befac301a230381bfd6ac98ac95eb59ab22743c3eb368a22d7017
+automated-tests	test/unit/delivery-package.test.js	automation/test/unit/delivery-package.test.js	ae35a5f7165133d4cd5c22cbed211492bd2602d9b461a992b267f49f81e36669
 automated-tests	test/unit/email.service.test.js	automation/test/unit/email.service.test.js	d2f35acaf036a9f09b45617d0ebf0d3d6a260dbea9ad0f4cfa3efe6d665bffd0
-automated-tests	test/unit/experiment-scripts.test.js	automation/test/unit/experiment-scripts.test.js	bcf51c133f3c8baa24a48b89eec53ee1b6e08e32c1279e3493f7c37ce876888d
+automated-tests	test/unit/experiment-scripts.test.js	automation/test/unit/experiment-scripts.test.js	27e8ac2a9ae2ce37f4db5137a518413d1ba308c4537772c9135f8f4b1135b661
 automated-tests	test/unit/feed.service.test.js	automation/test/unit/feed.service.test.js	b40ecf1ad195dd2cf99ff7ab7d124461f29929dbebf9d14588d2df086d4b9e75
 automated-tests	test/unit/follow.service.test.js	automation/test/unit/follow.service.test.js	4e2e518c2a529b53616cdff439af5a3c3ced5a1b4adc1cb6b58deab2e460d9f5
 automated-tests	test/unit/gift.service.test.js	automation/test/unit/gift.service.test.js	d609889e7ced4a91d1a3a5e005dc5d666c48575d438bda480f1e48b4d5b239c3
@@ -91,7 +91,8 @@ automated-tests	tests/e2e/services-uc01-uc06.spec.ts	automation/tests/e2e/servic
 experiment-data	delivery/04_tests/raw/github-run-33379394312/experiments/fault-recovery.csv	experiments/fault-recovery.csv	8a266dc9954511bca5ad7eac63c7e1a10c926760c755e4f35b50f0d67e193af2
 experiment-data	delivery/04_tests/raw/github-run-33379394312/experiments/hpa-timeline.csv	experiments/hpa-timeline.csv	14347352041303d456bb47a52689e051a9b0771e1825051eee37614fc802075f
 experiment-data	delivery/04_tests/raw/github-run-33379394312/experiments/performance-runs.csv	experiments/performance-runs.csv	79cd5fc59eb2e2962e68bf36632a62bbf4b366d2005c3997f82d3bb674ae25cf
+experiment-data	docs/practice-2026/evidence/performance-three-endpoint-runs.csv	experiments/performance-three-endpoint-runs.csv	fc1ef1557087087736a40b025f5d932d0ecd351415edad9560dc67cec90567dd
 load-and-resilience	scripts/fault-experiment-probe.mjs	load/fault-experiment-probe.mjs	b42a71b5cd1a79268ef4b4841b93478163d8f01b3f210b92c0d77beaa558c2da
 load-and-resilience	scripts/hpa-experiment.sh	load/hpa-experiment.sh	322d34151da1543942cd8ab64bb50338cd77b082c93dac10ca9665135efc9f61
-load-and-resilience	scripts/performance-compare.mjs	load/performance-compare.mjs	86f690d2a8a1f41ec92c7ce99ac41b795765a898e80a58d86c03e21a98c5a7c5
+load-and-resilience	scripts/performance-compare.mjs	load/performance-compare.mjs	49aa3541a8803aad631226153053e5aaacf40a3fc5570928aafc0c1f4a67174e
 evidence-tool	scripts/collect-delivery-raw-evidence.mjs	tools/collect-delivery-raw-evidence.mjs	791dbf91d4ffa0f612233d945469db8d7e91f47bf4ae78af0c74200d903d36a2

@@ -154,7 +154,7 @@ test('DEL-03-04 packages contain standalone DevOps, tests, load scripts, reports
     'text hashes must be stable across CRLF and LF checkouts',
   );
   const devopsEntries = verifyStandalonePackage('03_devops', 119);
-  const testEntries = verifyStandalonePackage('04_tests', 94);
+  const testEntries = verifyStandalonePackage('04_tests', 95);
 
   const categoryCount = (entries, category) => entries.filter((entry) => entry.category === category).length;
   assert.equal(categoryCount(devopsEntries, 'containers'), 15);
@@ -166,7 +166,7 @@ test('DEL-03-04 packages contain standalone DevOps, tests, load scripts, reports
   assert.equal(categoryCount(testEntries, 'test-config'), 22);
   assert.equal(categoryCount(testEntries, 'test-harness'), 1);
   assert.equal(categoryCount(testEntries, 'load-and-resilience'), 3);
-  assert.equal(categoryCount(testEntries, 'experiment-data'), 3);
+  assert.equal(categoryCount(testEntries, 'experiment-data'), 4);
   assert.equal(categoryCount(testEntries, 'evidence-tool'), 1);
 
   const devopsFiles = standaloneFiles(path.join(deliveryRoot, '03_devops'));
@@ -207,6 +207,7 @@ test('DEL-03-04 packages contain standalone DevOps, tests, load scripts, reports
     'load/hpa-experiment.sh',
     'load/fault-experiment-probe.mjs',
     'experiments/performance-runs.csv',
+    'experiments/performance-three-endpoint-runs.csv',
     'experiments/hpa-timeline.csv',
     'experiments/fault-recovery.csv',
     'raw/github-run-33379394312/run.json',
