@@ -10,7 +10,7 @@
 
 | 目录 | 内容 | 仓库状态 |
 | --- | --- | --- |
-| [`01_source`](01_source/README.md) | 仓库、tag、服务版本、PR 与 workflow | 技术索引完成 |
+| [`01_source`](01_source/README.md) | 公开仓库清单、改造前后 ref、服务版本、PR/commit 与校验和 | 技术索引完成 |
 | [`02_docs`](02_docs/README.md) | 需求、用例、三层模型、设计、追溯与 PDF | 7 份 PDF / 99 页 + 可编辑源 |
 | [`03_devops`](03_devops/README.md) | Docker、CI/CD、K8s、migration、部署与回滚 | 技术索引完成 |
 | [`04_tests`](04_tests/README.md) | Unit/API/E2E/REG、HPA、故障、性能与原始报告 | 最终 run 离线原始包 + SHA-256 |
@@ -59,7 +59,7 @@ Compose Smoke：PASS / FAIL / NOT RUN
 - Gateway 的读写切流以能力白名单控制；全部服务写路径验证后仍可显式回滚单体。
 - REG-01 同一 runner 对单体和 Gateway 各跑 UC01–UC06，12/12 PASS。
 - HPA、三类依赖故障恢复和性能三轮对比已有实测值和清理记录。
-- PR #48–#62 均已在远端 3/3 jobs 成功后合并；当前交付基线为 `main@bbe10fb935bfa3ce96051e2262168143dcbf5187`。
+- PR #48–#63 的最终技术验证均为远端 3/3 jobs success；PR #64–#65 恢复并证明自动 PR/main 触发；PR #67 在 final merge SHA 上补齐推荐、搜索和视频详情 public smoke。PR #66 仍 OPEN，不纳入 final main。当前交付基线为 `main@6d1ad504db90abf93a408a660e4ffabcc6ddd088`，最终主干 run `33467743557` 为 3/3 jobs success。
 
 ## 尚未证明、不能代填的结论
 
