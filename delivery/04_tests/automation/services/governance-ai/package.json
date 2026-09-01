@@ -1,0 +1,30 @@
+{
+  "name": "@videoplayer/governance-ai",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "prisma:generate": "prisma generate --schema prisma/schema.prisma",
+    "db:migrate": "prisma migrate deploy --schema prisma/schema.prisma",
+    "db:seed": "node prisma/seed.mjs",
+    "prebuild": "npm run prisma:generate && npm --workspace @videoplayer/shared-contracts run build",
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\"",
+    "pretest": "npm run prisma:generate && npm --workspace @videoplayer/shared-contracts run build",
+    "test": "vitest run --config vitest.config.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@prisma/client": "6.9.0",
+    "@videoplayer/shared-contracts": "0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "eslint": "^9.23.0",
+    "prisma": "6.9.0",
+    "typescript": "^5.8.2",
+    "vitest": "^4.1.11"
+  }
+}

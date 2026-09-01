@@ -1,0 +1,4 @@
+dependency,failure_action,affected_result,unaffected_result,recovery_result
+live MySQL,compose stop live-mysql,live ready 503,identity/content/governance/gateway 200,live ready 200
+SRS,set SRS_API_BASE to 127.0.0.1:1,room start 503,identity/governance/gateway 200,same room start 200 then ENDED
+MinIO,compose stop content-minio,valid upload 500,identity/live/governance/gateway 200,valid upload 200

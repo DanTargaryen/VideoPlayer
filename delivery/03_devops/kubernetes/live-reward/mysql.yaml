@@ -1,0 +1,90 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: live-reward-mysql
+  namespace: video-player-live-reward
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: live-reward-mysql
+  namespace: video-player-live-reward
+spec:
+  selector:
+    app.kubernetes.io/name: live-reward-mysql
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: mysql
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: live-reward-mysql
+  namespace: video-player-live-reward
+  labels:
+    app.kubernetes.io/name: live-reward-mysql
+    app.kubernetes.io/part-of: video-player-live-reward
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: live-reward-mysql
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: live-reward-mysql
+        app.kubernetes.io/part-of: video-player-live-reward
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: mysql
+              containerPort: 3306
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: live-reward-secrets
+                  key: mysql-root-password
+            - name: MYSQL_DATABASE
+              value: live_reward
+            - name: MYSQL_USER
+              value: live_reward
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: live-reward-secrets
+                  key: mysql-password
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - mysqladmin ping -h 127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD"
+            initialDelaySeconds: 5
+            periodSeconds: 3
+            timeoutSeconds: 2
+            failureThreshold: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          volumeMounts:
+            - name: mysql-data
+              mountPath: /var/lib/mysql
+      volumes:
+        - name: mysql-data
+          persistentVolumeClaim:
+            claimName: live-reward-mysql

@@ -1,0 +1,142 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("GOVERNANCE_DATABASE_URL")
+}
+
+enum GovernanceTargetType {
+  VIDEO
+  COMMENT
+  VIDEO_DANMAKU
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+enum CommentAiTaskStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+enum ReportStatus {
+  PENDING
+  PROCESSED
+  REJECTED
+}
+
+enum ModerationAction {
+  APPROVE
+  REJECT
+  KEEP
+  HIDE
+  DELETE
+}
+
+enum ModerationApplyStatus {
+  PENDING
+  DECIDED
+  APPLY_PENDING
+  APPLYING
+  APPLIED
+  WITHDRAWN
+  APPLY_FAILED_RETRYABLE
+  APPLY_FAILED_FINAL
+}
+
+model VideoReview {
+  id         Int          @id @default(autoincrement())
+  videoId    String       @db.VarChar(191)
+  reviewerId Int?
+  requestId  String       @unique @db.VarChar(128)
+  status     ReviewStatus @default(PENDING)
+  reason     String?      @db.VarChar(255)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  reviewedAt DateTime?
+
+  @@index([videoId, createdAt])
+  @@index([status, createdAt])
+}
+
+model CommentAiTask {
+  id          Int                  @id @default(autoincrement())
+  targetType  GovernanceTargetType
+  targetId    String               @db.VarChar(191)
+  videoId     String?              @db.VarChar(191)
+  requesterId Int
+  requestId   String               @unique @db.VarChar(128)
+  prompt      String               @db.VarChar(1000)
+  status      CommentAiTaskStatus  @default(PENDING)
+  attempts    Int                  @default(0)
+  lastError   String?              @db.VarChar(1024)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  completedAt DateTime?
+
+  @@index([targetType, targetId, createdAt])
+  @@index([status, updatedAt])
+  @@index([requesterId, createdAt])
+}
+
+model ReportRecord {
+  id             Int                  @id @default(autoincrement())
+  reporterId     Int
+  handlerId      Int?
+  targetType     GovernanceTargetType
+  targetId       String               @db.VarChar(191)
+  videoId        String?              @db.VarChar(191)
+  targetSnapshot Json?
+  pendingKey     String?              @unique @db.VarChar(160)
+  requestId      String               @unique @db.VarChar(128)
+  reason         String               @db.VarChar(255)
+  status         ReportStatus         @default(PENDING)
+  handleNote     String?              @db.VarChar(255)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  handledAt      DateTime?
+
+  @@index([status, createdAt])
+  @@index([targetType, targetId, createdAt])
+  @@index([reporterId, createdAt])
+}
+
+model ModerationDecision {
+  id                      Int                   @id @default(autoincrement())
+  decisionId              String                @unique @db.VarChar(128)
+  requestId               String                @unique @db.VarChar(128)
+  withdrawRequestId       String?               @unique @db.VarChar(128)
+  targetType              GovernanceTargetType
+  targetId                String                @db.VarChar(191)
+  videoId                 String?               @db.VarChar(191)
+  reportId                Int?
+  notificationRecipientId Int?
+  decision                ModerationAction?
+  reason                  String?               @db.VarChar(255)
+  operatorId              Int?
+  applyStatus             ModerationApplyStatus @default(PENDING)
+  attempts                Int                   @default(0)
+  lastError               String?               @db.VarChar(1024)
+  decidedAt               DateTime?
+  appliedAt               DateTime?
+  nextRetryAt             DateTime?
+  leaseToken              String?               @db.VarChar(128)
+  leaseExpiresAt          DateTime?
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+
+  @@index([targetType, targetId, createdAt])
+  @@index([applyStatus, nextRetryAt])
+  @@index([applyStatus, leaseExpiresAt])
+  @@index([operatorId, createdAt])
+  @@index([reportId])
+}

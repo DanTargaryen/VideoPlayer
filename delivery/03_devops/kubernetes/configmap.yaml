@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: videoplayer-config
+  namespace: video-player
+data:
+  NODE_ENV: production
+  PORT: "3000"
+  STORAGE_BACKEND: local
+  SRS_RTMP_BASE: rtmp://127.0.0.1/live
+  SRS_PLAY_BASE: http://127.0.0.1:8080/live
+  SRS_WEBRTC_BASE: webrtc://127.0.0.1/live
+  SRS_API_BASE: http://127.0.0.1:1985

@@ -41,6 +41,7 @@
     "test:services:ci": "npm run lint:services && npm run build:services && npm run test:services",
     "test:regression": "node --test test/regression/regression.test.mjs",
     "reg:01": "node test/regression/run.mjs",
+    "delivery:standalone": "node scripts/generate-delivery-standalone.mjs",
     "test:e2e": "playwright test",
     "test:ci": "npm --workspace backend run prisma:generate && npm run lint:backend && npm run lint:frontend && npm run lint:services && npm run build:backend && npm run build:frontend && npm run build:services && npm run test:requirements && npm test && npm run test:services && npm run test:regression"
   },

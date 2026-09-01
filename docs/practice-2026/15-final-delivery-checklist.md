@@ -11,8 +11,8 @@
 - [x] `01_source` 另有机器可读仓库清单和完整 Manifest：27 个 merged PR 的 head/merge SHA、最终主干 run，以及 `monolith-start` 到 `main@6d1ad50` 的 80 个 commit TSV 和 SHA-256。
 - [x] `02_docs` 索引需求、UC01–UC06、三层模型、服务边界、测试计划和追溯。
 - [x] `02_docs` 提供 7 份 PDF / 99 页，并同时保留可编辑 Markdown/Mermaid 源；Poppler 全页渲染、边界和视觉 QA PASS。
-- [x] `03_devops` 索引 Compose、Kubernetes、migration、CI/CD、回滚和 Secret 约束。
-- [x] `04_tests` 索引单元/API/E2E、REG-01、HPA、故障与性能证据。
+- [x] `03_devops` 直接保存 Docker/Compose、Kubernetes/Kustomize、migration、CI/CD、部署/回滚实体文件，并提供来源 Manifest 和 SHA-256；不再依赖仓库外索引。
+- [x] `04_tests` 直接保存单元/API/E2E/REG 测试源码、运行配置、HPA/故障/性能脚本和实验 CSV；不再依赖仓库外索引。
 - [x] `04_tests` 固定最终成功 run 的三个完整 job log、Playwright HTML、Kind 原始文件、实验 CSV、run/artifact JSON 和 SHA-256。
 - [x] `05_management` 索引任务板、站会、决策和贡献权重模板，并显式标记未确认项。
 - [x] `06_defense` 包含最终 PPTX、技术总结、演示脚本和备用录屏拍摄清单。

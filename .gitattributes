@@ -3,5 +3,18 @@ package-lock.json whitespace=cr-at-eol
 
 # Course delivery exports and upstream raw reports must not be parsed as source text.
 *.pdf binary
-delivery/04_tests/raw/**/*.log binary
-delivery/04_tests/raw/**/playwright-report/*.html binary
+
+# Standalone delivery manifests are generated with canonical LF text bytes so
+# their SHA-256 values remain stable on Windows core.autocrlf checkouts.
+delivery/01_source/** text eol=lf
+delivery/02_docs/pdf/README.md text eol=lf
+delivery/02_docs/pdf/qa.json text eol=lf
+delivery/02_docs/pdf/checksums.sha256 text eol=lf
+delivery/supplemental-pdf-checksums.sha256 text eol=lf
+delivery/supplemental-pdf-qa.json text eol=lf
+delivery/03_devops/** text eol=lf
+delivery/04_tests/** text eol=lf
+
+# The frozen upstream evidence package is byte-for-byte provenance, including
+# JSON, CSV, logs, and the Playwright report. Never rewrite its line endings.
+delivery/04_tests/raw/** binary
