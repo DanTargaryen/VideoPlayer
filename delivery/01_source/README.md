@@ -1,60 +1,95 @@
-# 01_source：源代码、版本与远端变更
+# 01_source：代码仓库与版本提交清单
 
-## 仓库与基线
+## 交付结论
 
-- 仓库：<https://github.com/DanTargaryen/VideoPlayer>
-- 受保护基线：`main`；验收时用 `git rev-parse origin/main` 记录准确 SHA。
-- 单体 annotated tag：`monolith-start`。
-- tag 指向 commit：`70d197dc1a1f6febfdc7dcb12d8661384ad5d31e`（`test(practice): close monolith baseline smoke (#39)`）。
-- 四业务服务、Gateway 与 shared-contracts 的 package version：`0.1.0`；发布镜像使用 Git SHA tag，不用 `latest` 作为证据。
+本目录按任务书“**代码或仓库清单**”中的“仓库清单”形式交付。VideoPlayer 是单一公开 monorepo；这里不在仓库内部再次复制整套源码，避免目录递归、重复依赖和版本不一致。验收人可通过下表中的公开仓库、固定 tag 和完整 commit SHA 获取改造前后源码。
 
-复核命令：
+| 项目 | 交付值 |
+| --- | --- |
+| GitHub 仓库 | <https://github.com/DanTargaryen/VideoPlayer> |
+| 可见性 | `PUBLIC`（2026-09-01 已通过 GitHub API 复核） |
+| 默认/受保护分支 | `main` |
+| 改造前版本 | annotated tag `monolith-start` |
+| 改造前 commit | `70d197dc1a1f6febfdc7dcb12d8661384ad5d31e` |
+| 改造后最终版本 | `main@6d1ad504db90abf93a408a660e4ffabcc6ddd088` |
+| 完整变更范围 | 已合并 PR #40–#65、#67；PR #66 仍 OPEN，不属于 final main；`monolith-start` 之后共 80 个 commit |
+| 最终主干 CI | [GitHub Actions run 33467743557](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33467743557)，merge SHA 上 3/3 jobs success |
+
+## 本目录文件
+
+| 文件 | 用途 |
+| --- | --- |
+| [`README.md`](README.md) | 给验收人的入口说明、检出方法和服务版本 |
+| [`repository-list.tsv`](repository-list.tsv) | 单仓库机器可读清单：URL、可见性、分支、改造前后 ref/commit |
+| [`complete-change-manifest.md`](complete-change-manifest.md) | 原系统 tag、微服务版本、已合并 PR #40–#65/#67、未合并 PR #66 排除说明、merge SHA 和远端 run |
+| [`all-commits.tsv`](all-commits.tsv) | 从 `monolith-start` 到最终 `main` 的 80 个完整提交记录 |
+| [`checksums.sha256`](checksums.sha256) | 上述三个生成文件的 SHA-256 完整性校验 |
+
+以上机器可读文件由仓库脚本 [`scripts/generate-delivery-source-manifest.mjs`](../../scripts/generate-delivery-source-manifest.mjs) 生成。
+
+## 获取改造前和改造后源码
 
 ```bash
+git clone https://github.com/DanTargaryen/VideoPlayer.git
+cd VideoPlayer
 git fetch origin --tags --prune
-git status --short --branch
-git rev-parse origin/main
-git rev-parse monolith-start^{}
-git show -s --format='%H %ad %s' --date=iso-strict monolith-start^{}
-for file in services/*/package.json; do
-  node -e 'const p=require("./"+process.argv[1]); console.log(p.name, p.version)' "$file"
-done
+
+# 改造前原系统源码
+git switch --detach monolith-start^{}
+
+# 改造后最终源码
+git switch --detach 6d1ad504db90abf93a408a660e4ffabcc6ddd088
 ```
 
-## 最终技术 PR 与远端 CI
+版本身份复核：
 
-完整、可重新生成的版本与提交记录：
+```bash
+git rev-parse monolith-start
+git rev-parse monolith-start^{}
+git rev-parse origin/main
+git show -s --format='%H %ad %s' --date=iso-strict monolith-start^{}
+git show -s --format='%H %ad %s' --date=iso-strict 6d1ad504db90abf93a408a660e4ffabcc6ddd088
+git log --reverse --format='%H%x09%ad%x09%an%x09%s' \
+  --date=iso-strict monolith-start^{}..6d1ad504db90abf93a408a660e4ffabcc6ddd088
+```
 
-- [改造版本与完整提交 Manifest](complete-change-manifest.md)：原单体 tag、六 workspace 版本、PR #40–#62、head/merge SHA、合并时间和远端 run。
-- [全部 72 个 commit（TSV）](all-commits.tsv)：`monolith-start` 到 `main@bbe10fb` 的逐 commit 机器可读记录。
-- 生成器：`node scripts/generate-delivery-source-manifest.mjs`。
+目录文件校验：
 
-下表保留最终技术 Gate 的快速索引；完整清单以 Manifest 为准。
+```bash
+cd delivery/01_source
+shasum -a 256 -c checksums.sha256
+```
 
-| PR | 任务 | 合并证据 | GitHub-hosted run |
-| --- | --- | --- | --- |
-| [#48](https://github.com/DanTargaryen/VideoPlayer/pull/48) | CI-01 远端稳定性与 Kind CD | merged | [33324914355](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33324914355) |
-| [#49](https://github.com/DanTargaryen/VideoPlayer/pull/49) | 四服务统一 Foundation DoD | merged | [33328399081](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33328399081) |
-| [#50](https://github.com/DanTargaryen/VideoPlayer/pull/50) | identity/content 只读切流 | merged | [33329693032](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33329693032) |
-| [#51](https://github.com/DanTargaryen/VideoPlayer/pull/51) | identity 历史迁移与写切流 | merged | [33330723156](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33330723156) |
-| [#52](https://github.com/DanTargaryen/VideoPlayer/pull/52) | content 历史数据迁移 | merged | [33333121815](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33333121815) |
-| [#53](https://github.com/DanTargaryen/VideoPlayer/pull/53) | content 互动读写切流 | merged | [33337900513](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33337900513) |
-| [#54](https://github.com/DanTargaryen/VideoPlayer/pull/54) | content 上传、投稿与发布 | merged | [33344821161](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33344821161) |
-| [#55](https://github.com/DanTargaryen/VideoPlayer/pull/55) | live/governance 迁移、切流、UC05/06 | merged | [33352991611](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33352991611) |
-| [#56](https://github.com/DanTargaryen/VideoPlayer/pull/56) | REG-01 双目标六 UC | merged | [33359785882](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33359785882) |
-| [#57](https://github.com/DanTargaryen/VideoPlayer/pull/57) | HPA、故障恢复与性能实验 | merged | [33367170484](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33367170484) |
-| [#58](https://github.com/DanTargaryen/VideoPlayer/pull/58) | DEL-01 六目录、三层模型、PPTX 与最终证据 | merged；`main@993d699` | [33372482927](https://github.com/DanTargaryen/VideoPlayer/actions/runs/33372482927) |
+如果课程平台必须上传离线源码压缩包，可在仓库外生成两个固定版本快照；不要把 `.git`、`node_modules`、`.env`、日志或密钥放入压缩包：
 
-PR #48–#62 的最终 run 均为 `quality`、`public-e2e`、`versioned-images` 3/3 jobs success，并在合并前完成 Owner 书面自审。最新交付树为 `main@bbe10fb935bfa3ce96051e2262168143dcbf5187`；逐 PR 详情与 72 个 commit 见完整 Manifest。
+```bash
+git archive --format=zip --prefix=VideoPlayer-monolith-start/ \
+  --output=../VideoPlayer-monolith-start.zip monolith-start^{}
+git archive --format=zip --prefix=VideoPlayer-main-6d1ad50/ \
+  --output=../VideoPlayer-main-6d1ad50.zip 6d1ad504db90abf93a408a660e4ffabcc6ddd088
+```
 
-## 服务边界
+## 改造后服务版本
 
-| Workspace | 事实所有权 | 独立运行端口 |
-| --- | --- | --- |
-| `@videoplayer/identity-community` | 用户、资料、关系、社区动态、通知 | 3101 |
-| `@videoplayer/content-media` | 视频、资产、分类、互动、观看与 MinIO | 3102 |
-| `@videoplayer/live-reward` | 房间、Session、观众、消息、录播登记与币账本 | 3103 |
-| `@videoplayer/governance-ai` | 提审、举报、处置、审计与补偿 | 3104 |
-| `@videoplayer/gateway` | 统一入口、身份转发、能力白名单与单体回滚 | 3100 |
+微服务和公共 workspace 使用各自 `package.json` 中的版本；容器镜像与部署证据使用 Git SHA，不把 `latest` 当作验收版本。
 
-31 张单体 Model 的唯一 owner 和不跨库直查规则见 [`docs/practice-2026/08-service-boundaries-and-data-ownership.md`](../../docs/practice-2026/08-service-boundaries-and-data-ownership.md)。
+| Workspace | 职责 | package version | 独立端口 |
+| --- | --- | --- | ---: |
+| `@videoplayer/shared-contracts` | 公共 health/version、错误与 API contract | `0.1.0` | — |
+| `@videoplayer/gateway` | 统一入口、身份转发、能力白名单与单体回滚 | `0.1.0` | 3100 |
+| `@videoplayer/identity-community` | 用户、资料、关系、动态与通知 | `0.1.0` | 3101 |
+| `@videoplayer/content-media` | 视频、资产、分类、互动、观看与 MinIO | `0.1.0` | 3102 |
+| `@videoplayer/live-reward` | 直播间、Session、消息、录播与币账本 | `0.1.0` | 3103 |
+| `@videoplayer/governance-ai` | 提审、举报、处置、审计与补偿 | `0.1.0` | 3104 |
+
+31 张单体 Model 的唯一 owner、服务边界和禁止跨库直查规则见 [`docs/practice-2026/08-service-boundaries-and-data-ownership.md`](../../docs/practice-2026/08-service-boundaries-and-data-ownership.md)。
+
+## 维护与边界
+
+主干前进后，在仓库根目录重新执行：
+
+```bash
+node scripts/generate-delivery-source-manifest.mjs
+```
+
+生成前必须先确认 `origin/main`、PR 范围和最终 Actions run，避免把尚未合并的分支误写成最终版本。`01_source` 不保存 `.env`、数据库口令、JWT/Token、MinIO Secret、私钥、`node_modules`、构建缓存或运行日志。

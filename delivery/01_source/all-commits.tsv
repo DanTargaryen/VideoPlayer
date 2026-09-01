@@ -71,3 +71,11 @@ a5b15627615e943fc2521df8b15a79d0c9f07c12	2026-08-31T17:04:17+08:00	Arya	Merge pu
 1050f9234d109e5ee4e1bab4bb7ca6482a905522	2026-08-31T17:33:45+08:00	Arya	Merge pull request #61 from DanTargaryen/docs/DEL-01-member-role-mapping
 c909875671a0f065df18183305bca6162211a660	2026-08-31T17:45:37+08:00	linming	docs(defense): align demo owners with A-E
 bbe10fb935bfa3ce96051e2262168143dcbf5187	2026-08-31T17:54:48+08:00	Arya	Merge pull request #62 from DanTargaryen/docs/DEL-01-defense-role-alignment
+6de4fdf3b902aab95661621c0236d2d8eba64fcd	2026-08-31T21:03:07+08:00	linming	docs(delivery): complete course evidence package
+198015f56f2f5d45b46a904110807658b174b7a7	2026-08-31T21:22:00+08:00	Arya	Merge pull request #63 from DanTargaryen/docs/DEL-01-complete-delivery-gaps
+b7115b60bda02d82e28f194f34cf533ebc9b9bfa	2026-09-01T10:26:34+08:00	linming	ci(actions): restore automatic main validation
+7fa3ed713a7422089b33564f645a631f92a4411c	2026-09-01T10:38:50+08:00	Arya	Merge pull request #64 from DanTargaryen/ci/CI-AUTO-01-actions-triggers
+11d9c87177cfed92f5414248d6ef6f6a4e91edc1	2026-09-01T10:46:24+08:00	linming	docs(practice): close automatic CI trigger evidence
+4069c8c03c4514c0de0c62e25bab6712e482b538	2026-09-01T10:50:13+08:00	Arya	Merge pull request #65 from DanTargaryen/docs/CI-AUTO-01-closeout
+abe3cf1f87c0012ebec886e6e23e6067c5cf1d56	2026-09-01T11:33:20+08:00	linming	test(frontend): cover search and video detail smoke
+6d1ad504db90abf93a408a660e4ffabcc6ddd088	2026-09-01T11:51:48+08:00	Arya	Merge pull request #67 from DanTargaryen/test/TEST-02-public-discovery-smoke
