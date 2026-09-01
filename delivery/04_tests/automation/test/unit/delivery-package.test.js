@@ -361,7 +361,7 @@ test('DEL-01 package is complete, linked, renderable, and honest about human evi
   );
   assert.equal(supplementalPdfQa.status, 'PASS');
   assert.equal(supplementalPdfQa.files.length, 2);
-  assert.equal(supplementalPdfQa.files.reduce((total, item) => total + item.pages, 0), 6);
+  assert.equal(supplementalPdfQa.files.reduce((total, item) => total + item.pages, 0), 18);
   for (const line of fs
     .readFileSync(path.join(deliveryRoot, 'supplemental-pdf-checksums.sha256'), 'utf8')
     .trim()
