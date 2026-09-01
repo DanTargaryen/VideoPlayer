@@ -336,7 +336,7 @@ describe('identity-community service', () => {
       secret,
       requestId: 'creator-stats-request',
     });
-    const creatorStats = await requestJson(baseUrl, '/internal/v1/users/2/creator-stats', {
+    const creatorStats = await requestJson(baseUrl, '/internal/v1/users/2/creator-stats?viewerId=3', {
       headers: { authorization: `Bearer ${creatorStatsToken}` },
     });
     expect(creatorStats.response.status).toBe(200);
@@ -345,6 +345,7 @@ describe('identity-community service', () => {
       followerCount: expect.any(Number),
       followingCount: expect.any(Number),
       followerTrend: expect.any(Array),
+      isFollowing: true,
     }));
 
     const notificationToken = issueServiceToken({

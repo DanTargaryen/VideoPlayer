@@ -9,8 +9,10 @@ COPY backend/scripts backend/scripts
 COPY frontend/package.json frontend/package.json
 COPY services services
 RUN for attempt in 1 2 3 4 5; do \
-      npm ci --ignore-scripts --workspace @videoplayer/shared-contracts --workspace @videoplayer/live-reward --include-workspace-root && exit 0; \
-      echo "npm ci failed on attempt ${attempt}; retrying..."; \
+      timeout --signal=TERM --kill-after=30s "$SERVICE_BUILD_ATTEMPT_TIMEOUT" \
+        npm ci --ignore-scripts --workspace @videoplayer/shared-contracts --workspace @videoplayer/live-reward --include-workspace-root && exit 0; \
+      status=$?; \
+      echo "npm ci attempt ${attempt} failed or timed out with exit ${status}; retrying..."; \
       sleep $((attempt * 10)); \
     done; \
     exit 1
@@ -24,6 +26,8 @@ RUN for attempt in 1 2 3 4 5; do \
     exit 1
 
 FROM build AS migration
+RUN npm prune --omit=dev --workspace @videoplayer/live-reward --include-workspace-root \
+    && npm cache clean --force
 ENV NODE_ENV=production
 CMD ["npm", "--workspace", "@videoplayer/live-reward", "run", "db:migrate"]
 

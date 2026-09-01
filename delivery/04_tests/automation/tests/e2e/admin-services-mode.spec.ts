@@ -1,19 +1,16 @@
 import { expect, test } from '@playwright/test';
 
-const adminToken = process.env.SERVICES_MODE_ADMIN_TOKEN;
-const creatorToken = process.env.SERVICES_MODE_CREATOR_TOKEN;
-const servicesAdminToken = adminToken ?? '';
+const adminToken = requiredEnvironment('SERVICES_MODE_ADMIN_TOKEN');
+const creatorToken = requiredEnvironment('SERVICES_MODE_CREATOR_TOKEN');
 
 test.describe('admin dashboard through the services-mode gateway', () => {
-  test.skip(!adminToken || !creatorToken, 'services-mode tokens are provided by the isolated Compose smoke');
-
   test.beforeEach(async ({ page }) => {
     await page.addInitScript((token) => {
       localStorage.setItem('vp_token', token);
       localStorage.setItem('vp_user_id', '2');
       localStorage.setItem('vp_role', 'admin');
       localStorage.setItem('vp_nickname', '中文管理员');
-    }, servicesAdminToken);
+    }, adminToken);
   });
 
   test('renders service-owned metrics and snapshots, then moderates the real text target', async ({ page }) => {
@@ -24,7 +21,7 @@ test.describe('admin dashboard through the services-mode gateway', () => {
         headers: { authorization: `Bearer ${token}` },
       });
       return { status: response.status, payload: await response.json() };
-    }, creatorToken ?? '');
+    }, creatorToken);
     expect(submission.status).toBe(200);
     expect(submission.payload.data).toMatchObject({ videoId: 3, status: 'PENDING_REVIEW' });
 
@@ -56,3 +53,11 @@ test.describe('admin dashboard through the services-mode gateway', () => {
     expect((await moderationResponse).ok()).toBe(true);
   });
 });
+
+function requiredEnvironment(name: string): string {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(`${name} is required for services-mode browser tests; the suite must not skip`);
+  }
+  return value;
+}

@@ -60,13 +60,13 @@ describe('content identity batch client', () => {
 
   it('reads identity-owned creator profile and follower trend', async () => {
     const baseUrl = await listen(createServer((request, response) => {
-      expect(request.url).toBe('/internal/v1/users/7/creator-stats');
+      expect(request.url).toBe('/internal/v1/users/7/creator-stats?viewerId=9');
       const token = String(request.headers.authorization).replace(/^Bearer\s+/i, '');
       const claims = verifyServiceToken(token, { audience: 'identity-community', secret, requiredScopes: ['internal:user-summary'], allowedCallers: ['content-media'] });
       response.setHeader('content-type', 'application/json');
-      response.end(JSON.stringify({ requestId: claims.requestId, data: { user: { id: 7, username: 'creator', nickname: '创作者', avatarUrl: null, bio: 'bio', email: 'creator@example.com', messagePrivacy: 'ALLOW_ALL', role: 'USER', createdAt: '2026-08-31T00:00:00.000Z' }, followerCount: 5, followingCount: 2, followerTrend: [{ date: '2026-08-31', followerCount: 5 }] } }));
+      response.end(JSON.stringify({ requestId: claims.requestId, data: { user: { id: 7, username: 'creator', nickname: '创作者', avatarUrl: null, bio: 'bio', email: 'creator@example.com', messagePrivacy: 'ALLOW_ALL', role: 'USER', createdAt: '2026-08-31T00:00:00.000Z' }, followerCount: 5, followingCount: 2, followerTrend: [{ date: '2026-08-31', followerCount: 5 }], isFollowing: true } }));
     }));
-    const stats = await new HttpIdentityBatchClient(baseUrl, secret, 500).creatorStats('7', 'creator-stats-client');
-    expect(stats).toMatchObject({ user: { id: 7, username: 'creator' }, followerCount: 5, followingCount: 2, followerTrend: [{ followerCount: 5 }] });
+    const stats = await new HttpIdentityBatchClient(baseUrl, secret, 500).creatorStats('7', 'creator-stats-client', '9');
+    expect(stats).toMatchObject({ user: { id: 7, username: 'creator' }, followerCount: 5, followingCount: 2, followerTrend: [{ followerCount: 5 }], isFollowing: true });
   });
 });

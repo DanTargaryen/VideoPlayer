@@ -90,6 +90,24 @@ test('unified K8s deploy imports local-platform images and restarts workloads af
   const script = readFileSync(path.join(root, 'scripts/k8s-deploy-microservices.sh'), 'utf8');
   assert.match(script, /docker save -o "\$image_archive"/);
   assert.match(script, /ctr --namespace=k8s\.io images import/);
+  assert.match(script, /archive_and_release_migration/);
+  assert.match(script, /crictl rmi "\$image"/);
+  assert.match(script, /KIND_RELEASE_LOCAL_IMAGES_AFTER_IMPORT/);
+  assert.match(script, /docker image rm "\$image"/);
+  assert.match(script, /mysql_root_exec/);
+  assert.match(script, /mysql -h 127\.0\.0\.1 -uroot/);
+  assert.equal([...script.matchAll(/mysql -h 127\.0\.0\.1/g)].length, 5);
+  assert.match(script, /for attempt in \$\(seq 1 30\)/);
+  assert.ok(
+    script.indexOf('archive_and_release_migration identity-migrate')
+      < script.indexOf('load_kind_image "$content_migration_image"'),
+    'migration images must be released before the next image is imported',
+  );
+  assert.ok(
+    script.indexOf('archive_and_release_migration governance-migrate')
+      < script.indexOf('for image in "${runtime_images[@]}"'),
+    'runtime images must be imported only after migration images are released',
+  );
   assert.match(script, /set image statefulset\/content-minio/);
   assert.match(script, /rollout restart "deployment\/\$service"/);
 });

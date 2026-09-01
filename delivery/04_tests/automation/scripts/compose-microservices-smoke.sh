@@ -11,6 +11,8 @@ CONTENT_DB_ROOT_PASSWORD=${CONTENT_DB_ROOT_PASSWORD:-$(node -e 'process.stdout.w
 CONTENT_MINIO_ACCESS_KEY=${CONTENT_MINIO_ACCESS_KEY:-contentmedia}
 CONTENT_MINIO_SECRET_KEY=${CONTENT_MINIO_SECRET_KEY:-$(node -e 'process.stdout.write(require("node:crypto").randomBytes(24).toString("hex"))')}
 CONTENT_MINIO_BUCKET=${CONTENT_MINIO_BUCKET:-videoplayer-content}
+CONTENT_MINIO_HOST_PORT=${CONTENT_MINIO_HOST_PORT:-9000}
+CONTENT_MINIO_CONSOLE_HOST_PORT=${CONTENT_MINIO_CONSOLE_HOST_PORT:-9001}
 LIVE_REWARD_DATABASE_NAME=${LIVE_REWARD_DATABASE_NAME:-video_player_live_reward_test}
 LIVE_REWARD_DATABASE_USER=${LIVE_REWARD_DATABASE_USER:-live_reward}
 LIVE_REWARD_DATABASE_PASSWORD=${LIVE_REWARD_DATABASE_PASSWORD:-$(node -e 'process.stdout.write(require("node:crypto").randomBytes(24).toString("hex"))')}
@@ -22,6 +24,12 @@ GOVERNANCE_MYSQL_ROOT_PASSWORD=${GOVERNANCE_MYSQL_ROOT_PASSWORD:-$(node -e 'proc
 GATEWAY_ROUTE_MODE=${GATEWAY_ROUTE_MODE:-services}
 GATEWAY_READ_CUTOVER=${GATEWAY_READ_CUTOVER:-all}
 GATEWAY_WRITE_CUTOVER=${GATEWAY_WRITE_CUTOVER:-all}
+MICROSERVICE_COMPOSE_SCOPE=${MICROSERVICE_COMPOSE_SCOPE:-full}
+
+if [[ "$MICROSERVICE_COMPOSE_SCOPE" != "full" && "$MICROSERVICE_COMPOSE_SCOPE" != "browser" ]]; then
+  echo "MICROSERVICE_COMPOSE_SCOPE must be full or browser." >&2
+  exit 1
+fi
 
 for command_name in docker curl git node; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
@@ -94,6 +102,7 @@ export IMAGE_TAG GIT_SHA IDENTITY_DATABASE_NAME IDENTITY_DATABASE_USER IDENTITY_
 export IDENTITY_MYSQL_ROOT_PASSWORD IDENTITY_ADMIN_SECRET SERVICE_JWT_SECRET
 export IMAGE_TAG GIT_SHA CONTENT_DB_PASSWORD CONTENT_DB_ROOT_PASSWORD
 export CONTENT_MINIO_ACCESS_KEY CONTENT_MINIO_SECRET_KEY CONTENT_MINIO_BUCKET
+export CONTENT_MINIO_HOST_PORT CONTENT_MINIO_CONSOLE_HOST_PORT
 export LIVE_REWARD_DATABASE_NAME LIVE_REWARD_DATABASE_USER LIVE_REWARD_DATABASE_PASSWORD LIVE_REWARD_MYSQL_ROOT_PASSWORD
 export GOVERNANCE_DATABASE_NAME GOVERNANCE_DATABASE_USER GOVERNANCE_DATABASE_PASSWORD GOVERNANCE_MYSQL_ROOT_PASSWORD
 export GATEWAY_ROUTE_MODE GATEWAY_READ_CUTOVER GATEWAY_WRITE_CUTOVER
@@ -163,7 +172,12 @@ if ! curl -fsS 'http://127.0.0.1:5175/' >/dev/null 2>&1; then
   exit 1
 fi
 PLAYWRIGHT_BASE_URL='http://127.0.0.1:5175' SERVICES_MODE_ADMIN_TOKEN="$admin_token" SERVICES_MODE_CREATOR_TOKEN="$identity_token" \
-  npm exec playwright test tests/e2e/admin-services-mode.spec.ts tests/e2e/live-services-mode.spec.ts
+  npm run test:e2e:services
+
+if [[ "$MICROSERVICE_COMPOSE_SCOPE" == "browser" ]]; then
+  echo "Microservice services-mode UC01-UC06 browser regression passed without skipped Token suites."
+  exit 0
+fi
 
 report_response=$(curl -sS -X POST 'http://127.0.0.1:3100/api/v1/reports' \
   -H 'content-type: application/json' \
@@ -443,12 +457,12 @@ DATABASE_URL="$monolith_reg_database_url" \
 GIT_SHA="$GIT_SHA" \
 STORAGE_BACKEND='minio' \
 MINIO_ENDPOINT='127.0.0.1' \
-MINIO_PORT='9000' \
+MINIO_PORT="$CONTENT_MINIO_HOST_PORT" \
 MINIO_USE_SSL='false' \
 MINIO_ROOT_USER="$CONTENT_MINIO_ACCESS_KEY" \
 MINIO_ROOT_PASSWORD="$CONTENT_MINIO_SECRET_KEY" \
 MINIO_BUCKET='videoplayer-monolith-regression' \
-MINIO_PUBLIC_BASE_URL='http://127.0.0.1:9000' \
+MINIO_PUBLIC_BASE_URL="http://127.0.0.1:$CONTENT_MINIO_HOST_PORT" \
   node "$ROOT_DIR/backend/dist/main.js" >"$monolith_reg_log" 2>&1 &
 monolith_reg_pid=$!
 for _attempt in $(seq 1 60); do
@@ -509,7 +523,7 @@ compose stop content-minio >/dev/null
 FAULT_MODE='minio-failure' FAULT_USER_TOKEN="$identity_token" node "$ROOT_DIR/scripts/fault-experiment-probe.mjs"
 compose start content-minio >/dev/null
 for _attempt in $(seq 1 60); do
-  if curl -fsS 'http://127.0.0.1:9000/minio/health/ready' >/dev/null 2>&1; then break; fi
+  if curl -fsS "http://127.0.0.1:$CONTENT_MINIO_HOST_PORT/minio/health/ready" >/dev/null 2>&1; then break; fi
   sleep 1
 done
 FAULT_MODE='minio-recovery' FAULT_USER_TOKEN="$identity_token" node "$ROOT_DIR/scripts/fault-experiment-probe.mjs"
