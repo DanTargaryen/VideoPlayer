@@ -80,6 +80,10 @@
   - 完成内容：本地删除 `push` 和 `pull_request` 触发器，保留 `workflow_dispatch`；质量、E2E 和镜像 Job 内容不变。
   - 测试/验证：Workflow YAML 解析、触发器字段检查和 `git diff --check`。
   - 结果：commit `44d44f1` 已推送到 `main`；远端触发器仅剩 `workflow_dispatch`，本次 push 没有生成 Actions run。
+- [ ] `CI-AUTO-01` 恢复 PR 与主干 push 自动触发，并限制 PR 的部署范围。
+  - 完成内容：在独立分支 `ci/CI-AUTO-01-actions-triggers` 为 `monolith-ci` 增加目标为 `main` 的 `pull_request` 和 `push` 触发器，继续保留 `workflow_dispatch`；PR 自动执行 quality 与 public E2E，Git SHA 镜像和隔离 Kind 部署仅在 main push 或手动触发时执行。
+  - 测试/验证：系统 Ruby/Psych YAML 语法解析 PASS；无依赖触发矩阵断言 4/4 PASS；`git diff --check` PASS；`npm run test:ci` 283/283 PASS（requirements 131、backend 16、frontend 24、shared 9、identity 5、content 34、live 18、governance 29、Gateway 13、REG harness 4）。首次 Node 检查因仓库未安装 `yaml` 模块失败，Ruby `aliases:` 参数也不兼容系统 Ruby 2.6；改用兼容的 `YAML.load_file` 和无依赖语义断言后通过，未为一次性检查增加仓库依赖。
+  - 结果：`LOCAL PASS / REMOTE PENDING`。本地配置已完成，但 `origin/main` 在 PR 合并前仍是 manual-only；必须先验证 PR head 远端 run，再合并并以 main 的自动 `push` run 关闭本任务。
 - [x] `CI-RUN-CLEAN-01` 删除历史失败的 Actions 运行记录。
   - 完成内容：删除 9 条因 GitHub Billing 锁在 Runner 启动前失败的 `monolith-ci` runs，覆盖 3 条 main push、3 条 PR 和 3 条旧分支 push 记录。
   - 测试/验证：删除后失败 run 数量 0、全部 run 列表为空；`main@44d44f1` 与前一提交 `8a7368d` 的 Check Runs 均为 0；远端代码 SHA 未变化。
@@ -392,6 +396,7 @@
 | 2026-08-31 | DEL-01 技术交付与合并 | 建立六目录、最终 PPTX/总结/脚本/模板、UC01–05 三层模型、证据/追溯和自动交付测试；PR #58 两轮远端复核、Owner 自审后合并 | 本地 `test:ci` 283/283；PPT 10/10 + no overflow；runs `33371629258`/`33372482927` 3/3；每轮两个 Artifact 实检 | TECHNICAL DONE；`main@993d699`，SHA 镜像、2 migrations、Kind 0 restart、cleanup；真人复现/权重/签字/录屏/演练仍 PENDING |
 | 2026-08-31 | DEL-01 A–E 默认成员映射 | 用户提供五名成员/学号表并授权按行顺序对齐 A–E；同步 README、任务板、ARCH、启动会、TODO、交付管理/贡献模板和最终清单；新增映射证据边界 | `npm run test:ci` 283/283；delivery package mapping/link test 1/1；stale phrase、unchecked item 和 diff audit | PASS；A/林明、B/刘钟屹、C/李晓萌、D/张壮志、E/王一涵；个人贡献/权重/签字、实际参会、可用时间和备份人仍 PENDING |
 | 2026-08-31 | DEL-01 九项交付补齐 | 生成 PR #40–#62 / 72 commit manifest；补 README；固定最终 CI/Playwright/Kind/实验原始包；从可编辑源生成 7 份主 PDF/99 页和 2 份补充 PDF/6 页；登记并验证飞书平台、固定平台/8.25 PNG | `npm run test:ci` 283/283；manifest/raw/PDF generator；19 个原始证据文件与全部 SHA-256；PDF 105 页程序+视觉 QA；delivery package test；Notebook HTTP/渲染/控制台复验 | 自动交付项 PASS，严格统计 7 完整/2 部分/0 完全缺失。8.26–8.31 每日原件、权重签字、真实录屏/演练和教师/会议原件仍 PENDING |
+| 2026-09-01 | CI-AUTO-01 恢复自动触发 | 为 main PR 与 main push 恢复自动 GitHub Actions；手动入口保留；PR 不执行重量级 Kind，main push/手动触发执行完整三 Job | YAML 语法；触发矩阵 4/4；diff check；`npm run test:ci` 283/283 | LOCAL PASS / REMOTE PENDING；等待 PR head run、合并和 main push 自动 run，未提前宣称远端生效 |
 
 ## 4. 阻塞与需组长决定
 
