@@ -31,7 +31,11 @@ from reportlab.platypus import (
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "delivery" / "02_docs" / "pdf"
-FONT_PATH = Path("/System/Library/Fonts/Supplemental/Arial Unicode.ttf")
+FONT_CANDIDATES = [
+    Path("/System/Library/Fonts/Supplemental/Arial Unicode.ttf"),
+    Path("C:/Windows/Fonts/NotoSansSC-VF.ttf"),
+    Path("C:/Windows/Fonts/simhei.ttf"),
+]
 PAGE_WIDTH, PAGE_HEIGHT = A4
 CONTENT_WIDTH = PAGE_WIDTH - 34 * mm
 
@@ -63,9 +67,10 @@ PDF_GROUPS = [
 
 
 def register_fonts() -> None:
-    if not FONT_PATH.exists():
-        raise FileNotFoundError(f"CJK font missing: {FONT_PATH}")
-    pdfmetrics.registerFont(TTFont("DeliveryCJK", str(FONT_PATH)))
+    font_path = next((path for path in FONT_CANDIDATES if path.exists()), None)
+    if font_path is None:
+        raise FileNotFoundError(f"CJK font missing; checked: {FONT_CANDIDATES}")
+    pdfmetrics.registerFont(TTFont("DeliveryCJK", str(font_path)))
 
 
 def styles() -> dict[str, ParagraphStyle]:
@@ -320,7 +325,7 @@ def main() -> None:
         build_pdf(
             "VideoPlayer-技术总结报告.pdf",
             "观澜视频平台技术总结报告",
-            ["delivery/06_defense/technical-summary.md"],
+            ["delivery/06_defense/技术总结报告.md"],
             style_map,
             ROOT / "delivery" / "06_defense",
         ),

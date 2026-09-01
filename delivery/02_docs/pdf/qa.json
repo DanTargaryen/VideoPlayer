@@ -85,7 +85,7 @@
     }
   ],
   "supplemental_pdf_count": 2,
-  "supplemental_total_pages": 6,
+  "supplemental_total_pages": 17,
   "supplemental_files": [
     {
       "file": "contribution-weight-confirmation.pdf",
@@ -99,12 +99,12 @@
     },
     {
       "file": "VideoPlayer-技术总结报告.pdf",
-      "pages": 3,
-      "bytes": 197921,
+      "pages": 14,
+      "bytes": 319342,
       "minimum_text_characters": 150,
       "blank_pages": [],
       "out_of_bounds_words": [],
-      "rendered_pages": 3,
+      "rendered_pages": 14,
       "visual_review": "PASS (all pages rendered and inspected)"
     }
   ]

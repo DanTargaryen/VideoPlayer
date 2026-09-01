@@ -19,6 +19,13 @@ SUPPLEMENTAL_PDFS = [
 ]
 
 
+def checksum_bytes(file: Path) -> bytes:
+    bytes_value = file.read_bytes()
+    if file.suffix.lower() == ".pdf":
+        return bytes_value
+    return bytes_value.decode("utf8").replace("\r\n", "\n").replace("\r", "\n").encode("utf8")
+
+
 def verify_pdf(pdf_path: Path) -> dict:
     blank_pages: list[int] = []
     out_of_bounds: list[dict] = []
@@ -103,10 +110,13 @@ def main() -> None:
     if not all(value is True for key, value in report["checks"].items() if isinstance(value, bool)):
         report["status"] = "FAIL"
     (PDF_DIRECTORY / "qa.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf8")
-    checksum_files = sorted([*PDF_DIRECTORY.glob("*.pdf"), PDF_DIRECTORY / "README.md", PDF_DIRECTORY / "qa.json"])
+    checksum_files = sorted(
+        [*PDF_DIRECTORY.glob("*.pdf"), PDF_DIRECTORY / "README.md", PDF_DIRECTORY / "qa.json"],
+        key=lambda file: file.name.casefold(),
+    )
     checksum_lines = []
     for file in checksum_files:
-        checksum_lines.append(f"{hashlib.sha256(file.read_bytes()).hexdigest()}  {file.name}")
+        checksum_lines.append(f"{hashlib.sha256(checksum_bytes(file)).hexdigest()}  {file.name}")
     (PDF_DIRECTORY / "checksums.sha256").write_text("\n".join(checksum_lines) + "\n", encoding="utf8")
     supplemental_report = {
         "status": "PASS" if supplemental_pass else "FAIL",
@@ -115,7 +125,7 @@ def main() -> None:
     supplemental_qa = ROOT / "delivery" / "supplemental-pdf-qa.json"
     supplemental_qa.write_text(json.dumps(supplemental_report, ensure_ascii=False, indent=2) + "\n", encoding="utf8")
     supplemental_checksums = ROOT / "delivery" / "supplemental-pdf-checksums.sha256"
-    supplemental_checksums.write_text("\n".join(f"{hashlib.sha256(file.read_bytes()).hexdigest()}  {file.relative_to(ROOT / 'delivery')}" for file in SUPPLEMENTAL_PDFS) + "\n", encoding="utf8")
+    supplemental_checksums.write_text("\n".join(f"{hashlib.sha256(file.read_bytes()).hexdigest()}  {file.relative_to(ROOT / 'delivery').as_posix()}" for file in SUPPLEMENTAL_PDFS) + "\n", encoding="utf8")
     print(json.dumps(report, ensure_ascii=False))
     if report["status"] != "PASS":
         raise SystemExit(1)
