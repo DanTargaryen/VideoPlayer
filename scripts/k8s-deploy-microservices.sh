@@ -189,7 +189,7 @@ if ! kubectl -n "$NAMESPACE" wait --for=condition=complete job/identity-migrate 
   exit 1
 fi
 identity_database_list=$(kubectl -n "$NAMESPACE" exec statefulset/mysql -- \
-  env MYSQL_PWD="$IDENTITY_DATABASE_PASSWORD" mysql -N -u"$IDENTITY_DATABASE_USER" -e 'SHOW DATABASES')
+  env MYSQL_PWD="$IDENTITY_DATABASE_PASSWORD" mysql -h 127.0.0.1 -N -u"$IDENTITY_DATABASE_USER" -e 'SHOW DATABASES')
 grep -Fx "$IDENTITY_DATABASE_NAME" <<<"$identity_database_list" >/dev/null
 if grep -Fx 'video_player' <<<"$identity_database_list" >/dev/null; then
   echo "identity database account can access the monolith schema" >&2
@@ -206,7 +206,7 @@ if ! kubectl -n "$NAMESPACE" wait --for=condition=complete job/content-migrate -
   exit 1
 fi
 content_database_list=$(kubectl -n "$NAMESPACE" exec statefulset/mysql -- \
-  env MYSQL_PWD="$CONTENT_DB_PASSWORD" mysql -N -ucontent_media -e 'SHOW DATABASES')
+  env MYSQL_PWD="$CONTENT_DB_PASSWORD" mysql -h 127.0.0.1 -N -ucontent_media -e 'SHOW DATABASES')
 grep -Fx 'content_media' <<<"$content_database_list" >/dev/null
 if grep -Fx 'video_player' <<<"$content_database_list" >/dev/null || grep -Fx "$IDENTITY_DATABASE_NAME" <<<"$content_database_list" >/dev/null; then
   echo "content database account can access another service schema" >&2
@@ -223,7 +223,7 @@ if ! kubectl -n "$NAMESPACE" wait --for=condition=complete job/live-reward-migra
   exit 1
 fi
 live_database_list=$(kubectl -n "$NAMESPACE" exec statefulset/mysql -- \
-  env MYSQL_PWD="$LIVE_REWARD_DATABASE_PASSWORD" mysql -N -u"$LIVE_REWARD_DATABASE_USER" -e 'SHOW DATABASES')
+  env MYSQL_PWD="$LIVE_REWARD_DATABASE_PASSWORD" mysql -h 127.0.0.1 -N -u"$LIVE_REWARD_DATABASE_USER" -e 'SHOW DATABASES')
 grep -Fx "$LIVE_REWARD_DATABASE_NAME" <<<"$live_database_list" >/dev/null
 if grep -Fx 'video_player' <<<"$live_database_list" >/dev/null || grep -Fx "$IDENTITY_DATABASE_NAME" <<<"$live_database_list" >/dev/null || grep -Fx 'content_media' <<<"$live_database_list" >/dev/null; then
   echo "live-reward database account can access another service schema" >&2
@@ -240,7 +240,7 @@ if ! kubectl -n "$NAMESPACE" wait --for=condition=complete job/governance-migrat
   exit 1
 fi
 governance_database_list=$(kubectl -n "$NAMESPACE" exec statefulset/mysql -- \
-  env MYSQL_PWD="$GOVERNANCE_DATABASE_PASSWORD" mysql -N -u"$GOVERNANCE_DATABASE_USER" -e 'SHOW DATABASES')
+  env MYSQL_PWD="$GOVERNANCE_DATABASE_PASSWORD" mysql -h 127.0.0.1 -N -u"$GOVERNANCE_DATABASE_USER" -e 'SHOW DATABASES')
 grep -Fx "$GOVERNANCE_DATABASE_NAME" <<<"$governance_database_list" >/dev/null
 if grep -Fx 'video_player' <<<"$governance_database_list" >/dev/null || grep -Fx "$IDENTITY_DATABASE_NAME" <<<"$governance_database_list" >/dev/null || grep -Fx 'content_media' <<<"$governance_database_list" >/dev/null || grep -Fx "$LIVE_REWARD_DATABASE_NAME" <<<"$governance_database_list" >/dev/null; then
   echo "governance database account can access another service schema" >&2

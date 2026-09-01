@@ -96,6 +96,7 @@ test('unified K8s deploy imports local-platform images and restarts workloads af
   assert.match(script, /docker image rm "\$image"/);
   assert.match(script, /mysql_root_exec/);
   assert.match(script, /mysql -h 127\.0\.0\.1 -uroot/);
+  assert.equal([...script.matchAll(/mysql -h 127\.0\.0\.1/g)].length, 5);
   assert.match(script, /for attempt in \$\(seq 1 30\)/);
   assert.ok(
     script.indexOf('archive_and_release_migration identity-migrate')
