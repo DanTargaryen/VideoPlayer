@@ -1,0 +1,5 @@
+ALTER TABLE `CoinTransaction`
+  MODIFY COLUMN `videoId` VARCHAR(191) NULL;
+
+ALTER TABLE `VideoCoinContribution`
+  MODIFY COLUMN `videoId` VARCHAR(191) NOT NULL;

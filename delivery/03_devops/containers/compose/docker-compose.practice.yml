@@ -1,0 +1,121 @@
+name: video-player-practice
+
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env.practice}
+      MYSQL_DATABASE: video_player
+    ports:
+      - "3306:3306"
+    volumes:
+      - practice_mysql_data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - practice_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in .env.practice}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env.practice}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - practice_minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  srs:
+    image: ossrs/srs:5
+    environment:
+      CANDIDATE: 127.0.0.1
+    ports:
+      - "1935:1935"
+      - "8080:8080"
+      - "1985:1985"
+      - "8000:8000/udp"
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    image: video-player/backend:${IMAGE_TAG:-local}
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: mysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/video_player
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      STORAGE_BACKEND: minio
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_USE_SSL: "false"
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: video-player
+      MINIO_PUBLIC_BASE_URL: http://127.0.0.1:9000
+      MINIO_PUBLIC_DOWNLOAD: "true"
+      SRS_RTMP_BASE: rtmp://127.0.0.1/live
+      SRS_PLAY_BASE: http://127.0.0.1:8080/live
+      SRS_WEBRTC_BASE: webrtc://127.0.0.1/live
+      SRS_API_BASE: http://srs:1985
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env.practice}
+      ADMIN_SECRET: ${ADMIN_SECRET:?set ADMIN_SECRET in .env.practice}
+    command:
+      - sh
+      - -c
+      - npm --workspace backend run db:migrate && node backend/dist/main.js
+    ports:
+      - "3000:3000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      srs:
+        condition: service_started
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: frontend/Dockerfile
+    image: video-player/frontend:${IMAGE_TAG:-local}
+    ports:
+      - "5173:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  practice_mysql_data:
+  practice_redis_data:
+  practice_minio_data:

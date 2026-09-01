@@ -2,7 +2,7 @@
 
 > 状态：`TECHNICAL PACKAGE READY / HUMAN EVIDENCE PENDING`。
 >
-> 本目录汇总可从仓库验证的技术产物，不把模板、计划或自动生成文件冒充真人签名、成员复现和实际录屏。最终关闭条件见 [`docs/practice-2026/15-final-delivery-checklist.md`](../docs/practice-2026/15-final-delivery-checklist.md)。
+> 本目录汇总可从仓库验证的技术产物，不把模板、计划或自动生成文件冒充真人签名、成员复现和实际录屏。严格状态和剩余真人证据见本目录内的 [`requirements-audit.md`](requirements-audit.md)。
 
 任务书九项逐条判定见 [`requirements-audit.md`](requirements-audit.md)：当前严格状态为 **7 项完整、2 项部分完成、0 项完全缺失**。
 
@@ -12,12 +12,21 @@
 | --- | --- | --- |
 | [`01_source`](01_source/README.md) | 公开仓库清单、改造前后 ref、服务版本、PR/commit 与校验和 | 技术索引完成 |
 | [`02_docs`](02_docs/README.md) | 需求、用例、三层模型、设计、追溯与 PDF | 7 份 PDF / 99 页 + 可编辑源 |
-| [`03_devops`](03_devops/README.md) | Docker、CI/CD、K8s、migration、部署与回滚 | 技术索引完成 |
-| [`04_tests`](04_tests/README.md) | Unit/API/E2E/REG、HPA、故障、性能与原始报告 | 最终 run 离线原始包 + SHA-256 |
+| [`03_devops`](03_devops/README.md) | Docker、CI/CD、K8s、migration、部署与回滚 | 119 份实体副本 + 来源 Manifest + SHA-256 |
+| [`04_tests`](04_tests/README.md) | Unit/API/E2E/REG、HPA、故障、性能与原始报告 | 92 份测试/实验副本 + 19 份 raw evidence + SHA-256 |
 | [`05_management`](05_management/README.md) | 飞书管理平台、任务板、站会、贡献和权重确认 | 平台地址已验证；每日截图/签字待补 |
 | [`06_defense`](06_defense/README.md) | PPT、技术总结、演示脚本与备用录屏 | PPT/脚本完成；实际录屏待补 |
 
 ## 一次性技术验收
+
+只拿到 `delivery/` 时，可先离线验证两个实体材料目录：
+
+```bash
+(cd 03_devops && shasum -a 256 -c checksums.sha256)
+(cd 04_tests && shasum -a 256 -c checksums.sha256)
+```
+
+以下运行级验收需要 `01_source` 登记的完整仓库，而不是只需要本提交材料目录。
 
 在仓库根目录执行：
 

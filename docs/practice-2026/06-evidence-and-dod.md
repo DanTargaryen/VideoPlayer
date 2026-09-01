@@ -10,8 +10,8 @@
 | --- | --- | --- | --- |
 | [`01_source`](../../delivery/01_source/README.md) | 仓库、单体 tag、微服务版本、PR 与 workflow | A + 全员 | 技术索引完成 |
 | [`02_docs`](../../delivery/02_docs/README.md) | 需求、用例、三层模型、设计、测试计划/报告与追溯 | E + owner | 技术索引完成 |
-| [`03_devops`](../../delivery/03_devops/README.md) | Docker、CI/CD、K8s、migration、部署与回滚 | A + C/D | 技术索引完成 |
-| [`04_tests`](../../delivery/04_tests/README.md) | Unit/API/E2E/REG、HPA、故障、性能与 Artifact | E + owner | 技术索引完成 |
+| [`03_devops`](../../delivery/03_devops/README.md) | Docker、CI/CD、K8s、migration、部署与回滚 | A + C/D | 实体材料包完成；119 份副本 + SHA-256 |
+| [`04_tests`](../../delivery/04_tests/README.md) | Unit/API/E2E/REG、HPA、故障、性能与 Artifact | E + owner | 实体材料包完成；测试/实验副本 + 19 份 raw evidence |
 | [`05_management`](../../delivery/05_management/README.md) | 任务板、简报、决策、贡献和权重确认 | 组长 + E | 模板完成；真人原件待补 |
 | [`06_defense`](../../delivery/06_defense/README.md) | PPT、技术总结、5–8 分钟备用录屏、演示脚本 | E + 全员 | PPT/脚本完成；实际录屏待补 |
 

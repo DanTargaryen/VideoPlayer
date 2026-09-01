@@ -1,6 +1,6 @@
 # 课程任务书九项最终交付审计
 
-> 审计基线：`main@6d1ad504db90abf93a408a660e4ffabcc6ddd088` + 本次 `01_source` 清单刷新。
+> 审计基线：`main@481d683de584aeb9abaf6bb2df38f025bb514c30` + `03_devops`/`04_tests` 实体材料冻结包。
 >
 > 判定规则：只有仓库文件、可重跑命令、原始报告、外部可访问页面或真人原件才能标记完成。
 
@@ -10,9 +10,9 @@
 | ---: | --- | --- | --- | --- |
 | 1 | 原系统版本/tag；微服务版本；完整提交记录 | **完整** | `01_source/repository-list.tsv`、`complete-change-manifest.md`、`all-commits.tsv`、`checksums.sha256`、生成器 | 无仓库内缺口 |
 | 2 | README 环境、端口、启动、健康、测试账号、初始数据 | **完整** | 根 `README.md` 的版本/端口/health/账号/Seed 章节 | 无仓库内缺口 |
-| 3 | Dockerfile、流水线、K8s/Helm、数据库、部署/回滚 | **完整** | `03_devops/README.md`；7 Dockerfile、2 流水线入口、26 K8s YAML、迁移/rollback | 无仓库内缺口 |
-| 4 | Unit、API、E2E、测试报告和流水线原始报告 | **完整** | `04_tests/raw/github-run-33379394312/`；完整 logs、Playwright、Kind、JSON、CSV、SHA-256 | 无仓库内缺口 |
-| 5 | 压力脚本、原始结果、至少 3 次重复实验和分析 | **完整** | `scripts/performance-compare.mjs`、三轮 CSV、`13-resilience-performance-experiments.md` | 无仓库内缺口 |
+| 3 | Dockerfile、流水线、K8s/Helm、数据库、部署/回滚 | **完整** | `03_devops/containers/`、`pipelines/`、`kubernetes/`、`database/`、`deployment/`；119 份实体副本和 SHA-256 | 项目采用 Kubernetes/Kustomize，不含 Helm Chart；若课程强制 Helm 需另补 |
+| 4 | Unit、API、E2E、测试报告和流水线原始报告 | **完整** | `04_tests/automation/`、`automated-test-report.md`、`raw/github-run-33379394312/`；测试源码、完整 logs、Playwright、Kind、JSON、CSV、SHA-256 | 无仓库内缺口 |
+| 5 | 压力脚本、原始结果、至少 3 次重复实验和分析 | **完整** | `04_tests/load/`、`experiments/`、`experiment-summary.md`；脚本和三轮 CSV 均在交付目录内 | 无仓库内缺口 |
 | 6 | 场景、需求、设计、测试、追溯；可编辑/PDF/模型源 | **完整** | `02_docs/`、7 PDF/99 页、Markdown/Mermaid 源、`qa.json`、checksums | 无仓库内缺口 |
 | 7 | 服务划分图、接口、表归属、跨服务调用 | **完整** | `08-service-boundaries-and-data-ownership.md`、三层模型、31/31 owner | 无仓库内缺口 |
 | 8 | 管理平台地址、每日站会、每日看板/统计截图 | **部分** | 飞书核心地址、日期索引、8.31 条目已验证；平台与 8.25 两张截图已固定并校验 SHA | 需真人导出 8.26–8.31 每日实名简报与看板/统计截图原件 |
@@ -26,8 +26,8 @@
 | --- | --- | --- |
 | `01_source` | **完整** | 公开仓库、tag、版本、已合并 PR #40–#65/#67、未合并 #66 排除说明、80 commit TSV、SHA-256 和生成器齐全 |
 | `02_docs` | **完整** | 可编辑源、模型源、7 PDF/99 页和 QA 齐全 |
-| `03_devops` | **完整** | Docker、CI、K8s、数据库、部署/回滚齐全 |
-| `04_tests` | **完整** | 自动化、实验、完整原始报告离线包和 SHA-256 齐全 |
+| `03_devops` | **完整** | Docker、CI、K8s、数据库、部署/回滚实体文件、来源 Manifest 和 SHA-256 齐全 |
+| `04_tests` | **完整** | 自动化源码、压力脚本、实验 CSV、完整原始报告离线包和 SHA-256 齐全 |
 | `05_management` | **部分** | 飞书平台、8.25 截图和模板齐；其余每日截图、复现、权重/签字、会议原件缺 |
 | `06_defense` | **部分** | PPT、报告、脚本齐；实际录屏、演练和全员确认缺 |
 

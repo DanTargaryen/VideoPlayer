@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - mysql-service.yaml
+  - mysql-statefulset.yaml
+  - db-migrate-job.yaml
+  - backend-service.yaml
+  - backend-deployment.yaml
+  - frontend-service.yaml
+  - frontend-deployment.yaml
+images:
+  - name: video-player/backend
+    newTag: local
+  - name: video-player/frontend
+    newTag: local

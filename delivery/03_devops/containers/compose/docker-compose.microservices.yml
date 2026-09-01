@@ -1,0 +1,279 @@
+name: video-player-microservices
+
+x-service-health: &service-health
+  interval: 5s
+  timeout: 3s
+  retries: 20
+  start_period: 3s
+
+services:
+  identity-mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${IDENTITY_MYSQL_ROOT_PASSWORD:?IDENTITY_MYSQL_ROOT_PASSWORD is required}
+      MYSQL_DATABASE: ${IDENTITY_DATABASE_NAME:-video_player_identity_test}
+      MYSQL_USER: ${IDENTITY_DATABASE_USER:-identity_app}
+      MYSQL_PASSWORD: ${IDENTITY_DATABASE_PASSWORD:?IDENTITY_DATABASE_PASSWORD is required}
+    healthcheck:
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent"]
+    volumes:
+      - identity-mysql-data:/var/lib/mysql
+
+  identity-migrate:
+    build:
+      context: ..
+      dockerfile: services/identity-community/Dockerfile
+      target: migration
+    image: video-player/identity-community-migration:${IMAGE_TAG:-local}
+    environment:
+      IDENTITY_DATABASE_URL: mysql://${IDENTITY_DATABASE_USER:-identity_app}:${IDENTITY_DATABASE_PASSWORD:?IDENTITY_DATABASE_PASSWORD is required}@identity-mysql:3306/${IDENTITY_DATABASE_NAME:-video_player_identity_test}
+      MIGRATION_DEPLOY_ALLOWED_TARGET: identity-mysql:3306/${IDENTITY_DATABASE_NAME:-video_player_identity_test}
+      MIGRATION_DEPLOY_CONFIRM: DEPLOY_MIGRATIONS
+    depends_on:
+      identity-mysql:
+        condition: service_healthy
+
+  content-mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: content_media
+      MYSQL_USER: content_media
+      MYSQL_PASSWORD: ${CONTENT_DB_PASSWORD:-content-media-local-only}
+      MYSQL_ROOT_PASSWORD: ${CONTENT_DB_ROOT_PASSWORD:-content-root-local-only}
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    volumes:
+      - content-mysql-data:/var/lib/mysql
+    healthcheck:
+      <<: *service-health
+      start_period: 15s
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+
+  content-migrate:
+    build:
+      context: ..
+      dockerfile: services/content-media/Dockerfile
+      target: migration
+    image: video-player/content-media-migrate:${IMAGE_TAG:-local}
+    environment:
+      CONTENT_DATABASE_URL: mysql://content_media:${CONTENT_DB_PASSWORD:-content-media-local-only}@content-mysql:3306/content_media
+    depends_on:
+      content-mysql:
+        condition: service_healthy
+
+  content-minio:
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${CONTENT_MINIO_ACCESS_KEY:?CONTENT_MINIO_ACCESS_KEY is required}
+      MINIO_ROOT_PASSWORD: ${CONTENT_MINIO_SECRET_KEY:?CONTENT_MINIO_SECRET_KEY is required}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - content-minio-data:/data
+
+  live-mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: ${LIVE_REWARD_DATABASE_NAME:-video_player_live_reward_test}
+      MYSQL_USER: ${LIVE_REWARD_DATABASE_USER:-live_reward}
+      MYSQL_PASSWORD: ${LIVE_REWARD_DATABASE_PASSWORD:?LIVE_REWARD_DATABASE_PASSWORD is required}
+      MYSQL_ROOT_PASSWORD: ${LIVE_REWARD_MYSQL_ROOT_PASSWORD:?LIVE_REWARD_MYSQL_ROOT_PASSWORD is required}
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    volumes:
+      - live-mysql-data:/var/lib/mysql
+    healthcheck:
+      <<: *service-health
+      start_period: 15s
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent"]
+
+  live-migrate:
+    build:
+      context: ..
+      dockerfile: services/live-reward/Dockerfile
+      target: migration
+    image: video-player/live-reward-migration:${IMAGE_TAG:-local}
+    environment:
+      LIVE_REWARD_DATABASE_URL: mysql://${LIVE_REWARD_DATABASE_USER:-live_reward}:${LIVE_REWARD_DATABASE_PASSWORD:?LIVE_REWARD_DATABASE_PASSWORD is required}@live-mysql:3306/${LIVE_REWARD_DATABASE_NAME:-video_player_live_reward_test}
+      MIGRATION_DEPLOY_ALLOWED_TARGET: live-mysql:3306/${LIVE_REWARD_DATABASE_NAME:-video_player_live_reward_test}
+      MIGRATION_DEPLOY_CONFIRM: DEPLOY_MIGRATIONS
+    depends_on:
+      live-mysql:
+        condition: service_healthy
+
+  governance-mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: ${GOVERNANCE_DATABASE_NAME:-video_player_governance_test}
+      MYSQL_USER: ${GOVERNANCE_DATABASE_USER:-governance_app}
+      MYSQL_PASSWORD: ${GOVERNANCE_DATABASE_PASSWORD:?GOVERNANCE_DATABASE_PASSWORD is required}
+      MYSQL_ROOT_PASSWORD: ${GOVERNANCE_MYSQL_ROOT_PASSWORD:?GOVERNANCE_MYSQL_ROOT_PASSWORD is required}
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    volumes:
+      - governance-mysql-data:/var/lib/mysql
+    healthcheck:
+      <<: *service-health
+      start_period: 15s
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent"]
+
+  governance-migrate:
+    build:
+      context: ..
+      dockerfile: services/governance-ai/Dockerfile
+      target: migration
+    image: video-player/governance-ai-migration:${IMAGE_TAG:-local}
+    environment:
+      GOVERNANCE_DATABASE_URL: mysql://${GOVERNANCE_DATABASE_USER:-governance_app}:${GOVERNANCE_DATABASE_PASSWORD:?GOVERNANCE_DATABASE_PASSWORD is required}@governance-mysql:3306/${GOVERNANCE_DATABASE_NAME:-video_player_governance_test}
+    depends_on:
+      governance-mysql:
+        condition: service_healthy
+
+  identity-community:
+    build:
+      context: ..
+      dockerfile: services/identity-community/Dockerfile
+    image: video-player/identity-community:${IMAGE_TAG:-local}
+    environment:
+      PORT: 3000
+      GIT_SHA: ${GIT_SHA:-dev}
+      IDENTITY_DATABASE_URL: mysql://${IDENTITY_DATABASE_USER:-identity_app}:${IDENTITY_DATABASE_PASSWORD:?IDENTITY_DATABASE_PASSWORD is required}@identity-mysql:3306/${IDENTITY_DATABASE_NAME:-video_player_identity_test}
+      IDENTITY_ADMIN_SECRET: ${IDENTITY_ADMIN_SECRET:?IDENTITY_ADMIN_SECRET is required}
+      SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET:?SERVICE_JWT_SECRET is required}
+    depends_on:
+      identity-migrate:
+        condition: service_completed_successfully
+    ports:
+      - "3101:3000"
+    healthcheck:
+      <<: *service-health
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+
+  content-media:
+    build:
+      context: ..
+      dockerfile: services/content-media/Dockerfile
+    image: video-player/content-media:${IMAGE_TAG:-local}
+    environment:
+      PORT: 3000
+      GIT_SHA: ${GIT_SHA:-dev}
+      CONTENT_DATABASE_URL: mysql://content_media:${CONTENT_DB_PASSWORD:-content-media-local-only}@content-mysql:3306/content_media
+      MINIO_ENDPOINT: content-minio
+      MINIO_PORT: 9000
+      MINIO_USE_SSL: "false"
+      MINIO_ROOT_USER: ${CONTENT_MINIO_ACCESS_KEY:?CONTENT_MINIO_ACCESS_KEY is required}
+      MINIO_ROOT_PASSWORD: ${CONTENT_MINIO_SECRET_KEY:?CONTENT_MINIO_SECRET_KEY is required}
+      MINIO_BUCKET: ${CONTENT_MINIO_BUCKET:-videoplayer-content}
+      IDENTITY_SERVICE_URL: http://identity-community:3000
+      LIVE_SERVICE_URL: http://live-reward:3000
+      GOVERNANCE_SERVICE_URL: http://governance-ai:3000
+      SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET:?SERVICE_JWT_SECRET is required}
+    ports:
+      - "3102:3000"
+    depends_on:
+      content-migrate:
+        condition: service_completed_successfully
+      identity-community:
+        condition: service_healthy
+      live-reward:
+        condition: service_healthy
+      content-minio:
+        condition: service_started
+    healthcheck:
+      <<: *service-health
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+
+  live-reward:
+    build:
+      context: ..
+      dockerfile: services/live-reward/Dockerfile
+    image: video-player/live-reward:${IMAGE_TAG:-local}
+    environment:
+      PORT: 3000
+      GIT_SHA: ${GIT_SHA:-dev}
+      LIVE_REWARD_DATABASE_URL: mysql://${LIVE_REWARD_DATABASE_USER:-live_reward}:${LIVE_REWARD_DATABASE_PASSWORD:?LIVE_REWARD_DATABASE_PASSWORD is required}@live-mysql:3306/${LIVE_REWARD_DATABASE_NAME:-video_player_live_reward_test}
+      CONTENT_SERVICE_URL: http://content-media:3000
+      IDENTITY_SERVICE_URL: http://identity-community:3000
+      SRS_API_BASE: ${SRS_API_BASE:-}
+      SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET:?SERVICE_JWT_SECRET is required}
+    depends_on:
+      live-migrate:
+        condition: service_completed_successfully
+      identity-community:
+        condition: service_healthy
+    ports:
+      - "3103:3000"
+    healthcheck:
+      <<: *service-health
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+
+  governance-ai:
+    build:
+      context: ..
+      dockerfile: services/governance-ai/Dockerfile
+    image: video-player/governance-ai:${IMAGE_TAG:-local}
+    environment:
+      PORT: 3000
+      GIT_SHA: ${GIT_SHA:-dev}
+      GOVERNANCE_DATABASE_URL: mysql://${GOVERNANCE_DATABASE_USER:-governance_app}:${GOVERNANCE_DATABASE_PASSWORD:?GOVERNANCE_DATABASE_PASSWORD is required}@governance-mysql:3306/${GOVERNANCE_DATABASE_NAME:-video_player_governance_test}
+      CONTENT_MEDIA_BASE_URL: http://content-media:3000
+      IDENTITY_COMMUNITY_BASE_URL: http://identity-community:3000
+      SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET:?SERVICE_JWT_SECRET is required}
+    depends_on:
+      governance-migrate:
+        condition: service_completed_successfully
+      identity-community:
+        condition: service_healthy
+      content-media:
+        condition: service_healthy
+    ports:
+      - "3104:3000"
+    healthcheck:
+      <<: *service-health
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: services/gateway/Dockerfile
+    image: video-player/gateway:${IMAGE_TAG:-local}
+    environment:
+      PORT: 3000
+      GIT_SHA: ${GIT_SHA:-dev}
+      GATEWAY_ROUTE_MODE: ${GATEWAY_ROUTE_MODE:-monolith}
+      GATEWAY_READ_CUTOVER: ${GATEWAY_READ_CUTOVER:-identity-community,content-media}
+      GATEWAY_WRITE_CUTOVER: ${GATEWAY_WRITE_CUTOVER:-none}
+      MONOLITH_BASE_URL: http://host.docker.internal:3000
+      IDENTITY_SERVICE_URL: http://identity-community:3000
+      CONTENT_SERVICE_URL: http://content-media:3000
+      LIVE_SERVICE_URL: http://live-reward:3000
+      GOVERNANCE_SERVICE_URL: http://governance-ai:3000
+      GATEWAY_MONOLITH_FALLBACK: "true"
+      GATEWAY_UPSTREAM_TIMEOUT_MS: 2000
+      SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET:?SERVICE_JWT_SECRET is required}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "3100:3000"
+    depends_on:
+      identity-community:
+        condition: service_healthy
+      content-media:
+        condition: service_healthy
+      live-reward:
+        condition: service_healthy
+      governance-ai:
+        condition: service_healthy
+    healthcheck:
+      <<: *service-health
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+
+volumes:
+  identity-mysql-data:
+  content-mysql-data:
+  content-minio-data:
+  live-mysql-data:
+  governance-mysql-data:

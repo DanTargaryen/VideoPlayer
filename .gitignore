@@ -94,4 +94,5 @@ docs/**/*.zip
 # Course-required final raw evidence package (explicit delivery exception)
 !delivery/04_tests/raw/
 !delivery/04_tests/raw/**
+delivery/04_tests/raw/**/.DS_Store
 
