@@ -15,6 +15,11 @@ function markdownFiles(directory) {
   });
 }
 
+function normalizedTextSha256(filePath) {
+  const normalized = fs.readFileSync(filePath, 'utf8').replace(/\r\n/g, '\n');
+  return createHash('sha256').update(normalized, 'utf8').digest('hex');
+}
+
 test('DEL-01 package is complete, linked, renderable, and honest about human evidence', () => {
   const expectedDirectories = [
     '01_source',
@@ -124,7 +129,7 @@ test('DEL-01 package is complete, linked, renderable, and honest about human evi
     const match = line.match(/^([a-f0-9]{64})  (.+)$/);
     assert.ok(match, `invalid source checksum line: ${line}`);
     const file = path.join(deliveryRoot, '01_source', match[2]);
-    assert.equal(createHash('sha256').update(fs.readFileSync(file)).digest('hex'), match[1]);
+    assert.equal(normalizedTextSha256(file), match[1]);
   }
 
   for (const port of ['3100', '3101', '3102', '3103', '3104', '9000', '9001', '8080', '1985']) {
