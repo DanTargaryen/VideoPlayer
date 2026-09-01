@@ -149,17 +149,26 @@ archive_and_release_migration() {
 
 kubectl apply -f "$ROOT_DIR/deploy/k8s/microservices/namespace.yaml"
 kubectl -n "$NAMESPACE" rollout status statefulset/mysql --timeout=240s
-kubectl -n "$NAMESPACE" exec statefulset/mysql -- \
-  env MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -e \
+mysql_root_exec() {
+  local statement=$1
+  for attempt in $(seq 1 30); do
+    if kubectl -n "$NAMESPACE" exec statefulset/mysql -- \
+      env MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -h 127.0.0.1 -uroot -e "$statement"; then
+      return 0
+    fi
+    if [[ "$attempt" -lt 30 ]]; then sleep 2; fi
+  done
+  echo "MySQL did not accept the idempotent microservice schema bootstrap." >&2
+  return 1
+}
+
+mysql_root_exec \
   "CREATE DATABASE IF NOT EXISTS \`$IDENTITY_DATABASE_NAME\`; CREATE USER IF NOT EXISTS '$IDENTITY_DATABASE_USER'@'%' IDENTIFIED BY '$IDENTITY_DATABASE_PASSWORD'; ALTER USER '$IDENTITY_DATABASE_USER'@'%' IDENTIFIED BY '$IDENTITY_DATABASE_PASSWORD'; GRANT ALL PRIVILEGES ON \`$IDENTITY_DATABASE_NAME\`.* TO '$IDENTITY_DATABASE_USER'@'%'; FLUSH PRIVILEGES;"
-kubectl -n "$NAMESPACE" exec statefulset/mysql -- \
-  env MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -e \
+mysql_root_exec \
   "CREATE DATABASE IF NOT EXISTS content_media CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE USER IF NOT EXISTS 'content_media'@'%' IDENTIFIED BY '${CONTENT_DB_PASSWORD}'; ALTER USER 'content_media'@'%' IDENTIFIED BY '${CONTENT_DB_PASSWORD}'; GRANT ALL PRIVILEGES ON content_media.* TO 'content_media'@'%'; FLUSH PRIVILEGES;"
-kubectl -n "$NAMESPACE" exec statefulset/mysql -- \
-  env MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -e \
+mysql_root_exec \
   "CREATE DATABASE IF NOT EXISTS \`$LIVE_REWARD_DATABASE_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE USER IF NOT EXISTS '$LIVE_REWARD_DATABASE_USER'@'%' IDENTIFIED BY '${LIVE_REWARD_DATABASE_PASSWORD}'; ALTER USER '$LIVE_REWARD_DATABASE_USER'@'%' IDENTIFIED BY '${LIVE_REWARD_DATABASE_PASSWORD}'; GRANT ALL PRIVILEGES ON \`$LIVE_REWARD_DATABASE_NAME\`.* TO '$LIVE_REWARD_DATABASE_USER'@'%'; FLUSH PRIVILEGES;"
-kubectl -n "$NAMESPACE" exec statefulset/mysql -- \
-  env MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -e \
+mysql_root_exec \
   "CREATE DATABASE IF NOT EXISTS \`$GOVERNANCE_DATABASE_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE USER IF NOT EXISTS '$GOVERNANCE_DATABASE_USER'@'%' IDENTIFIED BY '${GOVERNANCE_DATABASE_PASSWORD}'; ALTER USER '$GOVERNANCE_DATABASE_USER'@'%' IDENTIFIED BY '${GOVERNANCE_DATABASE_PASSWORD}'; GRANT ALL PRIVILEGES ON \`$GOVERNANCE_DATABASE_NAME\`.* TO '$GOVERNANCE_DATABASE_USER'@'%'; FLUSH PRIVILEGES;"
 kubectl -n "$NAMESPACE" create secret generic videoplayer-microservice-secrets \
   --from-literal=service-jwt-secret="$SERVICE_JWT_SECRET" \
