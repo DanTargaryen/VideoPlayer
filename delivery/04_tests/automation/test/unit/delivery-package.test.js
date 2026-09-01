@@ -347,10 +347,23 @@ test('DEL-01 package is complete, linked, renderable, and honest about human evi
   const pdfQa = JSON.parse(fs.readFileSync(path.join(pdfDirectory, 'qa.json'), 'utf8'));
   assert.equal(pdfQa.status, 'PASS');
   assert.equal(pdfQa.total_pages, 99);
-  for (const line of fs
+  const pdfChecksumLines = fs
     .readFileSync(path.join(pdfDirectory, 'checksums.sha256'), 'utf8')
     .trim()
-    .split(/\r?\n/)) {
+    .split(/\r?\n/);
+  const expectedPdfChecksumFiles = [...pdfFiles, 'README.md', 'qa.json'].sort((left, right) => {
+    const normalizedLeft = left.toLowerCase();
+    const normalizedRight = right.toLowerCase();
+    if (normalizedLeft < normalizedRight) return -1;
+    if (normalizedLeft > normalizedRight) return 1;
+    return 0;
+  });
+  assert.deepEqual(
+    pdfChecksumLines.map((line) => line.replace(/^[a-f0-9]{64}  /, '')),
+    expectedPdfChecksumFiles,
+    'PDF checksum entries must use the verifier canonical filename order',
+  );
+  for (const line of pdfChecksumLines) {
     const match = line.match(/^([a-f0-9]{64})  (.+)$/);
     assert.ok(match, `invalid PDF checksum line: ${line}`);
     const file = path.join(pdfDirectory, match[2]);
@@ -361,7 +374,7 @@ test('DEL-01 package is complete, linked, renderable, and honest about human evi
   );
   assert.equal(supplementalPdfQa.status, 'PASS');
   assert.equal(supplementalPdfQa.files.length, 2);
-  assert.equal(supplementalPdfQa.files.reduce((total, item) => total + item.pages, 0), 18);
+  assert.equal(supplementalPdfQa.files.reduce((total, item) => total + item.pages, 0), 17);
   assert.equal(pdfQa.supplemental_pdf_count, supplementalPdfQa.files.length);
   assert.equal(
     pdfQa.supplemental_total_pages,

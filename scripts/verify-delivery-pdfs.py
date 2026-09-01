@@ -110,7 +110,10 @@ def main() -> None:
     if not all(value is True for key, value in report["checks"].items() if isinstance(value, bool)):
         report["status"] = "FAIL"
     (PDF_DIRECTORY / "qa.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf8")
-    checksum_files = sorted([*PDF_DIRECTORY.glob("*.pdf"), PDF_DIRECTORY / "README.md", PDF_DIRECTORY / "qa.json"])
+    checksum_files = sorted(
+        [*PDF_DIRECTORY.glob("*.pdf"), PDF_DIRECTORY / "README.md", PDF_DIRECTORY / "qa.json"],
+        key=lambda file: file.name.casefold(),
+    )
     checksum_lines = []
     for file in checksum_files:
         checksum_lines.append(f"{hashlib.sha256(checksum_bytes(file)).hexdigest()}  {file.name}")
