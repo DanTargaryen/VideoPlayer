@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import type { RouteLocationNormalizedLoaded } from 'vue-router';
 import { primaryNavItems } from './navigation';
 import { resolveSectionTheme, resolveSectionThemeKey, sectionThemes } from './sectionThemes';
 
-const route = (path: string) => ({ path }) as any;
+const route = (path: string) => ({ path }) as RouteLocationNormalizedLoaded;
 
 describe('navigation and section themes', () => {
   it('starts navigation at recommend', () => expect(primaryNavItems[0]).toMatchObject({ code: 'recommend', path: '/' }));
