@@ -32,3 +32,13 @@
 - [ ] commit 完成后立即执行 push。
 - [ ] 保留终端与 Actions 中相同的 commit SHA。
 - [ ] 等待 Kubernetes 验证完成后登记 Run URL 和最终结果。
+
+## 第 3 次重录
+
+本轮重新录制完整的 push 自动触发流水线过程，并以本次新 commit 作为画面中的唯一版本标识。
+
+- [ ] 开始录屏后展示当前分支。
+- [ ] 展示本次新 commit 的完整 SHA。
+- [ ] 在同一段画面中执行 `git push`。
+- [ ] GitHub Actions 出现与本次 SHA 对应的新运行。
+- [ ] 流水线完成后展示 Kubernetes 验证和 Artifact。
