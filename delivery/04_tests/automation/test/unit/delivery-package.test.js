@@ -154,7 +154,7 @@ test('DEL-03-04 packages contain standalone DevOps, tests, load scripts, reports
     'text hashes must be stable across CRLF and LF checkouts',
   );
   const devopsEntries = verifyStandalonePackage('03_devops', 119);
-  const testEntries = verifyStandalonePackage('04_tests', 95);
+  const testEntries = verifyStandalonePackage('04_tests', 103);
 
   const categoryCount = (entries, category) => entries.filter((entry) => entry.category === category).length;
   assert.equal(categoryCount(devopsEntries, 'containers'), 15);
@@ -162,7 +162,7 @@ test('DEL-03-04 packages contain standalone DevOps, tests, load scripts, reports
   assert.equal(categoryCount(devopsEntries, 'kubernetes'), 35);
   assert.equal(categoryCount(devopsEntries, 'database'), 40);
   assert.equal(categoryCount(devopsEntries, 'deployment'), 7);
-  assert.equal(categoryCount(testEntries, 'automated-tests'), 64);
+  assert.equal(categoryCount(testEntries, 'automated-tests'), 72);
   assert.equal(categoryCount(testEntries, 'test-config'), 22);
   assert.equal(categoryCount(testEntries, 'test-harness'), 1);
   assert.equal(categoryCount(testEntries, 'load-and-resilience'), 3);
