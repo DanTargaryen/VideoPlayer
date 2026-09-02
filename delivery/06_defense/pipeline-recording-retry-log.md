@@ -23,3 +23,12 @@
 - [ ] Kubernetes 健康检查和 Pod 状态清晰可见。
 - [ ] 画面中没有密码、Token、Secret 或私人通知。
 - [ ] 流水线完成后展示 Artifact 和最终状态。
+
+## 第 2 次重录
+
+本轮用于重新拍摄从终端提交、push 到 GitHub Actions 自动启动的连续画面。
+
+- [ ] 录制开始后再创建本轮 commit。
+- [ ] commit 完成后立即执行 push。
+- [ ] 保留终端与 Actions 中相同的 commit SHA。
+- [ ] 等待 Kubernetes 验证完成后登记 Run URL 和最终结果。
