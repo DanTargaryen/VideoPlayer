@@ -21,7 +21,7 @@
 
 | 本地目录/文件 | 实体材料 | 数量 |
 | --- | --- | ---: |
-| [`automation/`](automation/) | Unit、Backend API、Frontend Vitest、微服务 contract/integration、Playwright E2E、REG runner、配置和 Compose Gate | 103 |
+| [`automation/`](automation/) | Unit、Backend API、Frontend Vitest、微服务 contract/integration、Playwright E2E、REG runner、配置和 Compose Gate | 95 |
 | [`load/`](load/) | 性能对比、HPA 扩缩容和依赖故障恢复脚本 | 3 |
 | [`experiments/`](experiments/) | HPA、故障恢复、旧单接口性能和三业务性能逐行 CSV 的便捷副本 | 4 |
 | [`raw/github-run-33379394312/`](raw/github-run-33379394312/) | 完整 run/artifact JSON、3 个 job log、Playwright HTML/日志、Kind evidence、实验 CSV 和内部 checksum | 19 个证据文件 |
