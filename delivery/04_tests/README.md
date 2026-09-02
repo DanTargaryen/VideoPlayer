@@ -21,14 +21,14 @@
 
 | 本地目录/文件 | 实体材料 | 数量 |
 | --- | --- | ---: |
-| [`automation/`](automation/) | Unit、Backend API、Frontend Vitest、微服务 contract/integration、Playwright E2E、REG runner、配置和 Compose Gate | 85 |
+| [`automation/`](automation/) | Unit、Backend API、Frontend Vitest、微服务 contract/integration、Playwright E2E、REG runner、配置和 Compose Gate | 103 |
 | [`load/`](load/) | 性能对比、HPA 扩缩容和依赖故障恢复脚本 | 3 |
 | [`experiments/`](experiments/) | HPA、故障恢复、旧单接口性能和三业务性能逐行 CSV 的便捷副本 | 4 |
 | [`raw/github-run-33379394312/`](raw/github-run-33379394312/) | 完整 run/artifact JSON、3 个 job log、Playwright HTML/日志、Kind evidence、实验 CSV 和内部 checksum | 19 个证据文件 |
 | [`automated-test-report.md`](automated-test-report.md) | 自动化层级、远端报告身份和结果汇总 | 1 |
 | [`experiment-summary.md`](experiment-summary.md) | 三轮性能、HPA 和故障恢复数据说明 | 1 |
 | [`tools/collect-delivery-raw-evidence.mjs`](tools/collect-delivery-raw-evidence.mjs) | 原始证据收集工具的实体副本 | 1 |
-| [`source-manifest.tsv`](source-manifest.tsv) | 每份复制文件的原仓库路径、交付路径和 SHA-256 | 95 条 |
+| [`source-manifest.tsv`](source-manifest.tsv) | 每份复制文件的原仓库路径、交付路径和 SHA-256 | 103 条 |
 | [`checksums.sha256`](checksums.sha256) | 本目录除清单自身外所有交付文件的 SHA-256 | 自动生成 |
 
 ## 自动化测试实体入口
